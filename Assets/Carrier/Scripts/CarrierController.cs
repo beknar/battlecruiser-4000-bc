@@ -210,6 +210,32 @@ namespace CarrierGame
         /// <summary>Start bringing the nose back to level (stops as soon as the pilot pitches).</summary>
         public void LevelOff() => autoLevel = true;
 
+        /// <summary>Something else is flying the ship (the warp drive): no throttle, rudder or
+        /// collisions from this controller until it is cleared.</summary>
+        [System.NonSerialized] public bool externalMotion;
+
+        /// <summary>Set the heading and nose angle directly (the warp drive lining up a jump).</summary>
+        public void SetAttitude(float newHeading, float newPitch)
+        {
+            heading = Mathf.Repeat(newHeading, 360f);
+            pitchAngle = Mathf.Clamp(newPitch, -maxPitch, maxPitch);
+            transform.rotation = Quaternion.Euler(-pitchAngle, heading, 0f);
+        }
+
+        /// <summary>Set the forward speed directly (m/s); elevator movement stops.</summary>
+        public void SetMotion(float newSpeed)
+        {
+            speed = newSpeed;
+            liftSpeed = 0f;
+        }
+
+        /// <summary>Where the ship comes back after being destroyed (the last place it warped to).</summary>
+        public void SetSpawn(Vector3 position, Quaternion rotation)
+        {
+            spawnPosition = position;
+            spawnRotation = rotation;
+        }
+
         void Update()
         {
             float dt = Time.deltaTime;
@@ -217,6 +243,11 @@ namespace CarrierGame
             {
                 // the wreckage flies on its own (ShipBreakup); the ship itself waits to respawn
                 if (hum != null) hum.volume = 0f;
+                return;
+            }
+            if (externalMotion)
+            {
+                UpdateLiftFlares(0f);
                 return;
             }
             speed = Mathf.MoveTowards(speed, throttle * maxSpeed, acceleration * dt);

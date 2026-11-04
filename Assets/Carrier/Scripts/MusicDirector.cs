@@ -95,6 +95,8 @@ namespace CarrierGame
             if (calm == null) return;
             bool fighting = Time.time < forcedUntil ||
                             (!eventDriven && Time.time - SoundFX.LastCombatTime < combatHold);
+            // enemies out of hiding close by: still a fight, even in a lull
+            if (!eventDriven && Camera.main != null && CombatPilot.AnyEngagedNear(Camera.main.transform.position, 12000f)) fighting = true;
             float target = fighting ? 1f : 0f;
             if (!synced && target > 0f && !combat.isPlaying) { combat.timeSamples = 0; combat.Play(); }
             float rate = 1f / (target > CombatMix ? fadeToCombat : fadeToCalm);

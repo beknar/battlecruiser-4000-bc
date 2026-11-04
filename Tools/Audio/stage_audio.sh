@@ -67,6 +67,11 @@ sfx UiAlert 3.5 0.8 "$SW/Vehicles/Sci-Fi Spaceship Interface Missile Incoming Wa
 sfx UiKill 0 0 "$HB/Starship Sound Effects/SFXs/wav/starship_ui_notification.wav"
 sfx BeamCharge 0 0 "$HB/Energy Sound Effects/SFXs/wav/energy_charging_05.wav"
 sfx BeamFire 0 0 "$SW/Weapons/Energy Weapons/Sci-Fi Heavy Beam Cannon Shot "{1,2}.wav
+# mini-warp: the drive spooling up, the jump, the travel hum and the drop out of warp
+sfx WarpCharge 3.2 0.5 "$HB/Starship Sound Effects/SFXs/wav/starship_engine_startup_01.wav"
+sfx WarpJump 0 0 "$SW/Energy/Sci-Fi Warp Energy Discharge 2.wav"
+sfx WarpExit 0 0 "$SW/Energy/Sci-Fi Warp Sound 1.wav" "$SW/Energy/Sci-Fi Warp Energy Discharge 4.wav"
+loop WarpLoop "$SW/Vehicles/Sci-Fi Spaceship Hyperdrive Engine Loop 1.wav"
 loop EngineLoop "$SW/Vehicles/Sci-Fi Spaceship Heavy Engine Loop 1.wav"
 loop AmbientLoop "$SW/Ambiences/Sci-Fi Deep Space Ambience Background Loop 1.wav"
 

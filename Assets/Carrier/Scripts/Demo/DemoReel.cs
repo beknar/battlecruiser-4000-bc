@@ -60,6 +60,8 @@ namespace CarrierGame.Demo
             cam = demo != null ? demo.orbitCamera : null;
             if (cc == null || cam == null) { Log("no demo controller in scene"); Application.Quit(); yield break; }
             if (AmbushDirector.Instance != null) seconds = 76f;
+            sysMap = FindAnyObjectByType<SystemMap>();
+            if (sysMap != null) seconds = 150f;     // ends a few seconds after the cruiser dies (see SystemShots)
             Log($"screen {Screen.width}x{Screen.height}, gfx {SystemInfo.graphicsDeviceType}, audio {AudioSettings.outputSampleRate} Hz {AudioSettings.speakerMode}, {seconds:F0} s");
 
             var eof = new WaitForEndOfFrame();
@@ -91,6 +93,7 @@ namespace CarrierGame.Demo
             if (frame < Warmup) return;
             float t = T;
             LogKills();
+            if (sysMap != null) { SystemShots(t); return; }
             if (AmbushDirector.Instance != null) { AsteroidShots(t, AmbushDirector.Instance); return; }
             if (!cc.HasHangar) { FrigateShots(t); return; }
 
@@ -285,6 +288,198 @@ namespace CarrierGame.Demo
 
             if (Cue(59.5f)) ReportSystems();
         }
+
+        // ------------------------------------------------------------------ star system shot list
+
+        SystemMap sysMap;
+        WarpDrive sysDrive;
+        EncounterGroup pirates;
+        Transform pirateCruiser;
+        int sysPhase;
+        float phaseAt, nextChargeAt = -1f, nextCut;
+        bool arrivedLogged;
+
+        void Phase(int p, float t) { sysPhase = p; phaseAt = t; }
+
+        WarpPoint WP(string name) => WarpPoint.All.FirstOrDefault(w => w.displayName == name);
+
+        /// <summary>The frigate at Thalassa opens the system map, browses it and warps to the gas
+        /// giant Jovara; opens the map again and warps across the system to the Outer Drift, where a
+        /// pirate cruiser and its drones ambush it from the rocks; it fights the drones off with its
+        /// CIWS and side guns and turns its bow gun on the cruiser until it is destroyed.</summary>
+        void SystemShots(float t)
+        {
+            float d = demo.ShipViewDistance;
+            if (sysDrive == null) sysDrive = cc.GetComponent<WarpDrive>();
+            if (pirates == null)
+            {
+                pirates = GameObject.Find("Pirates")?.GetComponent<EncounterGroup>();
+                pirateCruiser = pirates != null ? pirates.pilots.FirstOrDefault(pl => pl != null && pl.style == CombatPilot.Style.Capital)?.transform : null;
+            }
+            float u = t - phaseAt;   // time in the current phase
+
+            switch (sysPhase)
+            {
+                case 0:   // in orbit over Thalassa
+                    if (Cue(0f))
+                    {
+                        cc.throttle = 0.15f;
+                        SideGuns(false);
+                        Shot(0, cc.transform, demo.ShipViewOffset, d * 1.7f, cc.Heading + 150f, 6f, 3f);
+                    }
+                    if (Cue(4.5f)) { sysMap.Open(); Log($"{T,5:F1}s   map opened (selected {sysMap.Selected?.displayName})"); }
+                    if (Cue(5.6f)) sysMap.Select(WP("Steropes"));
+                    if (Cue(6.6f)) sysMap.Select(WP("Brontes"));
+                    if (Cue(7.6f)) sysMap.Select(WP("Jovara"));
+                    if (Cue(9.2f)) Warp(t, 1);
+                    break;
+
+                case 1:   // the first jump: charging, the jump, the tunnel
+                case 4:
+                    WarpShots(t, u, d);
+                    if (sysDrive.Current == WarpDrive.State.Ready && u > 2f) Arrived(t, sysPhase == 1 ? 2 : 5);
+                    break;
+
+                case 2:   // at Jovara: a look at the gas giant and its moons
+                    if (Cue(phaseAt + 0.1f)) Shot(10, cc.transform, demo.ShipViewOffset, d * 1.6f, cc.Heading + 25f, 8f, 0f);
+                    if (sysPhase == 2) FollowHeading(25f, 8f);
+                    if (Cue(phaseAt + 5f)) { sysMap.Open(); Phase(3, t); }
+                    break;
+
+                case 3:   // the map again: on to the Outer Drift
+                    if (Cue(phaseAt + 1.0f)) sysMap.Select(WP("Arges"));
+                    if (Cue(phaseAt + 2.0f)) sysMap.Select(WP("Kestrel"));
+                    if (Cue(phaseAt + 3.0f)) sysMap.Select(WP("Outer Drift"));
+                    if (Cue(phaseAt + 4.6f)) Warp(t, 4);
+                    break;
+
+                case 5:   // dropped out at the Outer Drift: the ambush
+                    if (Cue(phaseAt + 0.1f)) Shot(20, cc.transform, demo.ShipViewOffset, d * 1.8f, cc.Heading + 140f, 10f, 4f);
+                    if (Cue(phaseAt + 2.5f))
+                    {
+                        cc.throttle = 0.5f;
+                        // for the reel the cruiser stands and fights rather than retreating behind a rock
+                        var cp = pirateCruiser ? pirateCruiser.GetComponent<CombatPilot>() : null;
+                        if (cp) cp.hideBelow = 0.15f;
+                        if (pirates != null && !pirates.Active)
+                        {
+                            Log($"{T,5:F1}s   pirates not in sight yet: they break cover");
+                            pirates.Spring();
+                        }
+                        Log($"{T,5:F1}s   AMBUSH at the Outer Drift; warp drive now: {(sysDrive.InCombat(out string why) ? "locked, " + why : "ready")}");
+                    }
+                    if (Cue(phaseAt + 3.5f) && pirateCruiser) Shot(21, pirateCruiser, Vector3.zero, 1100f, Bearing(pirateCruiser.position, cc.transform.position) + 35f, 9f, 3f);
+                    if (Cue(phaseAt + 9.5f))
+                    {
+                        // CIWS and side guns on the drones
+                        var drone = CombatPilot.Nearest(pirates.pilots.Where(pl => pl != null && pl.style == CombatPilot.Style.Fighter), cc.transform.position);
+                        if (drone) demo.SelectTarget(drone.transform);
+                        SideGuns(true);
+                        ciwsSide = NearestDroneSide();
+                        ciwsCam = ClusterMount(ciwsSide);
+                        if (ciwsCam) Shot(22, ciwsCam.transform, new Vector3(0f, 3f, 0f), 30f, cc.Heading + 180f + ciwsSide * 50f, 22f, 0f);
+                    }
+                    if (shot == 22) cam.yaw = Mathf.LerpAngle(cam.yaw, cc.Heading + 180f + ciwsSide * 50f, Time.deltaTime * 2f);
+                    if (Cue(phaseAt + 15.5f)) Shot(23, cc.transform, demo.ShipViewOffset, d * 1.5f, cc.Heading - 120f, 14f, 5f);
+                    // turn the bow onto the cruiser and close in
+                    if (u > 15.5f && pirateCruiser)
+                    {
+                        if (nextChargeAt < float.MaxValue) cc.throttle = 1f;     // close in fast
+                        // while closing, cut between the cruiser and the frigate
+                        if (nextChargeAt < float.MaxValue && u > 21.5f && t >= nextCut)
+                        {
+                            nextCut = t + 7f;
+                            bool onCruiser = shot != 28;
+                            if (onCruiser) Shot(28, pirateCruiser, Vector3.zero, 1000f, Bearing(pirateCruiser.position, cc.transform.position) - 30f, 8f, 4f);
+                            else Shot(23, cc.transform, demo.ShipViewOffset, d * 1.3f, cc.Heading + 150f, 10f, 4f);
+                        }
+                        if (cc.target != pirateCruiser) demo.SelectTarget(pirateCruiser);
+                        var v = ShipAutopilot.BowOn(cc, pirateCruiser.position);
+                        demo.autoRudder = v.x;
+                        demo.autoPitch = v.y;
+                        if (Cue(phaseAt + 16f)) { Log($"{T,5:F1}s   closing on the cruiser ({Vector3.Distance(cc.transform.position, pirateCruiser.position) / 1000f:F1} km)"); nextChargeAt = t + 3f; }
+                    }
+                    // the bow gun: charge, fire, again if it's still flying
+                    var gun = demo.MainGun;
+                    var ch = pirateCruiser ? pirateCruiser.GetComponent<Health>() : null;
+                    if (gun && ch && !ch.Dead && nextChargeAt > 0f && t >= nextChargeAt && gun.Current == MainBeam.State.Idle)
+                    {
+                        float km = Vector3.Distance(cc.transform.position, pirateCruiser.position) / 1000f;
+                        if (km < 5.8f && Cover.Visible(cc.transform.position, pirateCruiser.position))
+                        {
+                            demo.ChargeMainGun();
+                            nextChargeAt = float.MaxValue;
+                            Log($"{T,5:F1}s   bow gun charging on the cruiser: {km:F1} km, {ShipAutopilot.BowError(cc, pirateCruiser.position):F0} deg off the bow, cruiser hull {ch.Current:F0}");
+                            Shot(24, gun.transform, Vector3.zero, 75f, cc.Heading + 150f, 8f, 0f);
+                        }
+                        else nextChargeAt = t + 0.5f;
+                    }
+                    if (shot == 24) cam.yaw = Mathf.LerpAngle(cam.yaw, cc.Heading + 150f, Time.deltaTime * 2f);
+                    if (gun && gun.Current == MainBeam.State.Charging && gun.ChargeTimeLeft < 3.5f && shot == 24)
+                        Shot(25, cc.transform, demo.ShipViewOffset, d * 0.85f, cc.Heading, 9f, 0f);
+                    if (shot == 25) FollowHeading(0f, 9f);
+                    if (gun && gun.Current == MainBeam.State.Firing && shot == 25 && pirateCruiser)
+                        Shot(26, pirateCruiser, Vector3.zero, 800f, Bearing(cc.transform.position, pirateCruiser.position) + 70f, 6f, 0f);
+                    if (gun && gun.Current == MainBeam.State.Idle && nextChargeAt == float.MaxValue && ch && !ch.Dead)
+                    {
+                        Log($"{T,5:F1}s   the cruiser survived the beam (hull {ch.Current:F0}): charging again");
+                        nextChargeAt = t + 1.5f;
+                        Shot(23, cc.transform, demo.ShipViewOffset, d * 1.5f, cc.Heading - 120f, 14f, 5f);
+                    }
+                    if (ch && ch.Dead)
+                    {
+                        Log($"{T,5:F1}s   the pirate cruiser is destroyed");
+                        demo.autoPitch = null;
+                        Phase(6, t);
+                    }
+                    break;
+
+                case 6:   // the end: pull back over the wreckage
+                    if (Cue(phaseAt + 1.5f)) Shot(27, cc.transform, demo.ShipViewOffset, d * 1.4f, cc.Heading + 60f, 16f, 6f);
+                    if (shot == 27) cam.distance = Mathf.Lerp(d * 1.4f, d * 3.5f, Smooth((t - phaseAt - 1.5f) / 5f));
+                    if (Cue(phaseAt + 6.5f))
+                    {
+                        ReportSystems();
+                        Log($"  warp trips: {sysDrive.Jumps}, last {sysDrive.LastTravelSeconds:F1} s over {sysDrive.LastDistance / 1000f:F0} km");
+                        seconds = Mathf.Min(seconds, t + 0.5f);
+                    }
+                    break;
+            }
+        }
+
+        void Warp(float t, int nextPhase)
+        {
+            var to = sysMap.Selected;
+            float km = sysDrive.DistanceTo(to) / 1000f, eta = sysDrive.chargeTime + sysDrive.TravelTimeTo(to);
+            bool ok = sysMap.WarpToSelected();
+            Log($"{T,5:F1}s   warp to {to?.displayName}: {km:F0} km, {eta:F1} s ({(ok ? "engaged" : "refused: " + sysDrive.LastMessage)})");
+            Phase(nextPhase, t);
+            Shot(nextPhase * 10 + 1, cc.transform, demo.ShipViewOffset, d0 * 1.0f, cc.Heading + 110f, 8f, 0f);
+            arrivedLogged = false;
+        }
+
+        float d0 => demo.ShipViewDistance;
+
+        /// <summary>Charging from the side, the tunnel from behind, then from off the quarter.</summary>
+        void WarpShots(float t, float u, float d)
+        {
+            int b = sysPhase * 10;
+            if (sysDrive.Current == WarpDrive.State.Charging) cam.yaw = Mathf.LerpAngle(cam.yaw, cc.Heading + 110f, Time.deltaTime * 2f);
+            if (sysDrive.Current == WarpDrive.State.Warping && shot == b + 1) Shot(b + 2, cc.transform, demo.ShipViewOffset, d * 0.9f, cc.Heading, 6f, 0f);
+            if (shot == b + 2)
+            {
+                FollowHeading(0f, 6f);
+                if (sysDrive.StateTime > Mathf.Min(4f, sysDrive.TravelTime * 0.5f)) Shot(b + 3, cc.transform, demo.ShipViewOffset, d * 1.1f, cc.Heading + 60f, 10f, 0f);
+            }
+            if (shot == b + 3) FollowHeading(60f, 10f);
+            if (sysDrive.Current == WarpDrive.State.Arriving && !arrivedLogged)
+            {
+                arrivedLogged = true;
+                Log($"{T,5:F1}s   dropped out of warp at {sysDrive.Destination?.displayName} after {sysDrive.LastTravelSeconds:F1} s in the tunnel");
+            }
+        }
+
+        void Arrived(float t, int next) => Phase(next, t);
 
         // ------------------------------------------------------------------ asteroid ambush shot list
 

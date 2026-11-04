@@ -31,6 +31,14 @@ namespace Carrier.EditorTools
         static readonly Vector3 BigAxes = new Vector3(1500f, 560f, 950f);
         const float RouteClearance = 240f;
 
+        /// <summary>0 below e0, 1 above e1, smooth in between (GLSL's smoothstep; Unity's
+        /// Mathf.SmoothStep is an interpolation between two values instead).</summary>
+        static float Edge(float e0, float e1, float x)
+        {
+            float t = Mathf.Clamp01((x - e0) / (e1 - e0));
+            return t * t * (3f - 2f * t);
+        }
+
         static int ObstacleLayer()
         {
             var tm = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset")[0]);
@@ -138,7 +146,7 @@ namespace Carrier.EditorTools
                         c = Color.Lerp(c, Color.Lerp(new Color(0.78f, 0.36f, 0.22f), new Color(0.95f, 0.70f, 0.52f), swirl), Mathf.Clamp01(1.6f - sd));
                     }
                     float pole = Mathf.Abs(lat - 0.5f) * 2f;
-                    c = Color.Lerp(c, new Color(0.55f, 0.53f, 0.52f), Mathf.SmoothStep(0.75f, 1f, pole) * 0.6f);
+                    c = Color.Lerp(c, new Color(0.55f, 0.53f, 0.52f), Edge(0.75f, 1f, pole) * 0.6f);
                     px[y * W + x] = c;
                 }
             }

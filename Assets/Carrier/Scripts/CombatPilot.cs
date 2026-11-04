@@ -39,6 +39,12 @@ namespace CarrierGame
         public float standoff = 1900f;
         public float circleSpeed = 4f;     // degrees per second round the target
 
+        [Header("Patrol")]
+        [Tooltip("Go back into hiding when the target gets this far from the lurking place (0 = never).")]
+        public float leashDistance = 0f;
+        [Tooltip("After being destroyed, respawn in hiding (weapons cold) instead of straight into the fight.")]
+        public bool relurkOnRespawn = false;
+
         [Header("Cover")]
         [Tooltip("Hide when the hull falls below this fraction.")]
         public float hideBelow = 0.35f;
@@ -61,6 +67,35 @@ namespace CarrierGame
         bool extending;
         Vector3 lurkPoint, extendPoint, hidePoint;
         Quaternion lurkRotation;
+
+        /// <summary>Every enemy pilot in the scene (the warp drive checks them for combat).</summary>
+        public static readonly System.Collections.Generic.List<CombatPilot> Active = new System.Collections.Generic.List<CombatPilot>();
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetActive() => Active.Clear();
+        void OnEnable() { if (!Active.Contains(this)) Active.Add(this); }
+        void OnDisable() => Active.Remove(this);
+
+        /// <summary>Is any enemy out of hiding, alive and within `range` of a point? (The warp drive
+        /// is locked, and the music stays on the combat track, while one is.)</summary>
+        public static bool AnyEngagedNear(Vector3 point, float range)
+        {
+            foreach (var p in Active)
+            {
+                if (p == null || p.Current == State.Lurk || (p.health != null && p.health.Dead)) continue;
+                if ((p.transform.position - point).sqrMagnitude < range * range) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Break off and go back into hiding, weapons cold.</summary>
+        public void Disengage()
+        {
+            if (Current == State.Lurk) return;
+            Current = State.Lurk;
+            extending = false;
+            if (weapons != null) weapons.weaponsFree = false;
+            if (health != null) hitsWhileLurking = health.Hits;
+        }
 
         void Awake()
         {
@@ -127,7 +162,7 @@ namespace CarrierGame
             transform.SetPositionAndRotation(lurkPoint, lurkRotation);
             speed = 0f;
             extending = false;
-            bool wasLurking = Current == State.Lurk;
+            bool wasLurking = Current == State.Lurk || relurkOnRespawn;
             Current = wasLurking ? State.Lurk : State.Engage;
             if (health != null) hitsWhileLurking = health.Hits;
             if (weapons != null) weapons.weaponsFree = !wasLurking;
@@ -158,6 +193,12 @@ namespace CarrierGame
                 targetMover = Motion.Of(target);
             }
             bool targetAlive = target != null && (targetHealth == null || !targetHealth.Dead);
+            // the target has left the area (warped out, or run): go back into hiding
+            if (leashDistance > 0f && target != null && (target.position - lurkPoint).sqrMagnitude > leashDistance * leashDistance)
+            {
+                Disengage();
+                return;
+            }
             if (Current == State.Engage && health != null && targetAlive &&
                 health.Current < health.maxHealth * hideBelow && Time.time >= nextHide && target != null &&
                 Cover.FindHidingPlace(pos, target.position, bodyRadius, hideSearch, out hidePoint))

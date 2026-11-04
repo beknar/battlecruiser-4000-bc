@@ -29,6 +29,8 @@ Shader "Carrier/PlanetAtmosphere"
             struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; };
             struct Varyings { float4 positionCS : SV_POSITION; float3 positionWS : TEXCOORD0; float3 normalWS : TEXCOORD1; };
 
+            float4 _CarrierStarPos;
+
             CBUFFER_START(UnityPerMaterial)
                 float4 _Color;
                 float _RimPower;
@@ -50,8 +52,10 @@ Shader "Carrier/PlanetAtmosphere"
                 float3 n = normalize(i.normalWS);
                 float3 viewDir = normalize(GetWorldSpaceViewDir(i.positionWS));
                 float rim = pow(1.0 - saturate(dot(n, viewDir)), _RimPower);
+                // lit from the system's star where there is one, otherwise by the main light
                 Light sun = GetMainLight();
-                float day = saturate(dot(n, sun.direction) * 0.8 + 0.35);
+                float3 toStar = _CarrierStarPos.w > 0.5 ? normalize(_CarrierStarPos.xyz - i.positionWS) : sun.direction;
+                float day = saturate(dot(n, toStar) * 0.8 + 0.35);
                 float glow = rim * lerp(_NightLevel, 1.0, day) * _Strength;
                 return half4(_Color.rgb * glow, 1);
             }

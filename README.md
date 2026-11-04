@@ -5,14 +5,31 @@ heavy cruiser and two recon drones. The frigate carries side guns, close-in poin
 beam that charges for 10 seconds and a hex shield. Every ship comes apart before it explodes.
 It plays with keyboard and mouse or an Xbox 360 / XInput gamepad.
 
-## Demo reel
+## Downloads and demo reels
+
+Both games are Windows builds (64-bit, DirectX 11). Unzip one and run the `.exe` inside. Every
+file is also on the [release page](https://github.com/beknar/battlecruiser-4000-bc/releases/tag/demo-reel-2026-11-03).
+
+| Game | Download | Demo reel |
+|---|---|---|
+| Carrier Demo (open space) | [battlecruiser-4000-bc-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-windows.zip) (79 MB) | [60 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-demo-reel.mp4) (72 MB) |
+| Asteroid Ambush | [battlecruiser-4000-bc-asteroid-ambush-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-windows.zip) (81 MB) | [76 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-reel.mp4) (93 MB) |
+
+### Carrier Demo
 
 [![The frigate's bow beam hitting the cruiser (click to download the demo reel)](docs/demo-reel-thumb.jpg)](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-demo-reel.mp4)
 
-**[Download the 60-second demo reel](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-demo-reel.mp4)**
-(MP4, 1080p, 72 MB; [release page](https://github.com/beknar/battlecruiser-4000-bc/releases/tag/demo-reel-2026-11-03)).
-It shows the side guns, CIWS against drones, the cruiser's cannons, missiles and beam hitting the
-shield, the 10-second bow beam with its deep charge and fire sound, and ships breaking apart.
+The reel shows the side guns, CIWS against drones, the cruiser's cannons, missiles and beam hitting
+the shield, the 10-second bow beam with its deep charge and fire sound, and ships breaking apart.
+
+### Asteroid Ambush
+
+[![The frigate skimming the big asteroid toward the gas giant (click to download the demo reel)](docs/asteroid-ambush-thumb.jpg)](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-reel.mp4)
+
+The reel opens with the frigate crossing a large asteroid to quiet travelling music and diving
+round its far end. There it is ambushed by fighters hidden under the rock, and the music switches
+to a battle track. Then the heavy cruiser and its drones come out from behind a boulder. The
+frigate fights back with its CIWS and side guns, and turns its bow beam on the cruiser.
 
 ## Features
 

@@ -52,7 +52,16 @@ namespace CarrierGame.Demo
             Application.targetFrameRate = 120;
             StartCoroutine(FixDisplayWhenReady());
             PadSupport.Init();
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // tell the page which graphics API it got: WebGPU, or the WebGL 2 fallback
+            CarrierPageGraphics(SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.WebGPU ? "WebGPU" : "WebGL 2");
+#endif
         }
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        [System.Runtime.InteropServices.DllImport("__Internal")]
+        static extern void CarrierPageGraphics(string name);   // Plugins/WebGL/CarrierPage.jslib
+#endif
 
         void OnDestroy() => PadSupport.Shutdown();
         void OnApplicationFocus(bool focus) { if (!focus) PadSupport.StopRumble(); }
@@ -154,7 +163,7 @@ namespace CarrierGame.Demo
             if (k.hKey.wasPressedThisFrame) showHelp = !showHelp;
             if (k.equalsKey.wasPressedThisFrame || k.numpadPlusKey.wasPressedThisFrame) TextSize(+1);
             if (k.minusKey.wasPressedThisFrame || k.numpadMinusKey.wasPressedThisFrame) TextSize(-1);
-            if (k.f11Key.wasPressedThisFrame) ToggleFullScreen();
+            if (k.f11Key.wasPressedThisFrame && !OnWeb) ToggleFullScreen();   // in a browser, F11 is the browser's
             if (k.nKey.wasPressedThisFrame) ToggleMute();
             if (carrier.Destroyed) return;   // nothing to fly or fight with until it respawns
 
@@ -297,10 +306,14 @@ namespace CarrierGame.Demo
             return $"<color={c}>{f:P0}</color>";
         }
 
+        /// <summary>The bar's block. The browser has no system fonts to fall back on, and the
+        /// built-in font has no '■'.</summary>
+        static readonly char Block = OnWeb ? '|' : '■';
+
         static string Bar(float k)
         {
             int n = Mathf.RoundToInt(Mathf.Clamp01(k) * 10f);
-            return "<color=#bfe6ff>" + new string('■', n) + "</color><color=#4a5560>" + new string('■', 10 - n) + "</color>";
+            return "<color=#bfe6ff>" + new string(Block, n) + "</color><color=#4a5560>" + new string(Block, 10 - n) + "</color>";
         }
 
         // ------------------------------------------------------------ gamepad
@@ -488,9 +501,13 @@ namespace CarrierGame.Demo
         static void TextSize(int dir) =>
             Hud.UserScale = Mathf.Clamp(Hud.UserScale + 0.15f * dir, 0.5f, 3f);
 
+        /// <summary>Running in a web browser (the page owns the window: no quitting, no resizing).</summary>
+        public static bool OnWeb => Application.platform == RuntimePlatform.WebGLPlayer;
+
         static void Quit()
         {
             PadSupport.StopRumble();
+            if (OnWeb) return;          // a web page can't close itself; the player closes the tab
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;
 #else
@@ -574,7 +591,7 @@ namespace CarrierGame.Demo
         /// command line (-screen-fullscreen / -screen-width) is left alone.</summary>
         System.Collections.IEnumerator FixDisplayWhenReady()
         {
-            if (Application.isEditor || HasArg("-screen-fullscreen") || HasArg("-screen-width") || HasArg("-autotest")) yield break;
+            if (Application.isEditor || OnWeb || HasArg("-screen-fullscreen") || HasArg("-screen-width") || HasArg("-autotest")) yield break;
             yield return new WaitForSecondsRealtime(1f);
             int w = Display.main.systemWidth, h = Display.main.systemHeight;
             if (Screen.fullScreenMode == FullScreenMode.FullScreenWindow && Screen.width == w && Screen.height == h) yield break;
@@ -592,6 +609,10 @@ namespace CarrierGame.Demo
 
         string keyHelp, padHelp;
 
+        /// <summary>The text for here, or for a browser: it has no system fonts to fall back on,
+        /// and the built-in font has no arrows.</summary>
+        static string W(string native, string web) => OnWeb ? web : native;
+
         /// <summary>The controls list, leaving out systems this ship doesn't have.</summary>
         string KeyHelp => keyHelp ??= string.Join("\n", new[]
         {
@@ -600,7 +621,7 @@ namespace CarrierGame.Demo
             MainGun != null ? "B main gun: charge (fires after 10 s)" : null,
             carrier.HasHangar ? "Q wing attack   E escort   R return to carrier" : null,
             "W/S throttle   A/D turn",
-            "↑/↓ nose up/down   L level off",
+            OnWeb ? "Up/Down arrows nose up/down   L level off" : "↑/↓ nose up/down   L level off",
             "Space/Ctrl elevator thrusters up/down",
             "T next target   click a ship to target",
             "X stop targeting",
@@ -608,15 +629,16 @@ namespace CarrierGame.Demo
             "Right-drag orbit   mouse wheel zoom",
             warp != null ? "M system map: mini-warp" : null,
             "H hide help   +/- text size   N sound",
-            "F11 window   Esc quit",
+            OnWeb ? "F11 full screen" : "F11 window   Esc quit",
         }.Where(l => l != null));
 
         string PadHelp => padHelp ??= string.Join("\n", new[]
         {
             "<b>Gamepad</b>",
             "Left stick  throttle / turn",
-            carrier.HasHangar ? "Right stick  orbit camera   LT/RT zoom" : "Right stick  orbit camera   D-pad ←/→ zoom",
-            carrier.HasHangar ? "D-pad  ↑ fighters  → drones  ↓ dropships  ← return" : "D-pad ↑/↓ nose up/down   A level off",
+            carrier.HasHangar ? "Right stick  orbit camera   LT/RT zoom" : W("Right stick  orbit camera   D-pad ←/→ zoom", "Right stick  orbit camera   D-pad left/right zoom"),
+            carrier.HasHangar ? W("D-pad  ↑ fighters  → drones  ↓ dropships  ← return", "D-pad  up fighters  right drones  down dropships  left return")
+                              : W("D-pad ↑/↓ nose up/down   A level off", "D-pad up/down  nose up/down   A level off"),
             carrier.HasHangar ? null : "LT/RT elevator thrusters down/up",
             carrier.HasHangar ? "A wing attack   X escort" : null,
             "Y next target   B stop targeting",
@@ -624,7 +646,7 @@ namespace CarrierGame.Demo
             "L3 auto-fire on/off" + (carrier.HasHangar ? "   R3 camera: carrier / craft" : ""),
             warp != null ? "R3 system map: mini-warp" : null,
             "Back hide help   Start sound",
-            "Back + D-pad ↑↓ text size   hold Back + Start quit",
+            OnWeb ? "Back + D-pad up/down text size" : "Back + D-pad ↑↓ text size   hold Back + Start quit",
         }.Where(l => l != null));
 
         bool showHelp = true;

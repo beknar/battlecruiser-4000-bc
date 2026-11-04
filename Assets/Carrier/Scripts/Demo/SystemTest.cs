@@ -27,24 +27,87 @@ namespace CarrierGame.Demo
         {
             var args = Environment.GetCommandLineArgs();
             int i = Array.IndexOf(args, "-systemtest");
-            if (i < 0) return;
+            // in a web build: open the page with ?systemtest, and the results go to the browser console
+            bool web = CarrierDemoInput.OnWeb && HasQueryKey(Application.absoluteURL, "systemtest");
+            if (i < 0 && !web) return;
             var t = new GameObject("SystemTest").AddComponent<SystemTest>();
-            t.dir = i + 1 < args.Length && !args[i + 1].StartsWith("-") ? args[i + 1] : Application.persistentDataPath;
+            t.web = web;
+            t.dir = i >= 0 && i + 1 < args.Length && !args[i + 1].StartsWith("-") ? args[i + 1] : Application.persistentDataPath;
+        }
+
+        bool web;
+
+        /// <summary>Is `key` one of the URL's query options (?key, ?key=..., &key...)?</summary>
+        static bool HasQueryKey(string url, string key)
+        {
+            if (string.IsNullOrEmpty(url)) return false;
+            int q = url.IndexOf('?');
+            if (q < 0) return false;
+            int hash = url.IndexOf('#', q);
+            string query = hash < 0 ? url.Substring(q + 1) : url.Substring(q + 1, hash - q - 1);
+            foreach (var part in query.Split('&'))
+                if (part.Split('=')[0] == key) return true;
+            return false;
         }
 
         void Log(string s)
         {
             log += $"{Time.time,6:F1}s  {s}\n";
+            if (web) { Debug.Log($"[SystemTest] {Time.time,6:F1}s  {s}"); return; }
             try { File.WriteAllText(Path.Combine(dir, "systemtest.txt"), log); } catch { }
         }
 
-        void Shot(string name) => ScreenCapture.CaptureScreenshot(Path.Combine(dir, name + ".png"));
+        void Shot(string name)
+        {
+            if (web) StartCoroutine(WebShot(name));
+            else ScreenCapture.CaptureScreenshot(Path.Combine(dir, name + ".png"));
+        }
+
+        /// <summary>A web page can't save files: the screenshot goes to the browser console as a
+        /// base64 JPEG, in numbered pieces, for a test harness to pick up. WebGPU only reads the GPU
+        /// back asynchronously (AsyncGPUReadback); elsewhere the frame is read straight back.</summary>
+        IEnumerator WebShot(string name)
+        {
+            yield return new WaitForEndOfFrame();
+            if (!SystemInfo.supportsAsyncGPUReadback)
+            {
+                var tex = ScreenCapture.CaptureScreenshotAsTexture();
+                if (tex == null) { Debug.LogWarning($"[SystemTestShot] {name} failed: no capture"); yield break; }
+                LogShot(name, tex.EncodeToJPG(80));
+                Destroy(tex);
+                yield break;
+            }
+            int w = Screen.width, h = Screen.height;
+            var rt = new RenderTexture(w, h, 0, RenderTextureFormat.ARGB32);
+            ScreenCapture.CaptureScreenshotIntoRenderTexture(rt);
+            var req = UnityEngine.Rendering.AsyncGPUReadback.Request(rt, 0, TextureFormat.RGBA32);
+            while (!req.done) yield return null;
+            if (req.hasError) Debug.LogWarning($"[SystemTestShot] {name} failed: GPU readback error");
+            else
+            {
+                // the capture comes back bottom-up on some graphics APIs (WebGPU): the harness flips it
+                var px = req.GetData<byte>().ToArray();
+                LogShot(name, ImageConversion.EncodeArrayToJPG(px, UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm, (uint)w, (uint)h, 0, 80));
+            }
+            rt.Release();
+            Destroy(rt);
+        }
+
+        static void LogShot(string name, byte[] jpg)
+        {
+            // in pieces: browser logs cut long lines short
+            string b64 = Convert.ToBase64String(jpg);
+            const int piece = 4000;
+            int count = (b64.Length + piece - 1) / piece;
+            for (int i = 0; i < count; i++)
+                Debug.Log($"[SystemTestShot] {name} {i + 1}/{count} {b64.Substring(i * piece, Math.Min(piece, b64.Length - i * piece))}");
+        }
 
         WarpPoint Point(string name) => WarpPoint.All.FirstOrDefault(w => w.displayName == name);
 
         IEnumerator Start()
         {
-            Directory.CreateDirectory(dir);
+            if (!web) Directory.CreateDirectory(dir);
             yield return null;
             demo = FindAnyObjectByType<CarrierDemoInput>();
             map = FindAnyObjectByType<SystemMap>();

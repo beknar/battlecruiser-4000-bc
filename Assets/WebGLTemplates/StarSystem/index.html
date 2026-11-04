@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
+  <title>{{{ PRODUCT_NAME }}}</title>
+  <style>
+    :root { --bg: #04060c; --fg: #dfe8ff; --dim: #8b98b8; --accent: #7fb2ff; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+                 font-family: system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+    #game { position: fixed; inset: 0; }
+    #unity-canvas { width: 100%; height: 100%; display: block; background: var(--bg); outline: none; }
+    #loader { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center;
+              justify-content: center; gap: 18px; background: radial-gradient(ellipse at 50% 40%, #121a33 0%, var(--bg) 70%);
+              transition: opacity .6s; z-index: 2; padding: 16px; text-align: center; }
+    #loader h1 { margin: 0; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; font-size: clamp(22px, 5vw, 40px); }
+    #loader p { margin: 0; color: var(--dim); max-width: 34em; line-height: 1.5; font-size: 15px; }
+    #bar { width: min(420px, 80vw); height: 6px; border-radius: 3px; background: #1b2440; overflow: hidden; }
+    #fill { width: 0; height: 100%; background: var(--accent); transition: width .2s; }
+    #status { font-size: 13px; color: var(--dim); min-height: 1.4em; }
+    #hud { position: fixed; right: 12px; bottom: 12px; display: flex; gap: 8px; align-items: center; z-index: 3; }
+    #api:empty { display: none; }
+    #api { font-size: 12px; color: var(--dim); background: #0b1022cc; padding: 6px 10px; border-radius: 6px; }
+    #fullscreen { font: inherit; font-size: 13px; color: var(--fg); background: #18213dcc; border: 1px solid #2c3a66;
+                  padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+    #fullscreen:hover { background: #24305acc; }
+    #error { display: none; color: #ffb3b3; max-width: 34em; }
+  </style>
+</head>
+<body>
+  <div id="game"><canvas id="unity-canvas" tabindex="-1"></canvas></div>
+  <div id="loader">
+    <h1>{{{ PRODUCT_NAME }}}</h1>
+    <p>Fly the frigate round the Kestrel system. Press <b>M</b> (or <b>R3</b> on a gamepad) for the system map
+       and mini-warp between planets, moons and asteroid fields. Mouse, keyboard and gamepad all work.</p>
+    <div id="bar"><div id="fill"></div></div>
+    <div id="status">Loading…</div>
+    <p id="error"></p>
+  </div>
+  <div id="hud">
+    <span id="api"></span>
+    <button id="fullscreen" type="button" title="Full screen (F11)">Full screen</button>
+  </div>
+  <script>
+    var canvas = document.getElementById("unity-canvas");
+    var loader = document.getElementById("loader");
+    var fill = document.getElementById("fill");
+    var statusEl = document.getElementById("status");
+    var errorEl = document.getElementById("error");
+    var apiEl = document.getElementById("api");
+
+    // the game fills in the badge (CarrierPageGraphics) once it knows which graphics API it got:
+    // WebGPU when the browser offers it on a secure page (https or localhost), otherwise WebGL 2
+
+    function showError(msg) {
+      errorEl.style.display = "block";
+      errorEl.textContent = msg;
+      statusEl.textContent = "";
+      loader.style.opacity = 1;
+      loader.style.display = "flex";
+    }
+
+    var buildUrl = "Build";
+    var config = {
+      arguments: [],
+      dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
+      frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}",
+#if USE_THREADS
+      workerUrl: buildUrl + "/{{{ WORKER_FILENAME }}}",
+#endif
+#if USE_WASM
+      codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}",
+#endif
+#if MEMORY_FILENAME
+      memoryUrl: buildUrl + "/{{{ MEMORY_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+      symbolsUrl: buildUrl + "/{{{ SYMBOLS_FILENAME }}}",
+#endif
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+      productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+      productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+      // a heavy 3D scene: cap the render resolution on very high-DPI screens
+      devicePixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
+      showBanner: function (msg, type) {
+        if (type === "error") showError(msg);
+        else console.warn(msg);
+      },
+    };
+
+    var script = document.createElement("script");
+    script.src = buildUrl + "/{{{ LOADER_FILENAME }}}";
+    script.onload = function () {
+      createUnityInstance(canvas, config, function (progress) {
+        fill.style.width = Math.round(100 * progress) + "%";
+        statusEl.textContent = progress < 0.9 ? "Loading… " + Math.round(100 * progress) + "%" : "Building the star system…";
+      }).then(function (instance) {
+        window.unityInstance = instance;
+        loader.style.opacity = 0;
+        setTimeout(function () { loader.style.display = "none"; }, 650);
+        canvas.focus();
+        document.getElementById("fullscreen").onclick = function () { instance.SetFullscreen(1); };
+      }).catch(function (message) {
+        showError("The game couldn't start: " + message);
+      });
+    };
+    script.onerror = function () { showError("Couldn't load the game files."); };
+    document.body.appendChild(script);
+
+    // keep keyboard focus on the game after clicking it
+    canvas.addEventListener("pointerdown", function () { canvas.focus(); });
+  </script>
+</body>
+</html>

@@ -32,6 +32,12 @@ namespace CarrierGame.Demo
 
         string ShownName => info != null ? info.Name : shown != null ? shown.name : "";
 
+        /// <summary>Pointers toward an off-screen target: right, left, up, down. The browser has no
+        /// system fonts to fall back on, and the built-in font has no triangles.</summary>
+        static readonly string[] Arrows = CarrierDemoInput.OnWeb
+            ? new[] { ">", "<", "^", "v" }
+            : new[] { "▶", "◀", "▲", "▼" };
+
         void Start()
         {
             view = new RenderTexture(640, 400, 24) { name = "TargetView" };
@@ -179,8 +185,8 @@ namespace CarrierGame.Demo
                                 (centre.y - margin) / Mathf.Max(1e-3f, Mathf.Abs(d.y)));
             Vector2 p = centre + d * k;
             string arrow = Mathf.Abs(d.x) * centre.y > Mathf.Abs(d.y) * centre.x
-                ? (d.x > 0 ? "▶" : "◀")
-                : (d.y > 0 ? "▲" : "▼");
+                ? Arrows[d.x > 0 ? 0 : 1]
+                : Arrows[d.y > 0 ? 2 : 3];
             var st = Hud.Text(16, true, TextAnchor.MiddleCenter);
             var content = new GUIContent($"<color=#{ColorUtility.ToHtmlStringRGB(col)}>{arrow}  {label}</color>");
             Vector2 size = st.CalcSize(content);

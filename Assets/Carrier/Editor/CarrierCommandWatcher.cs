@@ -59,6 +59,7 @@ namespace Carrier.EditorTools
                     case "player": CarrierPlayerBuild.Build(); break;
                     case "player2": CarrierPlayerBuild.BuildAsteroids(); break;
                     case "player3": CarrierPlayerBuild.BuildStarSystem(); break;
+                    case "web": CarrierPlayerBuild.BuildStarSystemWeb(); break;
                     case "playshots":
                         SessionState.SetFloat(PlayKey, -1f);
                         UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/Carrier/Scenes/CarrierShowcase.unity");

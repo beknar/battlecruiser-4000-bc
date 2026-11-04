@@ -4,8 +4,9 @@ using UnityEngine.InputSystem;
 namespace CarrierGame.Demo
 {
     /// <summary>
-    /// Small helpers for gamepads (an Xbox 360 pad shows up as an XInput gamepad): which device was
-    /// used last (so the help box can show the right controls), short rumble pulses, and
+    /// Small helpers for gamepads (an Xbox 360 pad shows up as an XInput gamepad, or in a web
+    /// browser as a standard gamepad; the page's xbox360.js sees to that): which device was used
+    /// last (so the help box can show the right controls), short rumble pulses, and
     /// connect/disconnect messages.
     /// </summary>
     public static class PadSupport
@@ -72,9 +73,16 @@ namespace CarrierGame.Demo
         {
             var pad = Gamepad.current;
             if (pad == null) return;
-            pad.SetMotorSpeeds(Mathf.Clamp01(low), Mathf.Clamp01(high));
             rumbling = true;
             rumbleUntil = Mathf.Max(rumbleUntil, Time.unscaledTime + seconds);
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // the web player can't drive the motors itself: the page does it. A new effect
+            // replaces the one playing, so ask for all the time still wanted (as the motors here
+            // keep running until rumbleUntil)
+            CarrierPadRumble(Mathf.Clamp01(low), Mathf.Clamp01(high), Mathf.RoundToInt((rumbleUntil - Time.unscaledTime) * 1000f));
+#else
+            pad.SetMotorSpeeds(Mathf.Clamp01(low), Mathf.Clamp01(high));
+#endif
         }
 
         public static void StopRumble()
@@ -82,7 +90,16 @@ namespace CarrierGame.Demo
             if (!rumbling) return;
             rumbling = false;
             rumbleUntil = 0f;
+#if UNITY_WEBGL && !UNITY_EDITOR
+            CarrierPadRumble(0f, 0f, 0);
+#else
             InputSystem.ResetHaptics();
+#endif
         }
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        [System.Runtime.InteropServices.DllImport("__Internal")]
+        static extern void CarrierPadRumble(float low, float high, int ms);   // Plugins/WebGL/CarrierPage.jslib
+#endif
     }
 }

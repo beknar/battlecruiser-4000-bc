@@ -73,14 +73,16 @@ namespace CarrierGame.Demo
         {
             var pad = Gamepad.current;
             if (pad == null) return;
+            rumbling = true;
+            rumbleUntil = Mathf.Max(rumbleUntil, Time.unscaledTime + seconds);
 #if UNITY_WEBGL && !UNITY_EDITOR
-            // the web player can't drive the motors itself: the page does it
-            CarrierPadRumble(Mathf.Clamp01(low), Mathf.Clamp01(high), Mathf.RoundToInt(seconds * 1000f));
+            // the web player can't drive the motors itself: the page does it. A new effect
+            // replaces the one playing, so ask for all the time still wanted (as the motors here
+            // keep running until rumbleUntil)
+            CarrierPadRumble(Mathf.Clamp01(low), Mathf.Clamp01(high), Mathf.RoundToInt((rumbleUntil - Time.unscaledTime) * 1000f));
 #else
             pad.SetMotorSpeeds(Mathf.Clamp01(low), Mathf.Clamp01(high));
 #endif
-            rumbling = true;
-            rumbleUntil = Mathf.Max(rumbleUntil, Time.unscaledTime + seconds);
         }
 
         public static void StopRumble()

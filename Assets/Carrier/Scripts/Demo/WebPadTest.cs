@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
@@ -30,8 +29,10 @@ namespace CarrierGame.Demo
         IEnumerator Start()
         {
             yield return new WaitForSeconds(1f);
-            foreach (var d in InputSystem.devices)
-                if (d is Joystick && !(d is Gamepad)) Log($"joystick only (not a gamepad): {d.layout} '{d.description.product}'");
+            // a controller the game would ignore: seen only as a generic joystick (reported
+            // whenever one turns up, which is usually after the player's first button press)
+            foreach (var d in InputSystem.devices) ReportJoystick(d);
+            InputSystem.onDeviceChange += (d, change) => { if (change == InputDeviceChange.Added) ReportJoystick(d); };
             Log("ready");
             float until = Time.realtimeSinceStartup + 30f;
             while (Gamepad.current == null && Time.realtimeSinceStartup < until) yield return null;
@@ -46,6 +47,11 @@ namespace CarrierGame.Demo
             // a rumble the stand-in controller can report
             PadSupport.Rumble(0.6f, 0.3f, 0.25f);
             Log("rumble asked: 0.60 0.30 0.25 s");
+        }
+
+        static void ReportJoystick(InputDevice d)
+        {
+            if (d is Joystick && !(d is Gamepad)) Log($"joystick only (not a gamepad): {d.layout} '{d.description.product}'");
         }
 
         static readonly string[] Buttons =

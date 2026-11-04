@@ -9,6 +9,11 @@ mergeInto(LibraryManager.library, {
   },
   // Quit from the pause menu: a page can't close its own tab, so the page shuts the game down
   // (and offers to start it again); without the page's handler, nothing happens
+  // gamepad rumble (Unity's web player has none): the page's xbox360.js plays it through the
+  // browser's vibration support (Chrome and Edge do for an Xbox 360 pad); 0, 0 stops it
+  CarrierPadRumble: function (low, high, ms) {
+    if (typeof window.carrierRumble === "function") window.carrierRumble(low, high, ms);
+  },
   CarrierPageQuit: function () {
     console.log("[Page] quit");
     if (typeof window.carrierQuit === "function") window.carrierQuit();

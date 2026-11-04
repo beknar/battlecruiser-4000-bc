@@ -38,7 +38,7 @@ namespace CarrierGame.Demo
         bool web;
 
         /// <summary>Is `key` one of the URL's query options (?key, ?key=..., &key...)?</summary>
-        static bool HasQueryKey(string url, string key)
+        public static bool HasQueryKey(string url, string key)
         {
             if (string.IsNullOrEmpty(url)) return false;
             int q = url.IndexOf('?');

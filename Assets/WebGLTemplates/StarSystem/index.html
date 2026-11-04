@@ -4,6 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
   <title>{{{ PRODUCT_NAME }}}</title>
+  <!-- before the game: lets an Xbox 360 pad that the browser reports raw work as a gamepad -->
+  <script src="xbox360.js"></script>
   <style>
     :root { --bg: #04060c; --fg: #dfe8ff; --dim: #8b98b8; --accent: #7fb2ff; }
     html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
@@ -38,7 +40,9 @@
   <div id="loader">
     <h1>{{{ PRODUCT_NAME }}}</h1>
     <p>Fly the frigate round the Kestrel system. Press <b>M</b> (or <b>R3</b> on a gamepad) for the system map
-       and mini-warp between planets, moons and asteroid fields. Mouse, keyboard and gamepad all work.</p>
+       and mini-warp between planets, moons and asteroid fields. Mouse, keyboard and gamepad (Xbox 360 or
+       compatible) all work: press any button on the controller once the game is running so the browser
+       makes it available. Esc or P (Start on the pad) pauses.</p>
     <div id="bar"><div id="fill"></div></div>
     <div id="status">Loading…</div>
     <p id="error"></p>

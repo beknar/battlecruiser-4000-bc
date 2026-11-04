@@ -1,19 +1,23 @@
 # Battlecruiser 4000 BC
 
-A space combat demo made in Unity 6 (6000.6, URP) for Windows. You fly a 180 m frigate against a
-heavy cruiser and two recon drones. The frigate carries side guns, close-in point defence, a bow
+A space combat demo made in Unity 6 (6000.6, URP). You fly a 180 m frigate against cruisers,
+drones, fighters and capital ships. The frigate carries side guns, close-in point defence, a bow
 beam that charges for 10 seconds and a hex shield. Every ship comes apart before it explodes.
-It plays with keyboard and mouse or an Xbox 360 / XInput gamepad.
+There are three games: Carrier Demo (open space), Asteroid Ambush and Star System. Star System
+also runs in a web browser. All of them play with keyboard and mouse or an Xbox 360 / XInput
+gamepad.
 
 ## Downloads and demo reels
 
-Both games are Windows builds (64-bit, DirectX 11). Unzip one and run the `.exe` inside. Every
+The Windows builds are 64-bit and use DirectX 11. Unzip one and run the `.exe` inside. Every
 file is also on the [release page](https://github.com/beknar/battlecruiser-4000-bc/releases/tag/demo-reel-2026-11-03).
 
 | Game | Download | Demo reel |
 |---|---|---|
 | Carrier Demo (open space) | [battlecruiser-4000-bc-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-windows.zip) (79 MB) | [60 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-demo-reel.mp4) (72 MB) |
-| Asteroid Ambush | [battlecruiser-4000-bc-asteroid-ambush-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-windows.zip) (81 MB) | [76 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-reel.mp4) (93 MB) |
+| Asteroid Ambush | [battlecruiser-4000-bc-asteroid-ambush-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-windows.zip) (82 MB) | [76 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-reel.mp4) (93 MB) |
+| Star System | [battlecruiser-4000-bc-star-system-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-windows.zip) (85 MB) | [100 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4) (133 MB) |
+| Star System, web version | [battlecruiser-4000-bc-star-system-web.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-web.zip) (46 MB) | See [The web version](#the-web-version) |
 
 ### Carrier Demo
 
@@ -30,6 +34,15 @@ The reel opens with the frigate crossing a large asteroid to quiet travelling mu
 round its far end. There it is ambushed by fighters hidden under the rock, and the music switches
 to a battle track. Then the heavy cruiser and its drones come out from behind a boulder. The
 frigate fights back with its CIWS and side guns, and turns its bow beam on the cruiser.
+
+### Star System
+
+[![The frigate charging its bow beam at the Outer Drift (click to download the demo reel)](docs/star-system-thumb.jpg)](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4)
+
+The reel starts at the ocean world Thalassa. The frigate opens the system map, picks the gas
+giant Jovara and mini-warps there. It then warps across the system to the Outer Drift asteroid
+field, where a pirate cruiser and its drones ambush it from the rocks. The frigate turns its
+bow beam on the cruiser until it breaks apart.
 
 ## Features
 
@@ -94,9 +107,13 @@ Enemy guns lead their target and have some spread. The enemies fly orbits around
   when weapons fire and when the frigate is destroyed.
 - **Help.** An on-screen help list shows only the controls that work on the current ship, and the
   text size can be changed.
-- **Sound.** All sounds are synthesised in code at startup, so the game ships no audio files. The
-  sounds cover guns, CIWS, missiles, explosions, shield hits, both beams (the frigate's is deeper
-  than the cruiser's), engine hum and an ambient drone. A master limiter stops the mix from clipping.
+- **Pause menu.** Esc or P (Start on the pad) pauses the game and opens a menu with Resume,
+  Restart, Sound on/off and Quit. Restart and Quit ask you to press them a second time to confirm.
+- **Sound.** Sound effects come from a sound library, with several recordings of each so repeats
+  don't sound identical. Any sound with no recording is synthesised in code instead, and the
+  frigate's bow beam is always synthesised. The music has a calm track and a combat track, and
+  crossfades to the combat one while fighting is going on nearby. A master limiter stops the mix
+  from clipping.
 
 ### Carrier mode
 
@@ -126,6 +143,48 @@ A separate build (`AsteroidAmbush.exe`) set in an asteroid field near a gas gian
   hull runs low, then comes back. Destroyed enemies respawn where they were hiding and rejoin
   the fight.
 
+### Third game: Star System
+
+A separate build (`StarSystem.exe`, and a web version) set in the Kestrel system, a whole star
+system to travel around.
+
+- **The system.**
+  - It contains the star Kestrel and five planets: volcanic Cinder, desert Ochre, ocean
+    Thalassa, the gas giant Jovara and icy Glacis.
+  - Six moons circle Thalassa and Jovara.
+  - There are three asteroid fields: the Inner Belt, the Jovara Trojans and the Outer Drift.
+  - The frigate starts near Thalassa.
+- **System map.** M (R3 on the pad) opens a top-down chart of every place the frigate can go,
+  with their orbits and the frigate's own position and heading. For the chosen destination it
+  shows the distance and how long the trip will take. Pick a place and warp from the map.
+- **Mini-warp.**
+  - The ship turns onto its destination and charges, with sparks streaming into the hull.
+  - It jumps with a flash and a shockwave ring, then crosses the distance with streaks of
+    starlight rushing past. The route bends round any planet in the way.
+  - Longer trips take longer.
+  - The drive is locked in combat: while an enemy that has left cover is close by, or for a few
+    seconds after the ship is hit. Taking fire while charging cancels the jump.
+- **Encounters.**
+
+  | Where | Who |
+  |---|---|
+  | Jovara Trojans | Raiders: four fighters and two drones hidden in the rocks |
+  | Outer Drift | A pirate cruiser and two drones hidden in the rocks |
+  | Cinder | Corsair patrol: a cruiser and two destroyers |
+  | Glacis | Dreadnought battle group: a dreadnought and two escort destroyers |
+
+  The map marks the planets with capital ships on station as hostile. Enemy markers show for
+  ships within 30 km.
+- **Capital ships.**
+
+  | Ship | Length | Hull | Weapons |
+  |---|---|---|---|
+  | Destroyer | 153 m | 2,200 | 2 triple cannon turrets |
+  | Dreadnought | 702 m | 18,000 | 8 triple cannon turrets and a beam |
+
+  Each turret tracks and fires on its own and breaks off when the ship comes apart. Capital
+  ships hold a stand-off range and circle, and their shots don't hit each other.
+
 ## Controls
 
 | Action | Keyboard / mouse | Xbox 360 pad |
@@ -140,8 +199,13 @@ A separate build (`AsteroidAmbush.exe`) set in an asteroid field near a gas gian
 | Next target / stop targeting | T / X (or click a ship) | Y / B |
 | Orbit camera / zoom | Right-drag / mouse wheel | Right stick / D-pad ← → |
 | Help / text size | H / + − | Back / Back + D-pad ↑↓ |
-| Sound on/off | N | Start |
-| Window / quit | F11 / Esc | Hold Back + Start |
+| Sound on/off | N | (pause menu) |
+| Pause menu: resume, restart, sound, quit | Esc or P | Start |
+| Window / full screen | F11 | |
+| System map (Star System) | M | R3 |
+| On the map: choose a place / warp / close | Click, arrows or Tab / WARP, double-click or Enter / M or Esc | Left stick, D-pad or LB/RB / A / B |
+
+In the web version, use the page's Full screen button rather than F11.
 
 ## Project layout
 
@@ -155,6 +219,10 @@ A separate build (`AsteroidAmbush.exe`) set in an asteroid field near a gas gian
   a trigger file
 - `Assets/Carrier/Models`: custom models (frigate hull, ball turret, CIWS, beam emitter, carrier
   parts, drone, missile)
+- `Assets/WebGLTemplates/StarSystem`: the web page (full-window canvas, loader, Full screen
+  button) and `xbox360.js`; `Assets/Carrier/Plugins/WebGL` holds the bridge between the game and
+  the page
+- `Tools/WebTest`: the headless Chrome gamepad test and its stand-in controller
 - `Tools/Blender`: the scripts that make those models (frigate conversion from GLB, ball turret,
   CIWS, beam emitter, carrier parts) and preview renders
 
@@ -162,10 +230,31 @@ A separate build (`AsteroidAmbush.exe`) set in an asteroid field near a gas gian
 
 1. Open the project in Unity 6000.6.
 2. Run **Tools > Carrier > Build Everything** to generate the materials, prefabs and scene.
-3. Run **Tools > Carrier > Build Windows Demo** to build `../Builds/CarrierDemo/CarrierDemo.exe`, or
-   **Tools > Carrier > Build Asteroid Ambush** for `../Builds/AsteroidAmbush/AsteroidAmbush.exe`.
+3. Run one of these:
+   - **Tools > Carrier > Build Windows Demo** for `../Builds/CarrierDemo/CarrierDemo.exe`;
+   - **Tools > Carrier > Build Asteroid Ambush** for `../Builds/AsteroidAmbush/AsteroidAmbush.exe`;
+   - **Tools > Carrier > Build Star System** for `../Builds/StarSystem/StarSystem.exe`;
+   - **Tools > Carrier > Build Star System (Web)** for `../Builds/StarSystemWeb/`.
 
-The player uses DirectX 11, which is the stable choice on hybrid AMD + NVIDIA laptops.
+The Windows players use DirectX 11, which is the stable choice on hybrid AMD + NVIDIA laptops.
+
+## The web version
+
+The web build of Star System uses WebGPU where the browser supports it and falls back to
+WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use.
+
+- **Hosting.** Upload `index.html`, `xbox360.js` and the `Build` folder, keeping the folder
+  layout. Serve them over https, because browsers allow WebGPU only on secure pages (or on
+  localhost). No special server settings are needed, as the game can unpack its own compressed
+  files. Loading is faster if the server sends the `.unityweb` files with the header
+  `Content-Encoding: br`.
+- **Trying it locally.** From the build folder, run `python -m http.server 8080` and open
+  `http://localhost:8080`.
+- **Gamepads.** Chrome and Edge on Windows report an Xbox 360 pad in the standard layout.
+  Firefox on Linux and the macOS 360Controller driver report the raw layout instead, and
+  `xbox360.js` translates it so the game still sees a normal gamepad. Rumble works through the
+  browser.
+- **Quitting.** Quit in the pause menu closes the game, and the page offers Play again.
 
 ## Command-line modes
 
@@ -179,14 +268,30 @@ The player uses DirectX 11, which is the stable choice on hybrid AMD + NVIDIA la
   - enemy breakup;
   - frigate destruction and respawn;
   - every gamepad control, using a virtual pad.
-- `CarrierDemo.exe -reel <dir>` (or `AsteroidAmbush.exe -reel <dir>`): records a demo reel (60 s, or 76 s for the ambush) at 30 fps as JPG frames plus a WAV
+- `StarSystem.exe -systemtest <dir>`: runs the Star System self-test and writes a report and
+  screenshots to `<dir>`. The test covers:
+  - the system map with a virtual keyboard, mouse and gamepad;
+  - warps of different lengths, and that the drive refuses to warp in combat;
+  - the pause menu and restart;
+  - a capital ship battle, checking that both sides land hits.
+- `CarrierDemo.exe -reel <dir>` (or `AsteroidAmbush.exe` / `StarSystem.exe`): records a demo reel
+  (60 s, 76 s for the ambush or 150 s for the star system) at 30 fps as JPG frames plus a WAV
   soundtrack, then quits. Join them with ffmpeg:
 
   ```
   ffmpeg -framerate 30 -i <dir>/f%05d.jpg -i <dir>/reel.wav -c:v libx264 -crf 18 -pix_fmt yuv420p -c:a aac reel.mp4
   ```
 
-Add `-screen-fullscreen 0 -screen-width 1920 -screen-height 1080` to run either mode in a window.
+Add `-screen-fullscreen 0 -screen-width 1920 -screen-height 1080` to run any of these modes in a
+window.
+
+The web version has two test modes, added to the page address:
+
+- `index.html?systemtest` runs the Star System self-test and logs to the browser console.
+- `index.html?padtest` logs every gamepad control as the game reads it.
+  `Tools/WebTest/padtest.sh` runs this in headless Chrome with a stand-in Xbox 360 controller,
+  in five layouts (standard, Linux wired, Linux wireless, a third-party pad and macOS). It
+  renders in software, so the GPU isn't used.
 
 ## Missing third-party assets
 
@@ -201,3 +306,7 @@ meshes and `Models/ShieldHex.fbx`.
 Without the packs, these are missing: the cruiser model, the engine plumes, the skybox, some hull
 textures and the shield mesh. To restore them, put your own copies of the packs in
 `Assets/Carrier/Kit` and run **Tools > Carrier > Build Everything**.
+
+`Assets/Carrier/Resources/CarrierAudio` (the sound effect library and the music) is licensed
+too and not in the repo. Without it, the sound effects are synthesised in code and there is no
+music.

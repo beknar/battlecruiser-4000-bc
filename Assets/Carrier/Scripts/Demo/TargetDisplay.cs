@@ -129,12 +129,20 @@ namespace CarrierGame.Demo
             Panel(s);
         }
 
+        /// <summary>Hostiles further off than this (m) get no marker: roughly sensor range, so a
+        /// patrol on the far side of the star system doesn't clutter the screen.</summary>
+        public const float MarkerRange = 30000f;
+
+        /// <summary>Close enough to show, target and count (within MarkerRange of a point).</summary>
+        public static bool InRange(Transform t, Vector3 from) => t != null && (t.position - from).sqrMagnitude <= MarkerRange * MarkerRange;
+
         /// <summary>Small dim brackets and a name on hostiles that aren't targeted.</summary>
         void Marker(Camera cam, Transform t, float s)
         {
             var h = t.GetComponent<Health>();
             if (h != null && h.Dead) return;
             if (CombatPilot.IsHidden(t)) return;   // an ambusher still lying in wait isn't on the screen
+            if (!InRange(t, carrier.transform.position)) return;
             Vector3 sp = cam.WorldToScreenPoint(t.position);
             if (sp.z <= 0f || sp.x < 0 || sp.x > Screen.width || sp.y < 0 || sp.y > Screen.height) return;
             var gp = new Vector2(sp.x, Screen.height - sp.y);

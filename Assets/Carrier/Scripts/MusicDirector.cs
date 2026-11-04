@@ -54,6 +54,9 @@ namespace CarrierGame
             sceneHold = holdAfterFighting; sceneFadeIn = fadeIn;
         }
 
+        /// <summary>Drop any combat cue still running (the level restarted).</summary>
+        public static void ForgetCombat() => forcedUntil = -1f;
+
         /// <summary>Switch to the combat track now (an ambush), and keep it for at least `seconds`.</summary>
         public static void EnterCombat(float seconds = 15f)
         {

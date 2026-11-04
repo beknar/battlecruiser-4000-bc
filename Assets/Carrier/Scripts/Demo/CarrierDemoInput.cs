@@ -52,6 +52,7 @@ namespace CarrierGame.Demo
             Application.targetFrameRate = 120;
             StartCoroutine(FixDisplayWhenReady());
             PadSupport.Init();
+            if (!TryGetComponent(out menu)) menu = gameObject.AddComponent<GameMenu>();
 #if UNITY_WEBGL && !UNITY_EDITOR
             // tell the page which graphics API it got: WebGPU, or the WebGL 2 fallback
             CarrierPageGraphics(SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.WebGPU ? "WebGPU" : "WebGL 2");
@@ -73,6 +74,8 @@ namespace CarrierGame.Demo
             var k = Keyboard.current;
             var pad = Gamepad.current;
             PadSupport.Track(pad, k, Mouse.current);
+            // the pause menu has the keys, mouse and pad while it is open
+            if (GameMenu.IsOpen || GameMenu.JustClosed) return;
 
             // the system map has the keys and the pad while it is open; the warp drive flies the
             // ship while it is charging or in warp
@@ -86,7 +89,10 @@ namespace CarrierGame.Demo
                     carrier.pitchInput = autoPitch ?? 0f;
                     carrier.elevator = autoElevator ?? 0f;
                 }
-                if (warpFlying && !SystemMap.IsOpen && k != null && k.escapeKey.wasPressedThisFrame && !SystemMap.JustClosed) Quit();
+                if (warpFlying && !SystemMap.IsOpen && !SystemMap.JustClosed)
+                {
+                    if ((k != null && (k.escapeKey.wasPressedThisFrame || k.pKey.wasPressedThisFrame)) || (pad != null && pad.startButton.wasPressedThisFrame)) menu.Open();
+                }
                 return;
             }
 
@@ -159,7 +165,8 @@ namespace CarrierGame.Demo
 
         void KeyboardControls(Keyboard k)
         {
-            if (k.escapeKey.wasPressedThisFrame) Quit();
+            // P too: in a browser at full screen, the first Esc only leaves full screen
+            if (k.escapeKey.wasPressedThisFrame || k.pKey.wasPressedThisFrame) { menu.Open(); return; }
             if (k.hKey.wasPressedThisFrame) showHelp = !showHelp;
             if (k.equalsKey.wasPressedThisFrame || k.numpadPlusKey.wasPressedThisFrame) TextSize(+1);
             if (k.minusKey.wasPressedThisFrame || k.numpadMinusKey.wasPressedThisFrame) TextSize(-1);
@@ -284,6 +291,8 @@ namespace CarrierGame.Demo
                     var h = info.GetComponent<Health>();
                     if (h != null && h.Dead) continue;
                     if (CombatPilot.IsHidden(info.transform)) continue;
+                    // only the ones close enough to matter (not a patrol on the far side of the system)
+                    if (!TargetDisplay.InRange(info.transform, carrier.transform.position)) continue;
                     total++;
                     if (Cover.Visible(info.transform.position, carrier.transform.position)) seen++;
                 }
@@ -318,22 +327,14 @@ namespace CarrierGame.Demo
 
         // ------------------------------------------------------------ gamepad
 
-        bool backCombo, startCombo;
-        float quitHeld;
+        bool backCombo;
 
-        /// <summary>Xbox 360 layout. Back and Start act when released, so they can also be held
-        /// for combinations (Back + D-pad up/down = text size, hold Back + Start = quit).</summary>
+        /// <summary>Xbox 360 layout. Back acts when released, so it can also be held for
+        /// combinations (Back + D-pad up/down = text size). Start opens the pause menu.</summary>
         void PadControls(Gamepad p)
         {
-            bool back = p.selectButton.isPressed, start = p.startButton.isPressed;
-
-            if (back && start)
-            {
-                backCombo = startCombo = true;
-                quitHeld += Time.unscaledDeltaTime;
-                if (quitHeld >= 1.5f) Quit();
-            }
-            else quitHeld = 0f;
+            bool back = p.selectButton.isPressed;
+            if (p.startButton.wasPressedThisFrame) { menu.Open(); return; }
 
             if (back)
             {
@@ -359,7 +360,6 @@ namespace CarrierGame.Demo
                 if (p.dpad.left.wasPressedThisFrame) WingReturn();
             }
             if (p.selectButton.wasReleasedThisFrame) { if (!backCombo) showHelp = !showHelp; backCombo = false; }
-            if (p.startButton.wasReleasedThisFrame) { if (!startCombo) ToggleMute(); startCombo = false; }
             if (carrier.Destroyed) return;
 
             if (p.buttonSouth.wasPressedThisFrame) { if (GunshipPad) LevelOff(); else WingAttack(); }   // A
@@ -440,11 +440,15 @@ namespace CarrierGame.Demo
         public void NextTarget()
         {
             if (targets == null || targets.Length == 0) return;
-            // the next target in the list that isn't still hiding in an ambush
+            // the next target in the list that isn't still hiding in an ambush, and is within range
             for (int tries = 0; tries < targets.Length; tries++)
             {
                 targetIndex = carrier.target == null && tries == 0 ? targetIndex % targets.Length : (targetIndex + 1) % targets.Length;
-                if (!CombatPilot.IsHidden(targets[targetIndex])) { Select(targets[targetIndex]); return; }
+                var t = targets[targetIndex];
+                if (t == null || CombatPilot.IsHidden(t)) continue;
+                if (!TargetDisplay.InRange(t, carrier.transform.position)) continue;
+                Select(t);
+                return;
             }
             NoTarget();
         }
@@ -501,19 +505,9 @@ namespace CarrierGame.Demo
         static void TextSize(int dir) =>
             Hud.UserScale = Mathf.Clamp(Hud.UserScale + 0.15f * dir, 0.5f, 3f);
 
-        /// <summary>Running in a web browser (the page owns the window: no quitting, no resizing).</summary>
+        /// <summary>Running in a web browser (the page owns the window: no resizing; quitting goes
+        /// through the page).</summary>
         public static bool OnWeb => Application.platform == RuntimePlatform.WebGLPlayer;
-
-        static void Quit()
-        {
-            PadSupport.StopRumble();
-            if (OnWeb) return;          // a web page can't close itself; the player closes the tab
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.isPlaying = false;
-#else
-            Application.Quit();
-#endif
-        }
 
         public void SelectTarget(Transform t) => Select(t);
 
@@ -548,7 +542,7 @@ namespace CarrierGame.Demo
             {
                 if (hit.transform.IsChildOf(carrier.transform)) continue;
                 foreach (var t in targets)
-                    if (t != null && hit.transform.IsChildOf(t) && !CombatPilot.IsHidden(t)) best = t;
+                    if (t != null && hit.transform.IsChildOf(t) && !CombatPilot.IsHidden(t) && TargetDisplay.InRange(t, carrier.transform.position)) best = t;
                 break;
             }
             if (best == null)
@@ -559,7 +553,7 @@ namespace CarrierGame.Demo
                     if (t == null) continue;
                     var h = t.GetComponent<Health>();
                     if (h != null && h.Dead) continue;
-                    if (CombatPilot.IsHidden(t)) continue;
+                    if (CombatPilot.IsHidden(t) || !TargetDisplay.InRange(t, carrier.transform.position)) continue;
                     Vector3 sp = cam.WorldToScreenPoint(t.position);
                     if (sp.z <= 0f) continue;
                     float d = Vector2.Distance(new Vector2(sp.x, sp.y), screen);
@@ -608,6 +602,7 @@ namespace CarrierGame.Demo
         }
 
         string keyHelp, padHelp;
+        GameMenu menu;
 
         /// <summary>The text for here, or for a browser: it has no system fonts to fall back on,
         /// and the built-in font has no arrows.</summary>
@@ -629,7 +624,7 @@ namespace CarrierGame.Demo
             "Right-drag orbit   mouse wheel zoom",
             warp != null ? "M system map: mini-warp" : null,
             "H hide help   +/- text size   N sound",
-            OnWeb ? "F11 full screen" : "F11 window   Esc quit",
+            OnWeb ? "F11 full screen   Esc or P menu" : "F11 window   Esc or P menu",
         }.Where(l => l != null));
 
         string PadHelp => padHelp ??= string.Join("\n", new[]
@@ -645,8 +640,8 @@ namespace CarrierGame.Demo
             "RB fire guns" + (carrier.HasMissiles ? "   LB missile salvo" : "") + (MainGun != null && !carrier.HasHangar ? "   X main gun" : ""),
             "L3 auto-fire on/off" + (carrier.HasHangar ? "   R3 camera: carrier / craft" : ""),
             warp != null ? "R3 system map: mini-warp" : null,
-            "Back hide help   Start sound",
-            OnWeb ? "Back + D-pad up/down text size" : "Back + D-pad ↑↓ text size   hold Back + Start quit",
+            "Back hide help   Start menu",
+            W("Back + D-pad ↑↓ text size", "Back + D-pad up/down text size"),
         }.Where(l => l != null));
 
         bool showHelp = true;

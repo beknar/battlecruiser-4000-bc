@@ -328,7 +328,8 @@ namespace Carrier.EditorTools
             // the planets
             var cinder = MakePlanet("Cinder", sys, Polar(20f, 55f, 0.4f), 3200f, matVolc, atmoVolc, 1.03f, layer, 0.4f);
             var wCinder = MakeWarpPoint(cinder, "Cinder", WarpPoint.Kind.Planet,
-                "A small volcanic world close to the star, its crust split by rivers of lava.", 3200f, 9000f, new Color(1f, 0.45f, 0.2f));
+                "A small volcanic world close to the star, its crust split by rivers of lava. A corsair patrol (a heavy cruiser and two destroyers) holds station here.",
+                3200f, 9000f, new Color(1f, 0.45f, 0.2f), null, true);
             var ochre = MakePlanet("Ochre", sys, Polar(135f, 92f, -1f), 5000f, matDesert, atmoDesert, 1.025f, layer, 0.3f);
             var wOchre = MakeWarpPoint(ochre, "Ochre", WarpPoint.Kind.Planet,
                 "A dry desert planet of dune seas and dust basins under a thin, hazy atmosphere.", 5000f, 13000f, new Color(0.9f, 0.65f, 0.4f));
@@ -340,7 +341,8 @@ namespace Carrier.EditorTools
                 "A banded gas giant with a great storm, circled by four moons.", 16000f, 42000f, new Color(0.95f, 0.75f, 0.55f));
             var glacis = MakePlanet("Glacis", sys, Polar(72f, 232f, -2f), 11000f, matIce, atmoIce, 1.035f, layer, 0.2f);
             var wGlacis = MakeWarpPoint(glacis, "Glacis", WarpPoint.Kind.Planet,
-                "A pale ice giant at the cold edge of the system, wrapped in methane haze.", 11000f, 30000f, new Color(0.6f, 0.9f, 0.95f));
+                "A pale ice giant at the cold edge of the system, wrapped in methane haze. A pirate dreadnought and its destroyer escort guard the approach.",
+                11000f, 30000f, new Color(0.6f, 0.9f, 0.95f), null, true);
 
             // the moons: two round Thalassa, four round Jovara
             // every moon is a warp destination
@@ -459,6 +461,55 @@ namespace Carrier.EditorTools
             g2.groupName = "Pirate cruiser";
             g2.pilots = pirates.ToArray();
             g2.spotRange = 5000f;
+
+            // capital ship battle groups, on station in the open between the usual arrival point
+            // (coming in from Thalassa) and the planet: the frigate drops out of warp with them
+            // ahead of it, a few kilometres off, and they come to meet it
+            void Capital(CombatPilot pl, float cruise, float attack, float turn, float accel, float standoff, float circle)
+            {
+                pl.style = CombatPilot.Style.Capital;
+                pl.concealed = false;   // on patrol in plain sight, not hiding in rock
+                pl.cruiseSpeed = cruise; pl.attackSpeed = attack; pl.turnRate = turn; pl.acceleration = accel;
+                pl.standoff = standoff; pl.circleSpeed = circle;
+                pl.hideBelow = 0f;
+                pl.leashDistance = 32000f;
+            }
+            EncounterGroup BattleGroup(string groupName, WarpPoint at, float towardBody, (GameObject prefab, string name, Action<CombatPilot> setup, float respawn)[] ships)
+            {
+                Vector3 arrive = at.ArrivalPoint(wThalassa.Position);
+                Vector3 toBody = (at.Position - arrive).normalized;
+                Vector3 station = arrive + toBody * towardBody;
+                Vector3 side = Vector3.Cross(Vector3.up, toBody).normalized;
+                var pilots = new List<CombatPilot>();
+                for (int i = 0; i < ships.Length; i++)
+                {
+                    // the flagship ahead, escorts either side and a little behind it
+                    Vector3 pos = i == 0 ? station : station + side * (i % 2 == 1 ? 1100f : -1100f) + toBody * 500f + Vector3.up * (i % 2 == 1 ? 120f : -120f);
+                    var s = ships[i];
+                    var go = Enemy(s.prefab, s.name, s.name, pos, pos - toBody * 1000f, s.setup, 180f);
+                    go.GetComponent<Health>().respawnDelay = s.respawn;
+                    pilots.Add(go.GetComponent<CombatPilot>());
+                }
+                var g = new GameObject(groupName).AddComponent<EncounterGroup>();
+                g.groupName = groupName;
+                g.pilots = pilots.ToArray();
+                g.spotRange = 9000f;
+                Log($"{groupName}: {ships.Length} ships on station {Vector3.Distance(station, at.Position) / 1000f:F1} km from {at.displayName}, " +
+                    $"{towardBody / 1000f:F1} km ahead of the arrival point");
+                return g;
+            }
+            BattleGroup("Corsair patrol", wCinder, 3000f, new (GameObject, string, Action<CombatPilot>, float)[]
+            {
+                (p.enemyCruiser, "Corsair Cruiser", pl => Capital(pl, 75f, 90f, 12f, 18f, 1900f, 3f), 75f),
+                (p.enemyDestroyer, "Corsair Destroyer A", pl => Capital(pl, 110f, 140f, 18f, 25f, 2300f, 4f), 60f),
+                (p.enemyDestroyer, "Corsair Destroyer B", pl => Capital(pl, 110f, 140f, 18f, 25f, 2300f, 4f), 60f),
+            });
+            BattleGroup("Dreadnought battle group", wGlacis, 6000f, new (GameObject, string, Action<CombatPilot>, float)[]
+            {
+                (p.enemyDreadnought, "Pirate Dreadnought", pl => Capital(pl, 45f, 55f, 6f, 8f, 3300f, 1.5f), 120f),
+                (p.enemyDestroyer, "Escort Destroyer A", pl => Capital(pl, 110f, 140f, 18f, 25f, 2300f, 4f), 60f),
+                (p.enemyDestroyer, "Escort Destroyer B", pl => Capital(pl, 110f, 140f, 18f, 25f, 2300f, 4f), 60f),
+            });
 
             // camera, controls and the system map
             var camGo = new GameObject("Main Camera");

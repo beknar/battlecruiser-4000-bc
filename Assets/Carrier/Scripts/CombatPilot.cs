@@ -23,6 +23,8 @@ namespace CarrierGame
 
         public Style style = Style.Fighter;
         public bool startLurking = true;
+        [Tooltip("Lies hidden while waiting (in cover, not shown or targetable). Off for ships that wait in the open, on station: they can be seen and targeted before they attack.")]
+        public bool concealed = true;
         public Transform target;
 
         [Header("Flight")]
@@ -134,7 +136,7 @@ namespace CarrierGame
         public static bool IsHidden(Transform t)
         {
             var pilot = t != null ? t.GetComponent<CombatPilot>() : null;
-            return pilot != null && pilot.Current == State.Lurk && pilot.AtHome;
+            return pilot != null && pilot.concealed && pilot.Current == State.Lurk && pilot.AtHome;
         }
 
         /// <summary>Is this pilot alive?</summary>

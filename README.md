@@ -5,6 +5,15 @@ heavy cruiser and two recon drones. The frigate carries side guns, close-in poin
 beam that charges for 10 seconds and a hex shield. Every ship comes apart before it explodes.
 It plays with keyboard and mouse or an Xbox 360 / XInput gamepad.
 
+## Demo reel
+
+[![The frigate's bow beam hitting the cruiser (click to download the demo reel)](docs/demo-reel-thumb.jpg)](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-demo-reel.mp4)
+
+**[Download the 60-second demo reel](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-demo-reel.mp4)**
+(MP4, 1080p, 72 MB; [release page](https://github.com/beknar/battlecruiser-4000-bc/releases/tag/demo-reel-2026-11-03)).
+It shows the side guns, CIWS against drones, the cruiser's cannons, missiles and beam hitting the
+shield, the 10-second bow beam with its deep charge and fire sound, and ships breaking apart.
+
 ## Features
 
 ### The frigate

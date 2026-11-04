@@ -79,17 +79,17 @@ namespace Carrier.EditorTools
                 PlayerSettings.WebGL.nameFilesAsHashes = false;
                 PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly;
                 PlayerSettings.WebGL.showDiagnostics = false;
-                // The App UI package (an editor tool, pulled in by the AI Assistant) ships a web
-                // plugin for code syntax highlighting, compiled with an older Emscripten than this
-                // Unity's: it can't be linked. The game never uses it, so leave it out (for this
-                // build only; the package is untouched). Plugins/WebGL/AppUITextMateStubs.jslib
-                // stands in for the functions its C# side declares.
-                foreach (var pi in PluginImporter.GetAllImporters())
-                    if (pi.assetPath.EndsWith("libAppUITextMateLib.a")) pi.SetIncludeInBuildDelegate(_ => false);
-                // Only the "PC" quality level, like the Windows games. The web was set up with just
-                // "Mobile", and URP's shader stripping then removed every variant of the main
-                // post-processing shader: no bloom or colour grading.
-                UseOnlyQualityLevel("WebGL", "PC");
+                // The App UI package's web plugin is left out of every web build by
+                // WebBuildPlugins (it can't be linked with this Unity's Emscripten).
+                // Only the "PC" quality level, like the Windows games (set in QualitySettings): with
+                // "Mobile", URP's shader stripping removed every variant of the main
+                // post-processing shader, so the game had no bloom or colour grading.
+                var levels = QualitySettings.GetActiveQualityLevelsForPlatform("WebGL");
+                if (levels.Length != 1 || QualitySettings.names[levels[0]] != "PC")
+                {
+                    File.WriteAllText(WebLog, "not built: the web should use only the PC quality level (Project Settings > Quality)");
+                    return;
+                }
                 // the Input System and the game find some types by reflection: strip lightly
                 PlayerSettings.SetManagedStrippingLevel(UnityEditor.Build.NamedBuildTarget.WebGL, ManagedStrippingLevel.Minimal);
 
@@ -121,37 +121,6 @@ namespace Carrier.EditorTools
                 if (EditorUserBuildSettings.activeBuildTarget != before)
                     EditorUserBuildSettings.SwitchActiveBuildTarget(beforeGroup, before);
             }
-        }
-
-        /// <summary>Give a platform (by its build name) just one quality level (by name): it's the
-        /// default there, and every other level is excluded from that platform's builds.</summary>
-        static void UseOnlyQualityLevel(string platform, string level)
-        {
-            int index = System.Array.IndexOf(QualitySettings.names, level);
-            var asset = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/QualitySettings.asset").FirstOrDefault();
-            if (index < 0 || asset == null) { Debug.LogWarning($"[CarrierPlayerBuild] no quality level {level}"); return; }
-            var so = new SerializedObject(asset);
-            var levels = so.FindProperty("m_QualitySettings");
-            for (int i = 0; levels != null && i < levels.arraySize; i++)
-            {
-                var excluded = levels.GetArrayElementAtIndex(i).FindPropertyRelative("excludedTargetPlatforms");
-                int at = -1;
-                for (int j = 0; j < excluded.arraySize; j++)
-                    if (excluded.GetArrayElementAtIndex(j).stringValue == platform) at = j;
-                if (i == index && at >= 0) excluded.DeleteArrayElementAtIndex(at);
-                if (i != index && at < 0)
-                {
-                    excluded.InsertArrayElementAtIndex(excluded.arraySize);
-                    excluded.GetArrayElementAtIndex(excluded.arraySize - 1).stringValue = platform;
-                }
-            }
-            var map = so.FindProperty("m_PerPlatformDefaultQuality");
-            for (int i = 0; map != null && i < map.arraySize; i++)
-            {
-                var pair = map.GetArrayElementAtIndex(i);
-                if (pair.FindPropertyRelative("first").stringValue == platform) pair.FindPropertyRelative("second").intValue = index;
-            }
-            so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         static void Build(string scene, string outDirRel, string exe, string productName, string logPath)

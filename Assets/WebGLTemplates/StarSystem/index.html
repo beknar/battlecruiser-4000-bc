@@ -19,6 +19,7 @@
     #fill { width: 0; height: 100%; background: var(--accent); transition: width .2s; }
     #status { font-size: 13px; color: var(--dim); min-height: 1.4em; }
     #hud { position: fixed; right: 12px; bottom: 12px; display: flex; gap: 8px; align-items: center; z-index: 3; }
+    #api:empty { display: none; }
     #api { font-size: 12px; color: var(--dim); background: #0b1022cc; padding: 6px 10px; border-radius: 6px; }
     #fullscreen { font: inherit; font-size: 13px; color: var(--fg); background: #18213dcc; border: 1px solid #2c3a66;
                   padding: 6px 12px; border-radius: 6px; cursor: pointer; }
@@ -48,11 +49,8 @@
     var errorEl = document.getElementById("error");
     var apiEl = document.getElementById("api");
 
-    // Unity picks WebGPU when the browser offers it (a secure page: https or localhost),
-    // otherwise WebGL 2.
-    apiEl.textContent = "WebGL 2";
-    if ("gpu" in navigator && window.isSecureContext)
-      navigator.gpu.requestAdapter().then(function (a) { if (a) apiEl.textContent = "WebGPU"; }).catch(function () {});
+    // the game fills in the badge (CarrierPageGraphics) once it knows which graphics API it got:
+    // WebGPU when the browser offers it on a secure page (https or localhost), otherwise WebGL 2
 
     function showError(msg) {
       errorEl.style.display = "block";

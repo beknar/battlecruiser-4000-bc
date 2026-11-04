@@ -28,7 +28,7 @@ namespace CarrierGame.Demo
             var args = Environment.GetCommandLineArgs();
             int i = Array.IndexOf(args, "-systemtest");
             // in a web build: open the page with ?systemtest, and the results go to the browser console
-            bool web = CarrierDemoInput.OnWeb && (Application.absoluteURL ?? "").Contains("systemtest");
+            bool web = CarrierDemoInput.OnWeb && HasQueryKey(Application.absoluteURL, "systemtest");
             if (i < 0 && !web) return;
             var t = new GameObject("SystemTest").AddComponent<SystemTest>();
             t.web = web;
@@ -36,6 +36,19 @@ namespace CarrierGame.Demo
         }
 
         bool web;
+
+        /// <summary>Is `key` one of the URL's query options (?key, ?key=..., &key...)?</summary>
+        static bool HasQueryKey(string url, string key)
+        {
+            if (string.IsNullOrEmpty(url)) return false;
+            int q = url.IndexOf('?');
+            if (q < 0) return false;
+            int hash = url.IndexOf('#', q);
+            string query = hash < 0 ? url.Substring(q + 1) : url.Substring(q + 1, hash - q - 1);
+            foreach (var part in query.Split('&'))
+                if (part.Split('=')[0] == key) return true;
+            return false;
+        }
 
         void Log(string s)
         {
@@ -51,30 +64,43 @@ namespace CarrierGame.Demo
         }
 
         /// <summary>A web page can't save files: the screenshot goes to the browser console as a
-        /// base64 JPEG, one line, for a test harness to pick up. WebGPU only reads the GPU back
-        /// asynchronously, so it goes through a render texture and AsyncGPUReadback.</summary>
+        /// base64 JPEG, in numbered pieces, for a test harness to pick up. WebGPU only reads the GPU
+        /// back asynchronously (AsyncGPUReadback); elsewhere the frame is read straight back.</summary>
         IEnumerator WebShot(string name)
         {
             yield return new WaitForEndOfFrame();
+            if (!SystemInfo.supportsAsyncGPUReadback)
+            {
+                var tex = ScreenCapture.CaptureScreenshotAsTexture();
+                if (tex == null) { Debug.LogWarning($"[SystemTestShot] {name} failed: no capture"); yield break; }
+                LogShot(name, tex.EncodeToJPG(80));
+                Destroy(tex);
+                yield break;
+            }
             int w = Screen.width, h = Screen.height;
             var rt = new RenderTexture(w, h, 0, RenderTextureFormat.ARGB32);
             ScreenCapture.CaptureScreenshotIntoRenderTexture(rt);
             var req = UnityEngine.Rendering.AsyncGPUReadback.Request(rt, 0, TextureFormat.RGBA32);
             while (!req.done) yield return null;
-            if (!req.hasError)
+            if (req.hasError) Debug.LogWarning($"[SystemTestShot] {name} failed: GPU readback error");
+            else
             {
+                // the capture comes back bottom-up on some graphics APIs (WebGPU): the harness flips it
                 var px = req.GetData<byte>().ToArray();
-                // the capture comes back bottom-up on some graphics APIs: the harness can flip it
-                var jpg = ImageConversion.EncodeArrayToJPG(px, UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm, (uint)w, (uint)h, 0, 80);
-                // in pieces: browser logs cut long lines short
-                string b64 = Convert.ToBase64String(jpg);
-                const int piece = 4000;
-                int count = (b64.Length + piece - 1) / piece;
-                for (int i = 0; i < count; i++)
-                    Debug.Log($"[SystemTestShot] {name} {i + 1}/{count} {b64.Substring(i * piece, Math.Min(piece, b64.Length - i * piece))}");
+                LogShot(name, ImageConversion.EncodeArrayToJPG(px, UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm, (uint)w, (uint)h, 0, 80));
             }
             rt.Release();
             Destroy(rt);
+        }
+
+        static void LogShot(string name, byte[] jpg)
+        {
+            // in pieces: browser logs cut long lines short
+            string b64 = Convert.ToBase64String(jpg);
+            const int piece = 4000;
+            int count = (b64.Length + piece - 1) / piece;
+            for (int i = 0; i < count; i++)
+                Debug.Log($"[SystemTestShot] {name} {i + 1}/{count} {b64.Substring(i * piece, Math.Min(piece, b64.Length - i * piece))}");
         }
 
         WarpPoint Point(string name) => WarpPoint.All.FirstOrDefault(w => w.displayName == name);

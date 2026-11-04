@@ -17,10 +17,14 @@ namespace CarrierGame
         public float coreRadius = 60f;
         [Tooltip("Big enough for a ship to hide behind.")]
         public bool cover = true;
+        [Tooltip("Middle of the obstacle in its own space (wreck sections aren't centred on their pivot).")]
+        public Vector3 centerOffset;
 
-        public Vector3 Center => transform.position;
+        public Vector3 Center => transform.TransformPoint(centerOffset);
 
         public static readonly List<Obstacle> All = new List<Obstacle>();
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => All.Clear();
         void OnEnable() => All.Add(this);
         void OnDisable() => All.Remove(this);
     }
@@ -30,6 +34,8 @@ namespace CarrierGame
     {
         public const string LayerName = "Obstacle";
         static int mask = -1;
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => mask = -1;
 
         /// <summary>Layer mask of the obstacles (0 if the project has no Obstacle layer).</summary>
         public static int Mask
@@ -71,6 +77,7 @@ namespace CarrierGame
                 if (away.sqrMagnitude < 1f) continue;
                 Vector3 spot = c + away.normalized * (o.radius + shipRadius * 2f + 60f);
                 if (!Blocked(spot, threat)) continue;
+                if (Physics.CheckSphere(spot, shipRadius * 2f + 20f, Mask, QueryTriggerInteraction.Ignore)) continue;
                 float cost = Vector3.Distance(from, spot);
                 if (cost < best) { best = cost; place = spot; found = true; }
             }

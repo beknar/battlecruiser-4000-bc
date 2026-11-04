@@ -113,7 +113,7 @@ namespace CarrierGame
         public void OpenFireSoon(float seconds)
         {
             float t = Time.time + seconds;
-            nextBurst = Mathf.Min(Mathf.Max(nextBurst, Time.time), t + Random.Range(0f, 1f));
+            nextBurst = t + Random.Range(0f, 1f);
             nextSalvo = Mathf.Max(Time.time + seconds + 3f, Mathf.Min(nextSalvo, t + Random.Range(3f, 8f)));
             nextBeam = Mathf.Max(Time.time + seconds + 6f, Mathf.Min(nextBeam, t + Random.Range(6f, 12f)));
         }

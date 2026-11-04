@@ -420,20 +420,7 @@ namespace CarrierGame.Demo
             if (Cue(seconds - 0.5f)) ReportAmbush(amb);
         }
 
-        Transform NearestPilot(CombatPilot[] pilots)
-        {
-            Transform best = null;
-            float bestD = float.MaxValue;
-            foreach (var pl in pilots)
-            {
-                if (pl == null) continue;
-                var h = pl.GetComponent<Health>();
-                if (h != null && h.Dead) continue;
-                float dd = Vector3.Distance(pl.transform.position, cc.transform.position);
-                if (dd < bestD) { bestD = dd; best = pl.transform; }
-            }
-            return best;
-        }
+        Transform NearestPilot(CombatPilot[] pilots) => CombatPilot.Nearest(pilots, cc.transform.position)?.transform;
 
         void ReportAmbush(AmbushDirector amb)
         {

@@ -59,6 +59,10 @@ namespace CarrierGame
                 if (player.Destroyed) return;
                 Vector3 p = player.transform.position;
                 if (Vector3.Distance(p, triggerPoint) < triggerRadius) { Spring("the frigate reached the far side"); return; }
+                foreach (var e in firstWave)
+                    if (e != null && e.Current != CombatPilot.State.Lurk) { Spring($"{e.name} came under fire"); return; }
+                foreach (var e in secondWave)
+                    if (e != null && e.Current != CombatPilot.State.Lurk) { Spring($"{e.name} came under fire"); return; }
                 foreach (var f in firstWave)
                 {
                     if (f == null) continue;
@@ -89,18 +93,8 @@ namespace CarrierGame
             Demo.CarrierDemoInput.Toast("AMBUSH! Fighters inbound");
             // give the guns something to shoot at if the pilot hasn't picked a target
             var demo = FindAnyObjectByType<Demo.CarrierDemoInput>();
-            if (demo != null && player.target == null)
-            {
-                Transform nearest = null;
-                float best = float.MaxValue;
-                foreach (var e in firstWave)
-                {
-                    if (e == null) continue;
-                    float d = Vector3.Distance(e.transform.position, player.transform.position);
-                    if (d < best) { best = d; nearest = e.transform; }
-                }
-                if (nearest != null) demo.SelectTarget(nearest);
-            }
+            var nearest = CombatPilot.Nearest(firstWave, player.transform.position);
+            if (demo != null && player.target == null && nearest != null) demo.SelectTarget(nearest.transform);
         }
     }
 }

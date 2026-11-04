@@ -255,7 +255,7 @@ namespace Carrier.EditorTools
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var sunTravel = new Vector3(0.30f, -0.45f, 0.84f).normalized;
-            SpaceLighting(sunTravel);
+            SpaceLighting(Quaternion.LookRotation(sunTravel), 2.3f, new Color(1f, 0.95f, 0.88f), new Color(0.06f, 0.06f, 0.08f));
             // light reflected off the gas giant, and a faint fill so the undersides aren't black
             var shine = new GameObject("Planetshine").AddComponent<Light>();
             shine.type = LightType.Directional;
@@ -367,6 +367,7 @@ namespace Carrier.EditorTools
                 var b = rs[0].bounds;
                 foreach (var r in rs) b.Encapsulate(r.bounds);
                 var ob = t.gameObject.AddComponent<Obstacle>();
+                ob.centerOffset = t.InverseTransformPoint(b.center);
                 ob.radius = b.extents.magnitude;
                 ob.coreRadius = Mathf.Min(b.extents.x, Mathf.Min(b.extents.y, b.extents.z)) * 0.4f;
                 ob.cover = true;
@@ -549,21 +550,21 @@ namespace Carrier.EditorTools
             Log("scene saved " + AsteroidScenePath);
         }
 
-        /// <summary>Lighting shared with the open-space level: the same sky and post-processing,
-        /// with the sun from a chosen direction.</summary>
-        static void SpaceLighting(Vector3 sunTravel)
+        /// <summary>The lighting both levels share: the space sky, trilight ambient, a sun and the
+        /// post-processing volume (the sky material and volume profile are made by BuildScene).</summary>
+        static void SpaceLighting(Quaternion sunRotation, float sunIntensity, Color sunColor, Color ambientGround)
         {
             RenderSettings.skybox = Load<Material>(MatDir + "/Space_Skybox.mat");
             RenderSettings.ambientMode = AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = new Color(0.20f, 0.22f, 0.28f);
             RenderSettings.ambientEquatorColor = new Color(0.10f, 0.11f, 0.14f);
-            RenderSettings.ambientGroundColor = new Color(0.06f, 0.06f, 0.08f);
+            RenderSettings.ambientGroundColor = ambientGround;
             var sun = new GameObject("Sun").AddComponent<Light>();
             sun.type = LightType.Directional;
-            sun.color = new Color(1f, 0.95f, 0.88f);
-            sun.intensity = 2.3f;
+            sun.color = sunColor;
+            sun.intensity = sunIntensity;
             sun.shadows = LightShadows.Soft;
-            sun.transform.rotation = Quaternion.LookRotation(sunTravel);
+            sun.transform.rotation = sunRotation;
             RenderSettings.sun = sun;
             var vol = new GameObject("Global Volume").AddComponent<Volume>();
             vol.isGlobal = true;

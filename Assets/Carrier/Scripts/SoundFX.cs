@@ -44,8 +44,8 @@ namespace CarrierGame
         /// <summary>Which sounds come from the library and which are synthesised (for the logs).</summary>
         public static string SourceReport { get; private set; } = "";
 
-        /// <summary>True if this sound plays library recordings rather than a synthesised clip.</summary>
-        public static bool IsLibrary(Sfx s) => instance != null && instance.defs[(int)s] != null && instance.defs[(int)s].library;
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() { LastCombatTime = -1000f; SourceReport = ""; }
 
         /// <summary>How many effect voices are sounding right now (for the auto test log).</summary>
         public static int PlayingVoices
@@ -163,28 +163,21 @@ namespace CarrierGame
             return clips;
         }
 
-        /// <summary>Length in seconds of this sound's (first) clip.</summary>
-        public static float ClipLength(Sfx s)
-        {
-            var sfx = Instance;
-            var d = sfx != null ? sfx.defs[(int)s] : null;
-            return d != null && d.clips.Length > 0 ? d.clips[0].length : 0f;
-        }
-
         /// <summary>Play a sound stretched (within reason) to last `duration` seconds, e.g. a
         /// weapon's charge-up. With alignEnd, a clip that is still too short starts late so that
-        /// it finishes exactly when the charge does.</summary>
-        public static void PlayFitted(Sfx s, Vector3 position, float duration, bool alignEnd)
+        /// it finishes exactly when the charge does. Returns the voice playing it (or null), so the
+        /// caller can stop it if the charge is called off.</summary>
+        public static AudioSource PlayFitted(Sfx s, Vector3 position, float duration, bool alignEnd)
         {
             var sfx = Instance;
-            if (sfx == null) return;
+            if (sfx == null) return null;
             var d = sfx.defs[(int)s];
-            if (d == null) return;
+            if (d == null) return null;
             float len = d.clips[0].length;
             float pitch = len / Mathf.Max(0.05f, duration);
             if (d.library) pitch = Mathf.Clamp(pitch, 0.75f, 1.35f);   // recordings only bend so far
             float delay = alignEnd ? Mathf.Max(0f, duration - len / pitch) : 0f;
-            sfx.PlayInternal(s, position, 1f, pitch, false, delay);
+            return sfx.PlayInternal(s, position, 1f, pitch, false, delay);
         }
 
         void OnDestroy()
@@ -202,18 +195,18 @@ namespace CarrierGame
         /// <summary>Play an interface sound (not positioned).</summary>
         public static void Ui(Sfx s) => Play(s, Vector3.zero);
 
-        void PlayInternal(Sfx s, Vector3 position, float volume, float pitch, bool vary, float delay)
+        AudioSource PlayInternal(Sfx s, Vector3 position, float volume, float pitch, bool vary, float delay)
         {
             var d = defs[(int)s];
-            if (d == null || d.clips == null || d.clips.Length == 0) return;
+            if (d == null || d.clips == null || d.clips.Length == 0) return null;
             if (!d.ui && (listener == null || (position - listener.position).sqrMagnitude < CombatHearingRange * CombatHearingRange))
                 LastCombatTime = Time.time;
             float now = Time.unscaledTime;
-            if (now - d.lastPlayed < d.minInterval) return;
+            if (now - d.lastPlayed < d.minInterval) return null;
             int playing = 0;
             for (int i = 0; i < voices.Length; i++)
                 if (voiceSfx[i] == (int)s && voices[i].isPlaying) playing++;
-            if (playing >= d.maxVoices) return;
+            if (playing >= d.maxVoices) return null;
             d.lastPlayed = now;
 
             int v = FreeVoice();
@@ -238,6 +231,7 @@ namespace CarrierGame
             }
             if (delay > 0.01f) a.PlayDelayed(delay);
             else a.Play();
+            return a;
         }
 
         /// <summary>A random take, never the same one twice running.</summary>

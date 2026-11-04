@@ -240,8 +240,7 @@ namespace CarrierGame.Demo
                     if (info == null || !info.Hostile) continue;
                     var h = info.GetComponent<Health>();
                     if (h != null && h.Dead) continue;
-                    var pilot = info.GetComponent<CombatPilot>();
-                    if (pilot != null && pilot.Current == CombatPilot.State.Lurk) continue;
+                    if (CombatPilot.IsHidden(info.transform)) continue;
                     total++;
                     if (Cover.Visible(info.transform.position, carrier.transform.position)) seen++;
                 }

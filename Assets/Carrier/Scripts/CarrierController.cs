@@ -240,6 +240,7 @@ namespace CarrierGame
             float liftChange = wantLift - liftSpeed;
             liftSpeed = Mathf.MoveTowards(liftSpeed, wantLift, elevatorAcceleration * dt);
             transform.position += Collide((transform.forward * speed + transform.up * liftSpeed) * dt);
+            if (Cover.Active) transform.position = Depenetrate(transform.position);
             UpdateLiftFlares(liftChange);
             if (engines != null) foreach (var e in engines) if (e) e.throttle = Mathf.Max(0.15f, throttle);
             wing.RemoveAll(c => c == null);
@@ -285,6 +286,51 @@ namespace CarrierGame
             capCenter = b.center;
             capRadius = Mathf.Max(5f, Mathf.Max(b.extents.x, b.extents.y) * 0.8f);
             capHalf = Mathf.Max(0f, b.extents.z - capRadius);
+            // a stand-in capsule for working out how far the hull has sunk into rock; it lives on
+            // its own (not under the ship, so turret hull checks never see it) and only its shape
+            // is used: ComputePenetration is given the hull's pose each time
+            var go = new GameObject($"{name} collision capsule") { hideFlags = HideFlags.HideAndDontSave };
+            go.layer = 2;   // Ignore Raycast
+            go.transform.position = new Vector3(0f, -100000f, 0f);
+            proxy = go.AddComponent<CapsuleCollider>();
+            proxy.isTrigger = true;
+            proxy.direction = 2;
+            proxy.radius = capRadius;
+            proxy.height = 2f * (capHalf + capRadius);
+        }
+
+        CapsuleCollider proxy;
+        static readonly Collider[] Overlaps = new Collider[16];
+
+        void OnDestroy() { if (proxy != null) Destroy(proxy.gameObject); }
+
+        /// <summary>Push the hull back out of any rock it overlaps (after turning into a rock face,
+        /// or a drifting wreck section swinging into it): casts can't see what they start inside.</summary>
+        Vector3 Depenetrate(Vector3 position)
+        {
+            Quaternion rot = transform.rotation;
+            Vector3 c = position + rot * capCenter, f = rot * Vector3.forward * capHalf;
+            int n = Physics.OverlapCapsuleNonAlloc(c + f, c - f, capRadius, Overlaps, Cover.Mask, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                var col = Overlaps[i];
+                if (col == null || proxy == null) continue;
+                if (Physics.ComputePenetration(proxy, c, rot, col, col.transform.position, col.transform.rotation, out var dir, out var depth))
+                {
+                    Vector3 push = dir * (depth + Skin);
+                    position += push;
+                    c += push;
+                    if (Time.time - LastCollisionTime > 0.5f)
+                    {
+                        Collisions++;
+                        if (health != null) health.Damage(depth * collisionDamage, c, HitKind.Cannon);
+                    }
+                    LastCollisionTime = Time.time;
+                    float into = Vector3.Dot(Velocity, -dir);
+                    if (into > 0f) speed *= 0.5f;
+                }
+            }
+            return position;
         }
 
         /// <summary>Limit a move so the hull doesn't pass into an obstacle: stop at the surface and

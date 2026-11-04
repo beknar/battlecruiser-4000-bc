@@ -53,7 +53,11 @@ namespace CarrierGame
 
         Health health;
         EnemyWeapons weapons;
-        float speed, bodyRadius, nextHide, hideUntil, extendUntil, circleAngle;
+        float speed, bodyRadius, nextHide, hideUntil, hideGiveUp, extendUntil;
+        int hitsWhileLurking;
+        Health targetHealth;
+        IVelocity targetMover;
+        Transform cachedTarget;
         bool extending;
         Vector3 lurkPoint, extendPoint, hidePoint;
         Quaternion lurkRotation;
@@ -70,7 +74,6 @@ namespace CarrierGame
             lurkPoint = transform.position;
             lurkRotation = transform.rotation;
             Current = startLurking ? State.Lurk : State.Engage;
-            circleAngle = Random.Range(0f, 360f);
         }
 
         void Start()
@@ -85,7 +88,7 @@ namespace CarrierGame
                 weapons.target = target;
                 weapons.weaponsFree = Current != State.Lurk;
             }
-            if (health != null) health.onRespawned.AddListener(OnRespawned);
+            if (health != null) { health.onRespawned.AddListener(OnRespawned); hitsWhileLurking = health.Hits; }
         }
 
         /// <summary>A ship still lying in wait for an ambush (not shown or targetable yet).</summary>
@@ -93,6 +96,20 @@ namespace CarrierGame
         {
             var pilot = t != null ? t.GetComponent<CombatPilot>() : null;
             return pilot != null && pilot.Current == State.Lurk;
+        }
+
+        /// <summary>The nearest of these pilots that is still alive (null if none).</summary>
+        public static CombatPilot Nearest(System.Collections.Generic.IEnumerable<CombatPilot> pilots, Vector3 from)
+        {
+            CombatPilot best = null;
+            float bestD = float.MaxValue;
+            foreach (var p in pilots)
+            {
+                if (p == null || (p.health != null && p.health.Dead)) continue;
+                float d = (p.transform.position - from).sqrMagnitude;
+                if (d < bestD) { bestD = d; best = p; }
+            }
+            return best;
         }
 
         /// <summary>Spring the ambush: leave cover and attack.</summary>
@@ -112,6 +129,7 @@ namespace CarrierGame
             extending = false;
             bool wasLurking = Current == State.Lurk;
             Current = wasLurking ? State.Lurk : State.Engage;
+            if (health != null) hitsWhileLurking = health.Hits;
             if (weapons != null) weapons.weaponsFree = !wasLurking;
         }
 
@@ -128,16 +146,25 @@ namespace CarrierGame
                 // sit in cover, nose toward the threat, engines barely ticking over
                 speed = Mathf.MoveTowards(speed, 0f, acceleration * dt);
                 transform.position = Vector3.MoveTowards(pos, lurkPoint, 20f * dt);
+                // shot at while lying in wait: no point hiding any more
+                if (health != null && health.Hits > hitsWhileLurking) Engage();
                 return;
             }
 
-            bool targetAlive = target != null && (target.GetComponentInParent<Health>() is Health th ? !th.Dead : true);
+            if (target != cachedTarget)
+            {
+                cachedTarget = target;
+                targetHealth = target != null ? target.GetComponentInParent<Health>() : null;
+                targetMover = Motion.Of(target);
+            }
+            bool targetAlive = target != null && (targetHealth == null || !targetHealth.Dead);
             if (Current == State.Engage && health != null && targetAlive &&
                 health.Current < health.maxHealth * hideBelow && Time.time >= nextHide && target != null &&
                 Cover.FindHidingPlace(pos, target.position, bodyRadius, hideSearch, out hidePoint))
             {
                 Current = State.Hide;
                 hideUntil = float.MaxValue;
+                hideGiveUp = Time.time + 12f + Vector3.Distance(pos, hidePoint) / Mathf.Max(30f, attackSpeed);
                 TimesHidden++;
             }
 
@@ -154,6 +181,8 @@ namespace CarrierGame
                     float dist = desired.magnitude;
                     wantSpeed = dist > 300f ? attackSpeed : Mathf.Lerp(0f, cruiseSpeed, dist / 300f);
                     if (dist < 150f && hideUntil == float.MaxValue) hideUntil = Time.time + hideTime;
+                    // blocked from getting there (rock in the way): give up and fight on
+                    if (hideUntil == float.MaxValue && Time.time > hideGiveUp) hideUntil = Time.time;
                     if (Time.time > hideUntil)
                     {
                         Current = State.Engage;
@@ -193,9 +222,8 @@ namespace CarrierGame
                 extending = true;
                 return extendPoint - pos;
             }
-            var mover = Motion.Of(target);
             float t = to.magnitude / Mathf.Max(1f, attackSpeed + 400f);
-            return (tp + (mover != null ? mover.Velocity * t : Vector3.zero)) - pos;
+            return (tp + (targetMover != null ? targetMover.Velocity * t : Vector3.zero)) - pos;
         }
 
         /// <summary>Hold the stand-off range, circling the target slowly.</summary>
@@ -204,7 +232,7 @@ namespace CarrierGame
             Vector3 tp = target.position;
             Vector3 flat = Vector3.ProjectOnPlane(pos - tp, Vector3.up);
             if (flat.sqrMagnitude < 1f) flat = Vector3.forward;
-            circleAngle += circleSpeed * dt;
+            // aim for a point a few degrees round the circle, so it keeps circling
             Vector3 dir = Quaternion.AngleAxis(circleSpeed * 3f, Vector3.up) * flat.normalized;
             Vector3 goal = tp + dir * standoff + Vector3.up * Mathf.Clamp(pos.y - tp.y, -400f, 400f);
             Vector3 to = goal - pos;

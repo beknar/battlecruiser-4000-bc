@@ -1010,19 +1010,6 @@ namespace Carrier.EditorTools
             sky.SetFloat("_ImageType", 0f);
             sky.SetFloat("_Exposure", 1.1f);
             sky = SaveMat("Space_Skybox", sky);
-            RenderSettings.skybox = sky;
-            RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.20f, 0.22f, 0.28f);
-            RenderSettings.ambientEquatorColor = new Color(0.10f, 0.11f, 0.14f);
-            RenderSettings.ambientGroundColor = new Color(0.04f, 0.04f, 0.05f);
-
-            var sun = new GameObject("Sun").AddComponent<Light>();
-            sun.type = LightType.Directional;
-            sun.color = new Color(1f, 0.96f, 0.9f);
-            sun.intensity = 2.2f;
-            sun.shadows = LightShadows.Soft;
-            sun.transform.rotation = Quaternion.Euler(28f, -35f, 0f);
-            RenderSettings.sun = sun;
 
             // post-processing: bloom for the emissive lights, ACES tonemapping
             string profilePath = Root + "/Settings/CarrierVolume.asset";
@@ -1042,9 +1029,7 @@ namespace Carrier.EditorTools
             ca.postExposure.Override(0.3f);
             foreach (var comp in profile.components) AssetDatabase.AddObjectToAsset(comp, profile);
             AssetDatabase.SaveAssets();
-            var vol = new GameObject("Global Volume").AddComponent<Volume>();
-            vol.isGlobal = true;
-            vol.sharedProfile = profile;
+            SpaceLighting(Quaternion.Euler(28f, -35f, 0f), 2.2f, new Color(1f, 0.96f, 0.9f), new Color(0.04f, 0.04f, 0.05f));
 
             var carrier = (GameObject)PrefabUtility.InstantiatePrefab(carrierPrefab);
             var cc = carrier.GetComponent<CarrierController>();

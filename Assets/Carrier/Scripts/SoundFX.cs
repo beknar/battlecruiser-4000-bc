@@ -4,7 +4,7 @@ using UnityEngine;
 namespace CarrierGame
 {
     public enum Sfx { Cannon, PointDefense, Blaster, MissileLaunch, ExplosionBig, ExplosionSmall, Impact, Catapult, UiLock, UiClear, UiError, UiKill,
-                      ShieldHit, BeamCharge, BeamFire, HeavyBeamCharge, HeavyBeamFire }
+                      ShieldHit, BeamCharge, BeamFire, HeavyBeamCharge, HeavyBeamFire, UiAlert }
 
     /// <summary>
     /// Plays the game's sounds. Each sound uses the library recordings in
@@ -108,6 +108,7 @@ namespace CarrierGame
             D(Sfx.UiClear, () => SfxSynth.Beeps("ui_clear", new[] { 1175f, 700f }, 0.08f, 0.04f), 0.35f, 0.4f, 0f, 0.05f, 2, true);
             D(Sfx.UiError, SfxSynth.Buzz, 0.4f, 0.4f, 0f, 0.15f, 1, true);
             D(Sfx.UiKill, () => SfxSynth.Beeps("ui_kill", new[] { 660f, 880f, 1320f }, 0.09f, 0.02f), 0.5f, 0.5f, 0f, 0.3f, 1, true);
+            D(Sfx.UiAlert, () => SfxSynth.Beeps("ui_alert", new[] { 990f, 740f, 990f, 740f }, 0.14f, 0.06f), 0.45f, 0.45f, 0f, 1f, 1, true);
             D(Sfx.ShieldHit, SfxSynth.ShieldHit, 0.35f, 0.4f, 900f, 0.07f, 4);
             D(Sfx.BeamCharge, SfxSynth.BeamCharge, 0.45f, 0.55f, 1500f, 0.5f, 2);
             D(Sfx.BeamFire, SfxSynth.BeamFire, 0.6f, 0.65f, 2500f, 0.5f, 2);

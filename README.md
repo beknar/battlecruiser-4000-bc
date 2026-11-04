@@ -87,6 +87,28 @@ The code still supports the original carrier, which has a hangar of fighters, dr
 missile salvos and wing orders (attack, escort, return). The HUD and controls adapt to whichever
 ship is in the scene.
 
+### Second game: Asteroid Ambush
+
+A separate build (`AsteroidAmbush.exe`) set in an asteroid field near a gas giant.
+
+- **The field.** The frigate starts at one end of a 3 km asteroid. Around it are about 230
+  smaller rocks, a boulder, and the drifting wreck of a bigger ship of the frigate's class with
+  a cloud of tumbling debris. Every rock is generated from a seed when the level loads.
+- **Cover.** Asteroids and wreck sections block shots, beams, missiles and line of sight. Guns
+  won't fire at, and enemies won't shoot at, a ship hidden behind one. The HUD shows how many
+  enemies can see the frigate. The frigate can't fly through rock: it scrapes along the
+  surface, losing speed and taking a knock on the shield.
+- **The ambush.**
+  - Four fighters wait out of sight under the far end of the big asteroid. They attack as soon
+    as one of them can see the frigate.
+  - Ten seconds later the heavy cruiser and two drones come out from behind the boulder.
+  - The music switches from a quiet travelling track to a battle track the moment the ambush
+    is sprung.
+- **Enemy pilots.** Fighters and drones make attack runs and break away. The cruiser holds a
+  stand-off range and circles. Any of them retreats behind the nearest rock or wreck when its
+  hull runs low, then comes back. Destroyed enemies respawn where they were hiding and rejoin
+  the fight.
+
 ## Controls
 
 | Action | Keyboard / mouse | Xbox 360 pad |
@@ -110,7 +132,7 @@ ship is in the scene.
   breakup, enemy weapons and sound synthesis
 - `Assets/Carrier/Scripts/Demo`: input and gamepad support, HUD, camera, autopilot, the self-test and
   the demo reel recorder
-- `Assets/Carrier/Shaders`: the shield bubble shader (URP, additive)
+- `Assets/Carrier/Shaders`: the shield bubble and planet atmosphere shaders (URP, additive)
 - `Assets/Carrier/Editor`: `CarrierBuilder` generates the materials, prefabs, breakup chunks and
   scene; `CarrierPlayerBuild` builds the Windows player; `CarrierCommandWatcher` runs builds from
   a trigger file
@@ -123,7 +145,8 @@ ship is in the scene.
 
 1. Open the project in Unity 6000.6.
 2. Run **Tools > Carrier > Build Everything** to generate the materials, prefabs and scene.
-3. Run **Tools > Carrier > Build Windows Demo** to build `../Builds/CarrierDemo/CarrierDemo.exe`.
+3. Run **Tools > Carrier > Build Windows Demo** to build `../Builds/CarrierDemo/CarrierDemo.exe`, or
+   **Tools > Carrier > Build Asteroid Ambush** for `../Builds/AsteroidAmbush/AsteroidAmbush.exe`.
 
 The player uses DirectX 11, which is the stable choice on hybrid AMD + NVIDIA laptops.
 
@@ -139,7 +162,7 @@ The player uses DirectX 11, which is the stable choice on hybrid AMD + NVIDIA la
   - enemy breakup;
   - frigate destruction and respawn;
   - every gamepad control, using a virtual pad.
-- `CarrierDemo.exe -reel <dir>`: records a 60 s demo reel at 30 fps as JPG frames plus a WAV
+- `CarrierDemo.exe -reel <dir>` (or `AsteroidAmbush.exe -reel <dir>`): records a demo reel (60 s, or 76 s for the ambush) at 30 fps as JPG frames plus a WAV
   soundtrack, then quits. Join them with ffmpeg:
 
   ```

@@ -311,6 +311,20 @@ namespace Carrier.EditorTools
             w.holdFire = 4f;
         }
 
+        /// <summary>Fighter guns: short, fast bursts along the nose during an attack run.</summary>
+        static void ArmFighter(GameObject go, Prefabs p)
+        {
+            var w = go.AddComponent<EnemyWeapons>();
+            w.gunPrefab = p.enemyBlaster;
+            w.gunRange = 1500f;
+            w.burstInterval = 0.9f;
+            w.burstShots = 4;
+            w.shotSpacing = 0.08f;
+            w.spread = 1.2f;
+            w.holdFire = 4f;
+            w.fireArc = 18f;
+        }
+
         static void ArmCruiser(GameObject go, Prefabs p)
         {
             var w = go.AddComponent<EnemyWeapons>();

@@ -10,6 +10,7 @@ MAN="E:/code/claude_unity/My project/Assets/Carrier/Data/audio_sources.txt"
 SW="F:/non-unreal-assets/gamedevmarket assets/Sci Fi Sound Effects Bundle/Stormwave Audio Sci-Fi Sound Effects Bundle"
 HB="F:/non-unreal-assets/humble bundle - 2d game creation mega bundle/gdm-sci-fi-game-sound-effects-bundle/Sci-Fi Game Sound Effects Bundle/SFXs"
 MU="F:/non-unreal-assets/gamedevmarket assets/Space and Science Fiction Music Pack Vol 1/Space Science Fiction Music Pack/audio"
+SF="F:/non-unreal-assets/gamedevmarket assets/Sci Fi Fantasy Music/Sci Fi Fantasy Music"
 
 rm -rf "$OUT"; mkdir -p "$OUT"
 echo "Library sounds used by the game (copied to Assets/Carrier/Resources/CarrierAudio)" > "$MAN"
@@ -28,7 +29,7 @@ sfx() {
     fi
     "$FF" -y -loglevel error -i "$src" -ac 1 -ar 44100 -af "$af" -c:a pcm_s16le "$tmp"
     norm "$tmp" "$dst"
-    echo "$name/${name}_$i.wav  <-  ${src#F:/non-unreal-assets/}  [mono, trimmed${cap:+, cap $cap s}, peak -1 dB]" >> "$MAN"
+    echo "$name/${name}_$i.wav  <-  ${src#F:/non-unreal-assets/}  [mono, trimmed$( [ "$cap" != "0" ] && echo ", cap $cap s"), peak -1 dB]" >> "$MAN"
     i=$((i+1))
   done
 }
@@ -62,6 +63,7 @@ sfx Catapult 0 0 "$HB/Starship Sound Effects/SFXs/wav/starship_turbine_launch_0"
 sfx UiLock 0 0 "$HB/Starship Sound Effects/SFXs/wav/starship_ui_blip_notification_02.wav"
 sfx UiClear 0 0 "$HB/Starship Sound Effects/SFXs/wav/starship_ui_select_click_02.wav"
 sfx UiError 0 0 "$SW/Vehicles/Sci-Fi Spaceship Interface Error Motification 1.wav"
+sfx UiAlert 3.5 0.8 "$SW/Vehicles/Sci-Fi Spaceship Interface Missile Incoming Warning 1.wav"
 sfx UiKill 0 0 "$HB/Starship Sound Effects/SFXs/wav/starship_ui_notification.wav"
 sfx BeamCharge 0 0 "$HB/Energy Sound Effects/SFXs/wav/energy_charging_05.wav"
 sfx BeamFire 0 0 "$SW/Weapons/Energy Weapons/Sci-Fi Heavy Beam Cannon Shot "{1,2}.wav
@@ -73,4 +75,9 @@ cp "$MU/Void [Ambient Loop].wav" "$OUT/Music/Music_Calm.wav"
 cp "$MU/Void [Action Loop].wav" "$OUT/Music/Music_Combat.wav"
 echo "Music/Music_Calm.wav  <-  gamedevmarket assets/Space and Science Fiction Music Pack Vol 1/.../Void [Ambient Loop].wav  [as is]" >> "$MAN"
 echo "Music/Music_Combat.wav  <-  gamedevmarket assets/Space and Science Fiction Music Pack Vol 1/.../Void [Action Loop].wav  [as is]" >> "$MAN"
+# asteroid ambush: a quiet track for the approach, a battle track once the ambush is sprung
+cp "$MU/Deepness of Space [Ambient Loop].wav" "$OUT/Music/Travel_Calm.wav"
+cp "$SF/Action - Battle Ensued LOOP.wav" "$OUT/Music/Ambush_Combat.wav"
+echo "Music/Travel_Calm.wav  <-  gamedevmarket assets/Space and Science Fiction Music Pack Vol 1/.../Deepness of Space [Ambient Loop].wav  [as is]" >> "$MAN"
+echo "Music/Ambush_Combat.wav  <-  gamedevmarket assets/Sci Fi Fantasy Music/.../Action - Battle Ensued LOOP.wav  [as is]" >> "$MAN"
 echo "staged:"; find "$OUT" -name "*.wav" | wc -l

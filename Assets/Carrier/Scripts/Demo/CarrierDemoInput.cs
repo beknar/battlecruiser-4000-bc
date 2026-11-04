@@ -11,6 +11,8 @@ namespace CarrierGame.Demo
         public CarrierController carrier;
         public OrbitCamera orbitCamera;
         public Transform[] targets;
+        [Tooltip("Lock onto the first target when the game starts (off for an ambush: the enemies start hidden).")]
+        public bool targetOnStart = true;
 
         int targetIndex, followIndex = -1;
         TargetDisplay display;
@@ -36,7 +38,7 @@ namespace CarrierGame.Demo
 
         void Start()
         {
-            if (carrier != null && targets != null && targets.Length > 0) carrier.SetTarget(targets[0]);
+            if (carrier != null && targets != null && targets.Length > 0 && targetOnStart) carrier.SetTarget(targets[0]);
             if (carrier != null && orbitCamera != null && orbitCamera.target == carrier.transform)
             {
                 orbitCamera.distance = ShipViewDistance;
@@ -229,6 +231,24 @@ namespace CarrierGame.Demo
                     sb.Append(err <= mainGun.aimAssist ? "  <color=#7ee08a>on target</color>" : $"  <color=#ffb060>{err:F0}° off</color>");
                 }
             }
+            if (Cover.Active)
+            {
+                // among the rocks: how many hostiles can see us (the rest can't shoot)
+                int seen = 0, total = 0;
+                foreach (var info in TargetInfo.All)
+                {
+                    if (info == null || !info.Hostile) continue;
+                    var h = info.GetComponent<Health>();
+                    if (h != null && h.Dead) continue;
+                    var pilot = info.GetComponent<CombatPilot>();
+                    if (pilot != null && pilot.Current == CombatPilot.State.Lurk) continue;
+                    total++;
+                    if (Cover.Visible(info.transform.position, carrier.transform.position)) seen++;
+                }
+                if (total > 0)
+                    sb.Append(seen == 0 ? "\nCover  <color=#7ee08a>hidden from every enemy</color>"
+                                        : $"\nCover  in sight of {seen} of {total} enemies");
+            }
             if (ciws != null)
             {
                 var t = ciws.EngagedTarget;
@@ -374,8 +394,13 @@ namespace CarrierGame.Demo
         public void NextTarget()
         {
             if (targets == null || targets.Length == 0) return;
-            targetIndex = carrier.target == null ? targetIndex % targets.Length : (targetIndex + 1) % targets.Length;
-            Select(targets[targetIndex]);
+            // the next target in the list that isn't still hiding in an ambush
+            for (int tries = 0; tries < targets.Length; tries++)
+            {
+                targetIndex = carrier.target == null && tries == 0 ? targetIndex % targets.Length : (targetIndex + 1) % targets.Length;
+                if (!CombatPilot.IsHidden(targets[targetIndex])) { Select(targets[targetIndex]); return; }
+            }
+            NoTarget();
         }
 
         /// <summary>Stop targeting: guns stow, craft attacking it go back to escort.</summary>
@@ -473,7 +498,7 @@ namespace CarrierGame.Demo
             {
                 if (hit.transform.IsChildOf(carrier.transform)) continue;
                 foreach (var t in targets)
-                    if (t != null && hit.transform.IsChildOf(t)) best = t;
+                    if (t != null && hit.transform.IsChildOf(t) && !CombatPilot.IsHidden(t)) best = t;
                 break;
             }
             if (best == null)
@@ -484,6 +509,7 @@ namespace CarrierGame.Demo
                     if (t == null) continue;
                     var h = t.GetComponent<Health>();
                     if (h != null && h.Dead) continue;
+                    if (CombatPilot.IsHidden(t)) continue;
                     Vector3 sp = cam.WorldToScreenPoint(t.position);
                     if (sp.z <= 0f) continue;
                     float d = Vector2.Distance(new Vector2(sp.x, sp.y), screen);

@@ -6,17 +6,36 @@ using UnityEngine;
 
 namespace Carrier.EditorTools
 {
-    /// <summary>Builds the carrier demo as a release Windows (64-bit) executable.</summary>
+    /// <summary>Builds the demos as release Windows (64-bit) executables: the open-space carrier
+    /// demo, and the asteroid-field ambush as a second, separate game.</summary>
     public static class CarrierPlayerBuild
     {
         const string Scene = "Assets/Carrier/Scenes/CarrierShowcase.unity";
         public const string OutDir = "../Builds/CarrierDemo";   // next to the Unity project
         const string Exe = "CarrierDemo.exe";
+        const string ProductName = "Carrier Demo";
+
+        public const string AsteroidOutDir = "../Builds/AsteroidAmbush";
+        const string AsteroidExe = "AsteroidAmbush.exe";
+        const string AsteroidProductName = "Asteroid Ambush";
 
         [MenuItem("Tools/Carrier/Build Windows Demo")]
-        public static void Build()
+        public static void Build() => Build(Scene, OutDir, Exe, ProductName, "Temp/carrier_player_build.log");
+
+        [MenuItem("Tools/Carrier/Build Asteroid Ambush")]
+        public static void BuildAsteroids()
         {
-            PlayerSettings.productName = "Carrier Demo";
+            try { Build(CarrierBuilder.AsteroidScenePath, AsteroidOutDir, AsteroidExe, AsteroidProductName, "Temp/carrier_player2_build.log"); }
+            finally
+            {
+                PlayerSettings.productName = ProductName;   // the project keeps the first demo's name
+                AssetDatabase.SaveAssets();
+            }
+        }
+
+        static void Build(string scene, string outDirRel, string exe, string productName, string logPath)
+        {
+            PlayerSettings.productName = productName;
             PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
             PlayerSettings.runInBackground = true;
             PlayerSettings.defaultIsNativeResolution = true;
@@ -29,17 +48,22 @@ namespace Carrier.EditorTools
 
             if (EditorUtility.scriptCompilationFailed)
             {
-                File.WriteAllText("Temp/carrier_player_build.log", "not built: scripts have compile errors (old build left in place)");
+                File.WriteAllText(logPath, "not built: scripts have compile errors (old build left in place)");
                 return;
             }
-            string outDir = Path.GetFullPath(OutDir);
+            if (!File.Exists(scene))
+            {
+                File.WriteAllText(logPath, $"not built: {scene} is missing (run the asset build first)");
+                return;
+            }
+            string outDir = Path.GetFullPath(outDirRel);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
             Directory.CreateDirectory(outDir);
 
             var options = new BuildPlayerOptions
             {
-                scenes = new[] { Scene },
-                locationPathName = Path.Combine(outDir, Exe),
+                scenes = new[] { scene },
+                locationPathName = Path.Combine(outDir, exe),
                 target = BuildTarget.StandaloneWindows64,
                 options = BuildOptions.None,
             };
@@ -50,7 +74,7 @@ namespace Carrier.EditorTools
             if (s.result != BuildResult.Succeeded)
                 msg += "\n" + string.Join("\n", report.steps.SelectMany(st => st.messages)
                     .Where(m => m.type == LogType.Error || m.type == LogType.Exception).Select(m => m.content).Take(30));
-            File.WriteAllText("Temp/carrier_player_build.log", msg);
+            File.WriteAllText(logPath, msg);
             Debug.Log("[CarrierPlayerBuild] " + msg);
         }
     }

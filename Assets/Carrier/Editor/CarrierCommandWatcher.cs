@@ -57,6 +57,7 @@ namespace Carrier.EditorTools
                     case "shots": CarrierBuilder.TakeScreenshots(); break;
                     case "probe": CarrierProbe.Probe(); break;
                     case "player": CarrierPlayerBuild.Build(); break;
+                    case "player2": CarrierPlayerBuild.BuildAsteroids(); break;
                     case "playshots":
                         SessionState.SetFloat(PlayKey, -1f);
                         UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/Carrier/Scenes/CarrierShowcase.unity");

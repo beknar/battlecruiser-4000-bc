@@ -85,7 +85,7 @@ namespace CarrierGame.Demo
             shown = t;
             health = t ? t.GetComponentInParent<Health>() : null;
             info = t ? t.GetComponentInParent<TargetInfo>() : null;
-            mover = t ? t.GetComponentInParent<IVelocity>() : null;
+            mover = Motion.Of(t);
             wasDead = health != null && health.Dead;
             lastSeenHit = health != null ? health.LastHitTime : -100f;
             if (t == null) return;
@@ -128,6 +128,7 @@ namespace CarrierGame.Demo
         {
             var h = t.GetComponent<Health>();
             if (h != null && h.Dead) return;
+            if (CombatPilot.IsHidden(t)) return;   // an ambusher still lying in wait isn't on the screen
             Vector3 sp = cam.WorldToScreenPoint(t.position);
             if (sp.z <= 0f || sp.x < 0 || sp.x > Screen.width || sp.y < 0 || sp.y > Screen.height) return;
             var gp = new Vector2(sp.x, Screen.height - sp.y);

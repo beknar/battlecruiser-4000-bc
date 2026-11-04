@@ -89,6 +89,7 @@ namespace Carrier.EditorTools
                 var frigate = BuildFrigatePrefab(p);
                 BuildScene(p, frigate);
                 TakeScreenshots();
+                BuildAsteroidScene(p, frigate);     // the second level: the asteroid-field ambush
                 Log("BUILD_OK");
             }
             catch (Exception e)
@@ -425,7 +426,7 @@ namespace Carrier.EditorTools
             public Missile missile;
             public CarrierTurret mainTurret, pdTurret;
             public Craft fighter, drone, dropship;
-            public GameObject enemyCruiser, enemyDrone;
+            public GameObject enemyCruiser, enemyDrone, enemyFighter;
         }
 
         static Projectile MakeBolt(string name, string mat, Vector3 size, float speed, float damage, Explosion hit)
@@ -577,6 +578,9 @@ namespace Carrier.EditorTools
             p.enemyDrone = MakeEnemy("EnemyDrone", OwnModel("Drone"), Vector3.zero, 4f, 300f, p.explosion, 1f,
                 "Hostile Drone", "Recon drone", "Low", TargetInfo.Kind.Drone, "Blasters",
                 go => ArmDrone(go, p));
+            p.enemyFighter = MakeEnemy("EnemyFighter", Model("Mega_City/SM_ship_flying"), KitRotation["Mega_City/SM_ship_flying"], 1.5f, 260f,
+                p.explosion, 0.55f, "Hostile Fighter", "Strike fighter", "Medium", TargetInfo.Kind.Fighter, "Blaster cannons",
+                go => ArmFighter(go, p));
             AssetDatabase.SaveAssets();
             return p;
         }

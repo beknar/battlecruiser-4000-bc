@@ -463,9 +463,10 @@ namespace CarrierGame.Demo
             yield return Hold(new GamepadState { rightStick = new Vector2(1f, 0f) }, 1f);
             PadNote("pad right stick right 1s (orbit)");
 
-            yield return Press(GamepadButton.Start);      // sound off
-            PadNote("pad Start (sound)");
-            yield return Press(GamepadButton.Start);      // sound back on
+            yield return Press(GamepadButton.Start);      // pause menu
+            PadNote($"pad Start (pause menu open {GameMenu.IsOpen}, time scale {Time.timeScale})");
+            yield return Press(GamepadButton.Start);      // and closed again
+            PadNote($"pad Start again (pause menu open {GameMenu.IsOpen}, time scale {Time.timeScale})");
             yield return new WaitForSeconds(0.5f);
             yield return Shot("a6_pad");
 

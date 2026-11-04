@@ -7,4 +7,10 @@ mergeInto(LibraryManager.library, {
     if (el) el.textContent = text;
     console.log("[Page] graphics: " + text + (el ? "" : " (no badge on this page)"));
   },
+  // Quit from the pause menu: a page can't close its own tab, so the page shuts the game down
+  // (and offers to start it again); without the page's handler, nothing happens
+  CarrierPageQuit: function () {
+    console.log("[Page] quit");
+    if (typeof window.carrierQuit === "function") window.carrierQuit();
+  },
 });

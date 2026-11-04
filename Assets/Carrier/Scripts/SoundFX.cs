@@ -66,6 +66,16 @@ namespace CarrierGame
             set => AudioListener.volume = value ? 0f : 1f;
         }
 
+        /// <summary>The level is starting again (Restart in the pause menu): stop the sounds still
+        /// playing and forget the fighting, so the music starts calm.</summary>
+        public static void LevelRestart()
+        {
+            LastCombatTime = -1000f;
+            MusicDirector.ForgetCombat();
+            if (instance == null || instance.voices == null) return;
+            foreach (var v in instance.voices) if (v != null) v.Stop();
+        }
+
         static SoundFX Instance
         {
             get

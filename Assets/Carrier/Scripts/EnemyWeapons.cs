@@ -25,6 +25,10 @@ namespace CarrierGame
         public float salvoInterval = 14f;
         public int salvoSize = 4;
 
+        [Header("Turrets")]
+        [Tooltip("Turrets that track and fire on the target by themselves while this ship is in the fight.")]
+        public CarrierTurret[] turrets;
+
         [Header("Beam")]
         public MainBeam beam;
         public float beamRange = 3500f;
@@ -69,6 +73,13 @@ namespace CarrierGame
         void Update()
         {
             if (target != null && targetHealth == null) targetHealth = target.GetComponentInParent<Health>();
+            // turrets aim and fire for themselves (they hold fire behind cover); they only get the
+            // target while this ship is alive, in the fight, and the target is alive
+            if (turrets != null)
+            {
+                bool armed = target != null && weaponsFree && (health == null || !health.Dead) && (targetHealth == null || !targetHealth.Dead);
+                foreach (var t in turrets) if (t != null) t.target = armed ? target : null;
+            }
             // hold fire while we are destroyed, or while the target is (no shooting at wreckage)
             if (target == null || (health != null && health.Dead) || (targetHealth != null && targetHealth.Dead))
             {

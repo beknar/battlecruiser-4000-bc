@@ -427,7 +427,7 @@ namespace Carrier.EditorTools
             public Missile missile;
             public CarrierTurret mainTurret, pdTurret;
             public Craft fighter, drone, dropship;
-            public GameObject enemyCruiser, enemyDrone, enemyFighter;
+            public GameObject enemyCruiser, enemyDrone, enemyFighter, enemyDestroyer, enemyDreadnought;
         }
 
         static Projectile MakeBolt(string name, string mat, Vector3 size, float speed, float damage, Explosion hit)
@@ -582,6 +582,7 @@ namespace Carrier.EditorTools
             p.enemyFighter = MakeEnemy("EnemyFighter", Model("Mega_City/SM_ship_flying"), KitRotation["Mega_City/SM_ship_flying"], 1.5f, 260f,
                 p.explosion, 0.55f, "Hostile Fighter", "Strike fighter", "Medium", TargetInfo.Kind.Fighter, "Blaster cannons",
                 go => ArmFighter(go, p));
+            MakeCapitalShips(p);
             AssetDatabase.SaveAssets();
             return p;
         }

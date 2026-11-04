@@ -203,6 +203,130 @@ namespace CarrierGame.Demo
             yield return Pad(pad, GamepadButton.East);
             Shot("w9_combat");
             yield return new WaitForSeconds(0.5f);
+
+            // ---------------------------------------------------------------- pause menu
+            yield return Key(kb, UnityEngine.InputSystem.Key.Escape);
+            var menu = FindAnyObjectByType<GameMenu>();
+            Log($"keyboard Esc: menu open {GameMenu.IsOpen}, time scale {Time.timeScale}");
+            float paused0 = Time.time;
+            yield return new WaitForSecondsRealtime(0.5f);
+            Shot("m1_menu");
+            bool frozen = GameMenu.IsOpen && Time.time - paused0 < 0.01f;
+            Log($"  game time moved {Time.time - paused0:F2} s in 0.5 s of real time (paused: {frozen})");
+            bool muted0 = SoundFX.Muted;
+            yield return Key(kb, UnityEngine.InputSystem.Key.DownArrow);
+            yield return Key(kb, UnityEngine.InputSystem.Key.DownArrow);
+            string onSound = menu != null ? menu.SelectedLabel : "?";
+            yield return Key(kb, UnityEngine.InputSystem.Key.Enter);
+            bool toggled = SoundFX.Muted != muted0;
+            yield return Key(kb, UnityEngine.InputSystem.Key.Enter);
+            Log($"  keyboard down twice: '{onSound}'; Enter toggled the sound {toggled}; Enter again: muted {SoundFX.Muted} (was {muted0})");
+            Vector2 resumeAt = menu != null ? menu.ItemScreenPos(0) : Vector2.zero;
+            yield return Click(mouse, new Vector2(resumeAt.x, Screen.height - resumeAt.y));
+            bool mouseResumed = !GameMenu.IsOpen && Time.timeScale > 0.5f;
+            Log($"  mouse click on Resume: menu open {GameMenu.IsOpen}, time scale {Time.timeScale}");
+            yield return Pad(pad, GamepadButton.Start);
+            bool padOpened = GameMenu.IsOpen;
+            yield return Pad(pad, GamepadButton.East);
+            Log($"  pad Start: menu open {padOpened}; pad B: menu open {GameMenu.IsOpen}");
+            bool menuOk = frozen && toggled && SoundFX.Muted == muted0 && mouseResumed && padOpened && !GameMenu.IsOpen;
+            Log(menuOk ? "PASS: pause menu (pause, sound, resume by mouse and pad)" : "FAIL: pause menu");
+
+            // restart from the menu with the pad: Start, down to Restart, A, then A again to confirm
+            DontDestroyOnLoad(gameObject);
+            var oldDemo = demo;
+            yield return Pad(pad, GamepadButton.Start);
+            yield return Pad(pad, GamepadButton.DpadDown);
+            yield return Pad(pad, GamepadButton.South);
+            Log($"  pad A on Restart: '{(menu != null ? menu.SelectedLabel : "?")}' (asks to confirm)");
+            yield return Pad(pad, GamepadButton.South);
+            float waitUntil = Time.realtimeSinceStartup + 20f;
+            while (Time.realtimeSinceStartup < waitUntil)
+            {
+                demo = FindAnyObjectByType<CarrierDemoInput>();
+                if (demo != null && demo != oldDemo) break;
+                yield return null;
+            }
+            yield return new WaitForSeconds(1.5f);
+            map = FindAnyObjectByType<SystemMap>();
+            cc = demo != null ? demo.carrier : null;
+            drive = cc != null ? cc.GetComponent<WarpDrive>() : null;
+            if (cc == null || drive == null || map == null || demo == oldDemo) { Log("FAIL: the level did not come back after Restart"); Application.Quit(); yield break; }
+            var raiders = GameObject.Find("Raiders")?.GetComponent<EncounterGroup>();
+            string nearNow = WarpPoint.Nearest(cc.transform.position)?.displayName;
+            bool restarted = Time.timeScale > 0.5f && !GameMenu.IsOpen && nearNow == "Thalassa" && raiders != null && !raiders.Active;
+            Log($"restart: new level, near {nearNow}, hull {cc.GetComponent<Health>().Current:F0}, " +
+                $"raiders attacking {raiders != null && raiders.Active}, warp ready {drive.CanWarp(out string rw)} {rw}");
+            Log(restarted ? "PASS: restart" : "FAIL: restart");
+            Shot("m2_restarted");
+
+            // ---------------------------------------------------------------- capital ships
+            var dread = GameObject.Find("Pirate Dreadnought");
+            var fleet = GameObject.Find("Dreadnought battle group")?.GetComponent<EncounterGroup>();
+            var patrol = GameObject.Find("Corsair patrol")?.GetComponent<EncounterGroup>();
+            var dreadTurrets = dread != null ? dread.GetComponentsInChildren<CarrierTurret>() : new CarrierTurret[0];
+            var dreadHealth = dread != null ? dread.GetComponent<Health>() : null;
+            Log($"capital ships: dreadnought {(dread != null ? "present" : "MISSING")} ({dreadTurrets.Length} turrets, hull {(dreadHealth != null ? dreadHealth.Current : 0f):F0}), " +
+                $"battle group {(fleet != null ? fleet.pilots.Length : 0)} ships, corsair patrol {(patrol != null ? patrol.pilots.Length : 0)} ships, " +
+                $"dreadnought visible before the fight {dread != null && !CombatPilot.IsHidden(dread.transform)}");
+            yield return Key(kb, UnityEngine.InputSystem.Key.M);
+            for (int i = 0; i < 20 && map.Selected?.displayName != "Glacis"; i++) yield return Key(kb, UnityEngine.InputSystem.Key.Tab);
+            yield return Warp(() => Key(kb, UnityEngine.InputSystem.Key.Enter), "keyboard Enter", "c0", false);
+            if (dread != null)
+                Log($"  the dreadnought is {Vector3.Distance(cc.transform.position, dread.transform.position) / 1000f:F1} km away, " +
+                    $"{Vector3.Angle(cc.transform.forward, dread.transform.position - cc.transform.position):F0} deg off the bow");
+            float fightUntil = Time.time + 15f;
+            while (Time.time < fightUntil && (fleet == null || !fleet.Active)) yield return null;
+            Log($"  battle group attacking: {fleet != null && fleet.Active} after {15f - (fightUntil - Time.time):F1} s");
+            // turn the bow on the dreadnought and hold there while the fleet closes, firing the bow gun
+            if (dread != null) demo.SelectTarget(dread.transform);
+            cc.throttle = 0f;
+            var health = cc.GetComponent<Health>();
+            var shield = cc.GetComponentInChildren<Shield>();
+            float hull0 = health.Current, shield0 = shield != null ? shield.Strength : 0f, shieldLow = shield0;
+            int charged = 0;
+            fightUntil = Time.time + 40f;
+            while (Time.time < fightUntil)
+            {
+                if (dread != null)
+                {
+                    var v = ShipAutopilot.BowOn(cc, dread.transform.position);
+                    demo.autoRudder = v.x;
+                    demo.autoPitch = v.y;
+                }
+                if (shield != null) shieldLow = Mathf.Min(shieldLow, shield.Strength);
+                if (charged < 3 && dread != null && Vector3.Distance(cc.transform.position, dread.transform.position) < 6000f &&
+                    Vector3.Angle(cc.transform.forward, dread.transform.position - cc.transform.position) < 6f && demo.MainGun != null &&
+                    demo.MainGun.Current == MainBeam.State.Idle)
+                {
+                    yield return Key(kb, UnityEngine.InputSystem.Key.B);
+                    charged++;
+                }
+                yield return null;
+            }
+            demo.autoRudder = null;
+            demo.autoPitch = null;
+            Shot("c1_battle");
+            int turretShots = dreadTurrets.Sum(t => t.ShotsFired);
+            var escorts = fleet != null ? fleet.pilots.Where(pl => pl != null && pl.gameObject != dread).ToArray() : new CombatPilot[0];
+            int escortShots = escorts.Sum(e => e.GetComponentsInChildren<CarrierTurret>().Sum(t => t.ShotsFired));
+            float dreadTook = dreadHealth != null ? dreadHealth.TotalDamage : 0f;
+            Log($"  after 40 s: dreadnought turrets fired {turretShots}, escort turrets fired {escortShots}; frigate shield {shield0:F0} -> lowest {shieldLow:F0}, " +
+                $"hull {hull0:F0} -> {health.Current:F0}; bow gun charged {charged}x; dreadnought took {dreadTook:F0} of {(dreadHealth != null ? dreadHealth.maxHealth : 0f):F0}");
+            bool fought = fleet != null && fleet.Active && turretShots > 0 && escortShots > 0 && (shieldLow < shield0 || health.Current < hull0) && dreadTook > 0f;
+            Log(fought ? "PASS: capital ship battle (both sides hit)" : "FAIL: capital ship battle");
+            Log($"  warp during the fight: {(drive.CanWarp(out string fw) ? "allowed" : "locked: " + fw)}");
+            if (web)
+            {
+                // Quit from the menu: the page shuts the game down (the harness looks for "[Page] quit")
+                Log("quitting from the menu: Esc, up to Quit, Enter, Enter to confirm");
+                yield return Key(kb, UnityEngine.InputSystem.Key.Escape);
+                yield return Key(kb, UnityEngine.InputSystem.Key.UpArrow);
+                yield return Key(kb, UnityEngine.InputSystem.Key.Enter);
+                Log("done");
+                yield return Key(kb, UnityEngine.InputSystem.Key.Enter);
+                yield break;
+            }
             Log("done");
             Application.Quit();
         }

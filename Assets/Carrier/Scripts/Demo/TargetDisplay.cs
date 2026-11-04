@@ -181,6 +181,7 @@ namespace CarrierGame.Demo
             string arrow = Mathf.Abs(d.x) * centre.y > Mathf.Abs(d.y) * centre.x
                 ? (d.x > 0 ? "▶" : "◀")
                 : (d.y > 0 ? "▲" : "▼");
+            arrow = CarrierDemoInput.WebText(arrow);
             var st = Hud.Text(16, true, TextAnchor.MiddleCenter);
             var content = new GUIContent($"<color=#{ColorUtility.ToHtmlStringRGB(col)}>{arrow}  {label}</color>");
             Vector2 size = st.CalcSize(content);

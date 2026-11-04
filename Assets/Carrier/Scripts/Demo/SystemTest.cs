@@ -27,24 +27,61 @@ namespace CarrierGame.Demo
         {
             var args = Environment.GetCommandLineArgs();
             int i = Array.IndexOf(args, "-systemtest");
-            if (i < 0) return;
+            // in a web build: open the page with ?systemtest, and the results go to the browser console
+            bool web = CarrierDemoInput.OnWeb && (Application.absoluteURL ?? "").Contains("systemtest");
+            if (i < 0 && !web) return;
             var t = new GameObject("SystemTest").AddComponent<SystemTest>();
-            t.dir = i + 1 < args.Length && !args[i + 1].StartsWith("-") ? args[i + 1] : Application.persistentDataPath;
+            t.web = web;
+            t.dir = i >= 0 && i + 1 < args.Length && !args[i + 1].StartsWith("-") ? args[i + 1] : Application.persistentDataPath;
         }
+
+        bool web;
 
         void Log(string s)
         {
             log += $"{Time.time,6:F1}s  {s}\n";
+            if (web) { Debug.Log($"[SystemTest] {Time.time,6:F1}s  {s}"); return; }
             try { File.WriteAllText(Path.Combine(dir, "systemtest.txt"), log); } catch { }
         }
 
-        void Shot(string name) => ScreenCapture.CaptureScreenshot(Path.Combine(dir, name + ".png"));
+        void Shot(string name)
+        {
+            if (web) StartCoroutine(WebShot(name));
+            else ScreenCapture.CaptureScreenshot(Path.Combine(dir, name + ".png"));
+        }
+
+        /// <summary>A web page can't save files: the screenshot goes to the browser console as a
+        /// base64 JPEG, one line, for a test harness to pick up. WebGPU only reads the GPU back
+        /// asynchronously, so it goes through a render texture and AsyncGPUReadback.</summary>
+        IEnumerator WebShot(string name)
+        {
+            yield return new WaitForEndOfFrame();
+            int w = Screen.width, h = Screen.height;
+            var rt = new RenderTexture(w, h, 0, RenderTextureFormat.ARGB32);
+            ScreenCapture.CaptureScreenshotIntoRenderTexture(rt);
+            var req = UnityEngine.Rendering.AsyncGPUReadback.Request(rt, 0, TextureFormat.RGBA32);
+            while (!req.done) yield return null;
+            if (!req.hasError)
+            {
+                var px = req.GetData<byte>().ToArray();
+                // the capture comes back bottom-up on some graphics APIs: the harness can flip it
+                var jpg = ImageConversion.EncodeArrayToJPG(px, UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm, (uint)w, (uint)h, 0, 80);
+                // in pieces: browser logs cut long lines short
+                string b64 = Convert.ToBase64String(jpg);
+                const int piece = 4000;
+                int count = (b64.Length + piece - 1) / piece;
+                for (int i = 0; i < count; i++)
+                    Debug.Log($"[SystemTestShot] {name} {i + 1}/{count} {b64.Substring(i * piece, Math.Min(piece, b64.Length - i * piece))}");
+            }
+            rt.Release();
+            Destroy(rt);
+        }
 
         WarpPoint Point(string name) => WarpPoint.All.FirstOrDefault(w => w.displayName == name);
 
         IEnumerator Start()
         {
-            Directory.CreateDirectory(dir);
+            if (!web) Directory.CreateDirectory(dir);
             yield return null;
             demo = FindAnyObjectByType<CarrierDemoInput>();
             map = FindAnyObjectByType<SystemMap>();

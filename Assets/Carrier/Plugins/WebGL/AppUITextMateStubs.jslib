@@ -1,0 +1,36 @@
+// Stand-ins for the App UI package's TextMate syntax-highlighting library (an editor tool
+// pulled in by the AI Assistant). Its web plugin is built with an older Emscripten than this
+// Unity uses and can't be linked, so the web build leaves it out (CarrierPlayerBuild) and these
+// satisfy the linker instead. The game never highlights code: they are never called.
+mergeInto(LibraryManager.library, {
+  textmate_free_color_map: function () { return 0; },
+  textmate_free_tokenize_lines_result: function () { return 0; },
+  textmate_free_tokenize_lines_result2: function () { return 0; },
+  textmate_free_tokenize_result: function () { return 0; },
+  textmate_free_tokenize_result2: function () { return 0; },
+  textmate_get_initial_state: function () { return 0; },
+  textmate_grammar_get_scope_name: function () { return 0; },
+  textmate_oniglib_create: function () { return 0; },
+  textmate_oniglib_dispose: function () { return 0; },
+  textmate_registry_add_grammar_from_file: function () { return 0; },
+  textmate_registry_add_grammar_from_json: function () { return 0; },
+  textmate_registry_create: function () { return 0; },
+  textmate_registry_dispose: function () { return 0; },
+  textmate_registry_get_color_map: function () { return 0; },
+  textmate_registry_load_grammar: function () { return 0; },
+  textmate_registry_set_theme: function () { return 0; },
+  textmate_theme_dispose: function () { return 0; },
+  textmate_theme_get_background: function () { return 0; },
+  textmate_theme_get_default_background: function () { return 0; },
+  textmate_theme_get_default_foreground: function () { return 0; },
+  textmate_theme_get_font_style: function () { return 0; },
+  textmate_theme_get_foreground: function () { return 0; },
+  textmate_theme_load_from_file: function () { return 0; },
+  textmate_theme_load_from_json: function () { return 0; },
+  textmate_tokenize_line: function () { return 0; },
+  textmate_tokenize_line2: function () { return 0; },
+  textmate_tokenize_line2_utf16: function () { return 0; },
+  textmate_tokenize_line_utf16: function () { return 0; },
+  textmate_tokenize_lines2_utf16: function () { return 0; },
+  textmate_tokenize_lines_utf16: function () { return 0; },
+});

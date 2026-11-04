@@ -367,6 +367,8 @@ namespace CarrierGame.Demo
 
         void SystemsReport()
         {
+            log.AppendLine("sound sources: " + SoundFX.SourceReport.Replace("\n", "; "));
+            log.AppendLine($"music: playing {MusicDirector.Playing}, combat mix {MusicDirector.CombatMix:F2}");
             var shield = cc.GetComponentInChildren<Shield>(true);
             var hull = cc.GetComponent<Health>();
             if (shield != null)

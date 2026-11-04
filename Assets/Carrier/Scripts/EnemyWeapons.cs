@@ -34,6 +34,15 @@ namespace CarrierGame
         public Transform target;
         [Tooltip("Wait this long after the game starts before opening fire.")]
         public float holdFire = 4f;
+        [Tooltip("Guns only fire when the target is within this many degrees of the nose (180 = turreted, any direction).")]
+        public float fireArc = 180f;
+        [Tooltip("Cleared while lurking in an ambush: no shooting until the ambush is sprung.")]
+        public bool weaponsFree = true;
+
+        /// <summary>Shots held back because an asteroid or wreck was in the way (for the reel log).</summary>
+        public int HeldForCover { get; private set; }
+        /// <summary>The target is in plain sight (no obstacle in between).</summary>
+        public bool HasLineOfSight { get; private set; } = true;
 
         Health health;
         IVelocity targetMover;
@@ -47,7 +56,7 @@ namespace CarrierGame
                 var player = FindAnyObjectByType<CarrierController>();
                 if (player != null) target = player.transform;
             }
-            if (target != null) targetMover = target.GetComponentInParent<IVelocity>();
+            if (target != null) targetMover = Motion.Of(target);
             float t0 = Time.time + holdFire;
             nextBurst = t0 + Random.Range(0f, burstInterval);
             nextSalvo = t0 + Random.Range(2f, salvoInterval);
@@ -66,9 +75,22 @@ namespace CarrierGame
                 if (beam != null) beam.Abort();
                 return;
             }
+            if (!weaponsFree)
+            {
+                if (beam != null) beam.Abort();
+                return;
+            }
             float dist = Vector3.Distance(transform.position, target.position);
             float now = Time.time;
-            if (gunPrefab != null && now >= nextBurst && dist < gunRange)
+            // nothing to shoot at behind a rock: hold every weapon until it comes back into view
+            HasLineOfSight = !Cover.Blocked(transform.position, target.position);
+            if (!HasLineOfSight)
+            {
+                if (now >= nextBurst && dist < gunRange) { HeldForCover++; nextBurst = now + 0.5f; }
+                return;
+            }
+            bool inArc = fireArc >= 180f || Vector3.Angle(transform.forward, target.position - transform.position) <= fireArc;
+            if (gunPrefab != null && now >= nextBurst && dist < gunRange && inArc)
             {
                 nextBurst = now + burstInterval;
                 StartCoroutine(Burst());
@@ -86,6 +108,15 @@ namespace CarrierGame
         }
 
         // ------------------------------------------------------------ on cue (the demo reel)
+
+        /// <summary>Open fire within `seconds` (an ambush being sprung), staggered a little.</summary>
+        public void OpenFireSoon(float seconds)
+        {
+            float t = Time.time + seconds;
+            nextBurst = t + Random.Range(0f, 1f);
+            nextSalvo = Mathf.Max(Time.time + seconds + 3f, Mathf.Min(nextSalvo, t + Random.Range(3f, 8f)));
+            nextBeam = Mathf.Max(Time.time + seconds + 6f, Mathf.Min(nextBeam, t + Random.Range(6f, 12f)));
+        }
 
         public void FireBurstNow() { if (gunPrefab != null && target != null) { nextBurst = Time.time + burstInterval; StartCoroutine(Burst()); } }
         public void FireSalvoNow() { if (missilePrefab != null && target != null) { nextSalvo = Time.time + salvoInterval; StartCoroutine(Salvo()); } }
@@ -109,9 +140,11 @@ namespace CarrierGame
         {
             for (int i = 0; i < burstShots; i++)
             {
-                if (target == null || (health != null && health.Dead)) yield break;
+                if (target == null || (health != null && health.Dead) || !weaponsFree) yield break;
                 Vector3 aim = Lead(gunPrefab.speed);
                 Vector3 dir = (aim - transform.position).normalized;
+                // a fighter's guns point along its nose: a shot well off the nose is not taken
+                if (fireArc < 180f && Vector3.Angle(transform.forward, dir) > fireArc * 1.5f) yield break;
                 dir = Quaternion.Euler(Random.Range(-spread, spread), Random.Range(-spread, spread), 0f) * dir;
                 var p = Instantiate(gunPrefab, Muzzle(dir), Quaternion.LookRotation(dir));
                 p.owner = transform;
@@ -125,7 +158,7 @@ namespace CarrierGame
         {
             for (int i = 0; i < salvoSize; i++)
             {
-                if (target == null || (health != null && health.Dead)) yield break;
+                if (target == null || (health != null && health.Dead) || !weaponsFree) yield break;
                 Vector3 up = (transform.up + Random.insideUnitSphere * 0.4f).normalized;
                 var m = Instantiate(missilePrefab, Muzzle(up), Quaternion.LookRotation(up));
                 m.target = target;

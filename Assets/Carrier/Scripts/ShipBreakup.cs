@@ -79,7 +79,7 @@ namespace CarrierGame
             State = Phase.Breaking;
             BrokeAt = Time.time;
             ReleasedBeforeBlast = 0;
-            var mover = GetComponentInParent<IVelocity>();
+            var mover = Motion.Of(transform);
             inherited = mover != null ? mover.Velocity : Vector3.zero;
 
             // the wreckage flies free of the ship itself

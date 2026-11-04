@@ -21,6 +21,8 @@ namespace CarrierGame
         [HideInInspector] public Vector3 inheritedVelocity;
 
         float age, speed;
+        Transform moverOf;
+        IVelocity mover;
 
         /// <summary>Missiles in flight, so the target display can count those inbound.</summary>
         public static readonly System.Collections.Generic.List<Missile> Active = new System.Collections.Generic.List<Missile>();
@@ -45,7 +47,7 @@ namespace CarrierGame
                 {
                     Vector3 to = target.position - transform.position;
                     // lead the target a little if it moves
-                    var mover = target.GetComponentInParent<IVelocity>();
+                    if (moverOf != target) { moverOf = target; mover = Motion.Of(target); }
                     if (mover != null) to += mover.Velocity * Mathf.Min(3f, to.magnitude / Mathf.Max(1f, speed));
                     var want = Quaternion.LookRotation(to, transform.up);
                     transform.rotation = Quaternion.RotateTowards(transform.rotation, want, turnRate * dt);
@@ -53,9 +55,10 @@ namespace CarrierGame
                 }
             }
             Vector3 step = (transform.forward * speed + inheritedVelocity) * dt;
-            // explode on contact with anything belonging to the target (its shield included)
-            if (target != null && Physics.Raycast(transform.position, step.normalized, out var hit, step.magnitude + 1f, ~0, QueryTriggerInteraction.Ignore)
-                && hit.transform.IsChildOf(target.root))
+            // explode on contact with anything belonging to the target (its shield included),
+            // or on an asteroid or wreck that got in the way
+            if (Physics.Raycast(transform.position, step.normalized, out var hit, step.magnitude + 1f, ~0, QueryTriggerInteraction.Ignore)
+                && ((target != null && hit.transform.IsChildOf(target.root)) || Cover.IsObstacle(hit.collider)))
             {
                 transform.position = hit.point;
                 Detonate();
@@ -86,5 +89,22 @@ namespace CarrierGame
     public interface IVelocity
     {
         Vector3 Velocity { get; }
+    }
+
+    public static class Motion
+    {
+        /// <summary>The component that is actually moving this ship (enabled, on it or a parent).</summary>
+        static readonly System.Collections.Generic.List<MonoBehaviour> Found = new System.Collections.Generic.List<MonoBehaviour>();
+
+        public static IVelocity Of(Transform t)
+        {
+            if (t == null) return null;
+            t.GetComponentsInParent(false, Found);
+            IVelocity result = null;
+            foreach (var c in Found)
+                if (c is IVelocity v && c.enabled) { result = v; break; }
+            Found.Clear();
+            return result;
+        }
     }
 }

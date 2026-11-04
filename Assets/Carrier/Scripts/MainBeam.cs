@@ -78,7 +78,8 @@ namespace CarrierGame
             Current = State.Charging;
             stateStart = Time.time;
             SetEmitting(chargeParticles, true);
-            SoundFX.Play(chargeSound, Origin, 1f, 10f / Mathf.Max(1f, chargeTime));
+            chargeVoice = SoundFX.PlayFitted(chargeSound, Origin, chargeTime, true);    // ends as the beam fires
+            chargeClip = chargeVoice != null ? chargeVoice.clip : null;
             return true;
         }
 
@@ -89,10 +90,16 @@ namespace CarrierGame
             else if (Current == State.Firing) EndFiring();
         }
 
+        AudioSource chargeVoice;
+        AudioClip chargeClip;
+
         public void Cancel()
         {
             if (Current != State.Charging) return;
             Current = State.Idle;
+            // the charge-up sound (which may not even have started yet) stops with it
+            if (chargeVoice != null && chargeVoice.clip == chargeClip) chargeVoice.Stop();
+            chargeVoice = null;
             SetEmitting(chargeParticles, false);
             if (glow) glow.intensity = 0f;
             SetLens(0f);
@@ -135,7 +142,7 @@ namespace CarrierGame
             SetEmitting(chargeParticles, false);
             SetEmitting(streamParticles, true);
             SetEmitting(sparkleParticles, true);
-            SoundFX.Play(fireSound, Origin, 1f, 2.5f / Mathf.Max(0.5f, fireDuration));
+            SoundFX.PlayFitted(fireSound, Origin, fireDuration, false);
         }
 
         void EndFiring()

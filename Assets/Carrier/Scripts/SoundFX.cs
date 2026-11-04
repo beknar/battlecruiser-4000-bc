@@ -4,24 +4,30 @@ using UnityEngine;
 namespace CarrierGame
 {
     public enum Sfx { Cannon, PointDefense, Blaster, MissileLaunch, ExplosionBig, ExplosionSmall, Impact, Catapult, UiLock, UiClear, UiError, UiKill,
-                      ShieldHit, BeamCharge, BeamFire, HeavyBeamCharge, HeavyBeamFire }
+                      ShieldHit, BeamCharge, BeamFire, HeavyBeamCharge, HeavyBeamFire, UiAlert }
 
     /// <summary>
-    /// Plays the game's sounds. They are synthesised in code when the game starts, so no audio
-    /// files are needed: guns, missiles, explosions, launch catapults, engine hum, an ambient
-    /// drone and interface beeps. Sounds in the world are 3D; interface beeps are not.
-    /// Busy sounds are rate limited so a big salvo doesn't turn into noise.
+    /// Plays the game's sounds. Each sound uses the library recordings in
+    /// Resources/CarrierAudio/&lt;Sfx name&gt;/ (several takes, picked at random so repeated shots
+    /// don't sound identical). A sound with no recordings there is synthesised in code instead;
+    /// the frigate's heavy bow beam is always synthesised. Sounds in the world are 3D; interface
+    /// sounds are not. Busy sounds are rate limited so a big salvo doesn't turn into noise.
+    /// Also starts the music (MusicDirector) and the engine hum and ambience loops.
     /// </summary>
     public class SoundFX : MonoBehaviour
     {
         class Def
         {
-            public AudioClip clip;
+            public AudioClip[] clips;
+            public bool library;
             public float volume, minDistance, minInterval;
             public int maxVoices;
             public bool ui;
             public float lastPlayed = -100f;
+            public int lastClip = -1;
         }
+
+        public const string LibraryRoot = "CarrierAudio/";
 
         static SoundFX instance;
         Def[] defs;
@@ -29,6 +35,17 @@ namespace CarrierGame
         int[] voiceSfx;
         int nextVoice;
         AudioClip engineClip;
+        Transform listener;
+
+        /// <summary>When a weapon or explosion was last heard within combat range (drives the music).</summary>
+        public static float LastCombatTime { get; private set; } = -1000f;
+        const float CombatHearingRange = 6000f;
+
+        /// <summary>Which sounds come from the library and which are synthesised (for the logs).</summary>
+        public static string SourceReport { get; private set; } = "";
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() { LastCombatTime = -1000f; SourceReport = ""; }
 
         /// <summary>How many effect voices are sounding right now (for the auto test log).</summary>
         public static int PlayingVoices
@@ -65,26 +82,47 @@ namespace CarrierGame
             instance = this;
             DontDestroyOnLoad(gameObject);
             defs = new Def[Enum.GetValues(typeof(Sfx)).Length];
-            void D(Sfx s, AudioClip c, float vol, float minDist, float interval, int max, bool ui = false) =>
-                defs[(int)s] = new Def { clip = c, volume = vol, minDistance = minDist, minInterval = interval, maxVoices = max, ui = ui };
-            D(Sfx.Cannon, SfxSynth.Cannon(), 0.5f, 900f, 0.08f, 4);
-            D(Sfx.PointDefense, SfxSynth.PointDefense(), 0.18f, 600f, 0.06f, 3);
-            D(Sfx.Blaster, SfxSynth.Blaster(), 0.28f, 250f, 0.04f, 5);
-            D(Sfx.MissileLaunch, SfxSynth.MissileLaunch(), 0.4f, 900f, 0.12f, 4);
-            D(Sfx.ExplosionBig, SfxSynth.ExplosionBig(), 0.75f, 2500f, 0.2f, 3);
-            D(Sfx.ExplosionSmall, SfxSynth.ExplosionSmall(), 0.4f, 900f, 0.08f, 4);
-            D(Sfx.Impact, SfxSynth.Impact(), 0.25f, 700f, 0.08f, 3);
-            D(Sfx.Catapult, SfxSynth.Catapult(), 0.5f, 800f, 0.2f, 3);
-            D(Sfx.UiLock, SfxSynth.Beeps("ui_lock", new[] { 880f, 1320f }, 0.08f, 0.04f), 0.35f, 0f, 0.05f, 2, true);
-            D(Sfx.UiClear, SfxSynth.Beeps("ui_clear", new[] { 1175f, 700f }, 0.08f, 0.04f), 0.35f, 0f, 0.05f, 2, true);
-            D(Sfx.UiError, SfxSynth.Buzz(), 0.4f, 0f, 0.15f, 1, true);
-            D(Sfx.UiKill, SfxSynth.Beeps("ui_kill", new[] { 660f, 880f, 1320f }, 0.09f, 0.02f), 0.5f, 0f, 0.3f, 1, true);
-            D(Sfx.ShieldHit, SfxSynth.ShieldHit(), 0.35f, 900f, 0.07f, 4);
-            D(Sfx.BeamCharge, SfxSynth.BeamCharge(), 0.45f, 1500f, 0.5f, 2);
-            D(Sfx.BeamFire, SfxSynth.BeamFire(), 0.6f, 2500f, 0.5f, 2);
-            D(Sfx.HeavyBeamCharge, SfxSynth.HeavyBeamCharge(), 0.7f, 1800f, 0.5f, 2);
-            D(Sfx.HeavyBeamFire, SfxSynth.HeavyBeamFire(), 0.85f, 3000f, 0.5f, 2);
-            engineClip = SfxSynth.EngineLoop();
+            var lib = new System.Collections.Generic.List<string>();
+            var synth = new System.Collections.Generic.List<string>();
+            // synthVol is used for the synthesised fallback, libVol for library recordings
+            void D(Sfx s, Func<AudioClip> make, float synthVol, float libVol, float minDist, float interval, int max, bool ui = false)
+            {
+                var clips = LoadLibrary(s.ToString());
+                bool fromLibrary = clips != null;
+                (fromLibrary ? lib : synth).Add(fromLibrary ? $"{s} ({clips.Length})" : s.ToString());
+                defs[(int)s] = new Def
+                {
+                    clips = fromLibrary ? clips : new[] { make() }, library = fromLibrary,
+                    volume = fromLibrary ? libVol : synthVol, minDistance = minDist, minInterval = interval, maxVoices = max, ui = ui,
+                };
+            }
+            D(Sfx.Cannon, SfxSynth.Cannon, 0.5f, 0.55f, 900f, 0.08f, 4);
+            D(Sfx.PointDefense, SfxSynth.PointDefense, 0.18f, 0.16f, 600f, 0.06f, 3);
+            D(Sfx.Blaster, SfxSynth.Blaster, 0.28f, 0.3f, 250f, 0.04f, 5);
+            D(Sfx.MissileLaunch, SfxSynth.MissileLaunch, 0.4f, 0.45f, 900f, 0.12f, 4);
+            D(Sfx.ExplosionBig, SfxSynth.ExplosionBig, 0.75f, 0.85f, 2500f, 0.2f, 3);
+            D(Sfx.ExplosionSmall, SfxSynth.ExplosionSmall, 0.4f, 0.5f, 900f, 0.08f, 4);
+            D(Sfx.Impact, SfxSynth.Impact, 0.25f, 0.3f, 700f, 0.08f, 3);
+            D(Sfx.Catapult, SfxSynth.Catapult, 0.5f, 0.5f, 800f, 0.2f, 3);
+            D(Sfx.UiLock, () => SfxSynth.Beeps("ui_lock", new[] { 880f, 1320f }, 0.08f, 0.04f), 0.35f, 0.4f, 0f, 0.05f, 2, true);
+            D(Sfx.UiClear, () => SfxSynth.Beeps("ui_clear", new[] { 1175f, 700f }, 0.08f, 0.04f), 0.35f, 0.4f, 0f, 0.05f, 2, true);
+            D(Sfx.UiError, SfxSynth.Buzz, 0.4f, 0.4f, 0f, 0.15f, 1, true);
+            D(Sfx.UiKill, () => SfxSynth.Beeps("ui_kill", new[] { 660f, 880f, 1320f }, 0.09f, 0.02f), 0.5f, 0.5f, 0f, 0.3f, 1, true);
+            D(Sfx.UiAlert, () => SfxSynth.Beeps("ui_alert", new[] { 990f, 740f, 990f, 740f }, 0.14f, 0.06f), 0.45f, 0.45f, 0f, 1f, 1, true);
+            D(Sfx.ShieldHit, SfxSynth.ShieldHit, 0.35f, 0.4f, 900f, 0.07f, 4);
+            D(Sfx.BeamCharge, SfxSynth.BeamCharge, 0.45f, 0.55f, 1500f, 0.5f, 2);
+            D(Sfx.BeamFire, SfxSynth.BeamFire, 0.6f, 0.65f, 2500f, 0.5f, 2);
+            // the frigate's bow beam: no library recording matches it, so it stays synthesised
+            D(Sfx.HeavyBeamCharge, SfxSynth.HeavyBeamCharge, 0.7f, 0.7f, 1800f, 0.5f, 2);
+            D(Sfx.HeavyBeamFire, SfxSynth.HeavyBeamFire, 0.85f, 0.85f, 3000f, 0.5f, 2);
+
+            var engineLib = LoadLibrary("EngineLoop");
+            engineClip = engineLib != null ? engineLib[0] : SfxSynth.EngineLoop();
+            var ambientLib = LoadLibrary("AmbientLoop");
+            (engineLib != null ? lib : synth).Add("EngineLoop");
+            (ambientLib != null ? lib : synth).Add("AmbientLoop");
+            SourceReport = $"library: {string.Join(", ", lib)}\nsynthesised: {string.Join(", ", synth)}";
+            Debug.Log("[SoundFX] " + SourceReport.Replace("\n", " | "));
 
             voices = new AudioSource[40];
             voiceSfx = new int[voices.Length];
@@ -101,14 +139,45 @@ namespace CarrierGame
                 voiceSfx[i] = -1;
             }
             var ambient = gameObject.AddComponent<AudioSource>();
-            ambient.clip = SfxSynth.AmbientLoop();
+            ambient.clip = ambientLib != null ? ambientLib[0] : SfxSynth.AmbientLoop();
             ambient.loop = true;
             ambient.spatialBlend = 0f;
-            ambient.volume = 0.1f;
+            ambient.volume = ambientLib != null ? 0.07f : 0.1f;
             ambient.Play();
 
-            var listener = FindAnyObjectByType<AudioListener>();
-            if (listener != null && listener.GetComponent<MasterLimiter>() == null) listener.gameObject.AddComponent<MasterLimiter>();
+            var l = FindAnyObjectByType<AudioListener>();
+            if (l != null)
+            {
+                listener = l.transform;
+                if (l.GetComponent<MasterLimiter>() == null) l.gameObject.AddComponent<MasterLimiter>();
+            }
+            gameObject.AddComponent<MusicDirector>();
+        }
+
+        /// <summary>The recordings in Resources/CarrierAudio/&lt;folder&gt;, in name order, or null if there are none.</summary>
+        public static AudioClip[] LoadLibrary(string folder)
+        {
+            var clips = Resources.LoadAll<AudioClip>(LibraryRoot + folder);
+            if (clips == null || clips.Length == 0) return null;
+            Array.Sort(clips, (a, b) => string.CompareOrdinal(a.name, b.name));
+            return clips;
+        }
+
+        /// <summary>Play a sound stretched (within reason) to last `duration` seconds, e.g. a
+        /// weapon's charge-up. With alignEnd, a clip that is still too short starts late so that
+        /// it finishes exactly when the charge does. Returns the voice playing it (or null), so the
+        /// caller can stop it if the charge is called off.</summary>
+        public static AudioSource PlayFitted(Sfx s, Vector3 position, float duration, bool alignEnd)
+        {
+            var sfx = Instance;
+            if (sfx == null) return null;
+            var d = sfx.defs[(int)s];
+            if (d == null) return null;
+            float len = d.clips[0].length;
+            float pitch = len / Mathf.Max(0.05f, duration);
+            if (d.library) pitch = Mathf.Clamp(pitch, 0.75f, 1.35f);   // recordings only bend so far
+            float delay = alignEnd ? Mathf.Max(0f, duration - len / pitch) : 0f;
+            return sfx.PlayInternal(s, position, 1f, pitch, false, delay);
         }
 
         void OnDestroy()
@@ -120,29 +189,31 @@ namespace CarrierGame
         public static void Play(Sfx s, Vector3 position, float volume = 1f, float pitch = 1f)
         {
             var sfx = Instance;
-            if (sfx != null) sfx.PlayInternal(s, position, volume, pitch);
+            if (sfx != null) sfx.PlayInternal(s, position, volume, pitch, true, 0f);
         }
 
         /// <summary>Play an interface sound (not positioned).</summary>
         public static void Ui(Sfx s) => Play(s, Vector3.zero);
 
-        void PlayInternal(Sfx s, Vector3 position, float volume, float pitch)
+        AudioSource PlayInternal(Sfx s, Vector3 position, float volume, float pitch, bool vary, float delay)
         {
             var d = defs[(int)s];
-            if (d == null || d.clip == null) return;
+            if (d == null || d.clips == null || d.clips.Length == 0) return null;
+            if (!d.ui && (listener == null || (position - listener.position).sqrMagnitude < CombatHearingRange * CombatHearingRange))
+                LastCombatTime = Time.time;
             float now = Time.unscaledTime;
-            if (now - d.lastPlayed < d.minInterval) return;
+            if (now - d.lastPlayed < d.minInterval) return null;
             int playing = 0;
             for (int i = 0; i < voices.Length; i++)
                 if (voiceSfx[i] == (int)s && voices[i].isPlaying) playing++;
-            if (playing >= d.maxVoices) return;
+            if (playing >= d.maxVoices) return null;
             d.lastPlayed = now;
 
             int v = FreeVoice();
             var a = voices[v];
             voiceSfx[v] = (int)s;
             a.Stop();
-            a.clip = d.clip;
+            a.clip = d.clips[PickClip(d)];
             a.volume = Mathf.Clamp01(d.volume * volume);
             if (d.ui)
             {
@@ -153,10 +224,30 @@ namespace CarrierGame
             {
                 a.spatialBlend = 1f;
                 a.minDistance = d.minDistance;
-                a.pitch = pitch * UnityEngine.Random.Range(0.93f, 1.07f);
+                // several takes already vary the sound; a little pitch spread on top
+                float spread = d.clips.Length > 1 ? 0.04f : 0.07f;
+                a.pitch = vary ? pitch * UnityEngine.Random.Range(1f - spread, 1f + spread) : pitch;
                 a.transform.position = position;
             }
-            a.Play();
+            if (delay > 0.01f) a.PlayDelayed(delay);
+            else a.Play();
+            return a;
+        }
+
+        /// <summary>A random take, never the same one twice running.</summary>
+        static int PickClip(Def d)
+        {
+            int n = d.clips.Length;
+            if (n == 1) return 0;
+            int i;
+            if (d.lastClip < 0) i = UnityEngine.Random.Range(0, n);
+            else
+            {
+                i = UnityEngine.Random.Range(0, n - 1);   // any take but the last one
+                if (i >= d.lastClip) i++;
+            }
+            d.lastClip = i;
+            return i;
         }
 
         int FreeVoice()

@@ -101,7 +101,10 @@ namespace CarrierGame
             if (mainTurrets.Length <= 4)
             {
                 string g = GunsBearing();
-                if (g.Length == 0) return "none: turn to bring a broadside round";
+                if (g.Length == 0)
+                    return Cover.Blocked(transform.position, target.position)
+                        ? "none: the target is behind cover"
+                        : "none: turn to bring a broadside round";
                 return $"{g}  ({g.Split('+').Length} of {mainTurrets.Length} guns)";
             }
             int n = 0;
@@ -236,7 +239,8 @@ namespace CarrierGame
             float wantLift = elevator * elevatorSpeed;
             float liftChange = wantLift - liftSpeed;
             liftSpeed = Mathf.MoveTowards(liftSpeed, wantLift, elevatorAcceleration * dt);
-            transform.position += (transform.forward * speed + transform.up * liftSpeed) * dt;
+            transform.position += Collide((transform.forward * speed + transform.up * liftSpeed) * dt);
+            if (Cover.Active) transform.position = Depenetrate(transform.position);
             UpdateLiftFlares(liftChange);
             if (engines != null) foreach (var e in engines) if (e) e.throttle = Mathf.Max(0.15f, throttle);
             wing.RemoveAll(c => c == null);
@@ -246,6 +250,133 @@ namespace CarrierGame
                 hum.volume = 0.2f + 0.4f * Mathf.Max(throttle, f);
                 hum.pitch = 0.8f + 0.45f * f;
             }
+        }
+
+        // ------------------------------------------------------------ collisions with asteroids and wrecks
+
+        [Header("Collisions")]
+        [Tooltip("Damage per m/s of speed into an asteroid or wreck (the shield takes it first).")]
+        public float collisionDamage = 6f;
+
+        /// <summary>Times the ship has run into an asteroid or wreck.</summary>
+        public int Collisions { get; private set; }
+        public float LastCollisionTime { get; private set; } = -100f;
+
+        const float Skin = 2f;
+        Vector3 capCenter;
+        float capHalf = -1f, capRadius;
+
+        /// <summary>A capsule along the hull, from the hull collider's size.</summary>
+        void EnsureCapsule()
+        {
+            if (capHalf >= 0f) return;
+            FindSystems();
+            var b = new Bounds(Vector3.zero, Vector3.one * 20f);
+            bool any = false;
+            foreach (var c in hullColliders)
+            {
+                if (!(c is MeshCollider mc) || mc.sharedMesh == null) continue;
+                var mb = mc.sharedMesh.bounds;
+                var s = mc.transform.lossyScale;
+                var center = transform.InverseTransformPoint(mc.transform.TransformPoint(mb.center));
+                var size = Vector3.Scale(mb.size, new Vector3(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z)));
+                var lb = new Bounds(center, size);
+                if (!any) { b = lb; any = true; } else b.Encapsulate(lb);
+            }
+            capCenter = b.center;
+            capRadius = Mathf.Max(5f, Mathf.Max(b.extents.x, b.extents.y) * 0.8f);
+            capHalf = Mathf.Max(0f, b.extents.z - capRadius);
+            // a stand-in capsule for working out how far the hull has sunk into rock; it lives on
+            // its own (not under the ship, so turret hull checks never see it) and only its shape
+            // is used: ComputePenetration is given the hull's pose each time
+            var go = new GameObject($"{name} collision capsule") { hideFlags = HideFlags.HideAndDontSave };
+            go.layer = 2;   // Ignore Raycast
+            go.transform.position = new Vector3(0f, -100000f, 0f);
+            proxy = go.AddComponent<CapsuleCollider>();
+            proxy.isTrigger = true;
+            proxy.direction = 2;
+            proxy.radius = capRadius;
+            proxy.height = 2f * (capHalf + capRadius);
+        }
+
+        CapsuleCollider proxy;
+        static readonly Collider[] Overlaps = new Collider[16];
+
+        void OnDestroy() { if (proxy != null) Destroy(proxy.gameObject); }
+
+        /// <summary>Push the hull back out of any rock it overlaps (after turning into a rock face,
+        /// or a drifting wreck section swinging into it): casts can't see what they start inside.</summary>
+        Vector3 Depenetrate(Vector3 position)
+        {
+            Quaternion rot = transform.rotation;
+            Vector3 c = position + rot * capCenter, f = rot * Vector3.forward * capHalf;
+            int n = Physics.OverlapCapsuleNonAlloc(c + f, c - f, capRadius, Overlaps, Cover.Mask, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                var col = Overlaps[i];
+                if (col == null || proxy == null) continue;
+                if (Physics.ComputePenetration(proxy, c, rot, col, col.transform.position, col.transform.rotation, out var dir, out var depth))
+                {
+                    Vector3 push = dir * (depth + Skin);
+                    position += push;
+                    c += push;
+                    if (Time.time - LastCollisionTime > 0.5f)
+                    {
+                        Collisions++;
+                        if (health != null) health.Damage(depth * collisionDamage, c, HitKind.Cannon);
+                    }
+                    LastCollisionTime = Time.time;
+                    float into = Vector3.Dot(Velocity, -dir);
+                    if (into > 0f) speed *= 0.5f;
+                }
+            }
+            return position;
+        }
+
+        /// <summary>Limit a move so the hull doesn't pass into an obstacle: stop at the surface and
+        /// slide along it, losing speed (and taking a knock) in proportion to how hard it hit.</summary>
+        Vector3 Collide(Vector3 move)
+        {
+            if (!Cover.Active || move.sqrMagnitude < 1e-8f) return move;
+            EnsureCapsule();
+            Vector3 c = transform.TransformPoint(capCenter), f = transform.forward * capHalf;
+            float dist = move.magnitude;
+            Vector3 dir = move / dist;
+            if (!Physics.CapsuleCast(c + f, c - f, capRadius, dir, out var hit, dist + Skin, Cover.Mask, QueryTriggerInteraction.Ignore))
+                return move;
+            float allowed = Mathf.Max(0f, hit.distance - Skin);
+            Vector3 slide = Vector3.ProjectOnPlane(move - dir * allowed, hit.normal);
+            float impact = Vector3.Dot(Velocity, -hit.normal);
+            if (impact > 3f)
+            {
+                speed *= Mathf.Clamp01(1f - 0.6f * impact / Mathf.Max(1f, Velocity.magnitude));
+                if (Vector3.Dot(transform.up * liftSpeed, hit.normal) < 0f) liftSpeed = 0f;
+                if (Time.time - LastCollisionTime > 0.5f)
+                {
+                    Collisions++;
+                    if (health != null) health.Damage(impact * collisionDamage, hit.point, HitKind.Cannon);
+                    SoundFX.Play(Sfx.Impact, hit.point, 1f, 0.6f);
+                }
+                LastCollisionTime = Time.time;
+            }
+            Vector3 moved = dir * allowed;
+            if (slide.sqrMagnitude > 1e-8f &&
+                Physics.CapsuleCast(c + f + moved, c - f + moved, capRadius, slide.normalized, out var h2, slide.magnitude + Skin, Cover.Mask, QueryTriggerInteraction.Ignore))
+                slide = slide.normalized * Mathf.Max(0f, h2.distance - Skin);
+            return moved + slide;
+        }
+
+        /// <summary>Clearance from the hull to the nearest obstacle surface below `range` (for the reel log).</summary>
+        public float ObstacleClearance(float range)
+        {
+            if (!Cover.Active) return range;
+            EnsureCapsule();
+            Vector3 c = transform.TransformPoint(capCenter), f = transform.forward * capHalf;
+            float best = range;
+            foreach (var d in new[] { Vector3.down, Vector3.up, transform.right, -transform.right, transform.forward })
+                if (Physics.CapsuleCast(c + f, c - f, capRadius, d, out var hit, range, Cover.Mask, QueryTriggerInteraction.Ignore))
+                    best = Mathf.Min(best, hit.distance);
+            return best;
         }
 
         /// <summary>Light the elevator thrusters that are pushing: the ventral ones to go up (or to

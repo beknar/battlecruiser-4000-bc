@@ -122,7 +122,7 @@ namespace CarrierGame
         {
             Vector3 p = target.position;
             if (!leadTarget || projectilePrefab == null || projectilePrefab.speed <= 0f) return p;
-            if (moverOf != target) { moverOf = target; mover = target.GetComponentInParent<IVelocity>(); }
+            if (moverOf != target) { moverOf = target; mover = Motion.Of(target); }
             if (mover == null) return p;
             Vector3 origin = AimOrigin(), v = mover.Velocity;
             float t = Vector3.Distance(origin, p) / projectilePrefab.speed;
@@ -157,7 +157,9 @@ namespace CarrierGame
             }
             // line of fire from the gun's own pivot (a deck mount's base sits on the deck itself)
             Vector3 from = Gun.position;
-            return !checkHullClearance || !HullInTheWay(from, worldPos - from);
+            if (checkHullClearance && HullInTheWay(from, worldPos - from)) return false;
+            // no shooting through an asteroid or a wreck at a ship hiding behind it
+            return !Cover.Blocked(from, worldPos);
         }
 
         /// <summary>Does a shot from `origin` along `dir` cross this ship's own hull?</summary>

@@ -68,6 +68,9 @@ namespace CarrierGame
         Vector3 lurkPoint, extendPoint, hidePoint;
         Quaternion lurkRotation;
 
+        /// <summary>In its lurking place (not still flying back to it after breaking off).</summary>
+        public bool AtHome { get; private set; } = true;
+
         /// <summary>Every enemy pilot in the scene (the warp drive checks them for combat).</summary>
         public static readonly System.Collections.Generic.List<CombatPilot> Active = new System.Collections.Generic.List<CombatPilot>();
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -126,12 +129,16 @@ namespace CarrierGame
             if (health != null) { health.onRespawned.AddListener(OnRespawned); hitsWhileLurking = health.Hits; }
         }
 
-        /// <summary>A ship still lying in wait for an ambush (not shown or targetable yet).</summary>
+        /// <summary>A ship lying in wait for an ambush (not shown or targetable yet). One flying
+        /// back to its hiding place is out in the open, so it isn't hidden until it gets there.</summary>
         public static bool IsHidden(Transform t)
         {
             var pilot = t != null ? t.GetComponent<CombatPilot>() : null;
-            return pilot != null && pilot.Current == State.Lurk;
+            return pilot != null && pilot.Current == State.Lurk && pilot.AtHome;
         }
+
+        /// <summary>Is this pilot alive?</summary>
+        public bool Alive => health == null || !health.Dead;
 
         /// <summary>The nearest of these pilots that is still alive (null if none).</summary>
         public static CombatPilot Nearest(System.Collections.Generic.IEnumerable<CombatPilot> pilots, Vector3 from)
@@ -162,6 +169,7 @@ namespace CarrierGame
             transform.SetPositionAndRotation(lurkPoint, lurkRotation);
             speed = 0f;
             extending = false;
+            AtHome = true;
             bool wasLurking = Current == State.Lurk || relurkOnRespawn;
             Current = wasLurking ? State.Lurk : State.Engage;
             if (health != null) hitsWhileLurking = health.Hits;
@@ -178,11 +186,28 @@ namespace CarrierGame
 
             if (Current == State.Lurk)
             {
-                // sit in cover, nose toward the threat, engines barely ticking over
-                speed = Mathf.MoveTowards(speed, 0f, acceleration * dt);
-                transform.position = Vector3.MoveTowards(pos, lurkPoint, 20f * dt);
-                // shot at while lying in wait: no point hiding any more
-                if (health != null && health.Hits > hitsWhileLurking) Engage();
+                // shot at while lying in wait (or on the way back): no point hiding any more
+                if (health != null && health.Hits > hitsWhileLurking) { Engage(); return; }
+                float home2 = (pos - lurkPoint).sqrMagnitude;
+                if (home2 < 300f * 300f)
+                {
+                    // sit in cover, nose toward the threat, engines barely ticking over
+                    AtHome = true;
+                    speed = Mathf.MoveTowards(speed, 0f, acceleration * dt);
+                    transform.position = Vector3.MoveTowards(pos, lurkPoint, 20f * dt);
+                    return;
+                }
+                // broke off: fly back to the hiding place, round the rocks. If the player is far
+                // off (warped out), just be back there.
+                AtHome = false;
+                if (target == null || (target.position - pos).sqrMagnitude > 20000f * 20000f)
+                {
+                    transform.SetPositionAndRotation(lurkPoint, lurkRotation);
+                    speed = 0f;
+                    AtHome = true;
+                    return;
+                }
+                Steer(pos, lurkPoint - pos, home2 < 1500f * 1500f ? cruiseSpeed * 0.5f : cruiseSpeed, dt);
                 return;
             }
 
@@ -232,6 +257,12 @@ namespace CarrierGame
                     break;
             }
 
+            Steer(pos, desired, wantSpeed, dt);
+        }
+
+        /// <summary>Turn toward a direction (round anything solid) and fly on at a speed.</summary>
+        void Steer(Vector3 pos, Vector3 desired, float wantSpeed, float dt)
+        {
             float look = Mathf.Max(250f, speed * 2.5f) + bodyRadius * 3f;
             desired = Cover.Avoid(pos, desired, bodyRadius, look);
             if (desired.sqrMagnitude > 1e-4f)

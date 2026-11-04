@@ -41,7 +41,7 @@ namespace CarrierGame
             bool anyEngaged = false, anyLurking = false;
             foreach (var p in pilots)
             {
-                if (p == null) continue;
+                if (p == null || !p.Alive) continue;    // the dead wait to respawn, they aren't fighting
                 if (p.Current == CombatPilot.State.Lurk) anyLurking = true; else anyEngaged = true;
             }
             if (!Active)
@@ -50,9 +50,8 @@ namespace CarrierGame
                 bool spotted = anyEngaged;   // one of them was shot (and has already come out)
                 foreach (var p in pilots)
                 {
-                    if (spotted || p == null || p.Current != CombatPilot.State.Lurk) continue;
-                    var h = p.GetComponent<Health>();
-                    if (h != null && h.Dead) continue;
+                    // only from the hiding places: not while one is still flying back to its own
+                    if (spotted || p == null || !p.Alive || p.Current != CombatPilot.State.Lurk || !p.AtHome) continue;
                     Vector3 e = p.transform.position;
                     if ((e - pp).sqrMagnitude < spotRange * spotRange && Cover.Visible(e, pp)) spotted = true;
                 }

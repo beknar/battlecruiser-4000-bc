@@ -16,7 +16,7 @@ namespace CarrierGame
     /// It can't be used in combat: while any hostile that has left cover is within combatRange,
     /// or the ship was hit in the last few seconds.
     /// </summary>
-    [DefaultExecutionOrder(100)]   // after the camera, so the warp tunnel sits on it
+    [DefaultExecutionOrder(100)]   // LateUpdate after the camera's, so the warp tunnel sits on it
     public class WarpDrive : MonoBehaviour
     {
         public enum State { Ready, Charging, Warping, Arriving }
@@ -60,7 +60,11 @@ namespace CarrierGame
 
         CarrierController ship;
         Health health;
-        Vector3 from, to, travelDir;
+        Shield shield;
+        AudioSource chargeVoice;
+        // the trip is a curve from `from` to `to` through `via` (a detour round any star, planet or
+        // moon on the straight line)
+        Vector3 from, to, via, travelDir;
         float stateStart, chargeHitTime, baseFov = -1f, arriveSpeed, glowTimer;
         Texture2D vignette;
         ParticleSystem tunnel, haze, sparks, flash, ring;
@@ -71,6 +75,7 @@ namespace CarrierGame
         {
             ship = GetComponent<CarrierController>();
             health = GetComponent<Health>();
+            shield = GetComponentInChildren<Shield>(true);
             BuildEffects();
         }
 
@@ -86,11 +91,14 @@ namespace CarrierGame
 
         public float DistanceTo(WarpPoint p) => p == null ? 0f : Vector3.Distance(transform.position, p.ArrivalPoint(transform.position));
 
+        /// <summary>When the ship last took a hit, on the shield or the hull.</summary>
+        float LastHitTime => Mathf.Max(health != null ? health.LastHitTime : -100f, shield != null ? shield.LastHitTime : -100f);
+
         /// <summary>Is the ship in a fight (so the drive is locked)? Says why.</summary>
         public bool InCombat(out string why)
         {
             why = "";
-            if (health != null && Time.time - health.LastHitTime < recentHitSeconds) { why = "under fire"; return true; }
+            if (Time.time - LastHitTime < recentHitSeconds) { why = "under fire"; return true; }
             if (CombatPilot.AnyEngagedNear(transform.position, combatRange)) { why = "hostiles nearby"; return true; }
             return false;
         }
@@ -116,9 +124,9 @@ namespace CarrierGame
             TravelTime = TravelTimeTo(p);
             LastDistance = Vector3.Distance(from, to);
             Enter(State.Charging);
-            chargeHitTime = health != null ? health.LastHitTime : -100f;
+            chargeHitTime = LastHitTime;
             ship.externalMotion = true;
-            SoundFX.Play(Sfx.WarpCharge, transform.position);
+            chargeVoice = SoundFX.PlayFitted(Sfx.WarpCharge, transform.position, chargeTime, true);   // ends as it jumps
             sparks.Play();
             LastMessage = $"Warp drive charging: {p.displayName}";
             return true;
@@ -164,16 +172,17 @@ namespace CarrierGame
                         gp.startColor = new Color(warpColor.r, warpColor.g, warpColor.b, 0.25f + 0.35f * k);
                         flash.Emit(gp, 1);
                     }
-                    if (health != null && health.LastHitTime > chargeHitTime) { Cancel("warp interrupted: under fire"); break; }
+                    if (LastHitTime > chargeHitTime) { Cancel("warp interrupted: under fire"); break; }
                     if (k >= 1f) Jump();
                     break;
                 }
                 case State.Warping:
                 {
                     float u = Mathf.Clamp01(StateTime / Mathf.Max(0.1f, TravelTime));
-                    // ease in and out: a hard surge away, a long rush, a hard stop
-                    float s = u < 0.5f ? 4f * u * u * u : 1f - Mathf.Pow(-2f * u + 2f, 3f) / 2f;
-                    transform.position = Vector3.Lerp(from, to, s);
+                    float s = Ease(u);
+                    transform.position = PathAt(s);
+                    Vector3 tangent = PathAt(Mathf.Min(1f, s + 0.01f)) - PathAt(Mathf.Max(0f, s - 0.01f));
+                    if (tangent.sqrMagnitude > 1f) travelDir = tangent.normalized;
                     transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(travelDir), 90f * dt);
                     TunnelLevel = Mathf.Clamp01(Mathf.Min(StateTime / 0.35f, (TravelTime - StateTime) / 0.5f + 0.15f));
                     if (u >= 1f) Arrive();
@@ -195,15 +204,57 @@ namespace CarrierGame
                     TunnelLevel = Mathf.MoveTowards(TunnelLevel, 0f, dt * 3f);
                     break;
             }
-            UpdateTunnel();
+        }
+
+        // the camera has moved by now (it follows in LateUpdate), so the tunnel goes on it here
+        void LateUpdate() => UpdateTunnel();
+
+        /// <summary>Ease in and out: a hard surge away, a long rush, a hard stop.</summary>
+        static float Ease(float u) => u < 0.5f ? 4f * u * u * u : 1f - Mathf.Pow(-2f * u + 2f, 3f) / 2f;
+
+        /// <summary>A point along the trip (0 = start, 1 = arrival).</summary>
+        Vector3 PathAt(float s)
+        {
+            float r = 1f - s;
+            return r * r * from + 2f * r * s * via + s * s * to;
+        }
+
+        /// <summary>The bend that takes the trip clear of the bodies on the straight line: the
+        /// closest point to the worst one is pushed out past it, and the curve passes through there.</summary>
+        static Vector3 Detour(Vector3 a, Vector3 b)
+        {
+            Vector3 mid = (a + b) * 0.5f;
+            Vector3 ab = b - a;
+            float len2 = ab.sqrMagnitude;
+            if (len2 < 1f) return mid;
+            Vector3 best = mid;
+            float worst = 0f;
+            foreach (var w in WarpPoint.All)
+            {
+                if (w == null || w.bodyRadius <= 0f) continue;
+                float clear = w.bodyRadius * 1.6f + 1500f;
+                Vector3 c = w.Position;
+                float t = Mathf.Clamp(Vector3.Dot(c - a, ab) / len2, 0.05f, 0.95f);
+                Vector3 onLine = a + ab * t;
+                Vector3 off = onLine - c;
+                float d = off.magnitude;
+                if (d >= clear || clear - d <= worst) continue;
+                worst = clear - d;
+                if (d < 1f) off = Vector3.Cross(ab, Vector3.up).sqrMagnitude > 1f ? Vector3.Cross(ab, Vector3.up) : Vector3.right;
+                best = c + off.normalized * clear;
+            }
+            // a quadratic curve through `best` at its middle has its control point here
+            return worst > 0f ? 2f * best - mid : mid;
         }
 
         void Jump()
         {
             Enter(State.Warping);
+            chargeVoice = null;
             from = transform.position;
             to = Destination.ArrivalPoint(from);
-            travelDir = (to - from).normalized;
+            via = Detour(from, to);
+            travelDir = (via - from).sqrMagnitude > 1f ? (via - from).normalized : (to - from).normalized;
             sparks.Stop(true, ParticleSystemStopBehavior.StopEmitting);
             Burst(transform.position);
             ScreenFlash = 1f;
@@ -244,7 +295,8 @@ namespace CarrierGame
             tunnel.Stop(true, ParticleSystemStopBehavior.StopEmitting);
             haze.Stop(true, ParticleSystemStopBehavior.StopEmitting);
             if (loop != null) loop.Stop();
-            if (Current == State.Warping) transform.position = Vector3.Lerp(from, to, Mathf.Clamp01(StateTime / Mathf.Max(0.1f, TravelTime)));
+            if (chargeVoice != null) { chargeVoice.Stop(); chargeVoice = null; }
+            if (Current == State.Warping) transform.position = PathAt(Ease(Mathf.Clamp01(StateTime / Mathf.Max(0.1f, TravelTime))));
             Enter(State.Ready);
             ship.externalMotion = false;
             LastMessage = char.ToUpper(why[0]) + why.Substring(1);

@@ -83,6 +83,12 @@ namespace CarrierGame.Demo
         public bool WarpToSelected()
         {
             if (Selected == null || drive == null) return false;
+            if (IsHere(Selected))
+            {
+                SoundFX.Ui(Sfx.UiError);
+                CarrierDemoInput.Toast($"Already at {Selected.displayName}");
+                return false;
+            }
             if (drive.Engage(Selected, out string why))
             {
                 CarrierDemoInput.Toast($"Warping to {Selected.displayName}: {drive.chargeTime + drive.TravelTime:F1} s");

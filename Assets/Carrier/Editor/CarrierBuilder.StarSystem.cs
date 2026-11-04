@@ -343,27 +343,21 @@ namespace Carrier.EditorTools
                 "A pale ice giant at the cold edge of the system, wrapped in methane haze.", 11000f, 30000f, new Color(0.6f, 0.9f, 0.95f));
 
             // the moons: two round Thalassa, four round Jovara
-            WarpPoint Moon(string name, GameObject planet, WarpPoint parentWp, float angle, float distKm, float radius, int seed, bool warp, string desc)
+            // every moon is a warp destination
+            void Moon(string name, GameObject planet, WarpPoint parentWp, float angle, float distKm, float radius, int seed, string desc)
             {
                 Vector3 pos = planet.transform.position + new Vector3(Mathf.Cos(angle * Mathf.Deg2Rad), 0.03f, Mathf.Sin(angle * Mathf.Deg2Rad)) * distKm * 1000f;
                 var m = MakeAsteroid(name, sys, pos, Quaternion.Euler(0f, angle, 0f), 1f, seed, 5, 3, new Vector3(radius, radius * 0.97f, radius),
                                      0.05f, 40, radius / 6f, rockMat, layer, radius * 1.15f, radius * 0.9f);
                 m.GetComponent<Obstacle>().cover = true;
-                return warp ? MakeWarpPoint(m, name, WarpPoint.Kind.Moon, desc, radius, radius * 3.2f + 1500f, new Color(0.75f, 0.75f, 0.78f), parentWp) : null;
+                MakeWarpPoint(m, name, WarpPoint.Kind.Moon, desc, radius, radius * 3.2f + 1500f, new Color(0.75f, 0.75f, 0.78f), parentWp);
             }
-            Moon("Selene", thalassa, wThalassa, 35f, 16f, 1400f, 901, true, "Thalassa's larger moon: grey, airless and heavily cratered.");
-            Moon("Mnemos", thalassa, wThalassa, 205f, 24f, 900f, 902, false, "");
-            Moon("Brontes", jovara, wJovara, 10f, 34f, 2400f, 903, true, "Jovara's inner moon, scarred by ancient impacts.");
-            Moon("Arges", jovara, wJovara, 125f, 46f, 1600f, 904, false, "");
-            Moon("Steropes", jovara, wJovara, 235f, 60f, 2800f, 905, true, "Jovara's largest moon, with deep craters along its terminator.");
-            Moon("Pyrois", jovara, wJovara, 300f, 75f, 1100f, 906, false, "");
-            // moons without a warp point still show on the map as part of their planet's family
-            foreach (var n in new[] { "Mnemos", "Arges", "Pyrois" })
-            {
-                var g = sys.Find(n).gameObject;
-                var parentWp = n == "Mnemos" ? wThalassa : wJovara;
-                var wp = MakeWarpPoint(g, n, WarpPoint.Kind.Moon, $"A small moon of {parentWp.displayName}.", 1000f, 4500f, new Color(0.6f, 0.6f, 0.63f), parentWp);
-            }
+            Moon("Selene", thalassa, wThalassa, 35f, 16f, 1400f, 901, "Thalassa's larger moon: grey, airless and heavily cratered.");
+            Moon("Mnemos", thalassa, wThalassa, 205f, 24f, 900f, 902, "A small moon of Thalassa.");
+            Moon("Brontes", jovara, wJovara, 10f, 34f, 2400f, 903, "Jovara's inner moon, scarred by ancient impacts.");
+            Moon("Arges", jovara, wJovara, 125f, 46f, 1600f, 904, "A small moon of Jovara.");
+            Moon("Steropes", jovara, wJovara, 235f, 60f, 2800f, 905, "Jovara's largest moon, with deep craters along its terminator.");
+            Moon("Pyrois", jovara, wJovara, 300f, 75f, 1100f, 906, "A small moon of Jovara.");
 
             // the asteroid fields
             var innerC = Polar(80f, 76f, 0f);
@@ -542,6 +536,8 @@ namespace Carrier.EditorTools
             var tro = sys.Find("Jovara Trojans (warp point)");
             Shot("sys_trojans", tro.position + new Vector3(-7000f, 1500f, -5000f), tro.position);
             Object.DestroyImmediate(go);
+            // the other scenes' atmospheres light from the main light unless this is set: clear it
+            Shader.SetGlobalVector("_CarrierStarPos", Vector4.zero);
             Log("star system screenshots in " + ShotDir);
         }
     }

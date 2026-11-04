@@ -50,7 +50,7 @@ namespace CarrierGame
 
         Health health;
         IVelocity targetMover;
-        float nextBurst, nextSalvo, nextBeam;
+        float nextBurst, nextSalvo, nextBeam, turretsFrom;
 
         void Start()
         {
@@ -65,6 +65,7 @@ namespace CarrierGame
             nextBurst = t0 + Random.Range(0f, burstInterval);
             nextSalvo = t0 + Random.Range(2f, salvoInterval);
             nextBeam = t0 + Random.Range(6f, beamInterval);
+            turretsFrom = t0 + Random.Range(0f, 1f);
             if (beam != null) beam.target = target;
         }
 
@@ -77,7 +78,8 @@ namespace CarrierGame
             // target while this ship is alive, in the fight, and the target is alive
             if (turrets != null)
             {
-                bool armed = target != null && weaponsFree && (health == null || !health.Dead) && (targetHealth == null || !targetHealth.Dead);
+                bool armed = target != null && weaponsFree && Time.time >= turretsFrom &&
+                             (health == null || !health.Dead) && (targetHealth == null || !targetHealth.Dead);
                 foreach (var t in turrets) if (t != null) t.target = armed ? target : null;
             }
             // hold fire while we are destroyed, or while the target is (no shooting at wreckage)
@@ -125,6 +127,7 @@ namespace CarrierGame
         {
             float t = Time.time + seconds;
             nextBurst = t + Random.Range(0f, 1f);
+            turretsFrom = t + Random.Range(0f, 1f);
             nextSalvo = Mathf.Max(Time.time + seconds + 3f, Mathf.Min(nextSalvo, t + Random.Range(3f, 8f)));
             nextBeam = Mathf.Max(Time.time + seconds + 6f, Mathf.Min(nextBeam, t + Random.Range(6f, 12f)));
         }

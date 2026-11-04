@@ -101,7 +101,13 @@ namespace CarrierGame.Demo
         {
             Close();
             SoundFX.LevelRestart();
-            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+            var scene = SceneManager.GetActiveScene();
+#if UNITY_EDITOR
+            // in the editor the scene needn't be in the build list
+            UnityEditor.SceneManagement.EditorSceneManager.LoadSceneInPlayMode(scene.path, new LoadSceneParameters(LoadSceneMode.Single));
+#else
+            SceneManager.LoadScene(scene.buildIndex);   // each game is built with just its own scene
+#endif
         }
 
         static void Quit()
@@ -135,7 +141,7 @@ namespace CarrierGame.Demo
             var pad = Gamepad.current;
             if (k != null)
             {
-                if (k.escapeKey.wasPressedThisFrame) { Close(); return; }
+                if (k.escapeKey.wasPressedThisFrame || k.pKey.wasPressedThisFrame) { Close(); return; }
                 if (k.upArrowKey.wasPressedThisFrame || k.wKey.wasPressedThisFrame) Move(-1);
                 if (k.downArrowKey.wasPressedThisFrame || k.sKey.wasPressedThisFrame) Move(+1);
                 if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame || k.spaceKey.wasPressedThisFrame) { Activate(selected); return; }
@@ -182,6 +188,7 @@ namespace CarrierGame.Demo
         void OnGUI()
         {
             if (!IsOpen) return;
+            GUI.depth = -100;   // over the HUD panels
             float s = Hud.S;
             Hud.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0.01f, 0.03f, 0.55f));
             float w = 440f * s, rowH = 46f * s, pad = 22f * s;
@@ -202,7 +209,7 @@ namespace CarrierGame.Demo
                 GUI.Label(r, text, Hud.Text(19, sel, TextAnchor.MiddleCenter));
                 y += rowH;
             }
-            string hint = Gamepad.current != null ? "A select   B or Start resume" : "Enter select   Esc resume";
+            string hint = Gamepad.current != null ? "A select   B or Start resume" : "Enter select   Esc or P resume";
             GUI.Label(new Rect(panel.x, panel.yMax - pad - 22f * s, w, 22f * s), hint, Hud.Text(13, false, TextAnchor.MiddleCenter));
         }
     }

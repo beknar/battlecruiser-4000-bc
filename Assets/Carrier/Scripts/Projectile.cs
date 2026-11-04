@@ -14,12 +14,28 @@ namespace CarrierGame
         [HideInInspector] public Transform owner;
 
         float age;
+        int ownerSide = -1;   // 1: fired by a hostile ship, 0: not (worked out on first use)
+
+        /// <summary>A hostile ship's shot doesn't hurt the other hostiles (a battle group firing
+        /// past its own flagship). The player's side is unchanged.</summary>
+        bool Friendly(Transform hit)
+        {
+            if (owner == null) return false;
+            if (ownerSide < 0)
+            {
+                var oi = owner.GetComponentInParent<TargetInfo>();
+                ownerSide = oi != null && oi.Hostile ? 1 : 0;
+            }
+            if (ownerSide == 0) return false;
+            var hi = hit.GetComponentInParent<TargetInfo>();
+            return hi != null && hi.Hostile;
+        }
 
         void Update()
         {
             float step = speed * Time.deltaTime;
             if (Physics.Raycast(transform.position, transform.forward, out var hit, step, ~0, QueryTriggerInteraction.Ignore)
-                && (owner == null || !hit.transform.IsChildOf(owner)))
+                && (owner == null || !hit.transform.IsChildOf(owner)) && !Friendly(hit.transform))
             {
                 var h = hit.collider.GetComponentInParent<Health>();
                 bool onShield = hit.collider.GetComponent<Shield>() != null;

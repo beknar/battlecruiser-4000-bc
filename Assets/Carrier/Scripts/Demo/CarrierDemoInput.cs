@@ -52,7 +52,7 @@ namespace CarrierGame.Demo
             Application.targetFrameRate = 120;
             StartCoroutine(FixDisplayWhenReady());
             PadSupport.Init();
-            menu = GetComponent<GameMenu>() ?? gameObject.AddComponent<GameMenu>();
+            if (!TryGetComponent(out menu)) menu = gameObject.AddComponent<GameMenu>();
 #if UNITY_WEBGL && !UNITY_EDITOR
             // tell the page which graphics API it got: WebGPU, or the WebGL 2 fallback
             CarrierPageGraphics(SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.WebGPU ? "WebGPU" : "WebGL 2");
@@ -91,7 +91,7 @@ namespace CarrierGame.Demo
                 }
                 if (warpFlying && !SystemMap.IsOpen && !SystemMap.JustClosed)
                 {
-                    if ((k != null && k.escapeKey.wasPressedThisFrame) || (pad != null && pad.startButton.wasPressedThisFrame)) menu.Open();
+                    if ((k != null && (k.escapeKey.wasPressedThisFrame || k.pKey.wasPressedThisFrame)) || (pad != null && pad.startButton.wasPressedThisFrame)) menu.Open();
                 }
                 return;
             }
@@ -165,7 +165,8 @@ namespace CarrierGame.Demo
 
         void KeyboardControls(Keyboard k)
         {
-            if (k.escapeKey.wasPressedThisFrame) { menu.Open(); return; }
+            // P too: in a browser at full screen, the first Esc only leaves full screen
+            if (k.escapeKey.wasPressedThisFrame || k.pKey.wasPressedThisFrame) { menu.Open(); return; }
             if (k.hKey.wasPressedThisFrame) showHelp = !showHelp;
             if (k.equalsKey.wasPressedThisFrame || k.numpadPlusKey.wasPressedThisFrame) TextSize(+1);
             if (k.minusKey.wasPressedThisFrame || k.numpadMinusKey.wasPressedThisFrame) TextSize(-1);
@@ -291,7 +292,7 @@ namespace CarrierGame.Demo
                     if (h != null && h.Dead) continue;
                     if (CombatPilot.IsHidden(info.transform)) continue;
                     // only the ones close enough to matter (not a patrol on the far side of the system)
-                    if ((info.transform.position - carrier.transform.position).sqrMagnitude > TargetDisplay.MarkerRange * TargetDisplay.MarkerRange) continue;
+                    if (!TargetDisplay.InRange(info.transform, carrier.transform.position)) continue;
                     total++;
                     if (Cover.Visible(info.transform.position, carrier.transform.position)) seen++;
                 }
@@ -445,7 +446,7 @@ namespace CarrierGame.Demo
                 targetIndex = carrier.target == null && tries == 0 ? targetIndex % targets.Length : (targetIndex + 1) % targets.Length;
                 var t = targets[targetIndex];
                 if (t == null || CombatPilot.IsHidden(t)) continue;
-                if ((t.position - carrier.transform.position).sqrMagnitude > TargetDisplay.MarkerRange * TargetDisplay.MarkerRange) continue;
+                if (!TargetDisplay.InRange(t, carrier.transform.position)) continue;
                 Select(t);
                 return;
             }
@@ -541,7 +542,7 @@ namespace CarrierGame.Demo
             {
                 if (hit.transform.IsChildOf(carrier.transform)) continue;
                 foreach (var t in targets)
-                    if (t != null && hit.transform.IsChildOf(t) && !CombatPilot.IsHidden(t)) best = t;
+                    if (t != null && hit.transform.IsChildOf(t) && !CombatPilot.IsHidden(t) && TargetDisplay.InRange(t, carrier.transform.position)) best = t;
                 break;
             }
             if (best == null)
@@ -552,7 +553,7 @@ namespace CarrierGame.Demo
                     if (t == null) continue;
                     var h = t.GetComponent<Health>();
                     if (h != null && h.Dead) continue;
-                    if (CombatPilot.IsHidden(t)) continue;
+                    if (CombatPilot.IsHidden(t) || !TargetDisplay.InRange(t, carrier.transform.position)) continue;
                     Vector3 sp = cam.WorldToScreenPoint(t.position);
                     if (sp.z <= 0f) continue;
                     float d = Vector2.Distance(new Vector2(sp.x, sp.y), screen);
@@ -623,7 +624,7 @@ namespace CarrierGame.Demo
             "Right-drag orbit   mouse wheel zoom",
             warp != null ? "M system map: mini-warp" : null,
             "H hide help   +/- text size   N sound",
-            OnWeb ? "Esc menu" : "F11 window   Esc menu",
+            OnWeb ? "F11 full screen   Esc or P menu" : "F11 window   Esc or P menu",
         }.Where(l => l != null));
 
         string PadHelp => padHelp ??= string.Join("\n", new[]

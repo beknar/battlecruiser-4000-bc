@@ -42,7 +42,6 @@ namespace Carrier.EditorTools
                         w.missileRange = 5000f;
                         w.salvoInterval = 18f;
                         w.salvoSize = 2;
-                        w.holdFire = 2f;
                     });
             }
 
@@ -62,7 +61,6 @@ namespace Carrier.EditorTools
                         w.missileRange = 6000f;
                         w.salvoInterval = 16f;
                         w.salvoSize = 4;
-                        w.holdFire = 3f;
                         // a heavy red beam from the bridge tower
                         var b = LocalBounds(go.transform);
                         var node = Node("Beam", go.transform, new Vector3(0f, b.max.y + 6f, b.center.z + b.size.z * 0.1f));
@@ -183,7 +181,7 @@ namespace Carrier.EditorTools
             h.maxHealth = health;
             h.deathEffect = p.explosion;
             h.deathEffectScale = deathScale;
-            h.respawnDelay = 60f;
+            // (respawn delay, opening-fire delay and leash are set per battle group in the scene builder)
             var info = go.AddComponent<TargetInfo>();
             info.displayName = displayName;
             info.shipClass = shipClass;

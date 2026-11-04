@@ -149,6 +149,7 @@ namespace CarrierGame.Demo
         void Update()
         {
             if (drive == null || carrier == null) return;
+            if (GameMenu.IsOpen || GameMenu.JustClosed) return;   // the pause menu has the keys
             var k = Keyboard.current;
             var pad = Gamepad.current;
             var mouse = Mouse.current;

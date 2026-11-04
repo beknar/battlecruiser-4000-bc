@@ -4,7 +4,8 @@ using UnityEngine;
 namespace CarrierGame
 {
     public enum Sfx { Cannon, PointDefense, Blaster, MissileLaunch, ExplosionBig, ExplosionSmall, Impact, Catapult, UiLock, UiClear, UiError, UiKill,
-                      ShieldHit, BeamCharge, BeamFire, HeavyBeamCharge, HeavyBeamFire, UiAlert }
+                      ShieldHit, BeamCharge, BeamFire, HeavyBeamCharge, HeavyBeamFire, UiAlert,
+                      WarpCharge, WarpJump, WarpExit }
 
     /// <summary>
     /// Plays the game's sounds. Each sound uses the library recordings in
@@ -109,6 +110,9 @@ namespace CarrierGame
             D(Sfx.UiError, SfxSynth.Buzz, 0.4f, 0.4f, 0f, 0.15f, 1, true);
             D(Sfx.UiKill, () => SfxSynth.Beeps("ui_kill", new[] { 660f, 880f, 1320f }, 0.09f, 0.02f), 0.5f, 0.5f, 0f, 0.3f, 1, true);
             D(Sfx.UiAlert, () => SfxSynth.Beeps("ui_alert", new[] { 990f, 740f, 990f, 740f }, 0.14f, 0.06f), 0.45f, 0.45f, 0f, 1f, 1, true);
+            D(Sfx.WarpCharge, SfxSynth.BeamCharge, 0.5f, 0.6f, 2500f, 1f, 1);
+            D(Sfx.WarpJump, SfxSynth.ExplosionSmall, 0.6f, 0.8f, 3000f, 0.5f, 1);
+            D(Sfx.WarpExit, SfxSynth.ExplosionSmall, 0.6f, 0.75f, 3000f, 0.5f, 1);
             D(Sfx.ShieldHit, SfxSynth.ShieldHit, 0.35f, 0.4f, 900f, 0.07f, 4);
             D(Sfx.BeamCharge, SfxSynth.BeamCharge, 0.45f, 0.55f, 1500f, 0.5f, 2);
             D(Sfx.BeamFire, SfxSynth.BeamFire, 0.6f, 0.65f, 2500f, 0.5f, 2);
@@ -199,7 +203,8 @@ namespace CarrierGame
         {
             var d = defs[(int)s];
             if (d == null || d.clips == null || d.clips.Length == 0) return null;
-            if (!d.ui && (listener == null || (position - listener.position).sqrMagnitude < CombatHearingRange * CombatHearingRange))
+            bool fightingSound = !d.ui && s != Sfx.WarpCharge && s != Sfx.WarpJump && s != Sfx.WarpExit && s != Sfx.Catapult;
+            if (fightingSound && (listener == null || (position - listener.position).sqrMagnitude < CombatHearingRange * CombatHearingRange))
                 LastCombatTime = Time.time;
             float now = Time.unscaledTime;
             if (now - d.lastPlayed < d.minInterval) return null;

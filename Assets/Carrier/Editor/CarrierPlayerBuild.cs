@@ -33,6 +33,19 @@ namespace Carrier.EditorTools
             }
         }
 
+        public const string StarSystemOutDir = "../Builds/StarSystem";
+
+        [MenuItem("Tools/Carrier/Build Star System")]
+        public static void BuildStarSystem()
+        {
+            try { Build(CarrierBuilder.StarSystemScenePath, StarSystemOutDir, "StarSystem.exe", "Star System", "Temp/carrier_player3_build.log"); }
+            finally
+            {
+                PlayerSettings.productName = ProductName;
+                AssetDatabase.SaveAssets();
+            }
+        }
+
         static void Build(string scene, string outDirRel, string exe, string productName, string logPath)
         {
             PlayerSettings.productName = productName;

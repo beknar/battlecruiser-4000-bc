@@ -90,6 +90,7 @@ namespace Carrier.EditorTools
                 BuildScene(p, frigate);
                 TakeScreenshots();
                 BuildAsteroidScene(p, frigate);     // the second level: the asteroid-field ambush
+                BuildStarSystemScene(p, frigate);   // the third level: the star system and its mini-warp
                 Log("BUILD_OK");
             }
             catch (Exception e)

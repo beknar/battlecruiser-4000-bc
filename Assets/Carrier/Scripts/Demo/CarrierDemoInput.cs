@@ -29,8 +29,11 @@ namespace CarrierGame.Demo
         /// <summary>Screen area of the help box (GUI coordinates).</summary>
         public static Rect HelpRect => helpRect;
 
+        WarpDrive warp;
+
         void Awake()
         {
+            if (carrier != null) warp = carrier.GetComponent<WarpDrive>();
             display = gameObject.AddComponent<TargetDisplay>();
             display.carrier = carrier;
             display.targets = targets;
@@ -61,6 +64,22 @@ namespace CarrierGame.Demo
             var k = Keyboard.current;
             var pad = Gamepad.current;
             PadSupport.Track(pad, k, Mouse.current);
+
+            // the system map has the keys and the pad while it is open; the warp drive flies the
+            // ship while it is charging or in warp
+            bool warpFlying = warp != null && warp.Current != WarpDrive.State.Ready;
+            if (SystemMap.IsOpen || SystemMap.JustClosed || warpFlying)
+            {
+                WatchDestruction();
+                if (!carrier.Destroyed)
+                {
+                    carrier.rudder = autoRudder ?? 0f;
+                    carrier.pitchInput = autoPitch ?? 0f;
+                    carrier.elevator = autoElevator ?? 0f;
+                }
+                if (warpFlying && !SystemMap.IsOpen && k != null && k.escapeKey.wasPressedThisFrame && !SystemMap.JustClosed) Quit();
+                return;
+            }
 
             float turn = 0f, throttleRate = 0f, pitch = 0f, lift = 0f;
             if (k != null)
@@ -142,7 +161,7 @@ namespace CarrierGame.Demo
             if (k.digit1Key.wasPressedThisFrame) LaunchFighters();
             if (k.digit2Key.wasPressedThisFrame) LaunchDrones();
             if (k.digit3Key.wasPressedThisFrame) LaunchDropships();
-            if (k.mKey.wasPressedThisFrame) FireMissiles();
+            if (k.mKey.wasPressedThisFrame && warp == null) FireMissiles();   // with a warp drive, M is the system map
             if (k.fKey.wasPressedThisFrame) FireGuns();
             if (k.gKey.wasPressedThisFrame) ToggleAutoFire();
             if (k.qKey.wasPressedThisFrame) WingAttack();
@@ -230,6 +249,21 @@ namespace CarrierGame.Demo
                     float err = ShipAutopilot.BowError(carrier, carrier.target.position);
                     sb.Append(err <= mainGun.aimAssist ? "  <color=#7ee08a>on target</color>" : $"  <color=#ffb060>{err:F0}° off</color>");
                 }
+            }
+            if (warp != null)
+            {
+                string key = PadSupport.UsingPad && Gamepad.current != null ? "R3" : "M";
+                string w = warp.Current switch
+                {
+                    WarpDrive.State.Charging => $"<color=#bfe6ff>charging for {warp.Destination?.displayName}  {Mathf.Max(0f, warp.chargeTime - warp.StateTime):F1} s</color>",
+                    WarpDrive.State.Warping => $"<color=#bfe6ff><b>IN WARP</b> to {warp.Destination?.displayName}  {warp.TimeLeft:F1} s</color>",
+                    WarpDrive.State.Arriving => $"<color=#bfe6ff>dropping out at {warp.Destination?.displayName}</color>",
+                    _ => warp.InCombat(out string why) ? $"<color=#ff6050>locked: {why}</color>" : $"<color=#7ee08a>ready</color>  <color=#9aa4b0>{key} system map</color>",
+                };
+                sb.Append($"\nWarp  {w}");
+                var here = WarpPoint.Nearest(carrier.transform.position);
+                if (here != null && warp.Current == WarpDrive.State.Ready)
+                    sb.Append($"\nNear  {here.displayName}  <color=#9aa4b0>{Vector3.Distance(here.Position, carrier.transform.position) / 1000f:F0} km</color>");
             }
             if (Cover.Active)
             {
@@ -322,7 +356,7 @@ namespace CarrierGame.Demo
             if (p.rightShoulder.wasPressedThisFrame) FireGuns();          // RB
             if (p.leftShoulder.wasPressedThisFrame) FireMissiles();       // LB
             if (p.leftStickButton.wasPressedThisFrame) ToggleAutoFire();  // L3
-            if (p.rightStickButton.wasPressedThisFrame) CycleCamera();    // R3
+            if (p.rightStickButton.wasPressedThisFrame && warp == null) CycleCamera();    // R3 (the system map, with a warp drive)
             // right stick orbits and LT/RT zoom: handled by OrbitCamera
         }
 
@@ -572,6 +606,7 @@ namespace CarrierGame.Demo
             "X stop targeting",
             carrier.HasHangar ? "C camera: carrier / craft" : null,
             "Right-drag orbit   mouse wheel zoom",
+            warp != null ? "M system map: mini-warp" : null,
             "H hide help   +/- text size   N sound",
             "F11 window   Esc quit",
         }.Where(l => l != null));
@@ -587,6 +622,7 @@ namespace CarrierGame.Demo
             "Y next target   B stop targeting",
             "RB fire guns" + (carrier.HasMissiles ? "   LB missile salvo" : "") + (MainGun != null && !carrier.HasHangar ? "   X main gun" : ""),
             "L3 auto-fire on/off" + (carrier.HasHangar ? "   R3 camera: carrier / craft" : ""),
+            warp != null ? "R3 system map: mini-warp" : null,
             "Back hide help   Start sound",
             "Back + D-pad ↑↓ text size   hold Back + Start quit",
         }.Where(l => l != null));

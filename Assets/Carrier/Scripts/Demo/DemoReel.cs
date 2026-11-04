@@ -355,6 +355,7 @@ namespace CarrierGame.Demo
             int n = 0;
             if (dir) foreach (var m in dir.mounts) if (m) n += m.ShotsFired;
             Log($"  CIWS shots {n}");
+            Log("  sound sources: " + SoundFX.SourceReport.Replace("\n", "; "));
         }
         /// <summary>Keep the camera at a fixed angle to the ship's heading.</summary>
         void FollowHeading(float offset, float pitch)
@@ -406,7 +407,7 @@ namespace CarrierGame.Demo
             cam.yaw = yaw;
             cam.pitch = pitch;
             cam.autoRotate = spin;
-            Log($"{T,5:F1}s shot {index}: {(target ? target.name : "none")}");
+            Log($"{T,5:F1}s shot {index}: {(target ? target.name : "none")}   (music: {(MusicDirector.Playing ? $"combat mix {MusicDirector.CombatMix:F2}" : "off")})");
         }
 
         /// <summary>Sit behind the followed craft, easing round to its heading.</summary>

@@ -16,7 +16,7 @@ file is also on the [release page](https://github.com/beknar/battlecruiser-4000-
 |---|---|---|
 | Carrier Demo (open space) | [battlecruiser-4000-bc-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-windows.zip) (79 MB) | [60 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-demo-reel.mp4) (72 MB) |
 | Asteroid Ambush | [battlecruiser-4000-bc-asteroid-ambush-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-windows.zip) (82 MB) | [76 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-reel.mp4) (93 MB) |
-| Star System | [battlecruiser-4000-bc-star-system-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-windows.zip) (95 MB) | [100 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4) (133 MB) |
+| Star System | [battlecruiser-4000-bc-star-system-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-windows.zip) (95 MB) | [169 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4) (205 MB) |
 | Star System, web version | [battlecruiser-4000-bc-star-system-web.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-web.zip) (57 MB) | See [The web version](#the-web-version) |
 
 ### Carrier Demo
@@ -37,13 +37,14 @@ frigate fights back with its CIWS and side guns, and turns its bow beam on the c
 
 ### Star System
 
-[![The frigate charging its bow beam at the Outer Drift (click to download the demo reel)](docs/star-system-thumb.jpg)](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4)
+[![The frigate setting down on the landing pad on Thalassa (click to download the demo reel)](docs/star-system-thumb.jpg)](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4)
 
-The reel starts at the ocean world Thalassa. The frigate opens the system map, picks the gas
-giant Jovara and mini-warps there. It then warps across the system to the Outer Drift asteroid
-field, where a pirate cruiser and its drones ambush it from the rocks. The frigate turns its
-bow beam on the cruiser until it breaks apart. The reel was recorded before landing and the
-capital ships were added, so it doesn't show them.
+The reel starts in orbit over the ocean world Thalassa. The frigate lands, flies in over an
+island and sets down on the landing pad, then climbs back to orbit. It opens the system map and
+mini-warps to the gas giant Jovara, where it drops to the cloud tops and sets down on a floating
+mining platform. Then it warps across the system to the Outer Drift asteroid field, where a
+pirate cruiser and its drones ambush it from the rocks. The frigate turns its bow beam on the
+cruiser until it breaks apart. The capital ships aren't in the reel.
 
 ## Features
 
@@ -304,7 +305,7 @@ WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use
   Add `-landtest` (or `?landtest` on the web) to test only the landings, with screenshots, on
   every kind of world.
 - `CarrierDemo.exe -reel <dir>` (or `AsteroidAmbush.exe` / `StarSystem.exe`): records a demo reel
-  (60 s, 76 s for the ambush or 150 s for the star system) at 30 fps as JPG frames plus a WAV
+  (60 s, 76 s for the ambush or about 170 s for the star system) at 30 fps as JPG frames plus a WAV
   soundtrack, then quits. Join them with ffmpeg:
 
   ```

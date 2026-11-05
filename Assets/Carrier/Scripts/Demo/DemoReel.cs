@@ -61,7 +61,7 @@ namespace CarrierGame.Demo
             if (cc == null || cam == null) { Log("no demo controller in scene"); Application.Quit(); yield break; }
             if (AmbushDirector.Instance != null) seconds = 76f;
             sysMap = FindAnyObjectByType<SystemMap>();
-            if (sysMap != null) seconds = 150f;     // ends a few seconds after the cruiser dies (see SystemShots)
+            if (sysMap != null) seconds = 220f;     // ends a few seconds after the cruiser dies (see SystemShots)
             Log($"screen {Screen.width}x{Screen.height}, gfx {SystemInfo.graphicsDeviceType}, audio {AudioSettings.outputSampleRate} Hz {AudioSettings.speakerMode}, {seconds:F0} s");
 
             var eof = new WaitForEndOfFrame();
@@ -299,18 +299,94 @@ namespace CarrierGame.Demo
         float phaseAt, nextChargeAt = -1f, nextCut;
         bool arrivedLogged;
 
-        void Phase(int p, float t) { sysPhase = p; phaseAt = t; }
+        void Phase(int p, float t)
+        {
+            sysPhase = p;
+            phaseAt = t;
+            visitStarted = leaving = false;
+            landedAt = -1f;
+        }
+
+        PlanetLanding landing;
+        bool visitStarted, leaving;
+        float visitAt, landedAt = -1f;
+
+        /// <summary>A landing: wait out the descent, fly the site (to the pad and down onto it, or
+        /// just across it), take off, and on to `next` once back in orbit.</summary>
+        void SurfaceVisit(float t, float d, int b, bool setDown, float stay, int next)
+        {
+            if (landing == null) { Phase(next, t); return; }
+            if (leaving)
+            {
+                if (landing.Current == PlanetLanding.State.InSpace) Phase(next, t);
+                return;
+            }
+            if (landing.Current != PlanetLanding.State.OnSurface) return;   // still coming down
+            var site = landing.Site;
+            Vector3 me = cc.transform.position;
+            Vector3 to = site.pad - me;
+            to.y = 0f;
+            float dist = to.magnitude;
+            if (!visitStarted)
+            {
+                visitStarted = true;
+                visitAt = t;
+                Log($"{T,5:F1}s   on the surface of {landing.Body?.displayName}: {site.description} (built in {landing.LastBuildSeconds * 1000f:F0} ms), {dist:F0} m from the pad");
+                Shot(b, cc.transform, demo.ShipViewOffset, d * 1.5f, cc.Heading + 150f, 11f, 2f);
+            }
+            float s = t - visitAt;
+            var v = ShipAutopilot.BowOn(cc, site.pad + Vector3.up * (me.y - site.pad.y));
+            demo.autoRudder = dist > 60f ? v.x : 0f;
+            demo.autoPitch = 0f;
+            if (setDown)
+            {
+                // come in over the pad, dropping to about 90 m above it, stop over it, then set down
+                cc.throttle = dist > 380f ? 0.6f : dist > 160f ? 0.25f : dist > 70f ? 0.1f : 0f;
+                bool over = dist < 110f && cc.Speed < 14f;
+                float above = me.y - site.pad.y;
+                demo.autoElevator = over ? -1f : above > 130f ? -0.7f : 0f;
+                // in close: low and to the side as it comes down onto the pad
+                if (shot == b && dist < 430f) Shot(b + 1, cc.transform, demo.ShipViewOffset, d * 1.2f, cc.Heading + 75f, 6f, 1.5f);
+                if (landing.Landed && landedAt < 0f)
+                {
+                    landedAt = t;
+                    Log($"{T,5:F1}s   touchdown {(landing.OnPad ? "on the pad" : "")} after {s:F1} s on the surface");
+                    Shot(b + 2, cc.transform, demo.ShipViewOffset, d * 1.9f, cc.Heading - 140f, 18f, 5f);
+                }
+            }
+            else
+            {
+                cc.throttle = 0.32f;
+                demo.autoElevator = 0f;
+                // the platform as the frigate passes over it
+                var outpost = site.root.transform.Find("Outpost");
+                if (shot == b && s > 4f && outpost != null) Shot(b + 1, outpost, Vector3.zero, 700f, Bearing(outpost.position, me) + 40f, 12f, 3f);
+            }
+            bool done = setDown ? landedAt > 0f && t - landedAt > 4.5f : s > stay;
+            if (done || s > 45f)
+            {
+                demo.autoRudder = null; demo.autoPitch = null; demo.autoElevator = null;
+                cc.throttle = 0.15f;
+                Log($"{T,5:F1}s   taking off from {landing.Body?.displayName}");
+                landing.TakeOff();
+                leaving = true;
+            }
+        }
 
         WarpPoint WP(string name) => WarpPoint.All.FirstOrDefault(w => w.displayName == name);
 
-        /// <summary>The frigate at Thalassa opens the system map, browses it and warps to the gas
-        /// giant Jovara; opens the map again and warps across the system to the Outer Drift, where a
-        /// pirate cruiser and its drones ambush it from the rocks; it fights the drones off with its
-        /// CIWS and side guns and turns its bow gun on the cruiser until it is destroyed.</summary>
+        /// <summary>The frigate in orbit over Thalassa lands: it flies in over the island and sets
+        /// down on the landing pad, then takes off. It opens the system map, browses it and warps
+        /// to the gas giant Jovara, drops to the cloud tops, sets down on the floating mining
+        /// platform there and climbs back out; opens the map again and warps across the system to
+        /// the Outer Drift, where a pirate cruiser and its drones ambush it from the rocks; it fights
+        /// the drones off with its CIWS and side guns and turns its bow gun on the cruiser until it
+        /// is destroyed.</summary>
         void SystemShots(float t)
         {
             float d = demo.ShipViewDistance;
             if (sysDrive == null) sysDrive = cc.GetComponent<WarpDrive>();
+            if (landing == null) landing = PlanetLanding.Instance;
             if (pirates == null)
             {
                 pirates = GameObject.Find("Pirates")?.GetComponent<EncounterGroup>();
@@ -327,11 +403,34 @@ namespace CarrierGame.Demo
                         SideGuns(false);
                         Shot(0, cc.transform, demo.ShipViewOffset, d * 1.7f, cc.Heading + 150f, 6f, 3f);
                     }
-                    if (Cue(4.5f)) { sysMap.Open(); Log($"{T,5:F1}s   map opened (selected {sysMap.Selected?.displayName})"); }
-                    if (Cue(5.6f)) sysMap.Select(WP("Steropes"));
-                    if (Cue(6.6f)) sysMap.Select(WP("Brontes"));
-                    if (Cue(7.6f)) sysMap.Select(WP("Jovara"));
-                    if (Cue(9.2f)) Warp(t, 1);
+                    if (Cue(3.5f))
+                    {
+                        bool down = landing != null && landing.Land();
+                        Log($"{T,5:F1}s   landing on Thalassa: {(down ? "descending" : "refused")}");
+                        Phase(down ? 7 : 8, t);
+                    }
+                    break;
+
+                case 7:   // Thalassa: in over the island and down onto the pad, then back up
+                    SurfaceVisit(t, d, 70, true, 0f, 8);
+                    break;
+
+                case 8:   // back in orbit: the map, and on to Jovara
+                    if (Cue(phaseAt + 0.05f)) Shot(80, cc.transform, demo.ShipViewOffset, d * 1.6f, cc.Heading + 150f, 6f, 3f);
+                    if (Cue(phaseAt + 1.6f)) { sysMap.Open(); Log($"{T,5:F1}s   map opened (selected {sysMap.Selected?.displayName})"); }
+                    if (Cue(phaseAt + 2.7f)) sysMap.Select(WP("Steropes"));
+                    if (Cue(phaseAt + 3.7f)) sysMap.Select(WP("Brontes"));
+                    if (Cue(phaseAt + 4.7f)) sysMap.Select(WP("Jovara"));
+                    if (Cue(phaseAt + 6.3f)) Warp(t, 1);
+                    break;
+
+                case 9:   // Jovara: down to the cloud tops and onto the floating mining platform, back up
+                    SurfaceVisit(t, d, 90, true, 0f, 10);
+                    break;
+
+                case 10:  // back over Jovara: the map again
+                    if (Cue(phaseAt + 0.05f)) Shot(100, cc.transform, demo.ShipViewOffset, d * 1.6f, cc.Heading + 25f, 8f, 2f);
+                    if (Cue(phaseAt + 2f)) { sysMap.Open(); Phase(3, t); }
                     break;
 
                 case 1:   // the first jump: charging, the jump, the tunnel
@@ -343,7 +442,13 @@ namespace CarrierGame.Demo
                 case 2:   // at Jovara: a look at the gas giant and its moons
                     if (Cue(phaseAt + 0.1f)) Shot(10, cc.transform, demo.ShipViewOffset, d * 1.6f, cc.Heading + 25f, 8f, 0f);
                     if (sysPhase == 2) FollowHeading(25f, 8f);
-                    if (Cue(phaseAt + 5f)) { sysMap.Open(); Phase(3, t); }
+                    if (Cue(phaseAt + 4.5f))
+                    {
+                        bool down = landing != null && landing.Land();
+                        Log($"{T,5:F1}s   landing on Jovara: {(down ? "descending" : "refused")}");
+                        if (down) Phase(9, t);
+                        else { sysMap.Open(); Phase(3, t); }
+                    }
                     break;
 
                 case 3:   // the map again: on to the Outer Drift

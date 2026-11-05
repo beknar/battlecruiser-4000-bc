@@ -16,8 +16,8 @@ file is also on the [release page](https://github.com/beknar/battlecruiser-4000-
 |---|---|---|
 | Carrier Demo (open space) | [battlecruiser-4000-bc-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-windows.zip) (79 MB) | [60 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-demo-reel.mp4) (72 MB) |
 | Asteroid Ambush | [battlecruiser-4000-bc-asteroid-ambush-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-windows.zip) (82 MB) | [76 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-reel.mp4) (93 MB) |
-| Star System | [battlecruiser-4000-bc-star-system-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-windows.zip) (85 MB) | [100 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4) (133 MB) |
-| Star System, web version | [battlecruiser-4000-bc-star-system-web.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-web.zip) (46 MB) | See [The web version](#the-web-version) |
+| Star System | [battlecruiser-4000-bc-star-system-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-windows.zip) (95 MB) | [100 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4) (133 MB) |
+| Star System, web version | [battlecruiser-4000-bc-star-system-web.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-web.zip) (57 MB) | See [The web version](#the-web-version) |
 
 ### Carrier Demo
 
@@ -42,7 +42,8 @@ frigate fights back with its CIWS and side guns, and turns its bow beam on the c
 The reel starts at the ocean world Thalassa. The frigate opens the system map, picks the gas
 giant Jovara and mini-warps there. It then warps across the system to the Outer Drift asteroid
 field, where a pirate cruiser and its drones ambush it from the rocks. The frigate turns its
-bow beam on the cruiser until it breaks apart.
+bow beam on the cruiser until it breaks apart. The reel was recorded before landing and the
+capital ships were added, so it doesn't show them.
 
 ## Features
 

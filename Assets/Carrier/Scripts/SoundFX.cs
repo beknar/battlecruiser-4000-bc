@@ -209,11 +209,19 @@ namespace CarrierGame
         /// <summary>Play an interface sound (not positioned).</summary>
         public static void Ui(Sfx s) => Play(s, Vector3.zero);
 
-        AudioSource PlayInternal(Sfx s, Vector3 position, float volume, float pitch, bool vary, float delay)
+        /// <summary>Play a sound that isn't part of a fight (a touchdown's thump), so the music
+        /// doesn't take it for one.</summary>
+        public static void PlayPeaceful(Sfx s, Vector3 position, float volume = 1f, float pitch = 1f)
+        {
+            var sfx = Instance;
+            if (sfx != null) sfx.PlayInternal(s, position, volume, pitch, true, 0f, false);
+        }
+
+        AudioSource PlayInternal(Sfx s, Vector3 position, float volume, float pitch, bool vary, float delay, bool fight = true)
         {
             var d = defs[(int)s];
             if (d == null || d.clips == null || d.clips.Length == 0) return null;
-            bool fightingSound = !d.ui && s != Sfx.WarpCharge && s != Sfx.WarpJump && s != Sfx.WarpExit && s != Sfx.Catapult;
+            bool fightingSound = fight && !d.ui && s != Sfx.WarpCharge && s != Sfx.WarpJump && s != Sfx.WarpExit && s != Sfx.Catapult;
             if (fightingSound && (listener == null || (position - listener.position).sqrMagnitude < CombatHearingRange * CombatHearingRange))
                 LastCombatTime = Time.time;
             float now = Time.unscaledTime;

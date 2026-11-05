@@ -268,12 +268,22 @@ namespace CarrierGame
             if (target != null) FiredAt.Add(target.name);
             if (target != null && Vector3.Angle(AimForward(), AimPoint() - AimOrigin()) > fireCone * 2f) OffTargetShots++;
             if (checkHullClearance && HullInTheWay(AimOrigin(), AimForward() * range)) HullShots++;
-            var owner = GetComponentInParent<CarrierController>();
+            // the ship (or emplacement) it is mounted on: its own shots mustn't hit it, but they
+            // must still hit everything else round it (a gun on a planet's surface is under the
+            // surface's root, along with the ground)
+            Transform owner = null;
+            var cc = GetComponentInParent<CarrierController>();
+            if (cc != null) owner = cc.transform;
+            else
+            {
+                var ti = GetComponentInParent<TargetInfo>();
+                owner = ti != null ? ti.transform : transform.root;
+            }
             foreach (var m in muzzles)
             {
                 if (m == null) continue;
                 var p = Instantiate(projectilePrefab, m.position, m.rotation);
-                p.owner = owner ? owner.transform : transform.root;
+                p.owner = owner;
             }
         }
     }

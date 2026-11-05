@@ -359,7 +359,7 @@ namespace CarrierGame.Demo
                 cc.throttle = 0.32f;
                 demo.autoElevator = 0f;
                 // the platform as the frigate passes over it
-                var outpost = site.root.transform.Find("Outpost");
+                var outpost = site.outpost;
                 if (shot == b && s > 4f && outpost != null) Shot(b + 1, outpost, Vector3.zero, 700f, Bearing(outpost.position, me) + 40f, 12f, 3f);
             }
             bool done = setDown ? landedAt > 0f && t - landedAt > 4.5f : s > stay;

@@ -16,7 +16,7 @@ file is also on the [release page](https://github.com/beknar/battlecruiser-4000-
 |---|---|---|
 | Carrier Demo (open space) | [battlecruiser-4000-bc-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-windows.zip) (79 MB) | [60 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-demo-reel.mp4) (72 MB) |
 | Asteroid Ambush | [battlecruiser-4000-bc-asteroid-ambush-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-windows.zip) (82 MB) | [76 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-reel.mp4) (93 MB) |
-| Star System | [battlecruiser-4000-bc-star-system-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-windows.zip) (95 MB) | [169 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4) (205 MB) |
+| Star System | [battlecruiser-4000-bc-star-system-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-windows.zip) (95 MB) | [100 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4) (133 MB) |
 | Star System, web version | [battlecruiser-4000-bc-star-system-web.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-web.zip) (57 MB) | See [The web version](#the-web-version) |
 
 ### Carrier Demo
@@ -37,14 +37,13 @@ frigate fights back with its CIWS and side guns, and turns its bow beam on the c
 
 ### Star System
 
-[![The frigate setting down on the landing pad on Thalassa (click to download the demo reel)](docs/star-system-thumb.jpg)](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4)
+[![The frigate charging its bow beam at the Outer Drift (click to download the demo reel)](docs/star-system-thumb.jpg)](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4)
 
-The reel starts in orbit over the ocean world Thalassa. The frigate lands, flies in over an
-island and sets down on the landing pad, then climbs back to orbit. It opens the system map and
-mini-warps to the gas giant Jovara, where it drops to the cloud tops and sets down on a floating
-mining platform. Then it warps across the system to the Outer Drift asteroid field, where a
-pirate cruiser and its drones ambush it from the rocks. The frigate turns its bow beam on the
-cruiser until it breaks apart. The capital ships aren't in the reel.
+The reel starts at the ocean world Thalassa. The frigate opens the system map, picks the gas
+giant Jovara and mini-warps there. It then warps across the system to the Outer Drift asteroid
+field, where a pirate cruiser and its drones ambush it from the rocks. The frigate turns its
+bow beam on the cruiser until it breaks apart. The reel was recorded before landing and the
+capital ships were added, so it doesn't show them.
 
 ## Features
 
@@ -187,26 +186,52 @@ system to travel around.
   Each turret tracks and fires on its own and breaks off when the ship comes apart. Capital
   ships hold a stand-off range and circle, and their shots don't hit each other.
 - **Landing.** In orbit of a planet, moon or asteroid field, and out of combat, K (LB on the
-  pad) takes the frigate down to the surface. A 5 km x 5 km landing site is generated for that
-  world when it lands, seeded by where over the body the ship was, so different spots give
-  different sites.
+  pad) takes the frigate down to the surface under where it was. Where people live it comes in
+  near the nearest landing pad.
 
-  | World | Landing site |
+  | World | Surface |
   |---|---|
   | Cinder (volcanic) | Basalt plains, cinder cones and rivers of lava under a red haze; the lava burns the hull |
   | Ochre (desert) | Dune seas between flat-topped mesas and salt pans, with blowing dust |
-  | Thalassa (ocean) | Islands with beaches, grass and rocky hills in a deep sea; the amount of land follows the planet's own map, and near the poles there is snow |
-  | Jovara (gas giant) | The cloud tops, with a gas-mining platform riding above them |
+  | Thalassa (ocean) | Islands with beaches, grass and rocky hills in a deep sea; land and sea follow the planet's own map, and near the poles there is snow |
+  | Jovara (gas giant) | The cloud tops, with gas-mining platforms riding above them |
   | Glacis (ice giant) | An ice sheet of pressure ridges, crevasses and ice spires under methane haze |
-  | Moons | Grey, cratered and airless, curving away under the stars, with the parent planet in the sky |
+  | Moons | Grey, cratered and airless, with the parent planet in the sky |
   | Asteroid fields | A lump of dark rock with boulders, and the rest of the field drifting overhead |
 
-  Each site has its own sky, fog and light. The ground beyond the area fades into the haze.
-  Where people live (Ochre, Thalassa, Jovara, Glacis and the moons) there is a landing pad with
-  parked craft and beacons. On the surface the frigate flies as it does in space:
+  **The whole planet can be flown over.**
+  - The surface is a grid of 5 km x 5 km areas, sized from the body: four times its size in
+    space. The areas add up to its surface area, from 12 areas on the small asteroids to
+    2,000 on Jovara.
+  - Areas are built round the ship as it flies: in full detail out to 5 km, and in less
+    detail out to 15 km for the view. They are built on worker threads, or a few rows a frame
+    in the web version.
+  - An area is thrown away once the ship is 20 km from it, to save memory.
+  - Every area is generated from where it is on the planet, so it comes back the same when the
+    ship returns. Flying all the way round, east or west, brings the ship back to where it
+    started. Over a pole it comes down the far side, and carrying on over the other pole
+    brings it back again.
+  - The HUD shows the latitude and longitude, and how many of the planet's areas have been
+    explored.
+
+  **Hostile worlds have ground forces** (Cinder, Glacis, the Jovara Trojans and the Outer
+  Drift). Areas there hold:
+  - gun batteries (a heavy triple turret on a bunker);
+  - missile sites;
+  - hover tanks that patrol and then chase the frigate;
+  - fighters on patrol overhead;
+  - bases, whose launch pads hold fighters, and sometimes a gunship, that lift off when the
+    alarm goes up.
+
+  An area's forces all go to action stations when one of them sees the frigate within
+  5.5 km (hills hide it) or is hit. They stand down when it has gone. Each one can be
+  targeted, and what is destroyed stays destroyed.
+
+  Each world has its own sky, fog and light. Where people live (Ochre, Thalassa, Jovara and
+  the moons) there are landing pads with parked craft and beacons. On the surface the frigate
+  flies as it does in space:
   - it can't sink into the ground, the sea or the deep clouds;
-  - a landing assist slows the descent near the ground, so it can set down gently;
-  - it stays inside the area.
+  - a landing assist slows the descent near the ground, so it can set down gently.
 
   K again, or climbing high above the ground, takes it back to orbit where it left.
 
@@ -299,11 +324,14 @@ WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use
   - the system map with a virtual keyboard, mouse and gamepad;
   - warps of different lengths, and that the drive refuses to warp in combat;
   - the pause menu and restart;
-  - landing at Thalassa, setting down on the pad, the edge of the area and taking off;
+  - landing at Thalassa and setting down on the pad;
+  - flying on across the planet (areas built ahead and thrown away behind), all the way round it
+    east and over both poles, checking the ground comes back the same, then taking off;
   - a capital ship battle, checking that both sides land hits.
 
   Add `-landtest` (or `?landtest` on the web) to test only the landings, with screenshots, on
-  every kind of world.
+  every kind of world. On the hostile ones it also checks that the ground forces are there and
+  that a battery fires on the frigate.
 - `CarrierDemo.exe -reel <dir>` (or `AsteroidAmbush.exe` / `StarSystem.exe`): records a demo reel
   (60 s, 76 s for the ambush or about 170 s for the star system) at 30 fps as JPG frames plus a WAV
   soundtrack, then quits. Join them with ffmpeg:

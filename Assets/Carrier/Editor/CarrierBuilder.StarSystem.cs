@@ -547,7 +547,7 @@ namespace Carrier.EditorTools
             landing.carrier = cc;
             landing.drive = drive;
             landing.fill = fill;
-            landing.kit = SurfaceAssets(rockMat);
+            landing.kit = SurfaceAssets(rockMat, p);
 
             foreach (var w in sys.GetComponentsInChildren<WarpPoint>())
                 Log($"warp point {w.displayName,-16} {w.kind,-13} {w.transform.position.magnitude / 1000f,6:F0} km from the star");

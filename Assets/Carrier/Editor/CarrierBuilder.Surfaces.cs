@@ -7,17 +7,18 @@ using Object = UnityEngine.Object;
 namespace Carrier.EditorTools
 {
     /// <summary>
-    /// What the landing sites are built from (SurfaceGenerator makes the terrain itself when the
-    /// ship lands): the terrain, sky, sea, lava and horizon materials, the weather particles, and
-    /// an outpost (a landing pad of Mega_City pad tiles with a couple of parked cargo craft and
-    /// beacon lights) for the worlds where someone lives.
+    /// What the planets' surfaces are built from (PlanetSurface makes the terrain itself when the
+    /// ship lands): the terrain, sky, sea, lava and horizon materials, the weather particles, an
+    /// outpost (a landing pad of Mega_City pad tiles with a couple of parked cargo craft and
+    /// beacon lights) for the worlds where someone lives, and what hostile worlds' ground forces
+    /// are made of (the heavy turret, enemy ships and their weapons, bunker and armour materials).
     /// </summary>
     public static partial class CarrierBuilder
     {
         const string PadMesh = Root + "/Kit/Mega_City/Meshes/Landing_pad/SM_landing_pad_module.fbx";
         const string CraftMesh = Root + "/Kit/Mega_City/Meshes/Ship/SM_ship_flying.fbx";
 
-        static SurfaceKit SurfaceAssets(Material rockMat)
+        static SurfaceKit SurfaceAssets(Material rockMat, Prefabs p)
         {
             var kit = new SurfaceKit();
             kit.terrain = SaveMat("Surface_Terrain", new Material(Shader.Find("Universal Render Pipeline/Terrain/Lit")));
@@ -31,6 +32,19 @@ namespace Carrier.EditorTools
             kit.dust = ParticleAlpha("FX_SurfaceDust", KenneyTex("light_01"), Color.white);
             kit.embers = ParticleAdditive("FX_Embers", KenneyTex("flare_01"), new Color(1.6f, 0.7f, 0.25f, 1f));
             kit.outpost = OutpostPrefab();
+            // the ground forces of hostile worlds
+            kit.battery = p.mainTurret;
+            kit.cannon = p.enemyCannon;
+            kit.blaster = p.enemyBlaster;
+            kit.missile = p.missile;
+            kit.fighter = p.enemyFighter;
+            kit.drone = p.enemyDrone;
+            kit.gunship = p.enemyDestroyer;
+            kit.explosion = p.explosion;
+            kit.explosionSmall = p.explosionSmall;
+            kit.bunker = Lit("Surface_Bunker", new Color(0.3f, 0.3f, 0.31f), metallic: 0.2f, smooth: 0.25f);
+            kit.armor = Lit("Surface_Armor", new Color(0.36f, 0.2f, 0.17f), metallic: 0.6f, smooth: 0.45f);
+            kit.warning = Lit("Surface_Warning", new Color(1f, 0.25f, 0.15f), metallic: 0f, smooth: 0.3f, emission: new Color(1f, 0.2f, 0.1f) * 8f);
             return kit;
         }
 

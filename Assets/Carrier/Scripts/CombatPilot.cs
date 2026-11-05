@@ -16,7 +16,7 @@ namespace CarrierGame
     /// line of sight, so a target behind a rock is safe from it too. After being destroyed it
     /// respawns at its lurking place and rejoins the fight from there.
     /// </summary>
-    public class CombatPilot : MonoBehaviour, IVelocity
+    public class CombatPilot : MonoBehaviour, IVelocity, IOriginShift
     {
         public enum State { Lurk, Engage, Hide }
         public enum Style { Fighter, Capital }
@@ -46,6 +46,12 @@ namespace CarrierGame
         public float leashDistance = 0f;
         [Tooltip("After being destroyed, respawn in hiding (weapons cold) instead of straight into the fight.")]
         public bool relurkOnRespawn = false;
+
+        [Tooltip("Circle the lurking place at this radius instead of holding still (fighters on patrol in a sky); 0 = hold.")]
+        public float loiterRadius = 0f;
+
+        /// <summary>Down on a planet: the world height to keep above at a point (null in space).</summary>
+        public static System.Func<Vector3, float> FloorAt;
 
         [Header("Cover")]
         [Tooltip("Hide when the hull falls below this fraction.")]
@@ -100,6 +106,20 @@ namespace CarrierGame
             extending = false;
             if (weapons != null) weapons.weaponsFree = false;
             if (health != null) hitsWhileLurking = health.Hits;
+        }
+
+        /// <summary>Move its lurking place (where it waits, and goes back to).</summary>
+        public void SetHome(Vector3 position, Quaternion rotation)
+        {
+            lurkPoint = position;
+            lurkRotation = rotation;
+        }
+
+        public void OriginShifted(Vector3 d)
+        {
+            lurkPoint += d;
+            extendPoint += d;
+            hidePoint += d;
         }
 
         void Awake()
@@ -191,6 +211,17 @@ namespace CarrierGame
                 // shot at while lying in wait (or on the way back): no point hiding any more
                 if (health != null && health.Hits > hitsWhileLurking) { Engage(); return; }
                 float home2 = (pos - lurkPoint).sqrMagnitude;
+                if (loiterRadius > 0f && home2 < (loiterRadius + 400f) * (loiterRadius + 400f))
+                {
+                    // on patrol: circle the place
+                    AtHome = true;
+                    Vector3 off = pos - lurkPoint;
+                    off.y = 0f;
+                    if (off.sqrMagnitude < 1f) off = transform.right;
+                    Vector3 next = lurkPoint + Quaternion.Euler(0f, 25f, 0f) * off.normalized * loiterRadius;
+                    Steer(pos, next - pos, cruiseSpeed * 0.45f, dt);
+                    return;
+                }
                 if (home2 < 300f * 300f)
                 {
                     // sit in cover, nose toward the threat, engines barely ticking over
@@ -267,13 +298,25 @@ namespace CarrierGame
         {
             float look = Mathf.Max(250f, speed * 2.5f) + bodyRadius * 3f;
             desired = Cover.Avoid(pos, desired, bodyRadius, look);
+            float clear = bodyRadius * 2f + 50f;
+            if (FloorAt != null && desired.sqrMagnitude > 1e-4f)
+            {
+                // over a planet: pull up from the ground ahead (and never fly into it)
+                Vector3 dn = desired.normalized;
+                Vector3 ahead = pos + dn * look;
+                float need = Mathf.Max(FloorAt(pos) + clear - pos.y, FloorAt(ahead) + clear - ahead.y,
+                                       FloorAt(pos + transform.forward * look) + clear - (pos.y + transform.forward.y * look));
+                if (need > 0f) desired = Vector3.Lerp(dn, Vector3.up, Mathf.Clamp01(need / 200f) * 0.85f);
+            }
             if (desired.sqrMagnitude > 1e-4f)
             {
                 var want = Quaternion.LookRotation(desired, Vector3.up);
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, want, turnRate * dt);
             }
             speed = Mathf.MoveTowards(speed, wantSpeed, acceleration * dt);
-            transform.position = Cover.PushOut(pos + transform.forward * speed * dt, bodyRadius);
+            Vector3 p = Cover.PushOut(pos + transform.forward * speed * dt, bodyRadius);
+            if (FloorAt != null) p.y = Mathf.Max(p.y, FloorAt(p) + bodyRadius * 0.6f + 4f);
+            transform.position = p;
         }
 
         /// <summary>Fly at the target (leading it), break away when close, swing out and come again.</summary>

@@ -40,7 +40,13 @@ namespace CarrierGame
         Shield shield;
         bool shieldLooked;
 
-        void Awake() => Current = maxHealth;
+        void Awake()
+        {
+            Current = maxHealth;
+            // a Health added in code has no events until something makes them
+            onDestroyed ??= new UnityEvent();
+            onRespawned ??= new UnityEvent();
+        }
 
         /// <summary>A hit at a point from a kind of weapon: the shield (if any, and up) takes it
         /// first, and only what gets through reaches the hull.</summary>

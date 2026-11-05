@@ -241,7 +241,12 @@ namespace CarrierGame
             var tc = tgo.GetComponent<TerrainCollider>();
             site.solidGround = p.solid;
             if (tc != null) tc.enabled = p.solid;
-            if (p.solid) tgo.AddComponent<Obstacle>().cover = false;   // so the hull collides with it
+            if (p.solid)
+            {
+                // so the hull collides with it (Cover.Active); not cover, and no core sphere for pilots
+                var ob = tgo.AddComponent<Obstacle>();
+                ob.cover = false; ob.radius = 0f; ob.coreRadius = 0f;
+            }
             site.floor = baseY + (p.solid ? 0f : p.floorLevel - lo);
             site.maxHeight = baseY + range;
 
@@ -315,7 +320,7 @@ namespace CarrierGame
                 o.transform.position = padTop + Vector3.up * (lift + PadLift);
                 o.transform.rotation = Quaternion.Euler(0f, R(0f, 360f), 0f);
                 foreach (var c in o.GetComponentsInChildren<Collider>(true)) c.gameObject.layer = layer;
-                if (o.GetComponent<Obstacle>() == null) { var ob = o.AddComponent<Obstacle>(); ob.cover = false; ob.radius = 200f; ob.coreRadius = 20f; }
+                if (o.GetComponent<Obstacle>() == null) { var ob = o.AddComponent<Obstacle>(); ob.cover = false; ob.radius = 0f; ob.coreRadius = 0f; }
                 padTop += Vector3.up * (lift + PadLift);
                 site.hasOutpost = true;
             }
@@ -455,8 +460,8 @@ namespace CarrierGame
                     for (int i = 0; i < n; i++)
                     {
                         // wholly inside the area (clear of the faded edge), clear of the pad
-                        float a = R(0f, Mathf.PI * 2f) + i * 2.4f, dist = R(1150f, 1450f);
-                        cones.Add(new Vector4(Mathf.Cos(a) * dist, Mathf.Sin(a) * dist, R(650f, 900f), R(380f, 620f)));
+                        float a = R(0f, Mathf.PI * 2f) + i * 2.4f, dist = R(1150f, 1400f);
+                        cones.Add(new Vector4(Mathf.Cos(a) * dist, Mathf.Sin(a) * dist, R(650f, 820f), R(380f, 620f)));
                     }
                     p.height = (float x, float z, int s, ref float m) =>
                     {
@@ -655,7 +660,8 @@ namespace CarrierGame
             {
                 float rad = Mathf.Lerp(p.craterSize.x, p.craterSize.y, Mathf.Pow(R(0f, 1f), 3.2f));
                 float cx = R(-Half, Half), cz = R(-Half, Half);
-                if (cx * cx + cz * cz < (PadRadius + rad * 1.4f) * (PadRadius + rad * 1.4f)) continue;   // not on the pad
+                float keep = PadRadius + 220f + rad * 2.2f;   // not on the pad zone or its blend, ejecta included
+                if (cx * cx + cz * cz < keep * keep) continue;
                 float depth = rad * R(0.16f, 0.24f), rim = rad * 0.06f;
                 float reach = rad * 2.2f;
                 int x0 = Mathf.Max(0, (int)((cx - reach + Half) / step)), x1 = Mathf.Min(Res - 1, (int)((cx + reach + Half) / step) + 1);

@@ -30,17 +30,8 @@ namespace CarrierGame.Demo
         public static Rect HelpRect => helpRect;
 
         WarpDrive warp;
-        PlanetLanding landing;
-        bool landingLooked;
         /// <summary>The landing controller, if this level has one.</summary>
-        PlanetLanding Landing
-        {
-            get
-            {
-                if (!landingLooked) { landing = FindAnyObjectByType<PlanetLanding>(); landingLooked = true; }
-                return landing;
-            }
-        }
+        static PlanetLanding Landing => PlanetLanding.Instance;
 
         void Awake()
         {
@@ -285,9 +276,9 @@ namespace CarrierGame.Demo
                     WarpDrive.State.Charging => $"<color=#bfe6ff>charging for {warp.Destination?.displayName}  {Mathf.Max(0f, warp.chargeTime - warp.StateTime):F1} s</color>",
                     WarpDrive.State.Warping => $"<color=#bfe6ff><b>IN WARP</b> to {warp.Destination?.displayName}  {warp.TimeLeft:F1} s</color>",
                     WarpDrive.State.Arriving => $"<color=#bfe6ff>dropping out at {warp.Destination?.displayName}</color>",
+                    _ when !string.IsNullOrEmpty(warp.lockedBecause) => $"<color=#9aa4b0>{warp.lockedBecause}</color>",
                     _ => warp.InCombat(out string why) ? $"<color=#ff6050>locked: {why}</color>" : $"<color=#7ee08a>ready</color>  <color=#9aa4b0>{key} system map</color>",
                 };
-                if (PlanetLanding.Busy) w = "<color=#9aa4b0>take off first</color>";
                 sb.Append($"\nWarp  {w}");
                 string land = Landing != null ? Landing.HudText() : null;
                 if (land != null) sb.Append("\n" + land);

@@ -387,7 +387,8 @@ namespace CarrierGame
             float allowed = Mathf.Max(0f, hit.distance - Skin);
             Vector3 slide = Vector3.ProjectOnPlane(move - dir * allowed, hit.normal);
             float impact = Vector3.Dot(Velocity, -hit.normal);
-            if (impact > safeImpact)
+            // the higher allowance on a planet is for setting down on the ground, not hitting a wall
+            if (impact > (hit.normal.y > 0.7f ? safeImpact : 3f))
             {
                 speed *= Mathf.Clamp01(1f - 0.6f * impact / Mathf.Max(1f, Velocity.magnitude));
                 if (Vector3.Dot(transform.up * liftSpeed, hit.normal) < 0f) liftSpeed = 0f;

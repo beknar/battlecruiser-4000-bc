@@ -140,6 +140,7 @@ namespace CarrierGame.Demo
         {
             Current = State.Descending;
             Body = body;
+            if (drive != null) drive.lockedBecause = "take off first";
             orbitPosition = carrier.transform.position;
             orbitRotation = carrier.transform.rotation;
             carrier.SetTarget(null);
@@ -233,6 +234,7 @@ namespace CarrierGame.Demo
                 carrier.throttle = Mathf.Max(carrier.throttle, 0.2f);
             }
             carrier.externalMotion = false;
+            if (drive != null) drive.lockedBecause = null;
             carrier.maxDescent = float.PositiveInfinity;
             carrier.safeImpact = 3f;
             Landed = false;
@@ -382,14 +384,24 @@ namespace CarrierGame.Demo
             {
                 // destroyed down here: it comes back at its respawn point in space
                 if (carrier.Destroyed) diedHere = true;
-                else if (diedHere)
+                else if (diedHere || RespawnedElsewhere())
                 {
                     diedHere = false;
                     BackToSpace(false);
                     return;
                 }
-                if (!carrier.Destroyed && carrier.transform.position.y > Site.maxHeight + ceiling) { TakeOff(); return; }
+                if (!carrier.Destroyed)
+                {
+                    if (carrier.transform.position.y > Site.maxHeight + ceiling) { TakeOff(); return; }
+                    // after the ship has moved this frame (this runs after its controller), before
+                    // the camera follows it (in LateUpdate), so the camera never lags a correction
+                    KeepInside();
+                    KeepAboveGround();
+                    carrier.maxDescent = Mathf.Lerp(6f, 40f, Mathf.InverseLerp(15f, 220f, Altitude));   // landing assist
+                    carrier.safeImpact = 12f;
+                }
             }
+            if (Current == State.InSpace) candidate = Candidate(out candidateWhy);
             if (GameMenu.IsOpen || GameMenu.JustClosed || SystemMap.IsOpen || SystemMap.JustClosed) return;
             var k = Keyboard.current;
             var pad = Gamepad.current;
@@ -401,14 +413,16 @@ namespace CarrierGame.Demo
 
         void LateUpdate()
         {
-            if (Current != State.OnSurface || Site == null || carrier == null || carrier.Destroyed) return;
-            KeepInside();
-            KeepAboveGround();
+            if (Current != State.OnSurface || Site == null || carrier == null || carrier.Destroyed || RespawnedElsewhere()) return;
             KeepCameraAboveGround();
-            // landing assist: the thrusters ease the descent off near the ground
-            carrier.maxDescent = Mathf.Lerp(6f, 40f, Mathf.InverseLerp(15f, 220f, Altitude));
-            carrier.safeImpact = 12f;
         }
+
+        /// <summary>The ship is nowhere near the site: it was destroyed and has come back at its
+        /// respawn point in space (the respawn can land between this script's Update and LateUpdate).</summary>
+        bool RespawnedElsewhere() => Site != null && (carrier.transform.position - Site.center).sqrMagnitude > 30000f * 30000f;
+
+        WarpPoint candidate;
+        string candidateWhy = "";
 
         /// <summary>The hull's box in the ship's own space (from its meshes, shield left out).</summary>
         void FindHull()
@@ -444,7 +458,8 @@ namespace CarrierGame.Demo
             float ground = Site.solidGround ? Site.GroundAt(p) : float.NegativeInfinity;
             liquid = Site.seaLevel > ground && Site.seaLevel >= Site.floor;
             if (ground > best) best = ground;
-            int n = Physics.RaycastNonAlloc(p + Vector3.up * 600f, Vector3.down, Hits, 1400f, Cover.Mask, QueryTriggerInteraction.Ignore);
+            // from just above the hull, so a rock or ledge overhead isn't taken for the floor
+            int n = Physics.RaycastNonAlloc(p + Vector3.up * 25f, Vector3.down, Hits, 1400f, Cover.Mask, QueryTriggerInteraction.Ignore);
             for (int i = 0; i < n; i++)
             {
                 var h = Hits[i];
@@ -453,8 +468,8 @@ namespace CarrierGame.Demo
                 {
                     best = h.point.y;
                     liquid = false;
-                    pad = h.collider.GetComponentInParent<Terrain>() == null && h.collider.transform.root == Site.root.transform &&
-                          h.collider.transform.parent != null && h.collider.transform.parent.name.StartsWith("Outpost");
+                    pad = h.collider.name.StartsWith("Pad ") && h.collider.transform.parent != null &&
+                          h.collider.transform.parent.name.StartsWith("Outpost");
                 }
             }
             return best;
@@ -480,6 +495,7 @@ namespace CarrierGame.Demo
                 if (gap < lowest) { lowest = gap; onPad = pad; onLiquid = liquid; }
                 push = Mathf.Max(push, floor + 0.3f - p.y);
             }
+            if (lowest == float.MaxValue) return;   // every sample was against a wall: leave it to the hull's collision
             Altitude = Mathf.Max(0f, lowest);
             bool touching = push > -0.5f;
             if (push > 0f) tr.position += Vector3.up * push;
@@ -559,7 +575,8 @@ namespace CarrierGame.Demo
                     return $"Surface  {Body?.displayName}  {state}  <color=#9aa4b0>{key} take off</color>";
                 }
             }
-            var body = Candidate(out string why);
+            var body = candidate;
+            string why = candidateWhy;
             if (body == null) return null;
             return why == "" ? $"Land  <color=#7ee08a>{key} land on {body.displayName}</color>"
                              : $"Land  <color=#ff6050>{body.displayName}: {why}</color>";

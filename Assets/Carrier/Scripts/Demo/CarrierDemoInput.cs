@@ -33,8 +33,39 @@ namespace CarrierGame.Demo
         /// <summary>The landing controller, if this level has one.</summary>
         static PlanetLanding Landing => PlanetLanding.Instance;
 
+        static CarrierDemoInput instance;
+
+        /// <summary>Something new to target (ground forces, built as the ship reaches them).</summary>
+        public static void AddTarget(Transform t)
+        {
+            var d = instance;
+            if (d == null || t == null) return;
+            if (d.targets == null) d.targets = new Transform[0];
+            if (System.Array.IndexOf(d.targets, t) >= 0) return;
+            System.Array.Resize(ref d.targets, d.targets.Length + 1);
+            d.targets[d.targets.Length - 1] = t;
+            if (d.display != null) d.display.targets = d.targets;
+        }
+
+        /// <summary>Something gone for good (destroyed, or its area of a planet thrown away).</summary>
+        public static void RemoveTarget(Transform t)
+        {
+            var d = instance;
+            if (d == null || d.targets == null) return;
+            int i = System.Array.IndexOf(d.targets, t);
+            if (i < 0) return;
+            var list = new System.Collections.Generic.List<Transform>(d.targets);
+            list.RemoveAt(i);
+            d.targets = list.ToArray();
+            if (i < d.targetIndex) d.targetIndex--;
+            if (d.targetIndex >= d.targets.Length) d.targetIndex = 0;
+            if (d.display != null) d.display.targets = d.targets;
+            if (d.carrier != null && d.carrier.target == t) d.carrier.SetTarget(null);
+        }
+
         void Awake()
         {
+            instance = this;
             if (carrier != null) warp = carrier.GetComponent<WarpDrive>();
             display = gameObject.AddComponent<TargetDisplay>();
             display.carrier = carrier;
@@ -66,7 +97,11 @@ namespace CarrierGame.Demo
         static extern void CarrierPageGraphics(string name);   // Plugins/WebGL/CarrierPage.jslib
 #endif
 
-        void OnDestroy() => PadSupport.Shutdown();
+        void OnDestroy()
+        {
+            if (instance == this) instance = null;
+            PadSupport.Shutdown();
+        }
         void OnApplicationFocus(bool focus) { if (!focus) PadSupport.StopRumble(); }
         void OnApplicationPause(bool paused) { if (paused) PadSupport.StopRumble(); }
 

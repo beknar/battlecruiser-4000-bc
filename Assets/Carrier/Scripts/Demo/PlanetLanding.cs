@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
@@ -8,13 +9,16 @@ namespace CarrierGame.Demo
     /// <summary>
     /// Landing on the planets, moons and asteroids of the star system. In orbit of somewhere with
     /// a surface (inside its arrival zone) and out of combat, K (LB on the pad) takes the frigate
-    /// down: the screen fades through the entry glow, a 5 km x 5 km landing site is generated for
-    /// that world (SurfaceGenerator) and the ship comes in low over it, heading for the landing
-    /// pad. On the surface it flies as in space; it can't sink into the ground (or the sea, or
-    /// the lava, or the deep clouds), it settles when it touches down slowly, and it stays inside
-    /// the landing area. K again, or climbing high above the ground, takes it back to orbit
-    /// where it left. The site is built far below the star system (nothing there is in view from
-    /// it) and thrown away on take-off; the sky, fog and light are swapped for the world's own.
+    /// down: the screen fades through the entry glow and the ship comes in low over the ground
+    /// under where it was, near the nearest landing pad if anyone lives there. The whole planet
+    /// can be flown over: its surface (a SurfaceWorld, sized from the body) is built in 5 km
+    /// areas round the ship as it goes (PlanetSurface), the same each time, and wraps all the way
+    /// round. Hostile worlds have ground forces. On the surface the ship flies as in space; it
+    /// can't sink into the ground (or the sea, or the lava, or the deep clouds), and it settles
+    /// when it touches down slowly. K again, or climbing high above the ground, takes it back to
+    /// orbit where it left. The surface is built far below the star system (nothing there is in
+    /// view from it) and thrown away on take-off; the sky, fog and light are swapped for the
+    /// world's own.
     /// </summary>
     [DefaultExecutionOrder(300)]   // after the ship moves and the camera follows it
     public class PlanetLanding : MonoBehaviour
@@ -31,8 +35,8 @@ namespace CarrierGame.Demo
         public float fadeTime = 1.3f;
         [Tooltip("Climbing this far above the highest ground takes the ship back to orbit (m).")]
         public float ceiling = 1800f;
-        [Tooltip("How far from the middle of the site the ship can go (m).")]
-        public float bounds = 2350f;
+        [Tooltip("A body's surface is this many times its size in space (the bodies out there are drawn small).")]
+        public float surfaceScale = 4f;
 
         /// <summary>Where the landing sites are built: well away from everything in the system.</summary>
         public static readonly Vector3 SiteCenter = new Vector3(0f, -320000f, 0f);
@@ -50,6 +54,9 @@ namespace CarrierGame.Demo
 
         public WarpPoint Body { get; private set; }
         public SurfaceSite Site { get; private set; }
+        /// <summary>The planet's surface being flown over (null in space).</summary>
+        public PlanetSurface Surface { get; private set; }
+        public SurfaceWorld World { get; private set; }
         /// <summary>Resting on the ground (or the pad).</summary>
         public bool Landed { get; private set; }
         public bool OnPad { get; private set; }
@@ -74,6 +81,7 @@ namespace CarrierGame.Demo
         void OnDestroy()
         {
             if (Instance == this) Instance = null;
+            if (Site != null) CombatPilot.FloorAt = null;   // (the surface may already be gone in a scene change)
             Site?.Destroy();
         }
 
@@ -160,27 +168,55 @@ namespace CarrierGame.Demo
             fade = 1f;
             yield return null;
 
-            // build the site under the point the ship was over
+            // the ground under the point the ship was over
             Vector3 world = orbitPosition - body.Position;
             Vector3 local = body.kind == WarpPoint.Kind.AsteroidField ? world : body.transform.InverseTransformDirection(world);
             local = local.sqrMagnitude > 1f ? local.normalized : Vector3.up;
-            Seed = SeedFor(body, local);
+            var w = WorldFor(body);
+            World = w;
+            w.FromDirection(local, out double u, out double v);
+            double keep = w.V - w.polarBand - 2500.0;
+            if (keep > 0.0) v = System.Math.Max(-keep, System.Math.Min(keep, v));
+            // somewhere people live: come in near the nearest landing pad
+            var pad = w.outposts ? NearestSite(w, u, v, 4) : null;
+            if (pad != null) { u = pad.su; v = pad.sv; }
+            int area = AreaOf(w, u, v);
+            Seed = w.seed * 1000 + area % 1000;
+            w.SetSun(area);
             Material skyPlanet = null;
             if (body.kind == WarpPoint.Kind.Moon && body.orbitParent != null && body.orbitParent.TryGetComponent(out MeshRenderer pr)) skyPlanet = pr.sharedMaterial;
             float t0 = Time.realtimeSinceStartup;
-            Site = SurfaceGenerator.Build(body.surface, Seed, local, body.displayName, SiteCenter, kit, skyPlanet);
+            if (!memory.TryGetValue(body.displayName, out var mem)) memory[body.displayName] = mem = (new HashSet<int>(), new HashSet<long>());
+            Surface = PlanetSurface.Create(w, kit, carrier.transform, SiteCenter, u, v, mem.Item1, mem.Item2, skyPlanet);
+            CombatPilot.FloorAt = Surface.FloorAt;
+            bool web = Application.platform == RuntimePlatform.WebGLPlayer;
+            yield return Surface.Preload(SiteCenter, web ? 2600f : 5500f, web ? 20f : 10f);
             LastBuildSeconds = Time.realtimeSinceStartup - t0;
+            w.LatLon(u, v, out float lat, out float lon);
+            Site = new SurfaceSite
+            {
+                surface = Surface, root = Surface.gameObject, kind = body.surface, center = SiteCenter,
+                terrain = Surface.TerrainAt(SiteCenter), seaLevel = Surface.SeaLevel, solidGround = w.solid,
+                floor = w.solid ? SiteCenter.y + SurfaceWorld.BaseLevel : Surface.CloudFloor,
+                description = w.DescribeAt(lat), look = w.look,
+            };
+            var outpost = pad != null ? Surface.NearestOutpost(SiteCenter, out float od) : null;
+            Site.hasOutpost = outpost != null;
+            Site.outpost = outpost;
+            Site.pad = outpost != null ? outpost.position : new Vector3(SiteCenter.x, Surface.FloorAt(SiteCenter), SiteCenter.z);
+            Surface.Shifted += d => { if (Site != null) Site.pad += d; };
             ApplyLook(Site.look);
             ArriveOverPad();
+            Surface.Running = true;
             Landings++;
             Landed = false;
             touchedAt = -100f;
             carrier.externalMotion = false;
             Current = State.OnSurface;
             yield return null;
+            if (Site == null) yield break;   // destroyed straight away, and back in space
             SoundFX.Play(Sfx.WarpExit, carrier.transform.position, 0.5f, 0.7f);
-            float lat = Mathf.Asin(Mathf.Clamp(local.y, -1f, 1f)) * Mathf.Rad2Deg, lon = Mathf.Atan2(local.z, local.x) * Mathf.Rad2Deg;
-            CarrierDemoInput.Toast($"{body.displayName}, {Mathf.Abs(lat):F0}°{(lat >= 0 ? "N" : "S")} {Mathf.Abs(lon):F0}°{(lon >= 0 ? "E" : "W")}: {Site.description}");
+            CarrierDemoInput.Toast($"{body.displayName}, {LatLonText(lat, lon)}: {Site.description}{(w.hostile ? " (hostile)" : "")}");
             for (float t = 0f; t < fadeTime; t += Time.deltaTime)
             {
                 fade = 1f - t / fadeTime;
@@ -220,8 +256,10 @@ namespace CarrierGame.Demo
         void BackToSpace(bool moveShip)
         {
             RestoreLook();
+            CombatPilot.FloorAt = null;
             Site?.Destroy();
             Site = null;
+            Surface = null;
             if (moveShip)
             {
                 // back where it left, nose turned away from the body so it doesn't fly into it
@@ -243,35 +281,67 @@ namespace CarrierGame.Demo
             Current = State.InSpace;
         }
 
-        /// <summary>Come in low over the site, a little way out from the pad and heading for it.</summary>
+        /// <summary>Come in low, a little way out from the landing pad and heading for it (or
+        /// over the point it came down to, where there is no pad).</summary>
         void ArriveOverPad()
         {
             var rng = new System.Random(Seed + 5);
             float yaw = (float)rng.NextDouble() * 360f;
             Vector3 back = Quaternion.Euler(0f, yaw, 0f) * Vector3.back;
-            Vector3 p = Site.pad + back * 900f;
-            float ground = Mathf.Max(Site.GroundAt(p), Site.seaLevel, Site.floor);
-            p.y = Mathf.Max(Site.pad.y + 220f, ground + 200f);
+            Vector3 p = Site.hasOutpost ? Site.pad + back * 900f : Site.center;
+            float ground = Surface.FloorAt(p);
+            p.y = Mathf.Max(Site.hasOutpost ? Site.pad.y + 220f : ground + 220f, ground + 200f);
             carrier.transform.position = p;
-            Vector3 to = Site.pad - p;
+            Vector3 to = Site.hasOutpost ? Site.pad - p : -back;
             carrier.SetAttitude(Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg, 0f);
             carrier.SetMotion(30f);
             carrier.throttle = 30f / Mathf.Max(1f, carrier.maxSpeed);
         }
 
-        static int SeedFor(WarpPoint body, Vector3 local)
+        // ------------------------------------------------------------ the planets' surfaces
+
+        readonly Dictionary<WarpPoint, SurfaceWorld> worlds = new Dictionary<WarpPoint, SurfaceWorld>();
+        /// <summary>What has been explored and destroyed on each body (kept between landings).</summary>
+        readonly Dictionary<string, (HashSet<int>, HashSet<long>)> memory = new Dictionary<string, (HashSet<int>, HashSet<long>)>();
+
+        /// <summary>The surface of a body: its size is the body's (an asteroid field's: one of
+        /// its big rocks), times surfaceScale.</summary>
+        public SurfaceWorld WorldFor(WarpPoint body)
         {
-            unchecked
-            {
-                int h = 17;
-                foreach (char c in body.displayName) h = h * 31 + c;
-                // the site changes every 8 degrees or so over the body
-                float lat = Mathf.Asin(Mathf.Clamp(local.y, -1f, 1f)) * Mathf.Rad2Deg, lon = Mathf.Atan2(local.z, local.x) * Mathf.Rad2Deg;
-                h = h * 977 + Mathf.FloorToInt(lat / 8f);
-                h = h * 131 + Mathf.FloorToInt(lon / 8f);
-                return (h & 0x7fffffff) % 1000000;
-            }
+            if (worlds.TryGetValue(body, out var w)) return w;
+            float r = body.kind == WarpPoint.Kind.AsteroidField ? Mathf.Max(800f, body.bodyRadius * 0.3f) : Mathf.Max(500f, body.bodyRadius);
+            w = new SurfaceWorld(body.surface, body.displayName, r * surfaceScale, body.hostile);
+            worlds[body] = w;
+            return w;
         }
+
+        static int AreaOf(SurfaceWorld w, double u, double v)
+        {
+            int I = (int)System.Math.Floor(u / SurfaceWorld.T), J = (int)System.Math.Floor((v + w.V) / SurfaceWorld.T);
+            w.CanonicalTile(I, J, out int ci, out int cj);
+            return ci * w.M + cj;
+        }
+
+        /// <summary>The nearest area with a landing pad within `reach` areas of a point (null if none).</summary>
+        static TileFeatures NearestSite(SurfaceWorld w, double u, double v, int reach)
+        {
+            int I = (int)System.Math.Floor(u / SurfaceWorld.T), J = (int)System.Math.Floor((v + w.V) / SurfaceWorld.T);
+            TileFeatures best = null;
+            double bestD = double.MaxValue;
+            for (int dj = -reach; dj <= reach; dj++)
+                for (int di = -reach; di <= reach; di++)
+                {
+                    var f = w.Features(I + di, J + dj);
+                    if (f == null || f.site != SiteKind.Outpost) continue;
+                    double du = SurfaceWorld.WrapDelta(f.su - u, w.C), dv = f.sv - v;
+                    double d = du * du + dv * dv;
+                    if (d < bestD) { bestD = d; best = f; }
+                }
+            return best;
+        }
+
+        public static string LatLonText(float lat, float lon) =>
+            $"{Mathf.Abs(lat):F0}°{(lat >= 0 ? "N" : "S")} {Mathf.Abs(lon):F0}°{(lon >= 0 ? "E" : "W")}";
 
         // ------------------------------------------------------------ sky, fog and light
 
@@ -373,7 +443,7 @@ namespace CarrierGame.Demo
         // ------------------------------------------------------------ on the surface
 
         bool diedHere;
-        float touchedAt = -100f, edgeWarnedAt = -100f;
+        float touchedAt = -100f;
         Vector3 hullMin, hullMax;
         bool hullKnown;
 
@@ -392,10 +462,9 @@ namespace CarrierGame.Demo
                 }
                 if (!carrier.Destroyed)
                 {
-                    if (carrier.transform.position.y > Site.maxHeight + ceiling) { TakeOff(); return; }
+                    if (carrier.transform.position.y > Surface.HighestGround + ceiling) { TakeOff(); return; }
                     // after the ship has moved this frame (this runs after its controller), before
                     // the camera follows it (in LateUpdate), so the camera never lags a correction
-                    KeepInside();
                     KeepAboveGround();
                     carrier.maxDescent = Mathf.Lerp(6f, 40f, Mathf.InverseLerp(15f, 220f, Altitude));   // landing assist
                     carrier.safeImpact = 12f;
@@ -495,7 +564,16 @@ namespace CarrierGame.Demo
                 if (gap < lowest) { lowest = gap; onPad = pad; onLiquid = liquid; }
                 push = Mathf.Max(push, floor + 0.3f - p.y);
             }
-            if (lowest == float.MaxValue) return;   // every sample was against a wall: leave it to the hull's collision
+            if (lowest == float.MaxValue)
+            {
+                // every sample deep under the ground. Against a wall the middle of the hull would
+                // still be clear; this is ground built under a ship that was flying low over an
+                // area not yet worked out. Lift it out.
+                float mid = FloorUnder(tr.position, out _, out _);
+                float bottom = tr.TransformPoint(new Vector3(0f, hullMin.y, 0f)).y;
+                if (bottom < mid - 30f) tr.position += Vector3.up * (mid + 0.3f - bottom);
+                return;
+            }
             Altitude = Mathf.Max(0f, lowest);
             bool touching = push > -0.5f;
             if (push > 0f) tr.position += Vector3.up * push;
@@ -530,31 +608,12 @@ namespace CarrierGame.Demo
         Health lavaHealth;
         float lavaWarnedAt = -100f, lavaHitAt = -100f;
 
-        void KeepInside()
-        {
-            var tr = carrier.transform;
-            Vector3 d = tr.position - Site.center;
-            float x = Mathf.Clamp(d.x, -bounds, bounds), z = Mathf.Clamp(d.z, -bounds, bounds);
-            if (x != d.x || z != d.z)
-            {
-                tr.position = new Vector3(Site.center.x + x, tr.position.y, Site.center.z + z);
-                if (Time.time - edgeWarnedAt > 6f)
-                {
-                    edgeWarnedAt = Time.time;
-                    string key = PadSupport.UsingPad && Gamepad.current != null ? "LB" : "K";
-                    CarrierDemoInput.Toast($"Edge of the landing area: {key} to take off");
-                }
-            }
-        }
-
         void KeepCameraAboveGround()
         {
             var cam = Camera.main;
             if (cam == null) return;
             Vector3 c = cam.transform.position;
-            float floor = Mathf.Max(Site.seaLevel, Site.floor);
-            if (Site.terrain != null && Mathf.Abs(c.x - Site.center.x) < SurfaceGenerator.Size * 0.5f && Mathf.Abs(c.z - Site.center.z) < SurfaceGenerator.Size * 0.5f)
-                floor = Mathf.Max(floor, Site.GroundAt(c));
+            float floor = Surface != null ? Surface.FloorAt(c) : Mathf.Max(Site.seaLevel, Site.floor);
             if (c.y < floor + 12f) cam.transform.position = new Vector3(c.x, floor + 12f, c.z);
         }
 
@@ -572,7 +631,13 @@ namespace CarrierGame.Demo
                 {
                     string state = Landed ? (OnPad ? "<color=#7ee08a>landed on the pad</color>" : "<color=#7ee08a>landed</color>")
                                           : $"altitude {Altitude:F0} m";
-                    return $"Surface  {Body?.displayName}  {state}  <color=#9aa4b0>{key} take off</color>";
+                    string where = "";
+                    if (Surface != null)
+                    {
+                        Surface.LatLon(carrier.transform.position, out float la, out float lo);
+                        where = $"  <color=#9aa4b0>{LatLonText(la, lo)}  explored {Surface.Explored.Count}/{World.AreaCount}</color>";
+                    }
+                    return $"Surface  {Body?.displayName}  {state}{where}  <color=#9aa4b0>{key} take off</color>";
                 }
             }
             var body = candidate;

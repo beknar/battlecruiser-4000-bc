@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
@@ -35,9 +36,27 @@ namespace CarrierGame.Demo
             t.dir = i >= 0 && i + 1 < args.Length && !args[i + 1].StartsWith("-") ? args[i + 1] : Application.persistentDataPath;
             // -landtest (or ?landtest): only the landings, on every kind of world
             t.landOnly = Array.IndexOf(args, "-landtest") >= 0 || (web && HasQueryKey(Application.absoluteURL, "landtest"));
+            // -landworld <name> (or ?landworld=<name>, spaces as _): after Thalassa, only that world
+            int lw = Array.IndexOf(args, "-landworld");
+            if (lw >= 0 && lw + 1 < args.Length) t.landWorld = args[lw + 1].Replace('_', ' ');
+            if (web) t.landWorld = QueryValue(Application.absoluteURL, "landworld")?.Replace('_', ' ') ?? t.landWorld;
         }
 
         bool web, landOnly;
+        string landWorld;
+
+        static string QueryValue(string url, string key)
+        {
+            if (string.IsNullOrEmpty(url)) return null;
+            int q = url.IndexOf('?');
+            if (q < 0) return null;
+            foreach (var part in url.Substring(q + 1).Split('&', '#'))
+            {
+                var kv = part.Split('=');
+                if (kv[0] == key && kv.Length > 1) return Uri.UnescapeDataString(kv[1]);
+            }
+            return null;
+        }
 
         /// <summary>Is `key` one of the URL's query options (?key, ?key=..., &key...)?</summary>
         public static bool HasQueryKey(string url, string key)
@@ -399,13 +418,10 @@ namespace CarrierGame.Demo
             yield return null;
             bool downOk = landing.Landed && (landing.OnPad || !site.hasOutpost) && lost < 1f;
 
-            // the edge of the area
-            cc.transform.position = site.center + new Vector3(2700f, site.maxHeight - site.center.y + 200f, 0f);
-            yield return null;
-            yield return null;
-            float edgeX = cc.transform.position.x - site.center.x;
-            bool edgeOk = edgeX <= landing.bounds + 1f;
-            Log($"  edge: put 2700 m out, held at {edgeX:F0} m (limit {landing.bounds:F0})");
+            // the planet goes on: areas ahead are built, the ones left behind thrown away, and all
+            // the way round (east, or over both poles) it is the same ground again
+            bool edgeOk = false;
+            yield return StreamingTest(landing, ok => edgeOk = ok);
 
             yield return Key(kb, UnityEngine.InputSystem.Key.K);
             yield return WaitLanding(landing, PlanetLanding.State.InSpace, 10f);
@@ -414,13 +430,14 @@ namespace CarrierGame.Demo
                           !RenderSettings.fog && Vector3.Distance(cc.transform.position, orbit) < 3000f;
             Log($"  take off (K): back in space {landing.Current == PlanetLanding.State.InSpace}, {Vector3.Distance(cc.transform.position, orbit):F0} m from where it left, " +
                 $"space sky back {RenderSettings.skybox == spaceSky}, fog {RenderSettings.fog}, warp {(drive.CanWarp(out string lw) ? "ready" : lw)}");
-            Log(siteOk && downOk && edgeOk && backOk ? "PASS: landing (land, touch down on the pad, edge, take off)"
-                : $"FAIL: landing (site {siteOk}, touchdown {downOk}, edge {edgeOk}, back {backOk})");
+            Log(siteOk && downOk && edgeOk && backOk ? "PASS: landing (land, touch down on the pad, fly round the planet, take off)"
+                : $"FAIL: landing (site {siteOk}, touchdown {downOk}, streaming {edgeOk}, back {backOk})");
             if (!all) yield break;
 
             int ok = 0, total = 0;
             foreach (var name in new[] { "Ochre", "Cinder", "Jovara", "Glacis", "Selene", "Steropes", "Inner Belt", "Jovara Trojans", "Thalassa" })
             {
+                if (!string.IsNullOrEmpty(landWorld) && name != landWorld) continue;
                 var wp = Point(name);
                 if (wp == null) { Log($"FAIL: no place called {name}"); continue; }
                 total++;
@@ -454,6 +471,89 @@ namespace CarrierGame.Demo
                 }
                 if (oc != null) { oc.distance = dist0; oc.pitch = pitch0; oc.yaw = yaw0; }
                 bool good = site.terrain != null && landing.Altitude > 20f;
+                if (wp.hostile)
+                {
+                    // a hostile world: its ground forces, and whether they spot the ship
+                    float until2 = Time.time + 12f;
+                    int alerted = 0;
+                    while (Time.time < until2)
+                    {
+                        alerted = 0;
+                        foreach (var g in landing.Surface.Garrisons) if (g.Alert) alerted++;
+                        if (alerted > 0) break;
+                        yield return null;
+                    }
+                    int units = 0, garrisons = 0;
+                    var kinds = new Dictionary<string, int>();
+                    foreach (var g in landing.Surface.Garrisons)
+                    {
+                        garrisons++;
+                        foreach (var u in g.units)
+                        {
+                            if (u == null) continue;
+                            units++;
+                            kinds.TryGetValue(u.name, out int c);
+                            kinds[u.name] = c + 1;
+                        }
+                    }
+                    Log($"  ground forces: {units} in {garrisons} garrisons ({string.Join(", ", kinds.Select(k => $"{k.Value} {k.Key}"))}); on alert: {alerted}");
+                    good &= units > 0;
+                    // up close to the nearest battery (or whatever there is), and see it shoot
+                    GroundUnit near = null;
+                    float best = float.MaxValue;
+                    foreach (var g in landing.Surface.Garrisons)
+                        foreach (var u in g.units)
+                        {
+                            if (u == null || !u.Alive || u.GetComponent<CombatPilot>() != null) continue;
+                            float d = (u.transform.position - cc.transform.position).sqrMagnitude * (u.name == "Ground Battery" ? 0.25f : 1f);
+                            if (d < best) { best = d; near = u; }
+                        }
+                    if (near != null)
+                    {
+                        var turret = near.GetComponentInChildren<CarrierTurret>();
+                        var weapons = near.GetComponent<EnemyWeapons>();
+                        int shots0 = turret != null ? turret.ShotsFired : 0;
+                        float hull1 = health.Current, shield1 = shield != null ? shield.Strength : 0f;
+                        Vector3 at = near.transform.position + new Vector3(-650f, 0f, -450f);
+                        at.y = Mathf.Max(landing.Surface.FloorAt(at), near.transform.position.y) + 220f;
+                        cc.transform.position = at;
+                        Vector3 look = near.transform.position - at;
+                        cc.SetAttitude(Mathf.Atan2(look.x, look.z) * Mathf.Rad2Deg, 0f);
+                        cc.SetMotion(0f);
+                        cc.throttle = 0f;
+                        var oc2 = demo.orbitCamera;
+                        if (oc2 != null) { oc2.yaw = Mathf.Atan2(look.x, look.z) * Mathf.Rad2Deg - 25f; oc2.pitch = 12f; }
+                        near.garrison.Raise();
+                        yield return new WaitForSeconds(7f);
+                        Shot($"l_{name.Replace(' ', '_').ToLower()}_forces");
+                        float took = (hull1 - health.Current) + (shield1 - (shield != null ? shield.Strength : 0f));
+                        Log($"  close to a {near.name} ({Vector3.Distance(near.transform.position, cc.transform.position):F0} m): it fired {(turret != null ? turret.ShotsFired - shots0 : -1)} shots" +
+                            $"{(weapons != null && weapons.missilePrefab != null ? " (missiles)" : "")}, the frigate took {Mathf.Max(0f, took):F0} damage");
+                        good &= took > 0f;
+                    }
+
+                    // near the north pole, an area can be built twice (once each side of the pole):
+                    // its forces must only be in one of them
+                    var surf = landing.Surface;
+                    var pw = landing.World;
+                    surf.PlanetOf(cc.transform.position, out double pu, out _);
+                    double uq = (pw.N / 4 + 0.5) * SurfaceWorld.T;   // where an area and its twin are side by side
+                    uq += System.Math.Round((pu - uq) / pw.C) * pw.C;
+                    double vq = pw.V - 1500.0;
+                    Vector3 off = surf.WorldOf(uq, vq, 0f) - surf.Center;
+                    surf.ShiftBy(new Vector3(-Mathf.Round(off.x / SurfaceWorld.T) * SurfaceWorld.T, 0f, -Mathf.Round(off.z / SurfaceWorld.T) * SurfaceWorld.T));
+                    Vector3 pp = surf.WorldOf(uq, vq, 0f);
+                    pp.y = surf.FloorAt(pp) + 900f;
+                    cc.transform.position = pp;
+                    cc.SetMotion(0f);
+                    cc.throttle = 0f;
+                    float until3 = Time.time + 25f;
+                    while (Time.time < until3 && surf.TwinAreasBuilt == 0) yield return null;
+                    yield return new WaitForSeconds(2f);
+                    int copies = surf.GarrisonCopies;
+                    Log($"  near the north pole: {surf.TwinAreasBuilt} areas built twice (each side of the pole), {copies} with their forces in both");
+                    good &= copies == 0;
+                }
                 if (name == "Selene")
                 {
                     // sink straight down with the thrusters, away from the pad
@@ -493,13 +593,93 @@ namespace CarrierGame.Demo
             Log(ok == total ? $"PASS: landings on every kind of world ({ok} of {total})" : $"FAIL: landings ({ok} of {total} ok)");
         }
 
+        /// <summary>Fly on over the planet (in jumps, so it doesn't take minutes), then all the
+        /// way round it east, then over both poles, checking the ground comes back the same.</summary>
+        IEnumerator StreamingTest(PlanetLanding landing, Action<bool> done)
+        {
+            var surf = landing.Surface;
+            var w = landing.World;
+            if (surf == null || w == null) { Log("  streaming: no surface"); done(false); yield break; }
+            Log($"  the planet: {w.N} x {w.M} areas of 5 km ({w.AreaKm2:F0} km2), {w.C / 1000.0:F0} km round; {surf.TilesLoaded} areas built");
+            Vector3 probe = cc.transform.position + new Vector3(170f, 0f, 230f);
+            float g0 = surf.GroundAt(probe);
+            surf.PlanetOf(probe, out double u0, out double v0);
+            int a0 = surf.AreaIndex(probe);
+            int built0 = surf.TilesBuilt, shifts0 = surf.Shifts;
+
+            IEnumerator GoTo(double u, double v, string what)
+            {
+                // a jump of up to a whole lap: shift the world down here first (the ship goes
+                // with it, staying where it is on the planet), so the place is near the middle
+                Vector3 p = surf.WorldOf(u, v, 0f);
+                Vector3 off = p - surf.Center;
+                surf.ShiftBy(new Vector3(-Mathf.Round(off.x / SurfaceWorld.T) * SurfaceWorld.T, 0f, -Mathf.Round(off.z / SurfaceWorld.T) * SurfaceWorld.T));
+                p = surf.WorldOf(u, v, 0f);
+                p.y = surf.FloorAt(p) + 700f;
+                cc.transform.position = p;
+                cc.SetMotion(0f);
+                cc.throttle = 0f;
+                yield return null;
+                yield return null;   // the world shifts back round the ship
+                float until = Time.time + 25f;
+                Vector3 here = surf.WorldOf(u, v, 0f);
+                while (Time.time < until && !surf.Ready(here)) { here = surf.WorldOf(u, v, 0f); yield return null; }
+                yield return new WaitForSeconds(0.5f);
+                cc.transform.position = new Vector3(cc.transform.position.x, surf.FloorAt(cc.transform.position) + 500f, cc.transform.position.z);
+                yield return null;
+                Log($"  {what}: built {surf.Ready(surf.WorldOf(u, v, 0f))}, {surf.TilesLoaded} areas in memory, {surf.TilesBuilt} built so far, " +
+                    $"{surf.TilesUnloaded} thrown away, world shifted {surf.Shifts} times, last area worked out in {surf.LastJobSeconds * 1000f:F0} ms, " +
+                    $"put in place in {surf.LastApplyMs:F0} ms");
+            }
+
+            // on across the planet, 4 km at a time
+            float worst = 0f;
+            for (int i = 1; i <= 6; i++)
+            {
+                yield return GoTo(u0 + i * 4000.0, v0, $"{i * 4} km east");
+                worst = Mathf.Max(worst, surf.LastApplyMs);
+            }
+            bool gone = surf.TilesUnloaded > 0;
+            Shot("l3_streaming");
+
+            // all the way round, east
+            yield return GoTo(u0 + w.C, v0, "all the way round east");
+            Vector3 q = surf.WorldOf(u0 + w.C, v0, 0f);
+            float g1 = surf.GroundAt(q);
+            int a1 = surf.AreaIndex(q);
+            bool round = Mathf.Abs(g1 - g0) < 0.5f && a1 == a0;
+            Log($"  after {w.C / 1000.0:F0} km east: ground {g1 - surf.Center.y:F1} m here, {g0 - surf.Center.y:F1} m at the start; area {a1} (was {a0})");
+            Shot("l4_round_east");
+
+            // over the north pole, down the far side, over the south pole and back up
+            yield return GoTo(u0 + w.C, v0 + 4.0 * w.V, "over both poles");
+            Vector3 q2 = surf.WorldOf(u0 + w.C, v0 + 4.0 * w.V, 0f);
+            float g2 = surf.GroundAt(q2);
+            int a2 = surf.AreaIndex(q2);
+            bool poles = Mathf.Abs(g2 - g0) < 0.5f && a2 == a0;
+            Log($"  after {4.0 * w.V / 1000.0:F0} km north (over both poles): ground {g2 - surf.Center.y:F1} m, area {a2}");
+            // half way: the far side of the north pole is the area at longitude + 180, turned round
+            Vector3 q3 = surf.WorldOf(u0 + w.C, v0 + 2.0 * w.V, 0f);
+            surf.LatLon(q3, out float lat3, out float lon3);
+            surf.LatLon(probe, out float lat0, out float lon0);
+            Log($"  over the north pole the start point's twin is at {PlanetLanding.LatLonText(lat3, lon3)} (start {PlanetLanding.LatLonText(lat0, lon0)})");
+
+            bool ok = gone && round && poles && surf.Shifts > shifts0 && surf.TilesBuilt > built0;
+            Log($"  streaming: areas thrown away {gone}, same ground after a lap east {round}, after both poles {poles}, " +
+                $"explored {surf.Explored.Count} of {w.AreaCount} areas, slowest area put in place {worst:F0} ms");
+            done(ok);
+        }
+
         void Report(PlanetLanding landing, string how)
         {
             var site = landing.Site;
             var td = site.terrain != null ? site.terrain.terrainData : null;
             string terrain = td != null ? $"{td.size.x:F0} x {td.size.z:F0} m, {td.size.y:F0} m high" : "none";
             string sea = float.IsNegativeInfinity(site.seaLevel) ? "none" : $"{site.seaLevel - site.center.y:F0} m";
-            Log($"  {how}: on {landing.Body?.displayName} ({site.kind}), seed {landing.Seed}, built in {landing.LastBuildSeconds * 1000f:F0} ms; " +
+            var w = landing.World;
+            string planet = w != null ? $"; planet {w.N} x {w.M} areas, {w.C / 1000.0:F0} km round, {landing.Surface.TilesLoaded} areas built" : "";
+            planet += $"; memory {UnityEngine.Profiling.Profiler.GetTotalReservedMemoryLong() / 1048576} MB reserved, managed heap {GC.GetTotalMemory(false) / 1048576} MB";
+            Log($"  {how}: on {landing.Body?.displayName} ({site.kind}{(w != null && w.hostile ? ", hostile" : "")}), seed {landing.Seed}, built in {landing.LastBuildSeconds * 1000f:F0} ms{planet}; " +
                 $"terrain {terrain}, outpost {site.hasOutpost}, sea {sea}; ship altitude {landing.Altitude:F0} m; " +
                 $"HUD '{Plain(landing.HudText())}'; {site.description}");
         }

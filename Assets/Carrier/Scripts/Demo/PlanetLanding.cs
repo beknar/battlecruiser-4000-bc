@@ -585,7 +585,7 @@ namespace CarrierGame.Demo
                 Touchdowns++;
                 CarrierDemoInput.Toast(OnPad ? "Touchdown on the landing pad" : $"Touchdown on {Body.displayName}");
                 PadSupport.Rumble(0.5f, 0.3f, 0.3f);
-                SoundFX.Play(Sfx.Impact, tr.position, 0.5f, 0.5f);
+                SoundFX.PlayPeaceful(Sfx.Impact, tr.position, 0.5f, 0.5f);
             }
             if (touching) touchedAt = Time.time;
             // lava burns (the shield first, then the hull)

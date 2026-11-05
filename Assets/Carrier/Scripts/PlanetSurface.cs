@@ -79,6 +79,9 @@ namespace CarrierGame
         }
 
         readonly Dictionary<long, Tile> tiles = new Dictionary<long, Tile>();
+        // which built copy of each area holds its ground forces: near a pole the same area can be
+        // built twice (once each side of it), and its forces must only be there once
+        readonly Dictionary<int, Tile> garrisonOf = new Dictionary<int, Tile>();
         readonly Dictionary<(long, int), TileJob> jobs = new Dictionary<(long, int), TileJob>();
         readonly List<TileJob> ready = new List<TileJob>();
         TileJob webJob;
@@ -129,8 +132,12 @@ namespace CarrierGame
         {
             foreach (var j in jobs.Values) j.cancelled = true;
             jobs.Clear();
-            foreach (var t in tiles.Values) DestroyTile(t, false);
+            foreach (var j in ready) j.Release();
+            ready.Clear();
+            foreach (var t in tiles.Values) DestroyTile(t);
             tiles.Clear();
+            garrisonOf.Clear();
+            TileJob.TrimPool();
             foreach (var o in owned) if (o != null) Destroy(o);
             owned.Clear();
         }
@@ -231,6 +238,23 @@ namespace CarrierGame
             return best;
         }
 
+        /// <summary>Areas built twice in full detail (one copy each side of a pole), and how many
+        /// of them have their ground forces in both copies (there should be none).</summary>
+        public int TwinAreasBuilt => CountTwins(false);
+        public int GarrisonCopies => CountTwins(true);
+
+        int CountTwins(bool forces)
+        {
+            var seen = new HashSet<int>();
+            int n = 0;
+            foreach (var t in tiles.Values)
+            {
+                if (t.lod != 0 || (forces && t.garrison == null)) continue;
+                if (!seen.Add(t.ci * World.M + t.cj)) n++;
+            }
+            return n;
+        }
+
         public IEnumerable<GroundGarrison> Garrisons
         {
             get { foreach (var t in tiles.Values) if (t.garrison != null) yield return t.garrison; }
@@ -272,8 +296,8 @@ namespace CarrierGame
                     job.done = true;
                 }
                 while (!job.done && Time.realtimeSinceStartup < until) yield return null;
-                if (!job.done) { job.cancelled = true; continue; }
-                if (job.error != null) { Debug.LogError($"[PlanetSurface] {World.name}: working out area {job.I},{job.J} ({job.ci},{job.cj}) failed: {job.error}"); continue; }
+                if (!job.done) { job.cancelled = true; continue; }   // it gives its buffers back when it stops
+                if (job.error != null) { Debug.LogError($"[PlanetSurface] {World.name}: working out area {job.I},{job.J} ({job.ci},{job.cj}) failed: {job.error}"); job.Release(); continue; }
                 Apply(job);
             }
             nextPlan = 0f;
@@ -296,7 +320,7 @@ namespace CarrierGame
                 {
                     var job = ready[0];
                     ready.RemoveAt(0);
-                    if (job.error != null) { Debug.LogError($"[PlanetSurface] {World.name}: working out area {job.I},{job.J} ({job.ci},{job.cj}) failed: {job.error}"); continue; }
+                    if (job.error != null) { Debug.LogError($"[PlanetSurface] {World.name}: working out area {job.I},{job.J} ({job.ci},{job.cj}) failed: {job.error}"); job.Release(); continue; }
                     if (DistanceToTile(sp, job.I, job.J) > unloadRadius) { job.Release(); continue; }
                     if (tiles.TryGetValue(Key(job.I, job.J), out var have) && have.lod <= job.lod) { job.Release(); continue; }
                     Apply(job);
@@ -330,15 +354,25 @@ namespace CarrierGame
                 if (DistanceToTile(p, kv.Value.I, kv.Value.J) > unloadRadius) drop.Add(kv.Key);
             foreach (var k in drop)
             {
-                DestroyTile(tiles[k], true);
+                var gone = tiles[k];
+                DestroyTile(gone);
                 tiles.Remove(k);
+                HandOverGarrison(gone);
                 TilesUnloaded++;
                 ringDirty = true;
             }
             var stale = new List<(long, int)>();
             foreach (var kv in jobs)
                 if (DistanceToTile(p, kv.Value.I, kv.Value.J) > unloadRadius) { kv.Value.cancelled = true; stale.Add(kv.Key); }
-            foreach (var k in stale) jobs.Remove(k);
+            foreach (var k in stale)
+            {
+                var sj = jobs[k];
+                jobs.Remove(k);
+                // a web job only runs when stepped, so a cancelled one has stopped; a thread's job
+                // gives its buffers back itself when it stops (or now, if it already has)
+                if (!Threads) sj.done = true;
+                sj.Release();
+            }
             if (webJob != null && webJob.cancelled) { webJob = null; webSteps = null; }
 
             TileOf(p, out int I0, out int J0);
@@ -420,8 +454,9 @@ namespace CarrierGame
             long key = Key(job.I, job.J);
             if (tiles.TryGetValue(key, out var old))
             {
-                DestroyTile(old, false);
+                DestroyTile(old);
                 tiles.Remove(key);
+                HandOverGarrison(old);
             }
             var w = World;
             var td = new TerrainData();
@@ -455,8 +490,7 @@ namespace CarrierGame
                 var ob = go.AddComponent<Obstacle>();
                 ob.cover = false; ob.radius = 0f; ob.coreRadius = 0f;
             }
-            float hi = float.MinValue;
-            foreach (float h in job.heights) if (h > hi) hi = h;
+            float hi = job.maxHeight;
             var tile = new Tile
             {
                 I = job.I, J = job.J, lod = job.lod, ci = job.ci, cj = job.cj, flipped = job.flipped,
@@ -476,7 +510,7 @@ namespace CarrierGame
             LastApplyMs = (float)sw.Elapsed.TotalMilliseconds;
         }
 
-        void DestroyTile(Tile t, bool cancelJobs)
+        void DestroyTile(Tile t)
         {
             if (t.go != null) Destroy(t.go);
             if (t.data != null) Destroy(t.data);
@@ -564,9 +598,31 @@ namespace CarrierGame
             }
             stage = "ground forces";
             // ground forces
-            if (f != null && f.units.Count > 0)
-                t.garrison = GroundForces.Deploy(this, root, t.outpost, f, (cu, cv) => { var p = Place(t, cu, cv, out float turn); return (p, turn); },
-                                                  (long)(t.ci * World.M + t.cj) << 8);
+            Garrison(t);
+        }
+
+        /// <summary>Put an area's ground forces in it, unless another built copy of the same area
+        /// (over a pole) already has them.</summary>
+        void Garrison(Tile t)
+        {
+            var f = t.features;
+            if (f == null || f.units.Count == 0 || t.go == null) return;
+            int area = t.ci * World.M + t.cj;
+            if (garrisonOf.TryGetValue(area, out var holder) && holder != t && holder.go != null) return;
+            garrisonOf[area] = t;
+            t.garrison = GroundForces.Deploy(this, t.go.transform, t.outpost, f, (cu, cv) => { var p = Place(t, cu, cv, out float turn); return (p, turn); },
+                                             (long)area << 8);
+        }
+
+        /// <summary>The copy of an area that held its forces has gone: if another copy of it is
+        /// still built in full, the forces (those not destroyed) move there.</summary>
+        void HandOverGarrison(Tile gone)
+        {
+            int area = gone.ci * World.M + gone.cj;
+            if (!garrisonOf.TryGetValue(area, out var holder) || holder != gone) return;
+            garrisonOf.Remove(area);
+            foreach (var t in tiles.Values)
+                if (t != gone && t.lod == 0 && t.ci == gone.ci && t.cj == gone.cj) { Garrison(t); break; }
         }
 
         static float Dist(double a, double b, double c, double d) => (float)System.Math.Sqrt((a - c) * (a - c) + (b - d) * (b - d));

@@ -239,7 +239,9 @@ namespace CarrierGame
         }
 
         Transform hull;
-        /// <summary>The ship this gun is mounted on (its centreline divides port from starboard).</summary>
+        /// <summary>The ship (or emplacement) this gun is mounted on: its centreline divides port
+        /// from starboard, and its own shots mustn't hit it. A gun on a planet's surface is under the
+        /// surface's root along with the ground, so that root is the last resort, not the first.</summary>
         Transform Hull
         {
             get
@@ -247,7 +249,12 @@ namespace CarrierGame
                 if (hull == null)
                 {
                     var ship = GetComponentInParent<CarrierController>();
-                    hull = ship != null ? ship.transform : transform.root;
+                    if (ship != null) hull = ship.transform;
+                    else
+                    {
+                        var ti = GetComponentInParent<TargetInfo>();
+                        hull = ti != null ? ti.transform : transform.root;
+                    }
                 }
                 return hull;
             }
@@ -268,17 +275,7 @@ namespace CarrierGame
             if (target != null) FiredAt.Add(target.name);
             if (target != null && Vector3.Angle(AimForward(), AimPoint() - AimOrigin()) > fireCone * 2f) OffTargetShots++;
             if (checkHullClearance && HullInTheWay(AimOrigin(), AimForward() * range)) HullShots++;
-            // the ship (or emplacement) it is mounted on: its own shots mustn't hit it, but they
-            // must still hit everything else round it (a gun on a planet's surface is under the
-            // surface's root, along with the ground)
-            Transform owner = null;
-            var cc = GetComponentInParent<CarrierController>();
-            if (cc != null) owner = cc.transform;
-            else
-            {
-                var ti = GetComponentInParent<TargetInfo>();
-                owner = ti != null ? ti.transform : transform.root;
-            }
+            var owner = Hull;
             foreach (var m in muzzles)
             {
                 if (m == null) continue;

@@ -81,6 +81,7 @@ namespace CarrierGame.Demo
         void OnDestroy()
         {
             if (Instance == this) Instance = null;
+            if (Site != null) CombatPilot.FloorAt = null;   // (the surface may already be gone in a scene change)
             Site?.Destroy();
         }
 
@@ -197,7 +198,7 @@ namespace CarrierGame.Demo
                 surface = Surface, root = Surface.gameObject, kind = body.surface, center = SiteCenter,
                 terrain = Surface.TerrainAt(SiteCenter), seaLevel = Surface.SeaLevel, solidGround = w.solid,
                 floor = w.solid ? SiteCenter.y + SurfaceWorld.BaseLevel : Surface.CloudFloor,
-                maxHeight = Surface.HighestGround, description = w.DescribeAt(lat), look = w.look,
+                description = w.DescribeAt(lat), look = w.look,
             };
             var outpost = pad != null ? Surface.NearestOutpost(SiteCenter, out float od) : null;
             Site.hasOutpost = outpost != null;
@@ -563,7 +564,16 @@ namespace CarrierGame.Demo
                 if (gap < lowest) { lowest = gap; onPad = pad; onLiquid = liquid; }
                 push = Mathf.Max(push, floor + 0.3f - p.y);
             }
-            if (lowest == float.MaxValue) return;   // every sample was against a wall: leave it to the hull's collision
+            if (lowest == float.MaxValue)
+            {
+                // every sample deep under the ground. Against a wall the middle of the hull would
+                // still be clear; this is ground built under a ship that was flying low over an
+                // area not yet worked out. Lift it out.
+                float mid = FloorUnder(tr.position, out _, out _);
+                float bottom = tr.TransformPoint(new Vector3(0f, hullMin.y, 0f)).y;
+                if (bottom < mid - 30f) tr.position += Vector3.up * (mid + 0.3f - bottom);
+                return;
+            }
             Altitude = Mathf.Max(0f, lowest);
             bool touching = push > -0.5f;
             if (push > 0f) tr.position += Vector3.up * push;

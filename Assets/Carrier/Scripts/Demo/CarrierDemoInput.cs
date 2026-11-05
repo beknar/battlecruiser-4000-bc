@@ -57,6 +57,7 @@ namespace CarrierGame.Demo
             var list = new System.Collections.Generic.List<Transform>(d.targets);
             list.RemoveAt(i);
             d.targets = list.ToArray();
+            if (i < d.targetIndex) d.targetIndex--;
             if (d.targetIndex >= d.targets.Length) d.targetIndex = 0;
             if (d.display != null) d.display.targets = d.targets;
             if (d.carrier != null && d.carrier.target == t) d.carrier.SetTarget(null);

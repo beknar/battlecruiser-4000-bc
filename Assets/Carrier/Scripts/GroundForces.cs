@@ -137,10 +137,7 @@ namespace CarrierGame
 
         static Health Hull(GameObject go, SurfaceKit kit, float hp, float boom)
         {
-            if (!go.TryGetComponent(out Health h)) h = go.AddComponent<Health>();
-            // events are only made by Unity's serializer: one added in code starts without them
-            h.onDestroyed ??= new UnityEngine.Events.UnityEvent();
-            h.onRespawned ??= new UnityEngine.Events.UnityEvent();
+            if (!go.TryGetComponent(out Health h)) h = go.AddComponent<Health>();   // its events come from Health.Awake
             h.maxHealth = hp;
             h.respawnDelay = 0f;
             h.deathEffect = boom > 0.8f || kit.explosionSmall == null ? kit.explosion : kit.explosionSmall;
@@ -316,23 +313,12 @@ namespace CarrierGame
         public bool Alert { get; private set; }
         public int TimesAlerted { get; private set; }
 
-        public static readonly List<GroundGarrison> All = new List<GroundGarrison>();
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { All.Clear(); lastToast = -100f; }
+        static void ResetStatics() { lastToast = -100f; }
         static float lastToast = -100f;
-        void OnEnable() => All.Add(this);
-        void OnDisable() => All.Remove(this);
 
         Transform player;
         float nextLook;
-
-        /// <summary>Is a garrison on alert within `range` of a point (the player is in a fight)?</summary>
-        public static bool AnyAlertNear(Vector3 p, float range)
-        {
-            foreach (var g in All)
-                if (g != null && g.Alert && g.AliveCount > 0 && (g.center - p).sqrMagnitude < range * range) return true;
-            return false;
-        }
 
         public int AliveCount
         {
@@ -422,7 +408,6 @@ namespace CarrierGame
             if (health != null)
             {
                 hitsSeen = health.Hits;
-                health.onDestroyed ??= new UnityEngine.Events.UnityEvent();
                 health.onDestroyed.AddListener(() => { if (surface != null) surface.Destroyed.Add(key); });
             }
             Demo.CarrierDemoInput.AddTarget(transform);

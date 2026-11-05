@@ -853,18 +853,28 @@ namespace CarrierGame
 
         /// <summary>Done with the results (put in place, or not wanted): the arrays go back for
         /// the next job. Only once the job has finished.</summary>
+        /// <summary>Let go of the spare buffers (when there is no surface any more).</summary>
+        public static void TrimPool()
+        {
+            lock (Pool) { Pool[0].Clear(); Pool[1].Clear(); }
+        }
+
+        /// <summary>Give the buffers back to the pool (once it has stopped). Safe to call twice,
+        /// from the worker and the main thread at once.</summary>
         public void Release()
         {
-            if (buffers == null || !done) return;
+            if (!done) return;
             lock (Pool)
             {
+                if (buffers == null) return;
                 if (Pool[lod].Count < 8) Pool[lod].Push(buffers);
+                buffers = null;
             }
-            buffers = null;
             heights = norm = null;
             splat = null;
         }
         public float seconds;
+        public float maxHeight;   // the highest ground in it
         public volatile bool done;
         public volatile bool cancelled;
         public Exception error;
@@ -889,6 +899,8 @@ namespace CarrierGame
             try { while (it.MoveNext()) { if (cancelled) break; } }
             catch (Exception e) { error = e; }
             done = true;
+            // nobody waits for a cancelled job: it gives its buffers back itself
+            if (cancelled) Release();
         }
 
         /// <summary>The job in pieces (a few rows each).</summary>
@@ -941,10 +953,12 @@ namespace CarrierGame
 
             heights = buffers.heights;
             norm = buffers.norm;
+            float top = float.MinValue;
             for (int zi = 0; zi < res; zi++)
                 for (int xi = 0; xi < res; xi++)
                 {
                     float h = hb[zi + 1, xi + 1];
+                    if (h > top) top = h;
                     heights[zi, xi] = h;
                     norm[zi, xi] = Mathf.Clamp01((h - SurfaceWorld.BaseLevel) / SurfaceWorld.Range);
                 }
@@ -973,6 +987,7 @@ namespace CarrierGame
                 }
                 if ((zi & 31) == 31) { if (cancelled) yield break; yield return zi; }
             }
+            maxHeight = top;
             seconds = (float)sw.Elapsed.TotalSeconds;
         }
     }

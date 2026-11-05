@@ -531,6 +531,28 @@ namespace CarrierGame.Demo
                             $"{(weapons != null && weapons.missilePrefab != null ? " (missiles)" : "")}, the frigate took {Mathf.Max(0f, took):F0} damage");
                         good &= took > 0f;
                     }
+
+                    // near the north pole, an area can be built twice (once each side of the pole):
+                    // its forces must only be in one of them
+                    var surf = landing.Surface;
+                    var pw = landing.World;
+                    surf.PlanetOf(cc.transform.position, out double pu, out _);
+                    double uq = (pw.N / 4 + 0.5) * SurfaceWorld.T;   // where an area and its twin are side by side
+                    uq += System.Math.Round((pu - uq) / pw.C) * pw.C;
+                    double vq = pw.V - 1500.0;
+                    Vector3 off = surf.WorldOf(uq, vq, 0f) - surf.Center;
+                    surf.ShiftBy(new Vector3(-Mathf.Round(off.x / SurfaceWorld.T) * SurfaceWorld.T, 0f, -Mathf.Round(off.z / SurfaceWorld.T) * SurfaceWorld.T));
+                    Vector3 pp = surf.WorldOf(uq, vq, 0f);
+                    pp.y = surf.FloorAt(pp) + 900f;
+                    cc.transform.position = pp;
+                    cc.SetMotion(0f);
+                    cc.throttle = 0f;
+                    float until3 = Time.time + 25f;
+                    while (Time.time < until3 && surf.TwinAreasBuilt == 0) yield return null;
+                    yield return new WaitForSeconds(2f);
+                    int copies = surf.GarrisonCopies;
+                    Log($"  near the north pole: {surf.TwinAreasBuilt} areas built twice (each side of the pole), {copies} with their forces in both");
+                    good &= copies == 0;
                 }
                 if (name == "Selene")
                 {

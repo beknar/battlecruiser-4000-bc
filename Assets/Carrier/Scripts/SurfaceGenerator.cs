@@ -57,7 +57,6 @@ namespace CarrierGame
         public float seaLevel = float.NegativeInfinity;   // world height of the sea / lava (or -inf)
         public bool solidGround = true; // false for a gas giant's cloud deck
         public float floor;             // world height the ship can't go below (cloud deck)
-        public float maxHeight;         // world height of the highest ground there can be
         public string description;
         public Look look;
 

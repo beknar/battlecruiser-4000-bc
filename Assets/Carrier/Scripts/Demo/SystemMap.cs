@@ -157,8 +157,11 @@ namespace CarrierGame.Demo
             if (!IsOpen)
             {
                 if (carrier.Destroyed) return;
-                if (k != null && k.mKey.wasPressedThisFrame) Open();
-                if (pad != null && pad.rightStickButton.wasPressedThisFrame && !carrier.HasHangar) Open();
+                bool want = (k != null && k.mKey.wasPressedThisFrame) || (pad != null && pad.rightStickButton.wasPressedThisFrame && !carrier.HasHangar);
+                if (!want) return;
+                // no warping from the surface (or on the way down or up)
+                if (PlanetLanding.Busy) { if (PlanetLanding.OnSurface) CarrierDemoInput.Toast("Take off before using the system map"); return; }
+                Open();
                 return;
             }
             Layout();

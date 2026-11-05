@@ -330,19 +330,24 @@ namespace Carrier.EditorTools
             var wCinder = MakeWarpPoint(cinder, "Cinder", WarpPoint.Kind.Planet,
                 "A small volcanic world close to the star, its crust split by rivers of lava. A corsair patrol (a heavy cruiser and two destroyers) holds station here.",
                 3200f, 9000f, new Color(1f, 0.45f, 0.2f), null, true);
+            wCinder.surface = SurfaceKind.Volcanic;
             var ochre = MakePlanet("Ochre", sys, Polar(135f, 92f, -1f), 5000f, matDesert, atmoDesert, 1.025f, layer, 0.3f);
             var wOchre = MakeWarpPoint(ochre, "Ochre", WarpPoint.Kind.Planet,
                 "A dry desert planet of dune seas and dust basins under a thin, hazy atmosphere.", 5000f, 13000f, new Color(0.9f, 0.65f, 0.4f));
+            wOchre.surface = SurfaceKind.Desert;
             var thalassa = MakePlanet("Thalassa", sys, Polar(250f, 128f, 0.8f), 6500f, matOcean, atmoOcean, 1.04f, layer, 0.25f);
             var wThalassa = MakeWarpPoint(thalassa, "Thalassa", WarpPoint.Kind.Planet,
                 "An ocean world with scattered continents, polar ice and a thick blue atmosphere. Two moons.", 6500f, 17000f, new Color(0.35f, 0.6f, 1f));
+            wThalassa.surface = SurfaceKind.Ocean;
             var jovara = MakePlanet("Jovara", sys, Polar(330f, 178f, 2f), 16000f, matGas, atmoGas, 1.03f, layer, 0.15f);
             var wJovara = MakeWarpPoint(jovara, "Jovara", WarpPoint.Kind.Planet,
                 "A banded gas giant with a great storm, circled by four moons.", 16000f, 42000f, new Color(0.95f, 0.75f, 0.55f));
+            wJovara.surface = SurfaceKind.GasGiant;
             var glacis = MakePlanet("Glacis", sys, Polar(72f, 232f, -2f), 11000f, matIce, atmoIce, 1.035f, layer, 0.2f);
             var wGlacis = MakeWarpPoint(glacis, "Glacis", WarpPoint.Kind.Planet,
                 "A pale ice giant at the cold edge of the system, wrapped in methane haze. A pirate dreadnought and its destroyer escort guard the approach.",
                 11000f, 30000f, new Color(0.6f, 0.9f, 0.95f), null, true);
+            wGlacis.surface = SurfaceKind.IceGiant;
 
             // the moons: two round Thalassa, four round Jovara
             // every moon is a warp destination
@@ -352,7 +357,7 @@ namespace Carrier.EditorTools
                 var m = MakeAsteroid(name, sys, pos, Quaternion.Euler(0f, angle, 0f), 1f, seed, 5, 3, new Vector3(radius, radius * 0.97f, radius),
                                      0.05f, 40, radius / 6f, rockMat, layer, radius * 1.15f, radius * 0.9f);
                 m.GetComponent<Obstacle>().cover = true;
-                MakeWarpPoint(m, name, WarpPoint.Kind.Moon, desc, radius, radius * 3.2f + 1500f, new Color(0.75f, 0.75f, 0.78f), parentWp);
+                MakeWarpPoint(m, name, WarpPoint.Kind.Moon, desc, radius, radius * 3.2f + 1500f, new Color(0.75f, 0.75f, 0.78f), parentWp).surface = SurfaceKind.Moon;
             }
             Moon("Selene", thalassa, wThalassa, 35f, 16f, 1400f, 901, "Thalassa's larger moon: grey, airless and heavily cratered.");
             Moon("Mnemos", thalassa, wThalassa, 205f, 24f, 900f, 902, "A small moon of Thalassa.");
@@ -368,7 +373,7 @@ namespace Carrier.EditorTools
             fInner.transform.SetParent(sys, false);
             fInner.transform.position = innerC;
             MakeWarpPoint(fInner, "Inner Belt", WarpPoint.Kind.AsteroidField,
-                "A quiet cluster of rock between the inner planets. Good cover, no contacts.", 4500f, 7000f, new Color(0.7f, 0.62f, 0.52f));
+                "A quiet cluster of rock between the inner planets. Good cover, no contacts.", 4500f, 7000f, new Color(0.7f, 0.62f, 0.52f)).surface = SurfaceKind.Asteroid;
 
             var trojanC = Polar(30f, 178f, 1f);
             var trojanBig = MakeField("Jovara Trojans", sys, trojanC, 5000f, 120, 3202, rockMat, layer);
@@ -376,7 +381,7 @@ namespace Carrier.EditorTools
             fTrojan.transform.SetParent(sys, false);
             fTrojan.transform.position = trojanC;
             MakeWarpPoint(fTrojan, "Jovara Trojans", WarpPoint.Kind.AsteroidField,
-                "Rocks gathered ahead of Jovara in its orbit. Raider fighters have been seen hiding here.", 5000f, 8000f, new Color(0.85f, 0.55f, 0.45f), null, true);
+                "Rocks gathered ahead of Jovara in its orbit. Raider fighters have been seen hiding here.", 5000f, 8000f, new Color(0.85f, 0.55f, 0.45f), null, true).surface = SurfaceKind.Asteroid;
 
             var outerC = Polar(165f, 262f, 3f);
             var outerBig = MakeField("Outer Drift", sys, outerC, 6000f, 120, 3303, rockMat, layer);
@@ -384,7 +389,7 @@ namespace Carrier.EditorTools
             fOuter.transform.SetParent(sys, false);
             fOuter.transform.position = outerC;
             MakeWarpPoint(fOuter, "Outer Drift", WarpPoint.Kind.AsteroidField,
-                "A thin belt of rock at the system's edge, where a pirate cruiser is said to lie in wait.", 6000f, 9000f, new Color(0.8f, 0.5f, 0.5f), null, true);
+                "A thin belt of rock at the system's edge, where a pirate cruiser is said to lie in wait.", 6000f, 9000f, new Color(0.8f, 0.5f, 0.5f), null, true).surface = SurfaceKind.Asteroid;
             Physics.SyncTransforms();
 
             // the frigate, in high orbit over Thalassa's day side
@@ -538,6 +543,11 @@ namespace Carrier.EditorTools
             map.carrier = cc;
             map.drive = drive;
             map.systemName = "Kestrel System";
+            var landing = demoGo.AddComponent<PlanetLanding>();
+            landing.carrier = cc;
+            landing.drive = drive;
+            landing.fill = fill;
+            landing.kit = SurfaceAssets(rockMat);
 
             foreach (var w in sys.GetComponentsInChildren<WarpPoint>())
                 Log($"warp point {w.displayName,-16} {w.kind,-13} {w.transform.position.magnitude / 1000f,6:F0} km from the star");

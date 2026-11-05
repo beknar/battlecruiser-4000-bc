@@ -33,9 +33,11 @@ namespace CarrierGame.Demo
             var t = new GameObject("SystemTest").AddComponent<SystemTest>();
             t.web = web;
             t.dir = i >= 0 && i + 1 < args.Length && !args[i + 1].StartsWith("-") ? args[i + 1] : Application.persistentDataPath;
+            // -landtest (or ?landtest): only the landings, on every kind of world
+            t.landOnly = Array.IndexOf(args, "-landtest") >= 0 || (web && HasQueryKey(Application.absoluteURL, "landtest"));
         }
 
-        bool web;
+        bool web, landOnly;
 
         /// <summary>Is `key` one of the URL's query options (?key, ?key=..., &key...)?</summary>
         public static bool HasQueryKey(string url, string key)
@@ -124,6 +126,13 @@ namespace CarrierGame.Demo
 
             // ---------------------------------------------------------------- keyboard
             var kb = InputSystem.AddDevice<Keyboard>("SystemTestKeyboard");
+            if (landOnly)
+            {
+                yield return LandingTest(kb, true);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
             yield return Key(kb, UnityEngine.InputSystem.Key.M);
             Log($"keyboard M: map open {SystemMap.IsOpen}, selected {map.Selected?.displayName}");
             yield return new WaitForSeconds(0.3f);
@@ -260,6 +269,9 @@ namespace CarrierGame.Demo
             Log(restarted ? "PASS: restart" : "FAIL: restart");
             Shot("m2_restarted");
 
+            // ---------------------------------------------------------------- landing (Thalassa)
+            yield return LandingTest(kb, false);
+
             // ---------------------------------------------------------------- capital ships
             var dread = GameObject.Find("Pirate Dreadnought");
             var fleet = GameObject.Find("Dreadnought battle group")?.GetComponent<EncounterGroup>();
@@ -329,6 +341,167 @@ namespace CarrierGame.Demo
             }
             Log("done");
             Application.Quit();
+        }
+
+        static string Plain(string s) => s == null ? "(none)" : System.Text.RegularExpressions.Regex.Replace(s, "<.*?>", "");
+
+        IEnumerator WaitLanding(PlanetLanding landing, PlanetLanding.State want, float seconds)
+        {
+            float until = Time.time + seconds;
+            while (landing.Current != want && Time.time < until) yield return null;
+        }
+
+        /// <summary>Land at Thalassa with the K key, fly to the pad and set down on it, test the
+        /// edge of the area, take off with K. With `all`, then land on every other kind of world
+        /// (from here, straight down) for pictures and checks, sinking to the ground on a moon and
+        /// climbing out through the ceiling on Ochre.</summary>
+        IEnumerator LandingTest(Keyboard kb, bool all)
+        {
+            var landing = FindAnyObjectByType<PlanetLanding>();
+            if (landing == null) { Log("FAIL: landing (no landing controller in this level)"); yield break; }
+            var health = cc.GetComponent<Health>();
+            var shield = cc.GetComponentInChildren<Shield>();
+            var spaceSky = RenderSettings.skybox;
+            Vector3 orbit = cc.transform.position;
+            Log($"landing: near {WarpPoint.Nearest(orbit)?.displayName}; HUD '{Plain(landing.HudText())}'");
+            yield return Key(kb, UnityEngine.InputSystem.Key.K);
+            yield return WaitLanding(landing, PlanetLanding.State.OnSurface, 15f);
+            var site = landing.Site;
+            if (site == null) { Log("FAIL: landing (K did not land)"); yield break; }
+            yield return new WaitForSeconds(1.5f);
+            Report(landing, "keyboard K");
+            Shot("l1_thalassa");
+            bool siteOk = site.kind == SurfaceKind.Ocean && site.terrain != null && Mathf.Approximately(site.terrain.terrainData.size.x, SurfaceGenerator.Size) &&
+                          landing.Altitude > 50f;
+
+            // fly to the pad and set down on it
+            float hull0 = health.Current, shield0 = shield != null ? shield.Strength : 0f;
+            float until = Time.time + 70f;
+            bool descending = false;
+            while (Time.time < until && !landing.Landed)
+            {
+                Vector3 to = site.pad - cc.transform.position;
+                to.y = 0f;
+                float d = to.magnitude;
+                var v = ShipAutopilot.BowOn(cc, site.pad + Vector3.up * (cc.transform.position.y - site.pad.y));
+                demo.autoRudder = d > 60f ? v.x : 0f;
+                demo.autoPitch = 0f;
+                cc.throttle = d > 220f ? 0.45f : d > 70f ? 0.12f : 0f;
+                if (!descending && d < 110f && cc.Speed < 12f) descending = true;
+                demo.autoElevator = descending ? -1f : 0f;
+                yield return null;
+            }
+            demo.autoRudder = null; demo.autoPitch = null; demo.autoElevator = null;
+            yield return new WaitForSeconds(1f);
+            float lost = (hull0 - health.Current) + (shield0 - (shield != null ? shield.Strength : 0f));
+            Log($"  touchdown: landed {landing.Landed}, on the pad {landing.OnPad}, altitude {landing.Altitude:F1} m, took {Mathf.Max(0f, lost):F0} damage, touchdowns {landing.Touchdowns}");
+            Shot("l2_on_the_pad");
+            yield return null;
+            bool downOk = landing.Landed && (landing.OnPad || !site.hasOutpost) && lost < 1f;
+
+            // the edge of the area
+            cc.transform.position = site.center + new Vector3(2700f, site.maxHeight - site.center.y + 200f, 0f);
+            yield return null;
+            yield return null;
+            float edgeX = cc.transform.position.x - site.center.x;
+            bool edgeOk = edgeX <= landing.bounds + 1f;
+            Log($"  edge: put 2700 m out, held at {edgeX:F0} m (limit {landing.bounds:F0})");
+
+            yield return Key(kb, UnityEngine.InputSystem.Key.K);
+            yield return WaitLanding(landing, PlanetLanding.State.InSpace, 10f);
+            yield return new WaitForSeconds(0.5f);
+            bool backOk = landing.Current == PlanetLanding.State.InSpace && landing.Site == null && RenderSettings.skybox == spaceSky &&
+                          !RenderSettings.fog && Vector3.Distance(cc.transform.position, orbit) < 3000f;
+            Log($"  take off (K): back in space {landing.Current == PlanetLanding.State.InSpace}, {Vector3.Distance(cc.transform.position, orbit):F0} m from where it left, " +
+                $"space sky back {RenderSettings.skybox == spaceSky}, fog {RenderSettings.fog}, warp {(drive.CanWarp(out string lw) ? "ready" : lw)}");
+            Log(siteOk && downOk && edgeOk && backOk ? "PASS: landing (land, touch down on the pad, edge, take off)"
+                : $"FAIL: landing (site {siteOk}, touchdown {downOk}, edge {edgeOk}, back {backOk})");
+            if (!all) yield break;
+
+            int ok = 0, total = 0;
+            foreach (var name in new[] { "Ochre", "Cinder", "Jovara", "Glacis", "Selene", "Steropes", "Inner Belt", "Jovara Trojans", "Thalassa" })
+            {
+                var wp = Point(name);
+                if (wp == null) { Log($"FAIL: no place called {name}"); continue; }
+                total++;
+                landing.LandOn(wp);
+                yield return WaitLanding(landing, PlanetLanding.State.OnSurface, 15f);
+                site = landing.Site;
+                if (site == null) { Log($"FAIL: landing on {name}"); continue; }
+                yield return new WaitForSeconds(2f);
+                Report(landing, "straight down");
+                string file = name.Replace(' ', '_').ToLower();
+                Shot($"l_{file}");
+                var oc = demo.orbitCamera;
+                float dist0 = oc != null ? oc.distance : 0f, pitch0 = oc != null ? oc.pitch : 0f;
+                float yaw0 = oc != null ? oc.yaw : 0f;
+                if (oc != null) { oc.distance = Mathf.Min(oc.maxDistance, 4500f); oc.pitch = 24f; }
+                yield return new WaitForSeconds(0.6f);
+                Shot($"l_{file}_wide");
+                yield return new WaitForSeconds(0.3f);
+                var planet = site.root.transform.Find("Parent planet");
+                if (planet != null && oc != null)
+                {
+                    // look up past the ship at the planet this moon circles
+                    Vector3 up = planet.position - cc.transform.position;
+                    oc.yaw = Mathf.Atan2(up.x, up.z) * Mathf.Rad2Deg;
+                    oc.pitch = -Mathf.Atan2(up.y, new Vector2(up.x, up.z).magnitude) * Mathf.Rad2Deg * 0.8f;
+                    oc.distance = dist0;
+                    yield return new WaitForSeconds(0.6f);
+                    Log($"  the parent planet is {up.magnitude / 1000f:F0} km away, {Mathf.Atan2(up.y, new Vector2(up.x, up.z).magnitude) * Mathf.Rad2Deg:F0} deg up");
+                    Shot($"l_{file}_sky");
+                    yield return new WaitForSeconds(0.3f);
+                }
+                if (oc != null) { oc.distance = dist0; oc.pitch = pitch0; oc.yaw = yaw0; }
+                bool good = site.terrain != null && landing.Altitude > 20f;
+                if (name == "Selene")
+                {
+                    // sink straight down with the thrusters, away from the pad
+                    cc.throttle = 0f;
+                    demo.autoElevator = -1f;
+                    until = Time.time + 40f;
+                    while (Time.time < until && !landing.Landed) yield return null;
+                    demo.autoElevator = null;
+                    yield return new WaitForSeconds(1f);
+                    float under = cc.transform.position.y - site.GroundAt(cc.transform.position);
+                    Log($"  sinking with the thrusters: landed {landing.Landed}, pivot {under:F0} m above the ground");
+                    Shot("l_selene_down");
+                    good &= landing.Landed;
+                }
+                if (name == "Ochre")
+                {
+                    // climb out through the ceiling
+                    cc.throttle = 0f;
+                    demo.autoElevator = 1f;
+                    until = Time.time + 90f;
+                    while (Time.time < until && landing.Current == PlanetLanding.State.OnSurface) yield return null;
+                    demo.autoElevator = null;
+                    Log($"  climbing: left the surface by itself {landing.Current != PlanetLanding.State.OnSurface}");
+                    good &= landing.Current != PlanetLanding.State.OnSurface;
+                    yield return WaitLanding(landing, PlanetLanding.State.InSpace, 10f);
+                }
+                else
+                {
+                    landing.TakeOff();
+                    yield return WaitLanding(landing, PlanetLanding.State.InSpace, 10f);
+                }
+                good &= landing.Current == PlanetLanding.State.InSpace && RenderSettings.skybox == spaceSky;
+                if (good) ok++;
+                Log(good ? $"  {name}: ok" : $"  {name}: FAILED");
+                yield return new WaitForSeconds(0.5f);
+            }
+            Log(ok == total ? $"PASS: landings on every kind of world ({ok} of {total})" : $"FAIL: landings ({ok} of {total} ok)");
+        }
+
+        void Report(PlanetLanding landing, string how)
+        {
+            var site = landing.Site;
+            var td = site.terrain != null ? site.terrain.terrainData : null;
+            string terrain = td != null ? $"{td.size.x:F0} x {td.size.z:F0} m, {td.size.y:F0} m high" : "none";
+            string sea = float.IsNegativeInfinity(site.seaLevel) ? "none" : $"{site.seaLevel - site.center.y:F0} m";
+            Log($"  {how}: on {landing.Body?.displayName} ({site.kind}), seed {landing.Seed}, built in {landing.LastBuildSeconds * 1000f:F0} ms; " +
+                $"terrain {terrain}, outpost {site.hasOutpost}, sea {sea}; ship altitude {landing.Altitude:F0} m; " +
+                $"HUD '{Plain(landing.HudText())}'; {site.description}");
         }
 
         /// <summary>Press a warp control, then follow the jump through, timing it and taking pictures.</summary>

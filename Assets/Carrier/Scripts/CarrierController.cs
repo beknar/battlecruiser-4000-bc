@@ -214,6 +214,14 @@ namespace CarrierGame
         /// collisions from this controller until it is cleared.</summary>
         [System.NonSerialized] public bool externalMotion;
 
+        /// <summary>Fastest the elevator thrusters may take the ship down (m/s): the landing
+        /// assist slows the descent near the ground.</summary>
+        [System.NonSerialized] public float maxDescent = float.PositiveInfinity;
+
+        /// <summary>Hits slower than this (m/s, into the surface) do no damage: higher on a
+        /// planet, so a gentle touchdown isn't a crash.</summary>
+        [System.NonSerialized] public float safeImpact = 3f;
+
         /// <summary>Set the heading and nose angle directly (the warp drive lining up a jump).</summary>
         public void SetAttitude(float newHeading, float newPitch)
         {
@@ -270,6 +278,7 @@ namespace CarrierGame
             float wantLift = elevator * elevatorSpeed;
             float liftChange = wantLift - liftSpeed;
             liftSpeed = Mathf.MoveTowards(liftSpeed, wantLift, elevatorAcceleration * dt);
+            liftSpeed = Mathf.Max(liftSpeed, -maxDescent);
             transform.position += Collide((transform.forward * speed + transform.up * liftSpeed) * dt);
             if (Cover.Active) transform.position = Depenetrate(transform.position);
             UpdateLiftFlares(liftChange);
@@ -378,7 +387,8 @@ namespace CarrierGame
             float allowed = Mathf.Max(0f, hit.distance - Skin);
             Vector3 slide = Vector3.ProjectOnPlane(move - dir * allowed, hit.normal);
             float impact = Vector3.Dot(Velocity, -hit.normal);
-            if (impact > 3f)
+            // the higher allowance on a planet is for setting down on the ground, not hitting a wall
+            if (impact > (hit.normal.y > 0.7f ? safeImpact : 3f))
             {
                 speed *= Mathf.Clamp01(1f - 0.6f * impact / Mathf.Max(1f, Velocity.magnitude));
                 if (Vector3.Dot(transform.up * liftSpeed, hit.normal) < 0f) liftSpeed = 0f;

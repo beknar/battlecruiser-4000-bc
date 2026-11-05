@@ -24,6 +24,8 @@ namespace CarrierGame
         public WarpPoint orbitParent;
         [Tooltip("Hostiles are known to be here (shown on the map).")]
         public bool hostile;
+        [Tooltip("What its surface is like, for landing (None: can't land).")]
+        public SurfaceKind surface = SurfaceKind.None;
 
         public Vector3 Position => transform.position;
 

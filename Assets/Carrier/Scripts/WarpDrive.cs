@@ -103,11 +103,15 @@ namespace CarrierGame
             return false;
         }
 
+        /// <summary>Something else has the drive locked (landed on a planet): why, or null.</summary>
+        [System.NonSerialized] public string lockedBecause;
+
         public bool CanWarp(out string why)
         {
             why = "";
             if (ship != null && ship.Destroyed) { why = "the frigate is destroyed"; return false; }
             if (Current != State.Ready) { why = "already in warp"; return false; }
+            if (!string.IsNullOrEmpty(lockedBecause)) { why = lockedBecause; return false; }
             return !InCombat(out why);
         }
 

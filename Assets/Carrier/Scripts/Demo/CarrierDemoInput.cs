@@ -30,6 +30,17 @@ namespace CarrierGame.Demo
         public static Rect HelpRect => helpRect;
 
         WarpDrive warp;
+        PlanetLanding landing;
+        bool landingLooked;
+        /// <summary>The landing controller, if this level has one.</summary>
+        PlanetLanding Landing
+        {
+            get
+            {
+                if (!landingLooked) { landing = FindAnyObjectByType<PlanetLanding>(); landingLooked = true; }
+                return landing;
+            }
+        }
 
         void Awake()
         {
@@ -79,7 +90,7 @@ namespace CarrierGame.Demo
 
             // the system map has the keys and the pad while it is open; the warp drive flies the
             // ship while it is charging or in warp
-            bool warpFlying = warp != null && warp.Current != WarpDrive.State.Ready;
+            bool warpFlying = (warp != null && warp.Current != WarpDrive.State.Ready) || PlanetLanding.Transitioning;
             if (SystemMap.IsOpen || SystemMap.JustClosed || warpFlying)
             {
                 WatchDestruction();
@@ -276,9 +287,12 @@ namespace CarrierGame.Demo
                     WarpDrive.State.Arriving => $"<color=#bfe6ff>dropping out at {warp.Destination?.displayName}</color>",
                     _ => warp.InCombat(out string why) ? $"<color=#ff6050>locked: {why}</color>" : $"<color=#7ee08a>ready</color>  <color=#9aa4b0>{key} system map</color>",
                 };
+                if (PlanetLanding.Busy) w = "<color=#9aa4b0>take off first</color>";
                 sb.Append($"\nWarp  {w}");
+                string land = Landing != null ? Landing.HudText() : null;
+                if (land != null) sb.Append("\n" + land);
                 var here = WarpPoint.Nearest(carrier.transform.position);
-                if (here != null && warp.Current == WarpDrive.State.Ready)
+                if (here != null && warp.Current == WarpDrive.State.Ready && !PlanetLanding.Busy)
                     sb.Append($"\nNear  {here.displayName}  <color=#9aa4b0>{Vector3.Distance(here.Position, carrier.transform.position) / 1000f:F0} km</color>");
             }
             if (Cover.Active)
@@ -367,7 +381,7 @@ namespace CarrierGame.Demo
             if (p.buttonWest.wasPressedThisFrame) { if (GunshipPad) ChargeMainGun(); else WingEscort(); }   // X
             if (p.buttonNorth.wasPressedThisFrame) NextTarget();          // Y
             if (p.rightShoulder.wasPressedThisFrame) FireGuns();          // RB
-            if (p.leftShoulder.wasPressedThisFrame) FireMissiles();       // LB
+            if (p.leftShoulder.wasPressedThisFrame && (carrier.HasMissiles || Landing == null)) FireMissiles();   // LB (landing, without missiles)
             if (p.leftStickButton.wasPressedThisFrame) ToggleAutoFire();  // L3
             if (p.rightStickButton.wasPressedThisFrame && warp == null) CycleCamera();    // R3 (the system map, with a warp drive)
             // right stick orbits and LT/RT zoom: handled by OrbitCamera
@@ -623,6 +637,7 @@ namespace CarrierGame.Demo
             carrier.HasHangar ? "C camera: carrier / craft" : null,
             "Right-drag orbit   mouse wheel zoom",
             warp != null ? "M system map: mini-warp" : null,
+            Landing != null ? "K land / take off (in orbit)" : null,
             "H hide help   +/- text size   N sound",
             OnWeb ? "F11 full screen   Esc or P menu" : "F11 window   Esc or P menu",
         }.Where(l => l != null));
@@ -640,6 +655,7 @@ namespace CarrierGame.Demo
             "RB fire guns" + (carrier.HasMissiles ? "   LB missile salvo" : "") + (MainGun != null && !carrier.HasHangar ? "   X main gun" : ""),
             "L3 auto-fire on/off" + (carrier.HasHangar ? "   R3 camera: carrier / craft" : ""),
             warp != null ? "R3 system map: mini-warp" : null,
+            Landing != null && !carrier.HasMissiles ? "LB land / take off (in orbit)" : null,
             "Back hide help   Start menu",
             W("Back + D-pad ↑↓ text size", "Back + D-pad up/down text size"),
         }.Where(l => l != null));

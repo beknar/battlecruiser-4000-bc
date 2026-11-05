@@ -184,6 +184,29 @@ system to travel around.
 
   Each turret tracks and fires on its own and breaks off when the ship comes apart. Capital
   ships hold a stand-off range and circle, and their shots don't hit each other.
+- **Landing.** In orbit of a planet, moon or asteroid field, and out of combat, K (LB on the
+  pad) takes the frigate down to the surface. A 5 km x 5 km landing site is generated for that
+  world when it lands, seeded by where over the body the ship was, so different spots give
+  different sites.
+
+  | World | Landing site |
+  |---|---|
+  | Cinder (volcanic) | Basalt plains, cinder cones and rivers of lava under a red haze; the lava burns the hull |
+  | Ochre (desert) | Dune seas between flat-topped mesas and salt pans, with blowing dust |
+  | Thalassa (ocean) | Islands with beaches, grass and rocky hills in a deep sea; the amount of land follows the planet's own map, and near the poles there is snow |
+  | Jovara (gas giant) | The cloud tops, with a gas-mining platform riding above them |
+  | Glacis (ice giant) | An ice sheet of pressure ridges, crevasses and ice spires under methane haze |
+  | Moons | Grey, cratered and airless, curving away under the stars, with the parent planet in the sky |
+  | Asteroid fields | A lump of dark rock with boulders, and the rest of the field drifting overhead |
+
+  Each site has its own sky, fog and light. The ground beyond the area fades into the haze.
+  Where people live (Ochre, Thalassa, Jovara, Glacis and the moons) there is a landing pad with
+  parked craft and beacons. On the surface the frigate flies as it does in space:
+  - it can't sink into the ground, the sea or the deep clouds;
+  - a landing assist slows the descent near the ground, so it can set down gently;
+  - it stays inside the area.
+
+  K again, or climbing high above the ground, takes it back to orbit where it left.
 
 ## Controls
 
@@ -203,6 +226,7 @@ system to travel around.
 | Pause menu: resume, restart, sound, quit | Esc or P | Start |
 | Window / full screen | F11 | |
 | System map (Star System) | M | R3 |
+| Land / take off (Star System, in orbit) | K | LB |
 | On the map: choose a place / warp / close | Click, arrows or Tab / WARP, double-click or Enter / M or Esc | Left stick, D-pad or LB/RB / A / B |
 
 In the web version, use the page's Full screen button rather than F11.
@@ -273,7 +297,11 @@ WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use
   - the system map with a virtual keyboard, mouse and gamepad;
   - warps of different lengths, and that the drive refuses to warp in combat;
   - the pause menu and restart;
+  - landing at Thalassa, setting down on the pad, the edge of the area and taking off;
   - a capital ship battle, checking that both sides land hits.
+
+  Add `-landtest` (or `?landtest` on the web) to test only the landings, with screenshots, on
+  every kind of world.
 - `CarrierDemo.exe -reel <dir>` (or `AsteroidAmbush.exe` / `StarSystem.exe`): records a demo reel
   (60 s, 76 s for the ambush or 150 s for the star system) at 30 fps as JPG frames plus a WAV
   soundtrack, then quits. Join them with ffmpeg:

@@ -108,6 +108,7 @@ namespace CarrierGame
             why = "";
             if (ship != null && ship.Destroyed) { why = "the frigate is destroyed"; return false; }
             if (Current != State.Ready) { why = "already in warp"; return false; }
+            if (Demo.PlanetLanding.Busy) { why = "take off first"; return false; }
             return !InCombat(out why);
         }
 

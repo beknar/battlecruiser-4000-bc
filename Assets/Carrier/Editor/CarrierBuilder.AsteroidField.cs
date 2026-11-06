@@ -181,6 +181,8 @@ namespace Carrier.EditorTools
             ob.radius = radius * scale;
             ob.coreRadius = core * scale;
             ob.cover = radius * scale > 60f;
+            // every rock has minerals in it (an asteroid unless the caller says otherwise)
+            go.AddComponent<MineralDeposit>().seed = MineralDeposit.PositionSeed(pos);
             return go;
         }
 

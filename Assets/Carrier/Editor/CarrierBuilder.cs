@@ -104,6 +104,19 @@ namespace Carrier.EditorTools
             }
         }
 
+        /// <summary>BuildAll from the command line (-batchmode -executeMethod): Unity empties Temp
+        /// when it quits, so the report and the review pictures are copied to Logs/carrier_build.</summary>
+        public static void BuildAllBatch()
+        {
+            BuildAll();
+            const string Out = "Logs/carrier_build";
+            if (Directory.Exists(Out)) Directory.Delete(Out, true);
+            Directory.CreateDirectory(Out);
+            File.Copy("Temp/carrier_build.log", Out + "/carrier_build.log", true);
+            if (Directory.Exists(ShotDir))
+                foreach (var f in Directory.GetFiles(ShotDir)) File.Copy(f, Path.Combine(Out, Path.GetFileName(f)), true);
+        }
+
         static void LoadData()
         {
             hp = JsonUtility.FromJson<HP>(File.ReadAllText(Root + "/Data/carrier_hardpoints.json"));

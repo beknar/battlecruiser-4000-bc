@@ -265,10 +265,11 @@ namespace CarrierGame.Demo
 
             var star = order.FirstOrDefault(w => w.kind == WarpPoint.Kind.Star);
             Vector2 starPx = star != null ? ScreenPosOf(star) : center;
-            // orbits: planets and fields round the star, moons round their planet
+            // orbits: planets and fields round the star, moons round their planet (a comet's
+            // long, tilted orbit isn't drawn)
             foreach (var w in order)
             {
-                if (w.kind == WarpPoint.Kind.Star) continue;
+                if (w.kind == WarpPoint.Kind.Star || w.kind == WarpPoint.Kind.Comet) continue;
                 Vector2 c = w.orbitParent != null ? ScreenPosOf(w.orbitParent) : starPx;
                 float r = Vector2.Distance(ScreenPosOf(w), c);
                 DottedCircle(c, r, w.orbitParent != null ? new Color(0.6f, 0.7f, 0.85f, 0.25f) : new Color(0.6f, 0.7f, 0.85f, 0.35f),
@@ -280,6 +281,13 @@ namespace CarrierGame.Demo
             {
                 Vector2 p = ScreenPosOf(w);
                 if (w.kind == WarpPoint.Kind.AsteroidField) Field(p, w, s);
+                else if (w.kind == WarpPoint.Kind.Comet)
+                {
+                    // a bright head with its tail streaming away from the star
+                    Vector2 away = (p - starPx).sqrMagnitude > 1f ? (p - starPx).normalized : Vector2.right;
+                    DottedLine(p, p + away * 34f * s, new Color(w.mapColor.r, w.mapColor.g, w.mapColor.b, 0.7f), 3f * s);
+                    Draw(disc, p, 8f * s, w.mapColor);
+                }
                 else
                 {
                     float size = (w.kind == WarpPoint.Kind.Star ? 30f : w.kind == WarpPoint.Kind.Moon ? 7f
@@ -327,7 +335,7 @@ namespace CarrierGame.Demo
                 string kind = Selected.kind switch
                 {
                     WarpPoint.Kind.Star => "Star", WarpPoint.Kind.Moon => $"Moon of {(Selected.orbitParent ? Selected.orbitParent.displayName : "?")}",
-                    WarpPoint.Kind.AsteroidField => "Asteroid field", _ => "Planet",
+                    WarpPoint.Kind.AsteroidField => "Asteroid field", WarpPoint.Kind.Comet => "Comet", _ => "Planet",
                 };
                 GUI.Label(new Rect(x, y, w, 24f * s), $"<color=#9aa4b0>{kind}</color>", body);
                 y += 30f * s;

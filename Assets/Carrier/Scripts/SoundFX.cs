@@ -5,7 +5,7 @@ namespace CarrierGame
 {
     public enum Sfx { Cannon, PointDefense, Blaster, MissileLaunch, ExplosionBig, ExplosionSmall, Impact, Catapult, UiLock, UiClear, UiError, UiKill,
                       ShieldHit, BeamCharge, BeamFire, HeavyBeamCharge, HeavyBeamFire, UiAlert,
-                      WarpCharge, WarpJump, WarpExit }
+                      WarpCharge, WarpJump, WarpExit, SensorPing }
 
     /// <summary>
     /// Plays the game's sounds. Each sound uses the library recordings in
@@ -129,6 +129,7 @@ namespace CarrierGame
             // the frigate's bow beam: no library recording matches it, so it stays synthesised
             D(Sfx.HeavyBeamCharge, SfxSynth.HeavyBeamCharge, 0.7f, 0.7f, 1800f, 0.5f, 2);
             D(Sfx.HeavyBeamFire, SfxSynth.HeavyBeamFire, 0.85f, 0.85f, 3000f, 0.5f, 2);
+            D(Sfx.SensorPing, SfxSynth.SensorPing, 0.45f, 0.45f, 0f, 0.5f, 1, true);
 
             var engineLib = LoadLibrary("EngineLoop");
             engineClip = engineLib != null ? engineLib[0] : SfxSynth.EngineLoop();
@@ -632,6 +633,34 @@ namespace CarrierGame
                 float e = Mathf.Clamp01(lt / 0.004f) * Mathf.Clamp01((beepLen - lt) / 0.02f);
                 return Sat(2f * o.Sin(freqs[i])) * e;
             });
+        }
+
+        /// <summary>The mineral sensor's pulse: a sonar ping with a fading echo.</summary>
+        public static AudioClip SensorPing()
+        {
+            var o = new Osc(); var o2 = new Osc();
+            return Make("sensor_ping", 1.6f, t =>
+            {
+                float ping = o.Sin(1250f) * Exp(-t * 7f) * Mathf.Clamp01(t / 0.004f);
+                float te = t - 0.45f;
+                float echo = te > 0f ? o2.Sin(1250f) * Exp(-te * 9f) * 0.35f * Mathf.Clamp01(te / 0.004f) : 0f;
+                return Sat(1.6f * (ping + echo));
+            });
+        }
+
+        /// <summary>The mining laser cutting rock: a low electric hum with a gritty crackle (a loop).</summary>
+        public static AudioClip MiningLoop()
+        {
+            var o = new Osc(); var o2 = new Osc(); var o3 = new Osc(); var a = new LowPass(); var h = new LowPass();
+            return Make("mining_loop", 3f, t =>
+            {
+                float hum = o.Saw(98f) * 0.35f + o2.Sin(196f) * 0.3f + o3.Sin(293f) * 0.12f;
+                float wobble = 0.8f + 0.2f * Mathf.Sin(Tau * 4f * t);
+                float x = Noise();
+                float grit = (x - h.Run(x, 2500f)) * (Chance() < 0.02f ? 1.6f : 0.25f);
+                float rumble = a.Run(Noise(), 250f) * 3f;
+                return Sat(0.9f * (hum * wobble + grit + rumble));
+            }, loop: true);
         }
 
         public static AudioClip Buzz()

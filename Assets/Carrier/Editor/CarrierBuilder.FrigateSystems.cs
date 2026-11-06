@@ -380,6 +380,7 @@ namespace Carrier.EditorTools
             AddCiws(root, hullCol, p);
             AddMainGun(root, hullCol);
             AddShield(root);
+            var miningLaser = AddMiningGear(root, hullCol);
 
             // the hull's solid shape moves to its own object (the guns check their line of fire
             // against it, and enemy fire hits it when the shield is down), then the hull model is
@@ -390,6 +391,7 @@ namespace Carrier.EditorTools
             foreach (var tu in root.GetComponentsInChildren<CarrierTurret>()) fittings.Add(tu.transform);
             var gun = root.GetComponentInChildren<MainBeam>();
             if (gun != null) fittings.Add(gun.transform);
+            fittings.Add(miningLaser);
             MakeBreakable(root, hull, "Frigate", 14, true, fittings.ToArray());
             var br = root.GetComponent<ShipBreakup>();
             if (br != null)

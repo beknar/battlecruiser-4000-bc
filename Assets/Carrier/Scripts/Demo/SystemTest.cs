@@ -308,6 +308,8 @@ namespace CarrierGame.Demo
 
             // ---------------------------------------------------------------- mining
             yield return MiningTest(kb);
+            // back to Thalassa: the capital ships wait on the way in from there
+            yield return WarpTo(kb, "Thalassa", "n9");
 
             // ---------------------------------------------------------------- capital ships
             var dread = GameObject.Find("Pirate Dreadnought");

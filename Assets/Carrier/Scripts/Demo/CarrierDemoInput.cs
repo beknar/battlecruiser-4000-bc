@@ -492,7 +492,7 @@ namespace CarrierGame.Demo
                 if (p.dpad.left.wasPressedThisFrame) WingReturn();
             }
             if (p.selectButton.wasReleasedThisFrame) { if (!backCombo) showHelp = !showHelp; backCombo = false; }
-            if (carrier.Destroyed || back) return;   // with Back held, the face buttons are the mining controls
+            if (carrier.Destroyed || (back && Laser != null)) return;   // with Back held, the face buttons are the mining controls
 
             if (p.buttonSouth.wasPressedThisFrame) { if (GunshipPad) LevelOff(); else WingAttack(); }   // A
             if (p.buttonEast.wasPressedThisFrame) ClearTarget();          // B
@@ -664,7 +664,7 @@ namespace CarrierGame.Demo
             var cam = Camera.main;
             if (cam == null || targets == null) return;
             var gui = new Vector2(screen.x, Screen.height - screen.y);
-            if (helpRect.Contains(gui) || (display != null && display.PanelRect.Contains(gui))) return;
+            if (helpRect.Contains(gui) || (display != null && display.PanelRect.Contains(gui)) || MiningDisplay.ManifestRect.Contains(gui)) return;
 
             Transform best = null;
             // the nearest thing under the cursor that isn't our own ship or its shield

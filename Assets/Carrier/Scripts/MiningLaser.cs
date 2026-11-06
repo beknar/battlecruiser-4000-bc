@@ -7,9 +7,9 @@ namespace CarrierGame
     /// <summary>
     /// The frigate's mining laser: a turret under the bow that cuts ore out of whatever deposit is
     /// nearest (within `range` of its surface) and draws it back aboard into the cargo hold, a few
-    /// tonnes a second in the deposit's own mix. In space it works rocks, moons and comets (the
-    /// targeted one first, if it has minerals); landed on a planet it works the veins in the
-    /// ground. It stops when the hold is full, and moves on by itself when a deposit is mined out.
+    /// tonnes a second in the deposit's own mix. In space it works rocks, moons and comets; landed
+    /// on a planet it works the veins in the ground. It stops when the hold is full, moves on by
+    /// itself when a deposit is mined out, and passes over one it can't get a clear line to.
     /// </summary>
     public class MiningLaser : MonoBehaviour
     {
@@ -300,9 +300,6 @@ namespace CarrierGame
         {
             FindSources();
             if (candidates.Count == 0) return null;
-            // the targeted body first, if it has minerals
-            if (ship.target != null && ship.target.GetComponentInParent<MineralDeposit>() is MineralDeposit td && td != null && candidates.Contains(td))
-                return td;
             IMineralSource best = null;
             float bestReach = float.MaxValue;
             foreach (var c in candidates)

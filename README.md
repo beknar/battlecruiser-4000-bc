@@ -181,8 +181,9 @@ system to travel around.
     2 seconds. Each deposit it finds is marked on screen for a minute, with its main minerals,
     how many tonnes are left and how far it is.
   - **Mining laser** (Z). A turret under the bow cuts ore out of the nearest deposit within
-    1.5 km, or the targeted rock, and draws it back aboard in a stream of glowing grit, 8 tonnes
-    a second. It moves on to the next deposit in reach when one is mined out, and stops when
+    1.5 km and draws it back aboard in a stream of glowing grit, 8 tonnes a second. When a
+    deposit is mined out it moves on to the next one in reach; a small rock (under 80 m
+    across) breaks up. It passes over a deposit it can't get a clear line to, and stops when
     the hold is full.
   - **Cargo hold.** It holds 600 tonnes. I lists what is aboard and what it is worth; J
     jettisons the cheapest mineral to make room for better. The cargo is lost if the frigate is
@@ -204,7 +205,8 @@ system to travel around.
     | Glacis (ice giant) | Water, methane and ammonia ices, deuterium, helium-3 and diamonds |
 
     How much a deposit holds depends on its size: from about 80 tonnes in a small rock to
-    1,500 in the biggest, and far more in a moon or a comet's nucleus.
+    1,500 in the biggest, and far more in a moon or a comet's nucleus. Restarting the level
+    fills every deposit again.
 
   The frigate has the same gear in the other two games. In Asteroid Ambush the rocks can be
   mined too.

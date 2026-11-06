@@ -5,7 +5,8 @@ drones, fighters and capital ships. The frigate carries side guns, close-in poin
 beam that charges for 10 seconds and a hex shield. Every ship comes apart before it explodes.
 There are three games: Carrier Demo (open space), Asteroid Ambush and Star System. In Star
 System the frigate can also land on the planets, moons and asteroid fields and fly all the way
-round them. Star System also runs in a web browser. All of them play with keyboard and mouse or an Xbox 360 / XInput
+round them, and mine asteroids, comets and planets for 27 different minerals. Star System also
+runs in a web browser. All of them play with keyboard and mouse or an Xbox 360 / XInput
 gamepad.
 
 ## Downloads and demo reels
@@ -163,7 +164,52 @@ system to travel around.
     Thalassa, the gas giant Jovara and icy Glacis.
   - Six moons circle Thalassa and Jovara.
   - There are three asteroid fields: the Inner Belt, the Jovara Trojans and the Outer Drift.
+  - Two comets are on long orbits: bright Comet Iskra close to the star, and faint Comet
+    Mirren far out.
   - The frigate starts near Thalassa.
+- **Comets.** Each comet is a dark, lumpy nucleus of dirty ice inside a glowing coma, with the
+  two tails real comets have, both pointing straight away from the star:
+  - a thin blue ion tail, blown straight out by the solar wind, with rippling streamers;
+  - a broader yellow-white dust tail, which curves back along the comet's path because the
+    dust is pushed more gently and falls behind.
+
+  A trail of debris, lumps of ice and grit shed by the nucleus, lies along the start of the
+  dust tail. Iskra, close to the star, has tails 60 km long; Mirren's are shorter and fainter.
+- **Mining.** The frigate carries a mining laser, a mineral sensor and a cargo hold.
+  - **Mineral sensor** (V). It always picks up traces of the deposits within range: 12 km in
+    space, 5 km on a planet's surface. A scan sends out a pulse that sweeps out to full range in
+    2 seconds. Each deposit it finds is marked on screen for a minute, with its main minerals,
+    how many tonnes are left and how far it is.
+  - **Mining laser** (Z). A turret under the bow cuts ore out of the nearest deposit within
+    1.5 km and draws it back aboard in a stream of glowing grit, 8 tonnes a second. When a
+    deposit is mined out it moves on to the next one in reach; a small rock (under 80 m
+    across) breaks up. It passes over a deposit it can't get a clear line to, and stops when
+    the hold is full.
+  - **Cargo hold.** It holds 600 tonnes. I lists what is aboard and what it is worth; J
+    jettisons the cheapest mineral to make room for better. The cargo is lost if the frigate is
+    destroyed.
+  - **What there is to mine.** Every rock, moon and comet has minerals in it, and so does the
+    ground of every world the frigate can land on: one to three veins in each 5 km area.
+
+    | Where | What it is made of |
+    |---|---|
+    | C-type asteroids (carbonaceous) | Silicates, carbon, water ice, iron, nickel, sulfur, a little cobalt |
+    | S-type asteroids (stony) | Silicates, iron, nickel, magnesium, aluminium, titanium, copper, traces of silver and gold |
+    | M-type asteroids (metallic) | Iron and nickel, with cobalt, copper, platinum, palladium, iridium and gold |
+    | Comets and their debris | Water ice, carbon dioxide, methane and ammonia ices, silicates, carbon, deuterium |
+    | Moons | Silicates, aluminium, iron, titanium, magnesium, rare earths, uranium, helium-3 |
+    | Cinder (volcanic) | Sulfur, iron, copper, gold, uranium, platinum and diamonds |
+    | Ochre (desert) | Iron, aluminium, copper, titanium, lithium, rare earths, uranium, silver, gold |
+    | Thalassa (ocean) | On the islands: ores, silver and gold. Under the sea: heavy-water brine (deuterium, lithium) |
+    | Jovara (gas giant) | Gas pockets in the cloud tops: hydrogen, helium, ammonia, methane, deuterium, helium-3 |
+    | Glacis (ice giant) | Water, methane and ammonia ices, deuterium, helium-3 and diamonds |
+
+    How much a deposit holds depends on its size: from about 80 tonnes in a small rock to
+    1,500 in the biggest, and far more in a moon or a comet's nucleus. Restarting the level
+    fills every deposit again.
+
+  The frigate has the same gear in the other two games. In Asteroid Ambush the rocks can be
+  mined too.
 - **System map.** M (R3 on the pad) opens a top-down chart of every place the frigate can go,
   with their orbits and the frigate's own position and heading. For the chosen destination it
   shows the distance and how long the trip will take. Pick a place and warp from the map.
@@ -263,6 +309,9 @@ system to travel around.
 | Window / full screen | F11 | |
 | System map (Star System) | M | R3 |
 | Land / take off (Star System, in orbit) | K | LB |
+| Mining laser on/off | Z | Back + A |
+| Mineral scan | V | Back + Y |
+| Cargo hold list / jettison the cheapest ore | I / J | Back + X / Back + B |
 | On the map: choose a place / warp / close | Click, arrows or Tab / WARP, double-click or Enter / M or Esc | Left stick, D-pad or LB/RB / A / B |
 
 In the web version, use the page's Full screen button rather than F11.
@@ -336,12 +385,18 @@ WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use
   - landing at Thalassa and setting down on the pad;
   - flying on across the planet (areas built ahead and thrown away behind), all the way round it
     east and over both poles, checking the ground comes back the same, then taking off;
+  - mining an asteroid, a comet and a vein on a planet (see `-minetest` below);
   - a capital ship battle, checking that both sides land hits.
 
   Add `-landtest` (or `?landtest` on the web) to test only the landings, with screenshots, on
   every kind of world. On the hostile ones it also checks that the ground forces are there,
   that a battery fires on the frigate, and that near the north pole (where an area can be built
   on both sides of the pole) each area's forces appear only once.
+  Add `-minetest` (or `?minetest` on the web) to test only the mining. It warps to the Inner
+  Belt, scans, then flies to the nearest rock and mines until the hold is full, moving from rock
+  to rock. Then it jettisons the cheapest ore and opens the cargo list. Next it warps to Comet
+  Iskra, checks the tails point away from the star and mines ice. Last, it lands on Ochre and
+  mines a vein in the ground.
 - `CarrierDemo.exe -reel <dir>` (or `AsteroidAmbush.exe` / `StarSystem.exe`): records a demo reel
   (60 s, 76 s for the ambush or about 215 s for the star system) at 30 fps as JPG frames plus a WAV
   soundtrack, then quits. Join them with ffmpeg:

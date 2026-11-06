@@ -17,7 +17,9 @@ namespace Carrier.EditorTools
     /// The third level, "Star System": the Kestrel system, which the frigate crosses by mini-warp.
     /// A star; five planets of different kinds and sizes (volcanic, desert, ocean, gas giant, ice
     /// giant), the ocean world with two moons and the gas giant with four; three asteroid fields,
-    /// two of them with hostiles hiding in them. Every place has a WarpPoint for the system map.
+    /// two of them with hostiles hiding in them; and two comets, their tails turned away from the
+    /// star. Every place has a WarpPoint for the system map. Every rock, moon and comet has
+    /// minerals in it for the frigate's mining laser.
     /// The planets are textured here (seamless noise on the sphere) and lit by the star's real
     /// position (Carrier/Planet shader); the moons and asteroids are generated from seeds when the
     /// level loads. Distances are compressed to keep every coordinate within ±300 km.
@@ -357,6 +359,7 @@ namespace Carrier.EditorTools
                 var m = MakeAsteroid(name, sys, pos, Quaternion.Euler(0f, angle, 0f), 1f, seed, 5, 3, new Vector3(radius, radius * 0.97f, radius),
                                      0.05f, 40, radius / 6f, rockMat, layer, radius * 1.15f, radius * 0.9f);
                 m.GetComponent<Obstacle>().cover = true;
+                m.GetComponent<MineralDeposit>().body = BodyClass.Moon;
                 MakeWarpPoint(m, name, WarpPoint.Kind.Moon, desc, radius, radius * 3.2f + 1500f, new Color(0.75f, 0.75f, 0.78f), parentWp).surface = SurfaceKind.Moon;
             }
             Moon("Selene", thalassa, wThalassa, 35f, 16f, 1400f, 901, "Thalassa's larger moon: grey, airless and heavily cratered.");
@@ -516,6 +519,20 @@ namespace Carrier.EditorTools
                 (p.enemyDestroyer, "Escort Destroyer B", pl => Capital(pl, 110f, 140f, 18f, 25f, 2300f, 4f), 60f),
             });
 
+            // two comets on long orbits: a bright one near the star, a faint one far out; their
+            // tails stream away from the star, the dust tail curving back along the orbit
+            var rockTex = rockMat.GetTexture("_BaseMap") as Texture2D;
+            var rockNormal = rockMat.GetTexture("_BumpMap") as Texture2D;
+            var nucleusMat = Lit("Comet_Nucleus", new Color(0.3f, 0.3f, 0.32f), rockTex, rockNormal, 0f, 0.2f);
+            var iceMat = Lit("Comet_Ice", new Color(0.78f, 0.86f, 0.96f), rockTex, rockNormal, 0f, 0.62f);
+            Vector3 Along(float angleDeg, float climb) => (Polar(angleDeg + 90f, 1f, 0f) / 1000f + Vector3.up * climb).normalized;
+            MakeComet("Comet Iskra", sys, Polar(200f, 70f, 6f), Along(200f, 0.25f), 1500f, 60000f, 1f, 7101, star.transform, nucleusMat, iceMat, layer,
+                "A bright comet on a long orbit, close to the star now. Its nucleus is shedding gas and dust into a straight blue ion tail " +
+                "and a curved dust tail 60 km long, and a trail of ice and grit follows it: water, carbon dioxide, methane and ammonia to mine.");
+            MakeComet("Comet Mirren", sys, Polar(292f, 215f, -9f), Along(292f, -0.15f), 1000f, 26000f, 0.45f, 7202, star.transform, nucleusMat, iceMat, layer,
+                "A faint comet far out in the cold, its tails only beginning to grow. The dark nucleus is dirty ice: water, carbon dioxide, " +
+                "methane and ammonia, with a little deuterium.");
+
             // camera, controls and the system map
             var camGo = new GameObject("Main Camera");
             camGo.tag = "MainCamera";
@@ -596,6 +613,18 @@ namespace Carrier.EditorTools
             }
             var tro = sys.Find("Jovara Trojans (warp point)");
             Shot("sys_trojans", tro.position + new Vector3(-7000f, 1500f, -5000f), tro.position);
+            foreach (var comet in sys.GetComponentsInChildren<Comet>())
+            {
+                // from above the plane the dust tail bends in, to see the tails' length and the
+                // curve; and from where the frigate arrives
+                foreach (var ps in comet.GetComponentsInChildren<ParticleSystem>()) { ps.Simulate(45f, true, true); }
+                Vector3 c = comet.transform.position, tail = comet.tails.forward;
+                string n = comet.name.Replace("Comet ", "").ToLower();
+                Shot($"sys_comet_{n}", c + comet.tails.up * 60000f + tail * 20000f - comet.tails.right * 8000f, c + tail * 20000f);
+                var cw = comet.GetComponent<WarpPoint>();
+                Shot($"sys_comet_{n}_arrive", cw.ArrivalPoint(Vector3.zero) + Vector3.up * 300f, c);
+                foreach (var ps in comet.GetComponentsInChildren<ParticleSystem>()) ps.Clear(true);
+            }
             Object.DestroyImmediate(go);
             // the other scenes' atmospheres light from the main light unless this is set: clear it
             Shader.SetGlobalVector("_CarrierStarPos", Vector4.zero);

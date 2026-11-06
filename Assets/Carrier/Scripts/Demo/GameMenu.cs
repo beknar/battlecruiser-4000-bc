@@ -101,6 +101,7 @@ namespace CarrierGame.Demo
         {
             Close();
             SoundFX.LevelRestart();
+            SurfaceVeins.Forget();   // the rocks come back full with the scene; the veins too
             var scene = SceneManager.GetActiveScene();
 #if UNITY_EDITOR
             // in the editor the scene needn't be in the build list

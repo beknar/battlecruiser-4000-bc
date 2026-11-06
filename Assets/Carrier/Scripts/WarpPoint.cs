@@ -4,13 +4,13 @@ using UnityEngine;
 namespace CarrierGame
 {
     /// <summary>
-    /// A place in the star system the frigate can mini-warp to: the star, a planet, a moon or an
-    /// asteroid field. The ship drops out of warp `arrivalDistance` from it, on the side it came
+    /// A place in the star system the frigate can mini-warp to: the star, a planet, a moon, an
+    /// asteroid field or a comet. The ship drops out of warp `arrivalDistance` from it, on the side it came
     /// from, facing it. The system map draws it at its position (seen from above), with its orbit.
     /// </summary>
     public class WarpPoint : MonoBehaviour
     {
-        public enum Kind { Star, Planet, Moon, AsteroidField }
+        public enum Kind { Star, Planet, Moon, AsteroidField, Comet }
 
         public string displayName = "Unknown";
         public Kind kind = Kind.Planet;

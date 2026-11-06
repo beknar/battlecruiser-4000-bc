@@ -70,6 +70,8 @@ namespace CarrierGame.Demo
             display = gameObject.AddComponent<TargetDisplay>();
             display.carrier = carrier;
             display.targets = targets;
+            var md = gameObject.AddComponent<MiningDisplay>();
+            md.carrier = carrier;
         }
 
         void Start()
@@ -230,6 +232,12 @@ namespace CarrierGame.Demo
             if (k.cKey.wasPressedThisFrame) CycleCamera();
             if (k.lKey.wasPressedThisFrame) LevelOff();
             if (k.bKey.wasPressedThisFrame) ChargeMainGun();
+
+            // mining: Z laser, V scan, I cargo list, J jettison
+            if (k.zKey.wasPressedThisFrame) ToggleMiningLaser();
+            if (k.vKey.wasPressedThisFrame) MineralScan();
+            if (k.iKey.wasPressedThisFrame) ToggleManifest();
+            if (k.jKey.wasPressedThisFrame) Jettison();
         }
 
         // ------------------------------------------------------------ main gun, shield, CIWS
@@ -238,6 +246,9 @@ namespace CarrierGame.Demo
         Shield shield;
         CiwsDirector ciws;
         Health hull;
+        MiningLaser miningLaser;
+        MineralSensor sensor;
+        CargoHold cargo;
         bool systemsFound;
 
         void FindSystems()
@@ -248,9 +259,62 @@ namespace CarrierGame.Demo
             shield = carrier.GetComponentInChildren<Shield>(true);
             ciws = carrier.GetComponent<CiwsDirector>();
             hull = carrier.GetComponent<Health>();
+            miningLaser = carrier.GetComponentInChildren<MiningLaser>();
+            sensor = carrier.GetComponentInChildren<MineralSensor>();
+            cargo = carrier.GetComponent<CargoHold>();
         }
 
         public MainBeam MainGun { get { FindSystems(); return mainGun; } }
+        public MiningLaser Laser { get { FindSystems(); return miningLaser; } }
+        public MineralSensor Sensor { get { FindSystems(); return sensor; } }
+        public CargoHold Cargo { get { FindSystems(); return cargo; } }
+
+        /// <summary>The cargo list (I) is open.</summary>
+        public static bool ManifestOpen { get; private set; }
+
+        // ------------------------------------------------------------ mining
+
+        /// <summary>Switch the mining laser on (it cuts the nearest deposit in range) or off.</summary>
+        public void ToggleMiningLaser()
+        {
+            if (Laser == null) { NotFitted($"The {carrier.shipName.ToLower()} has no mining laser"); return; }
+            if (miningLaser.On)
+            {
+                miningLaser.TurnOff();
+                SoundFX.Ui(Sfx.UiClear);
+                Toast("Mining laser off");
+                return;
+            }
+            if (!miningLaser.TurnOn(out string why)) { NotFitted("Mining laser: " + why); return; }
+            SoundFX.Ui(Sfx.UiLock);
+            Toast($"Mining laser on: cutting the nearest deposit within {miningLaser.range / 1000f:F1} km");
+            PadSupport.Rumble(0.15f, 0.1f, 0.2f);
+        }
+
+        /// <summary>Sweep for minerals: the finds are marked on screen.</summary>
+        public void MineralScan()
+        {
+            if (Sensor == null) { NotFitted($"The {carrier.shipName.ToLower()} has no mineral sensor"); return; }
+            if (!sensor.Scan(out string why)) { NotFitted("Mineral scan: " + why); return; }
+            Toast($"Mineral scan: sweeping out to {sensor.ScanRange / 1000f:F0} km");
+        }
+
+        public void ToggleManifest()
+        {
+            if (Cargo == null) { NotFitted($"The {carrier.shipName.ToLower()} has no cargo hold"); return; }
+            ManifestOpen = !ManifestOpen;
+        }
+
+        /// <summary>Dump the cheapest mineral in the hold, to make room for better.</summary>
+        public void Jettison()
+        {
+            if (Cargo == null) { NotFitted($"The {carrier.shipName.ToLower()} has no cargo hold"); return; }
+            var m = cargo.Cheapest();
+            if (m == null) { NotFitted("The cargo hold is empty"); return; }
+            float t = cargo.Jettison(m.Value);
+            SoundFX.Ui(Sfx.UiClear);
+            Toast($"Jettisoned {t:F1} t of {Minerals.Name(m.Value).ToLower()}: {cargo.Used:F0} of {cargo.capacity:F0} t aboard");
+        }
 
         /// <summary>Start charging the bow beam (it fires by itself after 10 s, straight ahead,
         /// locking on if the target is close to the bow line); pressing again cancels the charge.</summary>
@@ -340,6 +404,26 @@ namespace CarrierGame.Demo
                     sb.Append(seen == 0 ? "\nCover  <color=#7ee08a>hidden from every enemy</color>"
                                         : $"\nCover  in sight of {seen} of {total} enemies");
             }
+            if (cargo != null)
+                sb.Append($"\nCargo  {cargo.Used:F0} / {cargo.capacity:F0} t  {Bar(cargo.Fraction)}" +
+                          (cargo.Used > 0.5f ? $"  <color=#9aa4b0>{cargo.Value:N0} cr</color>" : ""));
+            if (miningLaser != null)
+            {
+                string key = PadSupport.UsingPad && Gamepad.current != null ? "Back+A" : "Z";
+                string l = !miningLaser.On ? $"<color=#9aa4b0>{key} to cut ore</color>"
+                         : miningLaser.Cutting ? $"<color=#ffc070>{miningLaser.Status}</color>"
+                         : $"<color=#bfe6ff>{miningLaser.Status}</color>";
+                sb.Append($"\nMining laser  {l}");
+            }
+            if (sensor != null)
+            {
+                string key = PadSupport.UsingPad && Gamepad.current != null ? "Back+Y" : "V";
+                string what = PlanetLanding.OnSurface ? "veins" : "deposits";
+                string sn = sensor.Sweeping ? $"<color=#bfe6ff>scanning  {Bar(sensor.SweepProgress)}</color>"
+                          : sensor.Traces > 0 ? $"traces of {sensor.Traces} {what} within {sensor.Range / 1000f:F0} km  <color=#9aa4b0>{key} scan</color>"
+                          : $"<color=#9aa4b0>no minerals within {sensor.Range / 1000f:F0} km</color>";
+                sb.Append($"\nSensor  {sn}");
+            }
             if (ciws != null)
             {
                 var t = ciws.EngagedTarget;
@@ -380,6 +464,14 @@ namespace CarrierGame.Demo
             {
                 if (p.dpad.up.wasPressedThisFrame) { TextSize(+1); backCombo = true; }
                 if (p.dpad.down.wasPressedThisFrame) { TextSize(-1); backCombo = true; }
+                // Back + A/Y/X/B: mining laser, scan, cargo list, jettison
+                if (!carrier.Destroyed && Laser != null)
+                {
+                    if (p.buttonSouth.wasPressedThisFrame) { ToggleMiningLaser(); backCombo = true; }
+                    if (p.buttonNorth.wasPressedThisFrame) { MineralScan(); backCombo = true; }
+                    if (p.buttonWest.wasPressedThisFrame) { ToggleManifest(); backCombo = true; }
+                    if (p.buttonEast.wasPressedThisFrame) { Jettison(); backCombo = true; }
+                }
             }
             else if (GunshipPad)
             {
@@ -400,7 +492,7 @@ namespace CarrierGame.Demo
                 if (p.dpad.left.wasPressedThisFrame) WingReturn();
             }
             if (p.selectButton.wasReleasedThisFrame) { if (!backCombo) showHelp = !showHelp; backCombo = false; }
-            if (carrier.Destroyed) return;
+            if (carrier.Destroyed || (back && Laser != null)) return;   // with Back held, the face buttons are the mining controls
 
             if (p.buttonSouth.wasPressedThisFrame) { if (GunshipPad) LevelOff(); else WingAttack(); }   // A
             if (p.buttonEast.wasPressedThisFrame) ClearTarget();          // B
@@ -572,7 +664,7 @@ namespace CarrierGame.Demo
             var cam = Camera.main;
             if (cam == null || targets == null) return;
             var gui = new Vector2(screen.x, Screen.height - screen.y);
-            if (helpRect.Contains(gui) || (display != null && display.PanelRect.Contains(gui))) return;
+            if (helpRect.Contains(gui) || (display != null && display.PanelRect.Contains(gui)) || MiningDisplay.ManifestRect.Contains(gui)) return;
 
             Transform best = null;
             // the nearest thing under the cursor that isn't our own ship or its shield
@@ -664,6 +756,8 @@ namespace CarrierGame.Demo
             "Right-drag orbit   mouse wheel zoom",
             warp != null ? "M system map: mini-warp" : null,
             Landing != null ? "K land / take off (in orbit)" : null,
+            Laser != null ? "Z mining laser   V mineral scan" : null,
+            Laser != null ? "I cargo hold   J jettison cheapest ore" : null,
             "H hide help   +/- text size   N sound",
             OnWeb ? "F11 full screen   Esc or P menu" : "F11 window   Esc or P menu",
         }.Where(l => l != null));
@@ -682,6 +776,8 @@ namespace CarrierGame.Demo
             "L3 auto-fire on/off" + (carrier.HasHangar ? "   R3 camera: carrier / craft" : ""),
             warp != null ? "R3 system map: mini-warp" : null,
             Landing != null && !carrier.HasMissiles ? "LB land / take off (in orbit)" : null,
+            Laser != null ? "Back+A mining laser   Back+Y mineral scan" : null,
+            Laser != null ? "Back+X cargo hold   Back+B jettison" : null,
             "Back hide help   Start menu",
             W("Back + D-pad ↑↓ text size", "Back + D-pad up/down text size"),
         }.Where(l => l != null));

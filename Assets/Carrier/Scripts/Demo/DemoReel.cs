@@ -17,7 +17,7 @@ namespace CarrierGame.Demo
     /// A short shot list moves the camera and gives the orders. Join the frames and the sound
     /// with ffmpeg afterwards. Nothing is captured from outside the game.
     /// </summary>
-    public class DemoReel : MonoBehaviour
+    public partial class DemoReel : MonoBehaviour
     {
         const int Fps = 30;
         float seconds = 60f;               // the asteroid ambush runs longer (see Start)
@@ -28,7 +28,9 @@ namespace CarrierGame.Demo
         CarrierController cc;
         OrbitCamera cam;
         int frame, recorded, channels;
-        readonly List<float> audio = new List<float>(48000 * 2 * 62);
+        BinaryWriter wav;                 // the sound goes straight to reel.wav as it is captured
+        long wavSamples;
+        float gain = 1f;                  // sound level on the last captured frame (fades with the picture)
         bool audioOk;
         string log = "";
 
@@ -38,7 +40,10 @@ namespace CarrierGame.Demo
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Flag()
         {
-            if (Array.IndexOf(Environment.GetCommandLineArgs(), "-reel") >= 0) CarrierDemoInput.ReelMode = true;
+            var args = Environment.GetCommandLineArgs();
+            if (Array.IndexOf(args, "-reel") >= 0) CarrierDemoInput.ReelMode = true;
+            // -features: the Star System feature reel (mining, combat, landing, mini-warps)
+            Features = CarrierDemoInput.ReelMode && Array.IndexOf(args, "-features") >= 0;
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -62,22 +67,28 @@ namespace CarrierGame.Demo
             if (AmbushDirector.Instance != null) seconds = 76f;
             sysMap = FindAnyObjectByType<SystemMap>();
             if (sysMap != null) seconds = 260f;     // ends a few seconds after the cruiser dies (see SystemShots)
+            if (Features && sysMap != null)
+            {
+                seconds = 900f;                     // a cap: the shot list ends it
+                StartCoroutine(FeatureReel());
+            }
             Log($"screen {Screen.width}x{Screen.height}, gfx {SystemInfo.graphicsDeviceType}, audio {AudioSettings.outputSampleRate} Hz {AudioSettings.speakerMode}, {seconds:F0} s");
 
             var eof = new WaitForEndOfFrame();
-            while (recorded < Total)
+            while (recorded < Total && !finished)
             {
                 yield return eof;
                 if (frame == Warmup - 1) StartAudio();
                 if (frame < Warmup) continue;
+                if (!recording) { CaptureAudio(false); continue; }   // between scenes: nothing kept
                 SaveFrame();
-                CaptureAudio();
+                CaptureAudio(true);
                 recorded++;
                 if (recorded % 300 == 0) Log($"{recorded} frames");
             }
             if (audioOk) AudioRenderer.Stop();
-            WriteWav(Path.Combine(dir, "reel.wav"));
-            Log($"done: {recorded} frames, audio {(audioOk ? audio.Count / channels / (float)AudioSettings.outputSampleRate : 0f):F1} s");
+            FinishWav();
+            Log($"done: {recorded} frames, audio {(audioOk ? wavSamples / channels / (float)AudioSettings.outputSampleRate : 0f):F1} s");
             Application.Quit();
         }
 
@@ -93,6 +104,7 @@ namespace CarrierGame.Demo
             if (frame < Warmup) return;
             float t = T;
             LogKills();
+            if (Features) { perFrame?.Invoke(); return; }
             if (sysMap != null) { SystemShots(t); return; }
             if (AmbushDirector.Instance != null) { AsteroidShots(t, AmbushDirector.Instance); return; }
             if (!cc.HasHangar) { FrigateShots(t); return; }
@@ -1166,32 +1178,54 @@ namespace CarrierGame.Demo
                 // throw away anything rendered before the first recorded frame
                 int n = AudioRenderer.GetSampleCountForCaptureFrame();
                 if (n > 0) { var junk = new NativeArray<float>(n * channels, Allocator.Temp); AudioRenderer.Render(junk); junk.Dispose(); }
+                wav = new BinaryWriter(File.Create(Path.Combine(dir, "reel.wav")));
+                WavHeader(0);
             }
         }
 
-        void CaptureAudio()
+        /// <summary>Render this frame's share of the game's sound; keep it (faded with the
+        /// picture) or, between scenes, throw it away.</summary>
+        void CaptureAudio(bool keep)
         {
             if (!audioOk) return;
             int n = AudioRenderer.GetSampleCountForCaptureFrame();
             if (n <= 0) return;
             var buf = new NativeArray<float>(n * channels, Allocator.Temp);
             AudioRenderer.Render(buf);
-            for (int i = 0; i < buf.Length; i++) audio.Add(buf[i]);
+            if (keep)
+            {
+                float g1 = Mathf.Clamp01(1f - fade);
+                for (int i = 0; i < buf.Length; i++)
+                {
+                    float g = Mathf.Lerp(gain, g1, (i / channels) / (float)n);   // ramp across the frame: no clicks
+                    wav.Write((short)Mathf.RoundToInt(Mathf.Clamp(buf[i] * g, -1f, 1f) * 32767f));
+                }
+                wavSamples += buf.Length;
+                gain = g1;
+            }
             buf.Dispose();
         }
 
-        void WriteWav(string path)
+        void WavHeader(long samples)
         {
-            if (!audioOk || audio.Count == 0) return;
             int rate = AudioSettings.outputSampleRate;
-            using var w = new BinaryWriter(File.Create(path));
-            int bytes = audio.Count * 2;
-            w.Write(new[] { 'R', 'I', 'F', 'F' }); w.Write(36 + bytes);
-            w.Write(new[] { 'W', 'A', 'V', 'E', 'f', 'm', 't', ' ' }); w.Write(16);
-            w.Write((short)1); w.Write((short)channels); w.Write(rate);
-            w.Write(rate * channels * 2); w.Write((short)(channels * 2)); w.Write((short)16);
-            w.Write(new[] { 'd', 'a', 't', 'a' }); w.Write(bytes);
-            foreach (float s in audio) w.Write((short)Mathf.RoundToInt(Mathf.Clamp(s, -1f, 1f) * 32767f));
+            int bytes = (int)(samples * 2);
+            wav.Write(new[] { 'R', 'I', 'F', 'F' }); wav.Write(36 + bytes);
+            wav.Write(new[] { 'W', 'A', 'V', 'E', 'f', 'm', 't', ' ' }); wav.Write(16);
+            wav.Write((short)1); wav.Write((short)channels); wav.Write(rate);
+            wav.Write(rate * channels * 2); wav.Write((short)(channels * 2)); wav.Write((short)16);
+            wav.Write(new[] { 'd', 'a', 't', 'a' }); wav.Write(bytes);
+        }
+
+        /// <summary>Fill in the sizes now the length is known, and close the file.</summary>
+        void FinishWav()
+        {
+            if (wav == null) return;
+            wav.Flush();
+            wav.Seek(0, SeekOrigin.Begin);
+            WavHeader(wavSamples);
+            wav.Close();
+            wav = null;
         }
 
         void Log(string line)

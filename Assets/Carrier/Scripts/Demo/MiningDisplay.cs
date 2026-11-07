@@ -35,7 +35,7 @@ namespace CarrierGame.Demo
             var cam = Camera.main;
             if (cam == null) return;
             float s = Hud.S;
-            if (!CarrierDemoInput.ReelMode && sensor != null && sensor.Showing && !carrier.Destroyed) Markers(cam, s);
+            if ((!CarrierDemoInput.ReelMode || DemoReel.Features) && sensor != null && sensor.Showing && !carrier.Destroyed) Markers(cam, s);
             if (laser != null && laser.Cutting && laser.Source != null) Cutting(cam, s);
             ManifestRect = Rect.zero;
             if (CarrierDemoInput.ManifestOpen && hold != null) Manifest(s);

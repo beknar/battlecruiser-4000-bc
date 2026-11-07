@@ -698,13 +698,15 @@ namespace CarrierGame.Demo
         // ------------------------------------------------------------ messages
 
         static string toast;
+        // a reel runs on game time (locked to its frame rate), so its toasts last as long on film as in play
+        static float ToastClock => ReelMode ? Time.time : Time.unscaledTime;
         static float toastUntil;
 
         /// <summary>Show a short message at the bottom of the screen.</summary>
         public static void Toast(string message)
         {
             toast = message;
-            toastUntil = Time.unscaledTime + 2.5f;
+            toastUntil = ToastClock + 2.5f;
         }
 
         // ------------------------------------------------------------ display + HUD
@@ -823,7 +825,7 @@ namespace CarrierGame.Demo
                 GUI.Label(br, msg, big);
             }
 
-            if (toast != null && Time.unscaledTime < toastUntil)
+            if (toast != null && ToastClock < toastUntil)
             {
                 var ts = Hud.Text(20, true, TextAnchor.MiddleCenter);
                 var tc = new GUIContent(toast);

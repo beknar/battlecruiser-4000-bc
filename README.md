@@ -53,7 +53,7 @@ The reel starts in orbit over the ocean world Thalassa.
   pirate cruiser and its drones ambush it from the rocks. The frigate turns its bow beam on the
   cruiser until it breaks apart.
 
-The capital ships aren't in the reel.
+The capital ships, the comets and mining aren't in the reel.
 
 ## Features
 

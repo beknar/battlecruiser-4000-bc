@@ -280,10 +280,11 @@ namespace Carrier.EditorTools
             var atmoIce = AtmosphereMat("Atmo_IceGiant", new Color(0.5f, 0.95f, 1.2f), 4.5f, 1.5f);
             var atmoVolc = AtmosphereMat("Atmo_Volcanic", new Color(1.4f, 0.45f, 0.2f), 6f, 0.8f);
 
+            // bright enough to glow a little through the bloom, not to swamp the picture
             var starMat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-            starMat.SetColor("_BaseColor", new Color(14f, 10.5f, 6.5f));
+            starMat.SetColor("_BaseColor", new Color(4.6f, 3.7f, 2.5f));
             starMat = SaveMat("Star_Surface", starMat);
-            var coronaMat = ParticleAdditive("Star_Corona", StarGlowTexture(), new Color(1.5f, 1.05f, 0.6f, 1f));
+            var coronaMat = ParticleAdditive("Star_Corona", StarGlowTexture(), new Color(0.6f, 0.44f, 0.26f, 1f));
             var streakMat = ParticleAdditive("FX_WarpStreak", KenneyTex("trace_01_rotated"), new Color(1.6f, 1.8f, 2.2f, 1f));
             var hazeMat = ParticleAdditive("FX_WarpHaze", KenneyTex("light_03"), new Color(0.6f, 0.75f, 1.4f, 0.6f));
             var flashMat = ParticleAdditive("FX_WarpFlash", KenneyTex("star_06"), new Color(2.5f, 2.7f, 3f, 1f));
@@ -296,27 +297,28 @@ namespace Carrier.EditorTools
             var fill = new GameObject("Fill").AddComponent<Light>();
             fill.type = LightType.Directional;
             fill.color = new Color(0.55f, 0.65f, 0.9f);
-            fill.intensity = 0.18f;
+            fill.intensity = 0.3f;     // enough to see hull detail on the side away from the star
             fill.shadows = LightShadows.None;
             fill.transform.rotation = Quaternion.LookRotation(new Vector3(-0.2f, 1f, -0.3f));
             var sys = new GameObject("Kestrel System").transform;
 
-            // the star
+            // the star: 3.5 km in radius, a few degrees across from the inner system (it lights
+            // everything through the sun light; it needn't fill the sky to do it)
             var star = new GameObject("Kestrel", typeof(MeshFilter), typeof(MeshRenderer));
             star.transform.SetParent(sys, false);
-            star.transform.localScale = Vector3.one * 36000f;
+            star.transform.localScale = Vector3.one * 7000f;
             star.layer = layer;
             star.AddComponent<ProceduralSphere>().Build();
             star.GetComponent<MeshRenderer>().sharedMaterial = starMat;
             star.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
             star.AddComponent<SphereCollider>().radius = 0.5f;
             var sob = star.AddComponent<Obstacle>();
-            sob.radius = 18500f; sob.coreRadius = 18000f;
+            sob.radius = 3800f; sob.coreRadius = 3500f;
             var corona = GameObject.CreatePrimitive(PrimitiveType.Quad);
             StripColliders(corona);
             corona.name = "Corona";
             corona.transform.SetParent(sys, false);
-            corona.transform.localScale = Vector3.one * 120000f;
+            corona.transform.localScale = Vector3.one * 32000f;
             var cr = corona.GetComponent<MeshRenderer>();
             cr.sharedMaterial = coronaMat;
             cr.shadowCastingMode = ShadowCastingMode.Off;
@@ -325,7 +327,7 @@ namespace Carrier.EditorTools
             sl.corona = corona.transform;
             var wStar = MakeWarpPoint(star, "Kestrel", WarpPoint.Kind.Star,
                 "A yellow-white main-sequence star. A close pass gives a spectacular view, and nowhere to hide.",
-                18000f, 62000f, new Color(1f, 0.85f, 0.45f));
+                3500f, 24000f, new Color(1f, 0.85f, 0.45f));
 
             // the planets
             var cinder = MakePlanet("Cinder", sys, Polar(20f, 55f, 0.4f), 3200f, matVolc, atmoVolc, 1.03f, layer, 0.4f);
@@ -603,7 +605,7 @@ namespace Carrier.EditorTools
             Shot("sys_start", start + new Vector3(-400f, 150f, -500f), thalassa.position);
             Shot("sys_thalassa_moons", thalassa.position + new Vector3(-30000f, 9000f, -38000f), thalassa.position + new Vector3(5000f, 0f, 5000f));
             Shot("sys_jovara", jovara.position + new Vector3(-90000f, 25000f, -70000f), jovara.position);
-            Shot("sys_star", star.position + new Vector3(55000f, 8000f, 30000f), star.position);
+            Shot("sys_star", star.position + new Vector3(20000f, 3000f, 11000f), star.position);
             foreach (var n in new[] { "Cinder", "Ochre", "Glacis" })
             {
                 var t = sys.Find(n);

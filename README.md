@@ -187,6 +187,7 @@ system to travel around.
   - There are three asteroid fields: the Inner Belt, the Jovara Trojans and the Outer Drift.
   - Two comets are on long orbits: bright Comet Iskra close to the star, and faint Comet
     Mirren far out.
+  - Ten stations, bases and installations have been built (see below).
   - The frigate starts near Thalassa.
 - **Comets.** Each comet is a dark, lumpy nucleus of dirty ice inside a glowing coma, with the
   two tails real comets have, both pointing straight away from the star:
@@ -231,9 +232,40 @@ system to travel around.
 
   The frigate has the same gear in the other two games. In Asteroid Ambush the rocks can be
   mined too.
+- **Stations, bases and installations.** Each one is a warp destination of its own.
+
+  | Place | What it is |
+  |---|---|
+  | Thalassa Highport | A space station: a habitat ring 1.4 km across, turning slowly round its docking hub, in orbit of Thalassa |
+  | Deepcut Station | A mining base dug into a big rock at the edge of the Inner Belt: refinery towers, ore tanks and a mass driver |
+  | Corsair Haven | A pirate base in a rock at the edge of the Outer Drift, with six gun emplacements round it (hostile) |
+  | Cinder Orbital Battery | Orbital weapons over Cinder's north pole: three gun platforms (three turrets and missiles each) and a beam lance (hostile) |
+  | Brontes Shipyard | A drydock in orbit of Brontes, with a destroyer half built inside its gantries |
+  | Ochre Relay | A communications relay over Ochre: three big dishes on a 480 m mast |
+  | Thalassa L1 Observatory | At the L1 Lagrange point between Kestrel and Thalassa: a 600 m sunshield, and a telescope in its shadow |
+  | Jovara L5 Depot | A propellant depot at Jovara's trailing Lagrange point, L5, 60 degrees behind the planet (the Trojans are at L4) |
+  | Selene Base | A colony on the surface of Selene: domes, habitats, a control tower and tanks round a landing pad |
+  | Cinder Fortress | The corsairs' stronghold on the surface of Cinder (hostile) |
+
+  - **Docking** (K, LB on the pad). Within 1.6 km of the berth at the Highport, Deepcut, the
+    shipyard or the L5 depot, and out of combat, K brings the frigate in to it. (Farther out,
+    K lands on the planet or moon nearby, as before.) There it is repaired, hull
+    and shield, and where there is a market (all but the shipyard) the whole hold is sold. The
+    HUD keeps the credits. K again undocks, and the ship pulls away under its own power.
+  - **The hostile ones fight.** Their guns are cold until the frigate comes within range in
+    plain sight: 5.2 km of Corsair Haven's guns, 6.5 km of the battery's platforms. Then
+    everything that can see it opens fire, and the warp drive is locked. Each gun and platform
+    can be targeted and destroyed; destroyed platforms come apart, and all of them are rebuilt
+    after two minutes or so. Out of range, they go cold again.
+  - **Bases on the surfaces.** Selene Base and Cinder Fortress can be seen from orbit.
+    Warping to one arrives straight above it, and landing from there (K) comes down beside it:
+    by Selene Base's landing pad, or 2.6 km from the fortress, facing it. On the ground they are
+    bigger, with two rings of buildings. The fortress has a ring of gun batteries and missile
+    sites, tanks, and a gunship and fighters on its pad.
 - **System map.** M (R3 on the pad) opens a top-down chart of every place the frigate can go,
-  with their orbits and the frigate's own position and heading. For the chosen destination it
-  shows the distance and how long the trip will take. Pick a place and warp from the map.
+  with their orbits and the frigate's own position and heading. Stations and installations are
+  small squares, bases and Lagrange points diamonds. For the chosen destination it shows what
+  it is, the distance and how long the trip will take. Pick a place and warp from the map.
 - **Mini-warp.**
   - The ship turns onto its destination and charges, with sparks streaming into the hull.
   - It jumps with a flash and a shockwave ring, then crosses the distance with streaks of
@@ -248,6 +280,9 @@ system to travel around.
   | Jovara Trojans | Raiders: four fighters and two drones hidden in the rocks |
   | Outer Drift | A pirate cruiser and two drones hidden in the rocks |
   | Cinder | Corsair patrol: a cruiser and two destroyers |
+  | Cinder Orbital Battery | Three gun platforms and a beam lance |
+  | Cinder Fortress (on the ground) | Gun batteries, missile sites, tanks, a gunship and fighters |
+  | Corsair Haven | Six gun emplacements |
   | Glacis | Dreadnought battle group: a dreadnought and two escort destroyers |
 
   The map marks the planets with capital ships on station as hostile. Enemy markers show for
@@ -283,6 +318,9 @@ system to travel around.
     detail out to 15 km for the view. They are built on worker threads, or a few rows a frame
     in the web version.
   - An area is thrown away once the ship is 20 km from it, to save memory.
+  - The garbage is collected before a surface is built and after it is thrown away on take-off,
+    and when the level is restarted (once before it is opened again, and once the old one is
+    closed).
   - Every area is generated from where it is on the planet, so it comes back the same when the
     ship returns. Flying all the way round, east or west, brings the ship back to where it
     started. Over a pole it comes down the far side, and carrying on over the other pole
@@ -304,7 +342,10 @@ system to travel around.
   targeted, and what is destroyed stays destroyed.
 
   Each world has its own sky, fog and light. Where people live (Ochre, Thalassa, Jovara and
-  the moons) there are landing pads with parked craft and beacons. On the surface the frigate
+  the moons) there are landing pads with parked craft and beacons, and a colony round each pad
+  on solid ground: domes, habitats, a control tower, tanks, a solar field, a comms mast and a
+  hangar. On hostile worlds the bases have fortress buildings round their pads: bunkers, a
+  command post, radar, walls, fuel tanks, barracks and a watchtower. On the surface the frigate
   flies as it does in space:
   - it can't sink into the ground, the sea or the deep clouds;
   - a landing assist slows the descent near the ground, so it can set down gently.
@@ -329,7 +370,7 @@ system to travel around.
 | Pause menu: resume, restart, sound, quit | Esc or P | Start |
 | Window / full screen | F11 | |
 | System map (Star System) | M | R3 |
-| Land / take off (Star System, in orbit) | K | LB |
+| Land / take off, dock / undock (Star System) | K | LB |
 | Mining laser on/off | Z | Back + A |
 | Mineral scan | V | Back + Y |
 | Cargo hold list / jettison the cheapest ore | I / J | Back + X / Back + B |
@@ -418,6 +459,12 @@ WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use
   to rock. Then it jettisons the cheapest ore and opens the cargo list. Next it warps to Comet
   Iskra, checks the tails point away from the star and mines ice. Last, it lands on Ochre and
   mines a vein in the ground.
+  Add `-stationtest` (or `?stationtest` on the web) to test only the stations, bases and
+  installations. It warps to each one. It docks at every berth, checking the repair, the sale
+  and that the warp drive and landing are locked while docked. It flies in on Corsair Haven and
+  the orbital battery until their guns open up, fights, destroys a gun and a platform, and
+  leaves until they stand down. It lands at both surface bases, checking their buildings and
+  ground forces. It checks the garbage is collected on every landing, take-off and restart.
 - `CarrierDemo.exe -reel <dir>` (or `AsteroidAmbush.exe` / `StarSystem.exe`): records a demo reel
   (60 s, 76 s for the ambush or about 215 s for the star system) at 30 fps as JPG frames plus a WAV
   soundtrack, then quits. Add `-features` to `StarSystem.exe -reel <dir>` for the feature reel

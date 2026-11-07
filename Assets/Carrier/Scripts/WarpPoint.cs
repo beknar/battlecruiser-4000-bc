@@ -5,12 +5,15 @@ namespace CarrierGame
 {
     /// <summary>
     /// A place in the star system the frigate can mini-warp to: the star, a planet, a moon, an
-    /// asteroid field or a comet. The ship drops out of warp `arrivalDistance` from it, on the side it came
-    /// from, facing it. The system map draws it at its position (seen from above), with its orbit.
+    /// asteroid field, a comet, or something built there (a station, an installation, an orbital
+    /// weapons battery, an asteroid base, a base on a planet's surface, an installation at a
+    /// Lagrange point). The ship drops out of warp `arrivalDistance` from it, on the side it came
+    /// from, facing it (over a surface base: straight above it). The system map draws it at its
+    /// position (seen from above), with its orbit.
     /// </summary>
     public class WarpPoint : MonoBehaviour
     {
-        public enum Kind { Star, Planet, Moon, AsteroidField, Comet }
+        public enum Kind { Star, Planet, Moon, AsteroidField, Comet, Station, Installation, Weapons, AsteroidBase, SurfaceBase, Lagrange }
 
         public string displayName = "Unknown";
         public Kind kind = Kind.Planet;
@@ -26,8 +29,19 @@ namespace CarrierGame
         public bool hostile;
         [Tooltip("What its surface is like, for landing (None: can't land).")]
         public SurfaceKind surface = SurfaceKind.None;
+        [Tooltip("A base on a planet or moon: landing here lands on that body, next to the base.")]
+        public WarpPoint landsOn;
+        [Tooltip("Drop out of warp straight above it (along its up axis), not on the near side.")]
+        public bool overhead;
+        [Tooltip("What the map calls it (empty: from its kind).")]
+        public string kindLabel = "";
 
         public Vector3 Position => transform.position;
+
+        /// <summary>Something built, not a natural body.</summary>
+        public bool Built => kind >= Kind.Station;
+        /// <summary>The body to land on from here (itself, or the body a surface base is on).</summary>
+        public WarpPoint LandingBody => landsOn != null ? landsOn : this;
 
         public static readonly List<WarpPoint> All = new List<WarpPoint>();
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -42,6 +56,17 @@ namespace CarrierGame
             Vector3 dir = from - Position;
             dir.y *= 0.3f;                              // arrive roughly level with it
             if (dir.sqrMagnitude < 1f) dir = Vector3.back;
+            if (overhead)
+            {
+                // straight above it, a little back the way the ship came so it faces the base
+                Vector3 up = transform.up;
+                Vector3 back = Vector3.ProjectOnPlane(dir, up);
+                Vector3 o = Position + up * arrivalDistance + (back.sqrMagnitude > 1f ? back.normalized * arrivalDistance * 0.15f : Vector3.zero);
+                if (Cover.Mask != 0)
+                    for (int i = 0; i < 40 && Physics.CheckSphere(o, 250f, Cover.Mask, QueryTriggerInteraction.Ignore); i++)
+                        o += up * 200f;
+                return o;
+            }
             Vector3 p = Position + dir.normalized * arrivalDistance + Vector3.up * (arrivalDistance * 0.08f);
             if (Cover.Mask != 0)
                 for (int i = 0; i < 40 && Physics.CheckSphere(p, 250f, Cover.Mask, QueryTriggerInteraction.Ignore); i++)

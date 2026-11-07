@@ -7,7 +7,8 @@ namespace CarrierGame
     /// <summary>
     /// The frigate's ore hold: so many tonnes of each mineral, up to `capacity` in all. What the
     /// mining laser brings in goes here; the cheapest mineral can be jettisoned to make room for
-    /// better. The cargo is lost if the ship is destroyed.
+    /// better. The cargo is lost if the ship is destroyed. Docked at a station with a market,
+    /// the whole hold is sold, and the credits kept.
     /// </summary>
     public class CargoHold : MonoBehaviour
     {
@@ -26,6 +27,9 @@ namespace CarrierGame
         public float TotalJettisoned { get; private set; }
         /// <summary>Tonnes lost with the ship.</summary>
         public float TotalLost { get; private set; }
+        /// <summary>Credits earned selling ore.</summary>
+        public float Credits { get; private set; }
+        public float TotalSold { get; private set; }
 
         public event Action Changed;
 
@@ -108,6 +112,21 @@ namespace CarrierGame
             TotalJettisoned += t;
             Changed?.Invoke();
             return t;
+        }
+
+        /// <summary>Sell everything aboard at its worth: returns the credits it fetched (and the
+        /// tonnes sold).</summary>
+        public float SellAll(out float tonnesSold)
+        {
+            tonnesSold = Used;
+            if (Used <= 0f) return 0f;
+            float v = Value;
+            Array.Clear(tonnes, 0, tonnes.Length);
+            Used = 0f;
+            Credits += v;
+            TotalSold += tonnesSold;
+            Changed?.Invoke();
+            return v;
         }
 
         /// <summary>Empty the hold (the ship was destroyed).</summary>

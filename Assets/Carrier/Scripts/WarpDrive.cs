@@ -100,6 +100,7 @@ namespace CarrierGame
             why = "";
             if (Time.time - LastHitTime < recentHitSeconds) { why = "under fire"; return true; }
             if (CombatPilot.AnyEngagedNear(transform.position, combatRange)) { why = "hostiles nearby"; return true; }
+            if (DefenseGrid.AnyEngagedNear(transform.position, combatRange, out string grid)) { why = $"in range of {grid}"; return true; }
             return false;
         }
 

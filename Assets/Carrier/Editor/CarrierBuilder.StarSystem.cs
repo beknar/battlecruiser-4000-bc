@@ -17,9 +17,10 @@ namespace Carrier.EditorTools
     /// The third level, "Star System": the Kestrel system, which the frigate crosses by mini-warp.
     /// A star; five planets of different kinds and sizes (volcanic, desert, ocean, gas giant, ice
     /// giant), the ocean world with two moons and the gas giant with four; three asteroid fields,
-    /// two of them with hostiles hiding in them; and two comets, their tails turned away from the
-    /// star. Every place has a WarpPoint for the system map. Every rock, moon and comet has
-    /// minerals in it for the frigate's mining laser.
+    /// two of them with hostiles hiding in them; two comets, their tails turned away from the
+    /// star; and what has been built (stations, bases, an orbital weapons battery, installations
+    /// at Lagrange points: CarrierBuilder.Installations). Every place has a WarpPoint for the
+    /// system map. Every rock, moon and comet has minerals in it for the frigate's mining laser.
     /// The planets are textured here (seamless noise on the sphere) and lit by the star's real
     /// position (Carrier/Planet shader); the moons and asteroids are generated from seeds when the
     /// level loads. Distances are compressed to keep every coordinate within ±300 km.
@@ -292,6 +293,8 @@ namespace Carrier.EditorTools
             var sparkMat = ParticleAdditive("FX_WarpSpark", KenneyTex("flare_01"), new Color(1.5f, 1.8f, 2.4f, 1f));
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            StructureMaterials();
+            var surfaceKit = SurfaceAssets(rockMat, p);
             SpaceLighting(Quaternion.identity, 2.4f, new Color(1f, 0.93f, 0.82f), new Color(0.05f, 0.05f, 0.07f));
             var sun = RenderSettings.sun;
             var fill = new GameObject("Fill").AddComponent<Light>();
@@ -355,18 +358,20 @@ namespace Carrier.EditorTools
 
             // the moons: two round Thalassa, four round Jovara
             // every moon is a warp destination
-            void Moon(string name, GameObject planet, WarpPoint parentWp, float angle, float distKm, float radius, int seed, string desc)
+            WarpPoint Moon(string name, GameObject planet, WarpPoint parentWp, float angle, float distKm, float radius, int seed, string desc)
             {
                 Vector3 pos = planet.transform.position + new Vector3(Mathf.Cos(angle * Mathf.Deg2Rad), 0.03f, Mathf.Sin(angle * Mathf.Deg2Rad)) * distKm * 1000f;
                 var m = MakeAsteroid(name, sys, pos, Quaternion.Euler(0f, angle, 0f), 1f, seed, 5, 3, new Vector3(radius, radius * 0.97f, radius),
                                      0.05f, 40, radius / 6f, rockMat, layer, radius * 1.15f, radius * 0.9f);
                 m.GetComponent<Obstacle>().cover = true;
                 m.GetComponent<MineralDeposit>().body = BodyClass.Moon;
-                MakeWarpPoint(m, name, WarpPoint.Kind.Moon, desc, radius, radius * 3.2f + 1500f, new Color(0.75f, 0.75f, 0.78f), parentWp).surface = SurfaceKind.Moon;
+                var mw = MakeWarpPoint(m, name, WarpPoint.Kind.Moon, desc, radius, radius * 3.2f + 1500f, new Color(0.75f, 0.75f, 0.78f), parentWp);
+                mw.surface = SurfaceKind.Moon;
+                return mw;
             }
-            Moon("Selene", thalassa, wThalassa, 35f, 16f, 1400f, 901, "Thalassa's larger moon: grey, airless and heavily cratered.");
+            var wSelene = Moon("Selene", thalassa, wThalassa, 35f, 16f, 1400f, 901, "Thalassa's larger moon: grey, airless and heavily cratered. A colony, Selene Base, stands on its sunlit side.");
             Moon("Mnemos", thalassa, wThalassa, 205f, 24f, 900f, 902, "A small moon of Thalassa.");
-            Moon("Brontes", jovara, wJovara, 10f, 34f, 2400f, 903, "Jovara's inner moon, scarred by ancient impacts.");
+            var wBrontes = Moon("Brontes", jovara, wJovara, 10f, 34f, 2400f, 903, "Jovara's inner moon, scarred by ancient impacts. A shipyard orbits it.");
             Moon("Arges", jovara, wJovara, 125f, 46f, 1600f, 904, "A small moon of Jovara.");
             Moon("Steropes", jovara, wJovara, 235f, 60f, 2800f, 905, "Jovara's largest moon, with deep craters along its terminator.");
             Moon("Pyrois", jovara, wJovara, 300f, 75f, 1100f, 906, "A small moon of Jovara.");
@@ -386,7 +391,7 @@ namespace Carrier.EditorTools
             fTrojan.transform.SetParent(sys, false);
             fTrojan.transform.position = trojanC;
             MakeWarpPoint(fTrojan, "Jovara Trojans", WarpPoint.Kind.AsteroidField,
-                "Rocks gathered ahead of Jovara in its orbit. Raider fighters have been seen hiding here.", 5000f, 8000f, new Color(0.85f, 0.55f, 0.45f), null, true).surface = SurfaceKind.Asteroid;
+                "Rocks gathered at Jovara's leading Lagrange point, L4, 60 degrees ahead of it in its orbit. Raider fighters have been seen hiding here.", 5000f, 8000f, new Color(0.85f, 0.55f, 0.45f), null, true).surface = SurfaceKind.Asteroid;
 
             var outerC = Polar(165f, 262f, 3f);
             var outerBig = MakeField("Outer Drift", sys, outerC, 6000f, 120, 3303, rockMat, layer);
@@ -535,6 +540,14 @@ namespace Carrier.EditorTools
                 "A faint comet far out in the cold, its tails only beginning to grow. The dark nucleus is dirty ice: water, carbon dioxide, " +
                 "methane and ammonia, with a little deuterium.");
 
+            // stations, bases, the orbital battery, the Lagrange point installations
+            var built = BuildInstallations(new SystemRefs
+            {
+                sys = sys, star = star.transform, cinder = cinder, ochre = ochre, thalassa = thalassa, jovara = jovara,
+                wCinder = wCinder, wThalassa = wThalassa, wSelene = wSelene, wBrontes = wBrontes,
+                innerC = innerC, outerC = outerC, rockMat = rockMat, layer = layer, kit = surfaceKit,
+            }, p);
+
             // camera, controls and the system map
             var camGo = new GameObject("Main Camera");
             camGo.tag = "MainCamera";
@@ -557,7 +570,7 @@ namespace Carrier.EditorTools
             demo.carrier = cc;
             demo.orbitCamera = orbit;
             demo.targetOnStart = false;
-            demo.targets = new[] { cruiser.transform }.Concat(all.Where(g => g != cruiser).Select(g => g.transform)).ToArray();
+            demo.targets = new[] { cruiser.transform }.Concat(all.Where(g => g != cruiser).Select(g => g.transform)).Concat(built.targets).ToArray();
             var map = demoGo.AddComponent<SystemMap>();
             map.carrier = cc;
             map.drive = drive;
@@ -566,12 +579,15 @@ namespace Carrier.EditorTools
             landing.carrier = cc;
             landing.drive = drive;
             landing.fill = fill;
-            landing.kit = SurfaceAssets(rockMat, p);
+            landing.kit = surfaceKit;
+            var docking = demoGo.AddComponent<Docking>();
+            docking.carrier = cc;
+            docking.drive = drive;
 
             foreach (var w in sys.GetComponentsInChildren<WarpPoint>())
                 Log($"warp point {w.displayName,-16} {w.kind,-13} {w.transform.position.magnitude / 1000f,6:F0} km from the star");
 
-            StarSystemShots(sys, star.transform, thalassa.transform, jovara.transform, wThalassa, start);
+            StarSystemShots(sys, star.transform, thalassa.transform, jovara.transform, wThalassa, start, built.shots);
 
             foreach (var pa in sys.GetComponentsInChildren<ProceduralAsteroid>(true)) pa.Clear();
             foreach (var ps in sys.GetComponentsInChildren<ProceduralSphere>(true)) ps.Clear();
@@ -582,7 +598,8 @@ namespace Carrier.EditorTools
         }
 
         /// <summary>Review renders (Temp/carrier_shots/sys_*.png).</summary>
-        static void StarSystemShots(Transform sys, Transform star, Transform thalassa, Transform jovara, WarpPoint wThalassa, Vector3 start)
+        static void StarSystemShots(Transform sys, Transform star, Transform thalassa, Transform jovara, WarpPoint wThalassa, Vector3 start,
+                                    List<(string name, Vector3 from, Vector3 at)> extra)
         {
             Directory.CreateDirectory(ShotDir);
             var sl = star.GetComponent<StarLight>();
@@ -627,6 +644,7 @@ namespace Carrier.EditorTools
                 Shot($"sys_comet_{n}_arrive", cw.ArrivalPoint(Vector3.zero) + Vector3.up * 300f, c);
                 foreach (var ps in comet.GetComponentsInChildren<ParticleSystem>()) ps.Clear(true);
             }
+            foreach (var (name, from, at) in extra) Shot(name, from, at);
             Object.DestroyImmediate(go);
             // the other scenes' atmospheres light from the main light unless this is set: clear it
             Shader.SetGlobalVector("_CarrierStarPos", Vector4.zero);

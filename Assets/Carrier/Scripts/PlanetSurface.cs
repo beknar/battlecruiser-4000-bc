@@ -554,6 +554,8 @@ namespace CarrierGame
                         if (c.name == "Parked craft") Destroy(c.gameObject);    // room for its own ships
                 t.outpost = o.transform;
             }
+            stage = "base";
+            if (f != null && f.site != SiteKind.None) BuildBase(t, f);
 
             stage = "boulders";
             // boulders
@@ -599,6 +601,61 @@ namespace CarrierGame
             stage = "ground forces";
             // ground forces
             Garrison(t);
+        }
+
+        /// <summary>Buildings put up round landing pads so far (for the self-test).</summary>
+        public int BuildingsBuilt { get; private set; }
+
+        /// <summary>The buildings round a site's pad: a colony (domes, habitats, a control tower,
+        /// tanks, solar fields, a comms mast, a hangar) where people live, a fortress (bunkers, a
+        /// command post, radar, walls, watchtowers) on a hostile world. A named base has two rings
+        /// of them. They stand on the ground, never in the sea or lava, never on steep slopes, and
+        /// keep clear of the ground forces' positions. Not on a gas giant's floating platforms.</summary>
+        void BuildBase(Tile t, TileFeatures f)
+        {
+            var parts = f.site == SiteKind.Base ? Kit.fort : Kit.colony;
+            if (parts == null || parts.Length == 0 || !World.solid) return;
+            bool major = f.baseName != null;
+            var group = new GameObject("Base: " + (f.baseName ?? (f.site == SiteKind.Base ? "hostile base" : "colony"))).transform;
+            group.SetParent(t.go.transform, false);
+            var rng = new System.Random(f.i * 15485863 + f.j * 32452843 + World.seed);
+            float Rn(float a, float b) => a + (float)rng.NextDouble() * (b - a);
+            float slopeLimit = 20f;
+            int rings = major ? 2 : 1;
+            int built = 0;
+            for (int ring = 0; ring < rings; ring++)
+            {
+                int count = major ? (ring == 0 ? 8 : 12) : 5 + rng.Next(0, 3);
+                float radius = SurfaceWorld.PadRadius + 90f + ring * 210f;
+                for (int k = 0; k < count; k++)
+                {
+                    // round the pad, the first one at the pad's own heading, a little out of line
+                    float a = (f.siteYaw + (k + 0.5f * ring) * 360f / count + Rn(-9f, 9f)) * Mathf.Deg2Rad;
+                    float r = radius + Rn(-25f, 40f);
+                    double cu = f.su + Mathf.Cos(a) * r, cv = f.sv + Mathf.Sin(a) * r;
+                    if (Mathf.Abs((float)cv) > World.V - World.polarBand) continue;
+                    bool nearUnit = false;
+                    foreach (var us in f.units) if (Dist(cu, cv, us.u, us.v) < 75f) { nearUnit = true; break; }
+                    if (nearUnit) continue;
+                    Vector3 p = Place(t, cu, cv, out float turn);
+                    if (p.y < SeaLevel + 3f) continue;
+                    var n = (p - t.go.transform.position) / T;
+                    if (n.x < 0f || n.x > 1f || n.z < 0f || n.z > 1f) continue;
+                    if (t.data.GetSteepness(n.x, n.z) > slopeLimit) continue;
+                    // every kind once before any repeats (a named base has them all)
+                    var prefab = parts[(k + ring * count + (major ? 0 : rng.Next(0, parts.Length))) % parts.Length];
+                    if (prefab == null) continue;
+                    var b = Instantiate(prefab, group);
+                    b.name = prefab.name;
+                    // facing the pad (its front, +Z, toward the middle)
+                    Vector3 toPad = new Vector3(-Mathf.Cos(a), 0f, -Mathf.Sin(a));
+                    if (t.flipped) toPad = -toPad;
+                    b.transform.SetPositionAndRotation(p + Vector3.down * 1.5f, Quaternion.LookRotation(toPad, Vector3.up));
+                    foreach (var c in b.GetComponentsInChildren<Collider>(true)) c.gameObject.layer = layer;
+                    built++;
+                }
+            }
+            BuildingsBuilt += built;
         }
 
         /// <summary>Put an area's ground forces in it, unless another built copy of the same area

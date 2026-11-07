@@ -452,11 +452,28 @@ namespace CarrierGame.Demo
         string Manifest(CargoHold hold) =>
             string.Join(", ", hold.Manifest().Take(8).Select(e => $"{Minerals.Name(e.mineral)} {e.tonnes:F1} t")) + $" (worth {hold.Value:N0} cr)";
 
-        /// <summary>Scan (V) and wait for the sweep; returns the nearest find (not mined out).</summary>
-        IEnumerator ScanAndLog(Keyboard kb, MineralSensor sensor, string where, Action<IMineralSource> nearest)
+        /// <summary>Scan (V) and wait for the sweep; returns the nearest find (not mined out).
+        /// With `sweepShot`, a picture of the pulse halfway out, from above and looking away
+        /// from the star (its glare would hide the rings).</summary>
+        IEnumerator ScanAndLog(Keyboard kb, MineralSensor sensor, string where, Action<IMineralSource> nearest, string sweepShot = null)
         {
             yield return Key(kb, UnityEngine.InputSystem.Key.V);
             bool started = sensor.Sweeping;
+            var oc = demo.orbitCamera;
+            if (sweepShot != null && oc != null && started)
+            {
+                float d0 = oc.distance, p0 = oc.pitch, y0 = oc.yaw;
+                var star = Point("Kestrel");
+                Vector3 away = star != null ? cc.transform.position - star.Position : cc.transform.forward;
+                oc.yaw = Mathf.Atan2(away.x, away.z) * Mathf.Rad2Deg;
+                oc.pitch = 32f;
+                oc.distance = demo.ShipViewDistance * 6f;
+                while (sensor.Sweeping && sensor.SweepProgress < 0.45f) yield return null;
+                Shot(sweepShot);
+                Log($"  {sweepShot}: the pulse {sensor.SweepProgress * sensor.ScanRange / 1000f:F1} km out, rings drawn {sensor.ringFlat != null && sensor.ringFlat.enabled}");
+                yield return null;
+                oc.distance = d0; oc.pitch = p0; oc.yaw = y0;
+            }
             float until = Time.time + sensor.sweepTime + 3f;
             while (sensor.Sweeping && Time.time < until) yield return null;
             yield return new WaitForSeconds(0.3f);
@@ -487,7 +504,7 @@ namespace CarrierGame.Demo
 
             // ---------------------------------------------------- an asteroid field
             yield return WarpTo(kb, "Inner Belt", "n0");
-            yield return ScanAndLog(kb, sensor, "the Inner Belt", s => src = s);
+            yield return ScanAndLog(kb, sensor, "the Inner Belt", s => src = s, "n1_sweep");
             Shot("n1_scan");
             scanOk = sensor.Finds.Count > 0 && sensor.Scans == 1;
             if (src == null) { Log("FAIL: mining (the scan found nothing)"); yield break; }
@@ -553,14 +570,21 @@ namespace CarrierGame.Demo
             var oc = demo.orbitCamera;
             if (oc != null && comet != null)
             {
-                // look back past the ship along the tails
-                Vector3 side = Vector3.Cross(comet.tails.forward, Vector3.up).normalized;
-                Vector3 look = comet.transform.position + comet.tails.forward * 15000f - (cc.transform.position + side * 2000f);
-                oc.yaw = Mathf.Atan2(-look.x, -look.z) * Mathf.Rad2Deg;
-                oc.pitch = 8f;
-                oc.distance = oc.maxDistance;
+                // from high above the comet, looking down on its whole length: the coma, the
+                // straight ion tail and the dust tail curving back along the orbit
+                Vector3 look = -(comet.tails.up * 60000f - comet.tails.right * 8000f);
+                var target0 = oc.target;
+                Vector3 offset0 = oc.offset;
+                oc.target = comet.transform;
+                oc.offset = comet.tails.forward * 20000f;
+                oc.yaw = Mathf.Atan2(look.x, look.z) * Mathf.Rad2Deg;
+                oc.pitch = -Mathf.Atan2(look.y, new Vector2(look.x, look.z).magnitude) * Mathf.Rad2Deg;
+                oc.distance = look.magnitude;
                 yield return new WaitForSeconds(0.8f);
                 Shot("n5_comet_tails");
+                yield return null;
+                oc.target = target0;
+                oc.offset = offset0;
                 oc.distance = demo.ShipViewDistance;
                 oc.pitch = 16f;
             }
@@ -590,7 +614,7 @@ namespace CarrierGame.Demo
                 yield return new WaitForSeconds(2f);
                 float used1 = hold.Used;
                 src = null;
-                yield return ScanAndLog(kb, sensor, "Ochre's surface", s => src = s);
+                yield return ScanAndLog(kb, sensor, "Ochre's surface", s => src = s, "n7_sweep");
                 Shot("n7_surface_scan");
                 var surf = landing.Surface;
                 foreach (var f in sensor.Finds.Take(4))

@@ -18,7 +18,9 @@ namespace CarrierGame.Demo
     /// when it touches down slowly. K again, or climbing high above the ground, takes it back to
     /// orbit where it left. The surface is built far below the star system (nothing there is in
     /// view from it) and thrown away on take-off; the sky, fog and light are swapped for the
-    /// world's own.
+    /// world's own. The garbage is collected before a surface is built and after it is thrown
+    /// away. A base on a body (Selene Base, Cinder Fortress) is landed at from orbit over it: the
+    /// ship comes down by its landing pad (beside a hostile fortress, a few kilometres out).
     /// </summary>
     [DefaultExecutionOrder(300)]   // after the ship moves and the camera follows it
     public class PlanetLanding : MonoBehaviour
@@ -102,6 +104,7 @@ namespace CarrierGame.Demo
             }
             if (best == null) return null;
             if (carrier.Destroyed) why = "the frigate is destroyed";
+            else if (Docking.Busy) why = "undock first";
             else if (drive != null && drive.Current != WarpDrive.State.Ready) why = "in warp";
             else if (drive != null && drive.InCombat(out string c)) why = c;
             return best;
@@ -123,7 +126,7 @@ namespace CarrierGame.Demo
                 SoundFX.Ui(Sfx.UiError);
                 return false;
             }
-            StartCoroutine(Descend(body));
+            StartCoroutine(Descend(body.LandingBody));
             return true;
         }
 
@@ -131,7 +134,7 @@ namespace CarrierGame.Demo
         public bool LandOn(WarpPoint body)
         {
             if (Current != State.InSpace || body == null || body.surface == SurfaceKind.None || carrier.Destroyed) return false;
-            StartCoroutine(Descend(body));
+            StartCoroutine(Descend(body.LandingBody));
             return true;
         }
 
@@ -180,11 +183,21 @@ namespace CarrierGame.Demo
             // somewhere people live: come in near the nearest landing pad
             var pad = w.outposts ? NearestSite(w, u, v, 4) : null;
             if (pad != null) { u = pad.su; v = pad.sv; }
+            // over a hostile world's fortress: come down a few kilometres west of it, facing it
+            faceEast = false;
+            if (pad == null && w.NearBase(u, v, 3000.0, out double bu, out double bv, out bool hostileBase) && hostileBase)
+            {
+                u = bu - HostileBaseStandoff;
+                v = bv;
+                faceEast = true;
+            }
             int area = AreaOf(w, u, v);
             Seed = w.seed * 1000 + area % 1000;
             w.SetSun(area);
             Material skyPlanet = null;
             if (body.kind == WarpPoint.Kind.Moon && body.orbitParent != null && body.orbitParent.TryGetComponent(out MeshRenderer pr)) skyPlanet = pr.sharedMaterial;
+            // free what the last surface (or anything else) left behind before building this one
+            SceneMemory.Collect($"before building {body.displayName}'s surface");
             float t0 = Time.realtimeSinceStartup;
             if (!memory.TryGetValue(body.displayName, out var mem)) memory[body.displayName] = mem = (new HashSet<int>(), new HashSet<long>());
             Surface = PlanetSurface.Create(w, kit, carrier.transform, SiteCenter, u, v, mem.Item1, mem.Item2, skyPlanet);
@@ -257,9 +270,11 @@ namespace CarrierGame.Demo
         {
             RestoreLook();
             CombatPilot.FloorAt = null;
+            bool hadSite = Site != null;
             Site?.Destroy();
             Site = null;
             Surface = null;
+            if (hadSite) StartCoroutine(CollectWhenGone(Body != null ? $"left {Body.displayName}'s surface" : "left the surface"));
             if (moveShip)
             {
                 // back where it left, nose turned away from the body so it doesn't fly into it
@@ -281,12 +296,23 @@ namespace CarrierGame.Demo
             Current = State.InSpace;
         }
 
+        /// <summary>The surface is destroyed at the end of the frame: collect after that.</summary>
+        IEnumerator CollectWhenGone(string why)
+        {
+            yield return null;
+            SceneMemory.Collect(why);
+        }
+
+        /// <summary>How far west of a hostile fortress the ship comes down (m).</summary>
+        public const double HostileBaseStandoff = 2600.0;
+        bool faceEast;
+
         /// <summary>Come in low, a little way out from the landing pad and heading for it (or
         /// over the point it came down to, where there is no pad).</summary>
         void ArriveOverPad()
         {
             var rng = new System.Random(Seed + 5);
-            float yaw = (float)rng.NextDouble() * 360f;
+            float yaw = faceEast ? 90f : (float)rng.NextDouble() * 360f;   // (the ship faces -back: east)
             Vector3 back = Quaternion.Euler(0f, yaw, 0f) * Vector3.back;
             Vector3 p = Site.hasOutpost ? Site.pad + back * 900f : Site.center;
             float ground = Surface.FloorAt(p);
@@ -311,6 +337,10 @@ namespace CarrierGame.Demo
             if (worlds.TryGetValue(body, out var w)) return w;
             float r = body.kind == WarpPoint.Kind.AsteroidField ? Mathf.Max(800f, body.bodyRadius * 0.3f) : Mathf.Max(500f, body.bodyRadius);
             w = new SurfaceWorld(body.surface, body.displayName, r * surfaceScale, body.hostile);
+            // the bases seen on it from orbit are on its surface too, in the same places
+            foreach (var b in WarpPoint.All)
+                if (b != null && b.landsOn == body && body.kind != WarpPoint.Kind.AsteroidField)
+                    w.AddBase(b.displayName, body.transform.InverseTransformDirection(b.Position - body.Position), b.hostile);
             worlds[body] = w;
             return w;
         }
@@ -472,6 +502,7 @@ namespace CarrierGame.Demo
             }
             if (Current == State.InSpace) candidate = Candidate(out candidateWhy);
             if (GameMenu.IsOpen || GameMenu.JustClosed || SystemMap.IsOpen || SystemMap.JustClosed) return;
+            if (Current == State.InSpace && Docking.WantsKey) return;   // K docks (or undocks) here
             var k = Keyboard.current;
             var pad = Gamepad.current;
             bool press = (k != null && k.kKey.wasPressedThisFrame) || (pad != null && !carrier.HasMissiles && pad.leftShoulder.wasPressedThisFrame);
@@ -642,7 +673,7 @@ namespace CarrierGame.Demo
             }
             var body = candidate;
             string why = candidateWhy;
-            if (body == null) return null;
+            if (body == null || Docking.WantsKey) return null;
             return why == "" ? $"Land  <color=#7ee08a>{key} land on {body.displayName}</color>"
                              : $"Land  <color=#ff6050>{body.displayName}: {why}</color>";
         }

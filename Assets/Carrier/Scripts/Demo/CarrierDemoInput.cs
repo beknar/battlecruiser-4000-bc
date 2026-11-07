@@ -379,6 +379,8 @@ namespace CarrierGame.Demo
                     _ => warp.InCombat(out string why) ? $"<color=#ff6050>locked: {why}</color>" : $"<color=#7ee08a>ready</color>  <color=#9aa4b0>{key} system map</color>",
                 };
                 sb.Append($"\nWarp  {w}");
+                string dock = Docking.Instance != null ? Docking.Instance.HudText() : null;
+                if (dock != null) sb.Append("\n" + dock);
                 string land = Landing != null ? Landing.HudText() : null;
                 if (land != null) sb.Append("\n" + land);
                 var here = WarpPoint.Nearest(carrier.transform.position);
@@ -406,7 +408,8 @@ namespace CarrierGame.Demo
             }
             if (cargo != null)
                 sb.Append($"\nCargo  {cargo.Used:F0} / {cargo.capacity:F0} t  {Bar(cargo.Fraction)}" +
-                          (cargo.Used > 0.5f ? $"  <color=#9aa4b0>{cargo.Value:N0} cr</color>" : ""));
+                          (cargo.Used > 0.5f ? $"  <color=#9aa4b0>{cargo.Value:N0} cr</color>" : "") +
+                          (cargo.Credits > 0.5f ? $"   Credits <color=#ffd27a>{cargo.Credits:N0} cr</color>" : ""));
             if (miningLaser != null)
             {
                 string key = PadSupport.UsingPad && Gamepad.current != null ? "Back+A" : "Z";
@@ -757,7 +760,7 @@ namespace CarrierGame.Demo
             carrier.HasHangar ? "C camera: carrier / craft" : null,
             "Right-drag orbit   mouse wheel zoom",
             warp != null ? "M system map: mini-warp" : null,
-            Landing != null ? "K land / take off (in orbit)" : null,
+            Landing != null ? (Docking.Instance != null ? "K land / take off, dock / undock" : "K land / take off (in orbit)") : null,
             Laser != null ? "Z mining laser   V mineral scan" : null,
             Laser != null ? "I cargo hold   J jettison cheapest ore" : null,
             "H hide help   +/- text size   N sound",
@@ -777,7 +780,7 @@ namespace CarrierGame.Demo
             "RB fire guns" + (carrier.HasMissiles ? "   LB missile salvo" : "") + (MainGun != null && !carrier.HasHangar ? "   X main gun" : ""),
             "L3 auto-fire on/off" + (carrier.HasHangar ? "   R3 camera: carrier / craft" : ""),
             warp != null ? "R3 system map: mini-warp" : null,
-            Landing != null && !carrier.HasMissiles ? "LB land / take off (in orbit)" : null,
+            Landing != null && !carrier.HasMissiles ? (Docking.Instance != null ? "LB land / take off, dock / undock" : "LB land / take off (in orbit)") : null,
             Laser != null ? "Back+A mining laser   Back+Y mineral scan" : null,
             Laser != null ? "Back+X cargo hold   Back+B jettison" : null,
             "Back hide help   Start menu",

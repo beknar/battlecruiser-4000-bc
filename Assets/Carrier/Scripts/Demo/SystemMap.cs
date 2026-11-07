@@ -7,9 +7,11 @@ namespace CarrierGame.Demo
 {
     /// <summary>
     /// The star system map: a top-down chart of every place the frigate can mini-warp to (the
-    /// star, the planets and their moons, the asteroid fields), with their orbits, the frigate's
-    /// own position and heading, and for the chosen destination its distance and how long the
-    /// trip will take. Pick a destination and warp from here.
+    /// star, the planets and their moons, the asteroid fields, the comets, and what has been
+    /// built: stations, installations, weapons batteries, bases), with the bodies' orbits, the
+    /// frigate's own position and heading, and for the chosen destination its distance and how
+    /// long the trip will take. Built places are small squares; a name that would run into
+    /// another is left off until the place is chosen. Pick a destination and warp from here.
     ///
     /// Keyboard and mouse: M opens and closes it; click a place (or use the arrow keys / WASD,
     /// Tab to step through), then click WARP, double-click, or press Enter. Esc closes it.
@@ -269,18 +271,19 @@ namespace CarrierGame.Demo
             // long, tilted orbit isn't drawn)
             foreach (var w in order)
             {
-                if (w.kind == WarpPoint.Kind.Star || w.kind == WarpPoint.Kind.Comet) continue;
+                if (w.kind == WarpPoint.Kind.Star || w.kind == WarpPoint.Kind.Comet || w.Built) continue;
                 Vector2 c = w.orbitParent != null ? ScreenPosOf(w.orbitParent) : starPx;
                 float r = Vector2.Distance(ScreenPosOf(w), c);
                 DottedCircle(c, r, w.orbitParent != null ? new Color(0.6f, 0.7f, 0.85f, 0.25f) : new Color(0.6f, 0.7f, 0.85f, 0.35f),
                              Mathf.Clamp(Mathf.RoundToInt(r * 0.35f), 24, 260));
             }
-            // the bodies and fields
+            // the bodies and fields, then what is built
             var label = Hud.Text(15);
             foreach (var w in order)
             {
                 Vector2 p = ScreenPosOf(w);
-                if (w.kind == WarpPoint.Kind.AsteroidField) Field(p, w, s);
+                if (w.Built) Structure(p, w, s);
+                else if (w.kind == WarpPoint.Kind.AsteroidField) Field(p, w, s);
                 else if (w.kind == WarpPoint.Kind.Comet)
                 {
                     // a bright head with its tail streaming away from the star
@@ -295,10 +298,27 @@ namespace CarrierGame.Demo
                     if (w.kind == WarpPoint.Kind.Star) Draw(disc, p, size * 2.2f, new Color(w.mapColor.r, w.mapColor.g, w.mapColor.b, 0.18f));
                     Draw(disc, p, size, w.mapColor);
                 }
-                if (w.hostile) Draw(ring, p, 30f * s, new Color(1f, 0.35f, 0.3f, 0.9f));
-                bool here = IsHere(w);
+                if (w.hostile) Draw(ring, p, (w.Built ? 20f : 30f) * s, new Color(1f, 0.35f, 0.3f, 0.9f));
+            }
+            // names: the chosen place, the one under the mouse and the one the frigate is at
+            // first, then the bodies, then what is built; one that would overlap another is left off
+            placed.Clear();
+            hereNow = order.FirstOrDefault(IsHere);
+            ranked.Clear();
+            ranked.AddRange(order);
+            ranked.Sort((a, b) => LabelRank(a).CompareTo(LabelRank(b)));
+            foreach (var w in ranked)
+            {
+                Vector2 p = ScreenPosOf(w);
+                bool here = w == hereNow;
                 string name = w.displayName + (here ? "  <color=#7ee08a>(here)</color>" : "") + (w.hostile ? "  <color=#ff6050>!</color>" : "");
-                GUI.Label(new Rect(p.x + 12f * s, p.y - 9f * s, 300f * s, 24f * s), name, label);
+                var content = new GUIContent(name);
+                Vector2 size = label.CalcSize(content);
+                var r = new Rect(p.x + 12f * s, p.y - 9f * s, size.x, size.y);
+                bool must = w == Selected || w == Hover || here;
+                if (!must && Overlaps(r)) continue;
+                placed.Add(r);
+                GUI.Label(new Rect(r.x, r.y, 300f * s, 24f * s), content, label);
             }
             // the frigate, and the way to the chosen place
             Vector2 me = ToScreen(carrier.transform.position);
@@ -323,6 +343,52 @@ namespace CarrierGame.Demo
             Info(s);
         }
 
+        readonly List<Rect> placed = new List<Rect>();
+        readonly List<WarpPoint> ranked = new List<WarpPoint>();
+        WarpPoint hereNow;
+
+        int LabelRank(WarpPoint w) => w == Selected ? 0 : w == Hover ? 1 : w == hereNow ? 2 : !w.Built ? 3 : 4;
+
+        bool Overlaps(Rect r)
+        {
+            foreach (var q in placed) if (q.Overlaps(r)) return true;
+            return false;
+        }
+
+        /// <summary>A built place: a small square (a diamond for a base on a surface), with a
+        /// dark edge so it shows against an orbit or a planet's disc.</summary>
+        void Structure(Vector2 p, WarpPoint w, float s)
+        {
+            if (Event.current.type != EventType.Repaint) return;
+            float k = (w.kind == WarpPoint.Kind.Station ? 11f : 8f) * s;
+            var m = GUI.matrix;
+            if (w.kind == WarpPoint.Kind.SurfaceBase || w.kind == WarpPoint.Kind.Lagrange) GUIUtility.RotateAroundPivot(45f, p);
+            var outer = new Rect(p.x - k * 0.5f - 1.5f * s, p.y - k * 0.5f - 1.5f * s, k + 3f * s, k + 3f * s);
+            Hud.Fill(outer, new Color(0f, 0.02f, 0.05f, 0.9f));
+            Hud.Fill(new Rect(p.x - k * 0.5f, p.y - k * 0.5f, k, k), w.mapColor);
+            GUI.matrix = m;
+        }
+
+        /// <summary>What the info panel calls a place.</summary>
+        public static string KindText(WarpPoint w)
+        {
+            if (!string.IsNullOrEmpty(w.kindLabel)) return w.kindLabel;
+            return w.kind switch
+            {
+                WarpPoint.Kind.Star => "Star",
+                WarpPoint.Kind.Moon => $"Moon of {(w.orbitParent ? w.orbitParent.displayName : "?")}",
+                WarpPoint.Kind.AsteroidField => "Asteroid field",
+                WarpPoint.Kind.Comet => "Comet",
+                WarpPoint.Kind.Station => "Space station",
+                WarpPoint.Kind.Installation => "Installation",
+                WarpPoint.Kind.Weapons => "Orbital weapons battery",
+                WarpPoint.Kind.AsteroidBase => "Asteroid base",
+                WarpPoint.Kind.SurfaceBase => $"Base on {(w.landsOn ? w.landsOn.displayName : "?")}",
+                WarpPoint.Kind.Lagrange => "Lagrange point installation",
+                _ => "Planet",
+            };
+        }
+
         void Info(float s)
         {
             float x = infoRect.x + 20f * s, y = infoRect.y + 18f * s, w = infoRect.width - 40f * s;
@@ -332,11 +398,7 @@ namespace CarrierGame.Demo
             {
                 GUI.Label(new Rect(x, y, w, 34f * s), $"<b>{Selected.displayName}</b>", Hud.Text(26));
                 y += 36f * s;
-                string kind = Selected.kind switch
-                {
-                    WarpPoint.Kind.Star => "Star", WarpPoint.Kind.Moon => $"Moon of {(Selected.orbitParent ? Selected.orbitParent.displayName : "?")}",
-                    WarpPoint.Kind.AsteroidField => "Asteroid field", WarpPoint.Kind.Comet => "Comet", _ => "Planet",
-                };
+                string kind = KindText(Selected);
                 GUI.Label(new Rect(x, y, w, 24f * s), $"<color=#9aa4b0>{kind}</color>", body);
                 y += 30f * s;
                 var desc = new GUIContent(Selected.description + (Selected.hostile ? "\n<color=#ff6050>Hostile contacts reported.</color>" : ""));

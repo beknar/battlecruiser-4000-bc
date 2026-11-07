@@ -10,8 +10,9 @@ namespace Carrier.EditorTools
     /// What the planets' surfaces are built from (PlanetSurface makes the terrain itself when the
     /// ship lands): the terrain, sky, sea, lava and horizon materials, the weather particles, an
     /// outpost (a landing pad of Mega_City pad tiles with a couple of parked cargo craft and
-    /// beacon lights) for the worlds where someone lives, and what hostile worlds' ground forces
-    /// are made of (the heavy turret, enemy ships and their weapons, bunker and armour materials).
+    /// beacon lights) for the worlds where someone lives, the buildings put up round the pads (a
+    /// colony's, or a hostile fortress's), and what hostile worlds' ground forces are made of
+    /// (the heavy turret, enemy ships and their weapons, bunker and armour materials).
     /// </summary>
     public static partial class CarrierBuilder
     {
@@ -45,6 +46,10 @@ namespace Carrier.EditorTools
             kit.bunker = Lit("Surface_Bunker", new Color(0.3f, 0.3f, 0.31f), metallic: 0.2f, smooth: 0.25f);
             kit.armor = Lit("Surface_Armor", new Color(0.36f, 0.2f, 0.17f), metallic: 0.6f, smooth: 0.45f);
             kit.warning = Lit("Surface_Warning", new Color(1f, 0.25f, 0.15f), metallic: 0f, smooth: 0.3f, emission: new Color(1f, 0.2f, 0.1f) * 8f);
+            // the planetary bases' buildings
+            kit.colony = ColonyBuildings();
+            kit.fort = FortBuildings(kit);
+            Log($"base buildings: {kit.colony.Length} for colonies, {kit.fort.Length} for fortresses");
             return kit;
         }
 

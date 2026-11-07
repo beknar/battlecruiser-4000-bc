@@ -113,6 +113,9 @@ namespace CarrierGame
     {
         public int i, j;
         public SiteKind site;
+        /// <summary>A named base seen from orbit (Selene Base, Cinder Fortress): bigger than the
+        /// others, and a hostile one is more heavily defended. Null for an ordinary site.</summary>
+        public string baseName;
         public double su, sv;
         public float siteYaw;
         public float siteHeight;
@@ -177,6 +180,10 @@ namespace CarrierGame
         public ParticleLook particles;
         float craterAmount;
         float siteChance;
+
+        /// <summary>The named bases on this world (where they are seen from orbit).</summary>
+        readonly List<(string name, double u, double v, bool hostile)> bases = new List<(string, double, double, bool)>();
+        public int BaseCount => bases.Count;
 
         // the ground
         readonly PlanetNoise n1, n2, n3, n4, n5, n6, n7, nSplat;
@@ -346,6 +353,44 @@ namespace CarrierGame
         static double Mod(double a, double m) { a %= m; return a < 0 ? a + m : a; }
         static int Mod(int a, int m) => ((a % m) + m) % m;
 
+        /// <summary>A named base, under a direction from the body's centre (its own space). Call
+        /// before the surface is built (it decides what is in the area it falls in).</summary>
+        public void AddBase(string baseName, Vector3 localDir, bool baseHostile)
+        {
+            FromDirection(localDir, out double u, out double v);
+            u = Mod(u, C);   // (u == C, straight behind, is u == 0)
+            // clear of the polar plateaus, where nothing is built
+            double keep = V - polarBand - 2500.0;
+            if (keep > 0.0) v = Math.Max(-keep, Math.Min(keep, v));
+            lock (features)
+            {
+                bases.Add((baseName, u, v, baseHostile));
+                features.Clear();
+            }
+        }
+
+        /// <summary>The named base within `reach` of an (unwrapped) position, if any: where its
+        /// site is built (kept in from its area's edges, so not always exactly under its direction).</summary>
+        public bool NearBase(double u, double v, double reach, out double bu, out double bv, out bool baseHostile)
+        {
+            Canonical(u, v, out double cu, out double cv);
+            foreach (var b0 in bases)
+            {
+                var b = b0;
+                var f = Features((int)Math.Floor(b.u / T), (int)Math.Floor((b.v + V) / T));
+                if (f != null && f.baseName == b.name) { b.u = f.su; b.v = f.sv; }
+                double du = WrapDelta(b.u - cu, C), dv = b.v - cv;
+                if (du * du + dv * dv < reach * reach)
+                {
+                    // back in the caller's unwrapped coordinates
+                    bu = u + du; bv = v + dv; baseHostile = b.hostile;
+                    return true;
+                }
+            }
+            bu = bv = 0.0; baseHostile = false;
+            return false;
+        }
+
         /// <summary>Fold an unwrapped position back onto the planet. True if it is past a pole
         /// (the map is turned round there).</summary>
         public bool Canonical(double u, double v, out double cu, out double cv)
@@ -458,6 +503,19 @@ namespace CarrierGame
                     f.siteYaw = (float)(R01() * 360.0);
                 }
             }
+            // a named base falls in this area: it takes the place of anything else here, where
+            // it is seen from orbit (kept far enough in from the area's edges for its buildings)
+            foreach (var b in bases)
+            {
+                int bi = (int)Math.Floor(b.u / T), bj = (int)Math.Floor((b.v + V) / T);
+                if (Mod(bi, N) != ci || bj != cj) continue;
+                f.site = b.hostile ? SiteKind.Base : SiteKind.Outpost;
+                f.baseName = b.name;
+                f.su = Math.Max(u0 + 900.0, Math.Min(u0 + T - 900.0, b.u));
+                f.sv = Math.Max(v0 + 900.0, Math.Min(v0 + T - 900.0, b.v));
+                f.siteYaw = (float)(new System.Random(TileSeed(ci, cj, 9)).NextDouble() * 360.0);
+                break;
+            }
 
             // cinder cones
             if (kind == SurfaceKind.Volcanic)
@@ -494,7 +552,28 @@ namespace CarrierGame
                     }
                     return (u0 + T * 0.5, v0 + T * 0.5);
                 }
-                if (f.site == SiteKind.Base)
+                if (f.site == SiteKind.Base && f.baseName != null)
+                {
+                    // a fortress: a gunship and fighters on its pad, a ring of gun batteries and
+                    // missile sites round its walls, and tanks
+                    float a0 = f.siteYaw * Mathf.Deg2Rad;
+                    Add(UnitKind.PadFighter, f.su + Math.Cos(a0) * 70.0, f.sv + Math.Sin(a0) * 70.0, f.siteYaw);
+                    Add(UnitKind.PadFighter, f.su - Math.Cos(a0) * 70.0, f.sv - Math.Sin(a0) * 70.0, f.siteYaw);
+                    Add(UnitKind.PadGunship, f.su, f.sv, f.siteYaw);
+                    for (int k = 0; k < 5; k++)
+                    {
+                        double a = a0 + Math.PI * 0.2 + k * Math.PI * 0.4;
+                        Add(UnitKind.Battery, f.su + Math.Cos(a) * 640.0, f.sv + Math.Sin(a) * 640.0, (float)(R01() * 360.0));
+                    }
+                    for (int k = 0; k < 2; k++)
+                    {
+                        double a = a0 + k * Math.PI;
+                        Add(UnitKind.MissileSite, f.su + Math.Cos(a) * 760.0, f.sv + Math.Sin(a) * 760.0, (float)(R01() * 360.0));
+                    }
+                    for (int k = 0; k < 3; k++)
+                        Add(UnitKind.Tank, f.su + Math.Cos(a0 + 2.4) * (820.0 + k * 50.0), f.sv + Math.Sin(a0 + 2.4) * (820.0 + k * 50.0), (float)(R01() * 360.0));
+                }
+                else if (f.site == SiteKind.Base)
                 {
                     // the base: fighters parked on its launch pad (sometimes a gunship), guns round it
                     float a0 = f.siteYaw * Mathf.Deg2Rad;

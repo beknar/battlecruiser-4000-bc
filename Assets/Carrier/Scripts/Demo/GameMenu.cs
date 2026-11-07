@@ -102,6 +102,9 @@ namespace CarrierGame.Demo
             Close();
             SoundFX.LevelRestart();
             SurfaceVeins.Forget();   // the rocks come back full with the scene; the veins too
+            // free what this run left lying about before the level is opened again (the old
+            // scene is collected again once it is closed: SceneMemory)
+            SceneMemory.Collect("before restarting the level");
             var scene = SceneManager.GetActiveScene();
 #if UNITY_EDITOR
             // in the editor the scene needn't be in the build list

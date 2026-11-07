@@ -29,6 +29,10 @@ namespace CarrierGame
         public Material embers;
         [Tooltip("A landing pad with a few parked craft (optional: left out if the art isn't there).")]
         public GameObject outpost;
+        [Tooltip("Colony buildings put up round a friendly landing pad (domes, habitats, a tower...).")]
+        public GameObject[] colony;
+        [Tooltip("Fortress buildings round a hostile base's pad (bunkers, a command post, radar...).")]
+        public GameObject[] fort;
 
         [Header("Ground forces (hostile worlds)")]
         [Tooltip("A heavy turret for the gun batteries.")]

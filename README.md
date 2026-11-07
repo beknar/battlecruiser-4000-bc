@@ -19,6 +19,7 @@ file is also on the [release page](https://github.com/beknar/battlecruiser-4000-
 | Carrier Demo (open space) | [battlecruiser-4000-bc-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-windows.zip) (79 MB) | [60 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-demo-reel.mp4) (72 MB) |
 | Asteroid Ambush | [battlecruiser-4000-bc-asteroid-ambush-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-windows.zip) (82 MB) | [76 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-reel.mp4) (93 MB) |
 | Star System | [battlecruiser-4000-bc-star-system-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-windows.zip) (96 MB) | [214 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4) (290 MB) |
+| Star System: mining, combat, landing and mini-warps | The Star System downloads above | [5 min 10 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-features-reel.mp4) (382 MB) |
 | Star System, web version | [battlecruiser-4000-bc-star-system-web.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-web.zip) (58 MB) | See [The web version](#the-web-version) |
 
 ### Carrier Demo
@@ -53,7 +54,27 @@ The reel starts in orbit over the ocean world Thalassa.
   pirate cruiser and its drones ambush it from the rocks. The frigate turns its bow beam on the
   cruiser until it breaks apart.
 
-The capital ships, the comets and mining aren't in the reel.
+The capital ships, the comets and mining aren't in the reel. The feature reel below shows them.
+
+### Star System: the feature reel
+
+[![The frigate's mining laser cutting ice from the nucleus of Comet Iskra (click to download the feature reel)](docs/star-system-features-thumb.jpg)](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-features-reel.mp4)
+
+A 5-minute reel of what the frigate can do in the Kestrel system, in four parts. Each scene has a
+caption, and the scenes cut through black so there are no long flights in between.
+- **Mining.** A mineral scan of the Inner Belt, then the laser cutting a small metallic asteroid
+  until it breaks up. Comet Iskra from above with its ion and dust tails, then the laser cutting
+  ice from its nucleus. A landing on Ochre, a scan for veins and the laser cutting one in the
+  desert floor, while the cargo list fills.
+- **Combat.** A pirate cruiser and its drones ambush the frigate in the Outer Drift asteroid
+  field, and the bow beam destroys the cruiser. Down on the Jovara Trojans, the frigate fights the
+  ground forces and the bow beam destroys a gun battery. At Glacis, the pirate dreadnought and its
+  escorts open fire, and the bow beam hits the dreadnought.
+- **Landing.** Down through the clouds to Thalassa's island landing pad. Then Cinder's lava
+  fields, Glacis's ice ridges, Jovara's cloud tops with a floating mining platform, and the moon
+  Selene with its planet in the sky.
+- **Mini-warps.** The system map, then warps to Jovara, Comet Mirren and the star Kestrel, and
+  home to Thalassa.
 
 ## Features
 
@@ -399,7 +420,8 @@ WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use
   mines a vein in the ground.
 - `CarrierDemo.exe -reel <dir>` (or `AsteroidAmbush.exe` / `StarSystem.exe`): records a demo reel
   (60 s, 76 s for the ambush or about 215 s for the star system) at 30 fps as JPG frames plus a WAV
-  soundtrack, then quits. Join them with ffmpeg:
+  soundtrack, then quits. Add `-features` to `StarSystem.exe -reel <dir>` for the feature reel
+  (about 310 s: mining, combat, landing and mini-warps). Join the frames and sound with ffmpeg:
 
   ```
   ffmpeg -framerate 30 -i <dir>/f%05d.jpg -i <dir>/reel.wav -c:v libx264 -crf 18 -pix_fmt yuv420p -c:a aac reel.mp4

@@ -58,6 +58,12 @@ namespace CarrierGame
             if (amount > 0f) Damage(amount);
         }
 
+        /// <summary>Put the hull back to full (between the scenes of a demo reel).</summary>
+        public void Repair()
+        {
+            if (!Dead) Current = maxHealth;
+        }
+
         public void Damage(float amount)
         {
             if (Dead || amount <= 0f) return;

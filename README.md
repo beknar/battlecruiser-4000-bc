@@ -187,8 +187,56 @@ system to travel around.
   - There are three asteroid fields: the Inner Belt, the Jovara Trojans and the Outer Drift.
   - Two comets are on long orbits: bright Comet Iskra close to the star, and faint Comet
     Mirren far out.
-  - Ten stations, bases and installations have been built (see below).
+  - Ten stations, bases and installations have been built (see below), and six launch
+    structures on the planets and moons.
   - The frigate starts near Thalassa.
+- **Orbits.** Everything moves on its orbit, fast enough to see within ten minutes.
+  - **Kepler orbits.** The planets go round the star, and the moons and the orbiting stations
+    round their planets. Each period follows from Kepler's third law (T² ∝ a³) with game-sized
+    masses.
+
+    | Body | Period |
+    |---|---|
+    | Cinder | 25 min |
+    | Ochre | 55 min |
+    | Thalassa | 90 min |
+    | Jovara | 2.5 h |
+    | Glacis | 3.7 h |
+    | Selene round Thalassa | 23 min |
+    | The orbital battery round Cinder (a polar orbit) | 29 min |
+
+  - **Comets.** They follow long ellipses. Iskra starts at its closest to the star and swings
+    out fast, its tails turning to stay pointed away from the star. Mirren starts at its
+    farthest and moves slowly.
+  - **What goes with each body.** Everything on or round a body goes with it: bases, launchers,
+    moons, stations, the asteroid fields' rocks and bases. So do the enemy patrols posted there.
+  - **The frigate's frame of reference.** Wherever the frigate is (in a planet's, moon's,
+    station's or field's reach), that place stays still and the rest of the system moves round
+    it. Fights, shots and landings near it behave as before. A warp to a moving place arrives
+    where the place has got to, and a take-off returns to the same spot over the planet.
+  - **The system map** shows it all moving: the orbits, the comets' ellipses, and the five
+    Lagrange points of Thalassa and Jovara. The info panel gives each place's period.
+  - **Lagrange points.** They move with their planets, at the real positions.
+    - L1 and L2 are at the edge of the planet's Hill sphere, r(μ/3)^⅓ from it. Thalassa's L1 is
+      27.6 km sunward.
+    - L4 and L5 are 60° ahead of and behind the planet.
+    - L4 and L5 are stable, because Jovara is under 1/26 of the star's mass. The Trojan rocks at
+      L4 and the depot at L5 swing slowly round their points. One swing takes about 5 hours,
+      the planet's period divided by √(27μ/4).
+    - L1 is unstable. The observatory drifts off it, faster and faster, by a factor of e every
+      6 minutes, and fires its thrusters to get back.
+- **Launch structures.** Each is a warp destination, arrived at from above, with a landing pad
+  by it on the surface. Each turns with its world, launching payloads that leave a glowing
+  trail into space.
+
+  | Structure | Where, and why there |
+  |---|---|
+  | Space elevator | Thalassa turns once in 11 minutes, so its geostationary orbit is 10 km out. A tether runs from a sea platform on the equator up to the Highport there, and on to a counterweight, with climbers riding it |
+  | Launch loop | Thalassa: a cable loop held up 350 m over the sea between two stations 4.5 km apart; payloads ride the top and are let go |
+  | StarTram | Ochre: a maglev tube along the desert, then rising 900 m out of the thin air, tethered down |
+  | Spin launcher | Ochre: a vacuum centrifuge whose arm whirls a payload up and lets it go into a launch tube |
+  | Mass driver | Selene: a 1.7 km electromagnetic catapult across the airless moon, flinging ore buckets off it |
+  | Slingatron | Steropes: a spiral track 700 m across; payloads spiral outward, faster each turn, and leave along a ramp |
 - **Comets.** Each comet is a dark, lumpy nucleus of dirty ice inside a glowing coma, with the
   two tails real comets have, both pointing straight away from the star:
   - a thin blue ion tail, blown straight out by the solar wind, with rippling streamers;
@@ -236,7 +284,7 @@ system to travel around.
 
   | Place | What it is |
   |---|---|
-  | Thalassa Highport | A space station: a habitat ring 1.4 km across, turning slowly round its docking hub, in orbit of Thalassa |
+  | Thalassa Highport | A space station: a habitat ring 1.4 km across, turning slowly round its docking hub, at the top of Thalassa's space elevator |
   | Deepcut Station | A mining base dug into a big rock at the edge of the Inner Belt: refinery towers, ore tanks and a mass driver |
   | Corsair Haven | A pirate base in a rock at the edge of the Outer Drift, with six gun emplacements round it (hostile) |
   | Cinder Orbital Battery | Orbital weapons over Cinder's north pole: three gun platforms (three turrets and missiles each) and a beam lance (hostile) |
@@ -459,6 +507,16 @@ WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use
   to rock. Then it jettisons the cheapest ore and opens the cargo list. Next it warps to Comet
   Iskra, checks the tails point away from the star and mines ice. Last, it lands on Ochre and
   mines a vein in the ground.
+  Add `-orbittest` (or `?orbittest` on the web) to test the orbits. It runs ten minutes of
+  them at 8x speed and checks every motion against Kepler's laws:
+  - the Highport stays geostationary;
+  - Thalassa's L1 stays on the line from the star, kept there by station-keeping burns;
+  - Jovara's L4 and L5 stay 60° from it, with the Trojans librating;
+  - the comet follows its ellipse;
+  - the frigate and the posted enemies stay with their places;
+  - the map changes, and every launcher launches.
+
+  Then it warps to fast-moving Cinder and to each launcher for pictures, and restarts.
   Add `-stationtest` (or `?stationtest` on the web) to test only the stations, bases and
   installations. It warps to each one. It docks at every berth, checking the repair, the sale
   and that the warp drive and landing are locked while docked. It flies in on Corsair Haven and

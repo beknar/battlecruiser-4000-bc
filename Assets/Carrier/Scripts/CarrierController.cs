@@ -115,6 +115,9 @@ namespace CarrierGame
         Health health;
         Vector3 spawnPosition;
         Quaternion spawnRotation;
+        // the place the spawn point is kept relative to (it moves along its orbit), if any
+        Transform spawnFrame;
+        Vector3 spawnOffset;
 
         /// <summary>The ship has been destroyed and is waiting to respawn.</summary>
         public bool Destroyed => health != null && health.Dead;
@@ -153,6 +156,7 @@ namespace CarrierGame
         /// <summary>Back at the starting point, whole, at rest, with everything working.</summary>
         void OnShipRespawned()
         {
+            if (spawnFrame != null) spawnPosition = spawnFrame.position + spawnOffset;
             transform.SetPositionAndRotation(spawnPosition, spawnRotation);
             heading = spawnRotation.eulerAngles.y;
             pitchAngle = 0f;
@@ -237,11 +241,14 @@ namespace CarrierGame
             liftSpeed = 0f;
         }
 
-        /// <summary>Where the ship comes back after being destroyed (the last place it warped to).</summary>
-        public void SetSpawn(Vector3 position, Quaternion rotation)
+        /// <summary>Where the ship comes back after being destroyed (the last place it warped to),
+        /// kept relative to `frame` if given (a planet or station moving along its orbit).</summary>
+        public void SetSpawn(Vector3 position, Quaternion rotation, Transform frame = null)
         {
             spawnPosition = position;
             spawnRotation = rotation;
+            spawnFrame = frame;
+            spawnOffset = frame != null ? position - frame.position : Vector3.zero;
         }
 
         void Update()

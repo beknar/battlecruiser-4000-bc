@@ -64,7 +64,7 @@ namespace CarrierGame
         AudioSource chargeVoice;
         // the trip is a curve from `from` to `to` through `via` (a detour round any star, planet or
         // moon on the straight line)
-        Vector3 from, to, via, travelDir;
+        Vector3 from, to, via, travelDir, toOffset;
         float stateStart, chargeHitTime, baseFov = -1f, arriveSpeed, glowTimer;
         Texture2D vignette;
         ParticleSystem tunnel, haze, sparks, flash, ring;
@@ -183,6 +183,7 @@ namespace CarrierGame
                 }
                 case State.Warping:
                 {
+                    if (Destination != null) to = Destination.Position + toOffset;
                     float u = Mathf.Clamp01(StateTime / Mathf.Max(0.1f, TravelTime));
                     float s = Ease(u);
                     transform.position = PathAt(s);
@@ -258,6 +259,8 @@ namespace CarrierGame
             chargeVoice = null;
             from = transform.position;
             to = Destination.ArrivalPoint(from);
+            // the destination moves along its orbit during the trip: the arrival point goes with it
+            toOffset = to - Destination.Position;
             via = Detour(from, to);
             travelDir = (via - from).sqrMagnitude > 1f ? (via - from).normalized : (to - from).normalized;
             sparks.Stop(true, ParticleSystemStopBehavior.StopEmitting);
@@ -291,7 +294,7 @@ namespace CarrierGame
             Enter(State.Ready);
             ship.externalMotion = false;
             ship.throttle = Mathf.Clamp01(30f / Mathf.Max(1f, ship.maxSpeed));
-            ship.SetSpawn(transform.position, transform.rotation);
+            ship.SetSpawn(transform.position, transform.rotation, Destination != null ? Destination.transform : null);
         }
 
         void Cancel(string why)

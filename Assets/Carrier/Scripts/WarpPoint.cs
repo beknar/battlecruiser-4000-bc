@@ -33,6 +33,10 @@ namespace CarrierGame
         public WarpPoint landsOn;
         [Tooltip("Drop out of warp straight above it (along its up axis), not on the near side.")]
         public bool overhead;
+        [Tooltip("Over it, how far to one side (as a fraction of the arrival distance): more for one with something tall over it.")]
+        public float overheadSide = 0.15f;
+        [Tooltip("Which of its own axes 'over it' is (up, for a base on the ground).")]
+        public Vector3 overheadAxis = Vector3.up;
         [Tooltip("What the map calls it (empty: from its kind).")]
         public string kindLabel = "";
 
@@ -59,9 +63,9 @@ namespace CarrierGame
             if (overhead)
             {
                 // straight above it, a little back the way the ship came so it faces the base
-                Vector3 up = transform.up;
+                Vector3 up = transform.TransformDirection(overheadAxis).normalized;
                 Vector3 back = Vector3.ProjectOnPlane(dir, up);
-                Vector3 o = Position + up * arrivalDistance + (back.sqrMagnitude > 1f ? back.normalized * arrivalDistance * 0.15f : Vector3.zero);
+                Vector3 o = Position + up * arrivalDistance + (back.sqrMagnitude > 1f ? back.normalized * arrivalDistance * overheadSide : Vector3.zero);
                 if (Cover.Mask != 0)
                     for (int i = 0; i < 40 && Physics.CheckSphere(o, 250f, Cover.Mask, QueryTriggerInteraction.Ignore); i++)
                         o += up * 200f;

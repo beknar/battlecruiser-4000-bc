@@ -1,0 +1,17 @@
+{
+  // Battlecruiser 4000 BC co-op server settings. Saved changes to "allow" and "maxPlayers" take
+  // effect at once; the others need a restart. Anything given on the command line wins.
+
+  // the address to listen on: 0.0.0.0 is every network, 127.0.0.1 this computer only
+  "bind": "0.0.0.0",
+  "port": 7777,
+  "maxPlayers": 4,
+
+  // who may connect: single IPs or CIDR ranges, IPv4 or IPv6. An empty list lets anyone connect.
+  // For example: [ "127.0.0.1", "::1", "192.168.1.0/24" ]
+  "allow": [],
+
+  // a .pfx certificate, to serve wss:// (a web page served over https may only connect to wss://)
+  "certificate": null,
+  "certificatePassword": null
+}

@@ -60,7 +60,14 @@ namespace CarrierGame.Demo
             t.orbitOnly = Array.IndexOf(args, "-orbittest") >= 0 || (web && HasQueryKey(Application.absoluteURL, "orbittest"));
             // -hudtest (or ?hudtest): only the ship's console and the captain
             t.hudOnly = Array.IndexOf(args, "-hudtest") >= 0 || (web && HasQueryKey(Application.absoluteURL, "hudtest"));
+            // -cooptest (or ?cooptest), with -connect address:port (?server=...&connect): co-op with
+            // the scripted second player (Tools/CoopTest/bot.py); -coopquick (?coopquick) skips the
+            // part at Corsair Haven
+            t.coopQuick = Array.IndexOf(args, "-coopquick") >= 0 || (web && HasQueryKey(Application.absoluteURL, "coopquick"));
+            t.coopOnly = t.coopQuick || Array.IndexOf(args, "-cooptest") >= 0 || (web && HasQueryKey(Application.absoluteURL, "cooptest"));
         }
+
+        bool coopQuick;
 
         bool web, landOnly, mineOnly, mineSurfaceOnly, stationOnly, orbitOnly;
         string landWorld;
@@ -166,6 +173,13 @@ namespace CarrierGame.Demo
 
             // ---------------------------------------------------------------- keyboard
             var kb = InputSystem.AddDevice<Keyboard>("SystemTestKeyboard");
+            if (coopOnly)
+            {
+                yield return CoopTest(kb, coopQuick);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
             if (landOnly)
             {
                 yield return LandingTest(kb, true);

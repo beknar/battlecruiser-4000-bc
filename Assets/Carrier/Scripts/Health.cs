@@ -40,6 +40,14 @@ namespace CarrierGame
         Shield shield;
         bool shieldLooked;
 
+        /// <summary>Co-op: looks at each hit first, and takes it (returns true) when it belongs
+        /// to another player's game: a hit on an enemy whose real self is on the host, or on
+        /// another player's ship. Null in single-player.</summary>
+        public static System.Func<Health, float, Vector3, HitKind, bool> Intercept;
+        /// <summary>What dealt the hit being made now (the ship whose shot, missile or beam it
+        /// is), set just before Damage by the weapon; null when unknown.</summary>
+        public static Transform Source;
+
         void Awake()
         {
             Current = maxHealth;
@@ -53,6 +61,7 @@ namespace CarrierGame
         public void Damage(float amount, Vector3 point, HitKind kind)
         {
             if (Dead || amount <= 0f) return;
+            if (Intercept != null && Intercept(this, amount, point, kind)) return;
             if (!shieldLooked) { shield = GetComponentInChildren<Shield>(true); shieldLooked = true; }
             if (shield != null && shield.Up) amount = shield.Absorb(amount, point, kind);
             if (amount > 0f) Damage(amount);
@@ -67,6 +76,7 @@ namespace CarrierGame
         public void Damage(float amount)
         {
             if (Dead || amount <= 0f) return;
+            if (Intercept != null && Intercept(this, amount, transform.position, HitKind.Cannon)) return;
             float applied = Mathf.Min(amount, cannotDie ? Mathf.Max(0f, Current - 1f) : Current);
             Current -= applied;
             TotalDamage += applied;
@@ -74,6 +84,31 @@ namespace CarrierGame
             LastHitTime = Time.time;
             LastHitAmount = applied;
             if (Current > 0f) return;
+            Die();
+        }
+
+        /// <summary>Co-op: this one's hull, as the host has it.</summary>
+        public void NetSetHull(float current)
+        {
+            if (!Dead) Current = Mathf.Clamp(current, 1f, maxHealth);
+        }
+
+        /// <summary>Co-op: destroyed on the host. It stays down until the host has it back.</summary>
+        public void NetKill()
+        {
+            if (Dead) return;
+            Die();
+            CancelInvoke(nameof(Respawn));
+        }
+
+        /// <summary>Co-op: back on the host.</summary>
+        public void NetRespawn()
+        {
+            if (Dead) Respawn();
+        }
+
+        void Die()
+        {
             Current = 0f;
             Dead = true;
             TimesDestroyed++;

@@ -19,6 +19,10 @@ namespace CarrierGame
         public float damage = 250f;
         public Explosion explosion;
         [HideInInspector] public Vector3 inheritedVelocity;
+        /// <summary>The ship that launched it (for co-op: whose hit it is).</summary>
+        [System.NonSerialized] public Transform owner;
+        /// <summary>Co-op: a missile has been launched (announced to the other players' games).</summary>
+        public static event System.Action<Missile> Spawned;
 
         float age, speed;
         Transform moverOf;
@@ -34,6 +38,7 @@ namespace CarrierGame
         {
             speed = boostSpeed;
             SoundFX.Play(Sfx.MissileLaunch, transform.position);
+            Spawned?.Invoke(this);
         }
 
         void Update()
@@ -72,7 +77,11 @@ namespace CarrierGame
         void Detonate()
         {
             if (target != null && Vector3.Distance(target.position, transform.position) < Mathf.Max(proximity * 2f, TargetRadius()))
+            {
+                Health.Source = owner;
                 target.GetComponentInParent<Health>()?.Damage(damage, transform.position, HitKind.Missile);
+                Health.Source = null;
+            }
             if (explosion != null) Instantiate(explosion, transform.position, Quaternion.identity);
             Destroy(gameObject);
         }

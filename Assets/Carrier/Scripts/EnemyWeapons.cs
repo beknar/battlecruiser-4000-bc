@@ -70,9 +70,30 @@ namespace CarrierGame
         }
 
         Health targetHealth;
+        float nextRetarget;
+        CombatPilot pilot;
+        bool pilotLooked;
+
+        /// <summary>Aim everything at a new target.</summary>
+        public void SetTarget(Transform t)
+        {
+            target = t;
+            targetHealth = null;
+            targetMover = t != null ? Motion.Of(t) : null;
+            if (beam != null) beam.target = t;
+        }
 
         void Update()
         {
+            // with more than one player ship about (co-op), a gun with no pilot to choose for it
+            // goes for the nearest now and then
+            if (!pilotLooked) { pilot = GetComponent<CombatPilot>(); pilotLooked = true; }
+            if (pilot == null && PlayerShips.Count > 1 && Time.time >= nextRetarget)
+            {
+                nextRetarget = Time.time + 2f;
+                var nearest = PlayerShips.Nearest(transform.position);
+                if (nearest != null && nearest != target) SetTarget(nearest);
+            }
             if (target != null && targetHealth == null) targetHealth = target.GetComponentInParent<Health>();
             // turrets aim and fire for themselves (they hold fire behind cover); they only get the
             // target while this ship is alive, in the fight, and the target is alive
@@ -175,6 +196,7 @@ namespace CarrierGame
                 if (target == null || (health != null && health.Dead) || !weaponsFree) yield break;
                 Vector3 up = (transform.up + Random.insideUnitSphere * 0.4f).normalized;
                 var m = Instantiate(missilePrefab, Muzzle(up), Quaternion.LookRotation(up));
+                m.owner = transform;
                 m.target = target;
                 m.damage = Mathf.Min(m.damage, 150f);
                 yield return new WaitForSeconds(0.25f);

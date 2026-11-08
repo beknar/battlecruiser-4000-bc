@@ -31,6 +31,11 @@ namespace CarrierGame
             return hi != null && hi.Hostile;
         }
 
+        /// <summary>Co-op: a shot has been fired (announced to the other players' games).</summary>
+        public static event System.Action<Projectile> Spawned;
+
+        void Start() => Spawned?.Invoke(this);
+
         void Update()
         {
             float step = speed * Time.deltaTime;
@@ -39,7 +44,9 @@ namespace CarrierGame
             {
                 var h = hit.collider.GetComponentInParent<Health>();
                 bool onShield = hit.collider.GetComponent<Shield>() != null;
+                Health.Source = owner;
                 if (h != null) h.Damage(damage, hit.point, kind);
+                Health.Source = null;
                 // a shield shows its own ripple and sound; anything else gets the usual spark
                 if (!onShield)
                 {

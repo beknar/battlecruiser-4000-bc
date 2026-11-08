@@ -41,6 +41,7 @@ namespace CarrierGame
                 if (Time.time < readyAt[i] || cells[i] == null) continue;
                 readyAt[i] = Time.time + cellReload;
                 var m = Instantiate(missilePrefab, cells[i].position, cells[i].rotation);
+                m.owner = transform.root;
                 m.target = target;
                 m.inheritedVelocity = carrierVelocity;
                 fired++;

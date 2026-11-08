@@ -124,6 +124,9 @@ namespace CarrierGame
         /// <summary>Seconds until a destroyed ship comes back (0 while alive).</summary>
         public float RespawnIn => Destroyed ? Mathf.Max(0f, health.RespawnAt - Time.time) : 0f;
 
+        void OnEnable() => PlayerShips.Add(transform);
+        void OnDisable() => PlayerShips.Remove(transform);
+
         void Start()
         {
             SetTarget(target);

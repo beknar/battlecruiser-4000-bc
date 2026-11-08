@@ -56,18 +56,19 @@ namespace CarrierGame
             if (player == null) return;
             if (!Sprung)
             {
-                if (player.Destroyed) return;
-                Vector3 p = player.transform.position;
-                if (Vector3.Distance(p, triggerPoint) < triggerRadius) { Spring("the frigate reached the far side"); return; }
                 foreach (var e in firstWave)
                     if (e != null && e.Current != CombatPilot.State.Lurk) { Spring($"{e.name} came under fire"); return; }
                 foreach (var e in secondWave)
                     if (e != null && e.Current != CombatPilot.State.Lurk) { Spring($"{e.name} came under fire"); return; }
-                foreach (var f in firstWave)
+                // any player's ship (in co-op, the others' too) reaching the far side or being seen
+                if (!player.Destroyed && Watch(player.transform)) return;
+                foreach (var ship in PlayerShips.All)
                 {
-                    if (f == null) continue;
-                    Vector3 e = f.transform.position;
-                    if (Vector3.Distance(e, p) < spotRange && Cover.Visible(e, p)) { Spring($"spotted by {f.name}"); return; }
+                    if (ship == null || ship == player.transform) continue;
+                    var h = ship.GetComponent<Health>();
+                    if (h != null && h.Dead) continue;
+                    if (PlayerShips.Available != null && !PlayerShips.Available(ship)) continue;
+                    if (Watch(ship)) return;
                 }
                 return;
             }
@@ -78,6 +79,21 @@ namespace CarrierGame
                 SoundFX.Ui(Sfx.UiAlert);
                 Demo.CarrierDemoInput.Toast("Heavy cruiser and drones closing from behind the rocks!");
             }
+        }
+
+        /// <summary>Spring the ambush if this ship has reached the trigger point or a lurking
+        /// fighter can see it.</summary>
+        bool Watch(Transform ship)
+        {
+            Vector3 p = ship.position;
+            if (Vector3.Distance(p, triggerPoint) < triggerRadius) { Spring("the frigate reached the far side"); return true; }
+            foreach (var f in firstWave)
+            {
+                if (f == null) continue;
+                Vector3 e = f.transform.position;
+                if (Vector3.Distance(e, p) < spotRange && Cover.Visible(e, p)) { Spring($"spotted by {f.name}"); return true; }
+            }
+            return false;
         }
 
         /// <summary>Spring the ambush: the fighters attack and the battle music starts.</summary>

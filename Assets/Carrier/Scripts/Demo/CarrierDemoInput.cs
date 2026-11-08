@@ -77,6 +77,11 @@ namespace CarrierGame.Demo
             portrait.demo = this;
             var console = gameObject.AddComponent<ShipConsole>();
             console.demo = this;
+            // co-op: playing with others (idle until connected), and the panel to connect with
+            var world = gameObject.AddComponent<CoopWorld>();
+            world.demo = this;
+            var coopMenu = gameObject.AddComponent<CoopMenu>();
+            coopMenu.demo = this;
         }
 
         void Start()

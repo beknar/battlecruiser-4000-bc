@@ -45,7 +45,13 @@ namespace CarrierGame
         /// <summary>The orbits run this many times faster than the game (a time-lapse, for the
         /// reel); 1 normally. Only the orbits: the game's own clock is untouched.</summary>
         [System.NonSerialized] public float timeLapse = 1f;
+        /// <summary>Co-op: the room's shared clock (every game in it runs its orbits on the same
+        /// time). Null in single-player.</summary>
+        public static System.Func<double> ClockOverride;
         double ahead;                        // seconds the orbits have run ahead of the game
+
+        /// <summary>Carry on from this orbit time on our own clock (after the co-op clock stops).</summary>
+        public void ContinueFrom(double t) => ahead = t - UnityEngine.Time.timeSinceLevelLoad;
         /// <summary>The reach the frigate is in (held still), or null in open space.</summary>
         public Transform Anchor { get; private set; }
         public int AnchorChanges { get; private set; }
@@ -86,6 +92,10 @@ namespace CarrierGame
             if (player != null) drive = player.GetComponent<WarpDrive>();
             Time = 0.0;
             foreach (var o in orbits) o.Apply(0.0);
+            // the planets and moons turn by the orbit clock (so a geostationary station, and the
+            // ground, are where they are in every game sharing the clock)
+            foreach (var d in system.GetComponentsInChildren<Drift>(true))
+                if (d.GetComponent<WarpPoint>() != null) d.LockToOrbitClock();
             for (int i = 0; i < reaches.Count; i++) last[i] = reaches[i].t != null ? reaches[i].t.position : Vector3.zero;
         }
 
@@ -104,7 +114,7 @@ namespace CarrierGame
         {
             if (orbits == null) return;
             if (timeLapse != 1f) ahead += UnityEngine.Time.deltaTime * (timeLapse - 1f);
-            Time = UnityEngine.Time.timeSinceLevelLoad + ahead;
+            Time = ClockOverride != null ? ClockOverride() : UnityEngine.Time.timeSinceLevelLoad + ahead;
 
             for (int i = 0; i < reaches.Count; i++) before[i] = reaches[i].t != null ? reaches[i].t.position : Vector3.zero;
             int anchor = -1;

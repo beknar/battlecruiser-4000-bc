@@ -152,9 +152,39 @@ Enemy guns lead their target and have some spread. The enemies fly orbits around
 
 ### Interface and presentation
 
-- **HUD.** The HUD shows speed, throttle, pitch and climb rate, shield and hull %, main gun charge,
-  what the CIWS is engaging, and which guns bear on the current target. A target display gives
-  the target's name, range, speed, weapons, threat level and damage taken.
+- **The ship's console.** A console in the bottom-left corner shows the ship's state:
+  - **The captain.** An animated portrait of the ship's captain (see below).
+  - **Alerts.** A strip that turns red and flashes when the ship is under fire, a missile is
+    inbound, the shield is down or the hull is critical. It turns amber when enemies are near,
+    with how many and how far, and shows ALL CLEAR otherwise.
+  - **Bars.** Shield, hull, thrust (with the speed), the bow gun's charge (and whether it is on
+    target), the warp drive (charging, in warp, or locked and why) and the cargo hold (with the
+    credits).
+  - **Weapon lights.** Whether the guns bear on the target, the CIWS engaging, the missile cells,
+    the wing in flight and the mining laser.
+  - **What is around.** The target and its range, the nearest place, the landing and docking
+    prompts, and the mining laser and sensor.
+
+  The top-left panel now shows only the controls, and H hides it. A target display at the top
+  right gives the target's name, range, speed, weapons, threat level and damage taken.
+- **The captain.** Her portrait on the console reacts to everything that happens to the ship:
+  - she winces when the hull is hit, and is alarmed when the shield is hit, when it goes down, at a
+    missile inbound and at first contact with enemies;
+  - she is set-jawed as the guns, missiles, wing or bow gun fire, and intent while the bow gun
+    charges, in a fight, mining, scanning, charging the warp drive, docking and landing;
+  - she smiles at a kill, an arrival, docking, touchdown, a rock mined out and a full hold;
+  - she is awed in warp, grieves when the ship is lost, and is determined when it is back.
+
+  The portrait is animated: one expression crossfades into the next, she breathes and blinks, she
+  mouths each message as it appears, and the picture jolts and flashes red when the ship is hit.
+  There are five captains to choose from in the pause menu: Elena Vasquez, Amara Okafor, Yuki
+  Tanaka, Freya Lindqvist and Priya Raman. The choice is remembered between sessions.
+
+  The portraits were made with a local [InvokeAI](https://github.com/invoke-ai/InvokeAI) server.
+  Each captain's base portrait came from Juggernaut XL v9. Each expression is an edit of that
+  portrait with FLUX.1 Kontext dev, so the face stays the same from one expression to the next.
+  There are ten expressions per captain: calm, blinking, talking, smiling, determined, alarmed,
+  wincing, intent, awed and sorrowful.
 - **Camera.** The orbit camera can be dragged with the mouse or turned with the right stick, and it
   zooms.
 - **Gamepad.** A connection toast appears when a pad is plugged in or unplugged, and the pad rumbles
@@ -162,7 +192,9 @@ Enemy guns lead their target and have some spread. The enemies fly orbits around
 - **Help.** An on-screen help list shows only the controls that work on the current ship, and the
   text size can be changed.
 - **Pause menu.** Esc or P (Start on the pad) pauses the game and opens a menu with Resume,
-  Restart, Sound on/off and Quit. Restart and Quit ask you to press them a second time to confirm.
+  Restart, Sound on/off, Captain and Quit. Restart and Quit ask you to press them a second time to
+  confirm. To choose a captain, use left/right on the Captain row, or click her portrait in the
+  strip of five below the menu.
 - **Sound.** Sound effects come from a sound library, with several recordings of each so repeats
   don't sound identical. Any sound with no recording is synthesised in code instead, and the
   frigate's bow beam is always synthesised. The music has a calm track and a combat track, and
@@ -437,7 +469,8 @@ system to travel around.
 | Orbit camera / zoom | Right-drag / mouse wheel | Right stick / D-pad ← → |
 | Help / text size | H / + − | Back / Back + D-pad ↑↓ |
 | Sound on/off | N | (pause menu) |
-| Pause menu: resume, restart, sound, quit | Esc or P | Start |
+| Pause menu: resume, restart, sound, captain, quit | Esc or P | Start |
+| Choose the captain (pause menu) | ← / → on Captain, or click her portrait | D-pad ← / → |
 | Window / full screen | F11 | |
 | System map (Star System) | M | R3 |
 | Land / take off, dock / undock (Star System) | K | LB |
@@ -452,8 +485,10 @@ In the web version, use the page's Full screen button rather than F11.
 
 - `Assets/Carrier/Scripts`: game code: ship control, turrets, CIWS, main beam, shield, health,
   breakup, enemy weapons and sound synthesis
-- `Assets/Carrier/Scripts/Demo`: input and gamepad support, HUD, camera, autopilot, the self-test and
-  the demo reel recorder
+- `Assets/Carrier/Scripts/Demo`: input and gamepad support, HUD (the ship's console and the
+  captain), camera, autopilot, the self-test and the demo reel recorder
+- `Assets/Carrier/Resources/Captains`: the five captains' portraits, ten expressions each
+  (`<captain>_<expression>.jpg`), generated as described under The captain
 - `Assets/Carrier/Shaders`: the shield bubble and planet atmosphere shaders (URP, additive)
 - `Assets/Carrier/Editor`: `CarrierBuilder` generates the materials, prefabs, breakup chunks and
   scene; `CarrierPlayerBuild` builds the Windows player; `CarrierCommandWatcher` runs builds from
@@ -529,6 +564,18 @@ WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use
   to rock. Then it jettisons the cheapest ore and opens the cargo list. Next it warps to Comet
   Iskra, checks the tails point away from the star and mines ice. Last, it lands on Ochre and
   mines a vein in the ground.
+  Add `-hudtest` (or `?hudtest` on the web) to test the ship's console and the captain:
+  - the console sits in the bottom-left corner, and all five captains have all ten faces;
+  - the captain reacts as she should to:
+    - hits on the shield and hull;
+    - the bow gun charging and firing, and a scan;
+    - a warp, docking and a landing;
+    - a fight at Corsair Haven, with contact, hits, firing back and a kill;
+    - the ship lost and respawned;
+  - she talks with each message and blinks;
+  - a captain can be chosen in the pause menu by click and by key, and the choice is saved.
+
+  The test pictures each captain, then puts the player's own choice back.
   Add `-orbittest` (or `?orbittest` on the web) to test the orbits. It runs ten minutes of
   them at 8x speed and checks every motion against Kepler's laws:
   - the Highport stays geostationary;

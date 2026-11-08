@@ -221,7 +221,7 @@ namespace CarrierGame.Demo
             LookPast(300, home.Position, D * 2.2f, 25f, float.NaN, 3f);
             yield return Wait(1f);
             yield return FadeIn(1f);
-            Caption("BATTLECRUISER 4000 BC", "Star System: mining, combat, landing and mini-warps", 5.5f);
+            Caption("BATTLECRUISER 4000 BC", introLine ?? "Star System: mining, combat, landing and mini-warps", 5.5f);
             yield return Wait(5.5f);
             yield return FadeOut();
         }
@@ -348,7 +348,7 @@ namespace CarrierGame.Demo
             var laser = demo.Laser;
             var sensor = demo.Sensor;
             if (ochre == null || !landing.LandOn(ochre)) { Note("couldn't land on Ochre"); yield break; }
-            yield return WaitLanding(PlanetLanding.State.OnSurface, 20f);
+            yield return WaitLanding(PlanetLanding.State.OnSurface, 60f);
             yield return Wait(2f);
             var surf = landing.Surface;
 
@@ -451,7 +451,7 @@ namespace CarrierGame.Demo
             Jump(trojans);
             yield return Wait(0.5f);
             if (!landing.LandOn(trojans)) { Note("couldn't land on the Trojans"); yield break; }
-            yield return WaitLanding(PlanetLanding.State.OnSurface, 20f);
+            yield return WaitLanding(PlanetLanding.State.OnSurface, 60f);
             Phase(9, T);
             perFrame = () => SystemShots(T);
             yield return Wait(0.2f);
@@ -477,7 +477,11 @@ namespace CarrierGame.Demo
             Repair();
             // as if from Thalassa: the battle group waits on that way in
             Jump(glacis, WP("Thalassa").Position);
-            Place(cc.transform.position, dread.position);
+            // (the planets have moved since the group took up its post on that line: come in on
+            // the dreadnought from the arrival side, 8 km out)
+            Vector3 toShip = cc.transform.position - dread.position;
+            if (toShip.magnitude > 9000f) Place(dread.position + toShip.normalized * 8000f, dread.position);
+            else Place(cc.transform.position, dread.position);
             yield return Wait(1f);
             demo.SelectTarget(dread);
             SideGuns(true);
@@ -556,7 +560,7 @@ namespace CarrierGame.Demo
             yield return Wait(1.5f);
             bool down = landing.Land() || landing.LandOn(home);
             Note($"landing on Thalassa: {down}");
-            yield return WaitLanding(PlanetLanding.State.OnSurface, 20f);
+            yield return WaitLanding(PlanetLanding.State.OnSurface, 60f);
             var site = landing.Site;
             if (site != null)
             {
@@ -606,7 +610,7 @@ namespace CarrierGame.Demo
             {
                 var wp = WP(name);
                 if (wp == null || !landing.LandOn(wp)) { Note($"couldn't land on {name}"); continue; }
-                yield return WaitLanding(PlanetLanding.State.OnSurface, 20f);
+                yield return WaitLanding(PlanetLanding.State.OnSurface, 60f);
                 yield return Wait(1.5f);
                 var surf = landing.Surface;
                 site = landing.Site;
@@ -708,7 +712,7 @@ namespace CarrierGame.Demo
             Shot(299, cc.transform, demo.ShipViewOffset, D * 1.6f, cam.yaw, cam.pitch, 4f);
             float t0 = Time.time;
             perFrame = () => cam.distance = Mathf.Lerp(D * 1.6f, D * 5f, Smooth((Time.time - t0) / 6f));
-            Caption("BATTLECRUISER 4000 BC", "Mining  ·  combat  ·  landing  ·  mini-warps", 6f);
+            Caption("BATTLECRUISER 4000 BC", endLine ?? "Mining  ·  combat  ·  landing  ·  mini-warps", 6f);
             yield return Wait(4.5f);
             yield return FadeOut(1.5f);
             perFrame = null;

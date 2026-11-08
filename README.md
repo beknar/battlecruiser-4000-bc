@@ -526,7 +526,7 @@ In the web version, use the page's Full screen button rather than F11.
   the Windows and web versions), the shared world (`CoopWorld`), other players' ships
   (`RemotePlayer`) and the co-op panel (`CoopMenu`)
 - `Server/CoopServer`: the co-op server (.NET 8, Windows and Linux)
-- `Tools/CoopTest`: the co-op server test and the scripted second player
+- `Tools/CoopTest`: the co-op server test, the scripted second player and the reel's wingmen
 - `Tools/WebTest`: the headless Chrome gamepad test and its stand-in controller
 - `Tools/Blender`: the scripts that make those models (frigate conversion from GLB, ball turret,
   CIWS, beam emitter, carrier parts) and preview renders
@@ -718,8 +718,12 @@ Each build is a single self-contained file (about 47 MB) plus `coopserver.json`.
 - `CarrierDemo.exe -reel <dir>` (or `AsteroidAmbush.exe` / `StarSystem.exe`): records a demo reel
   (60 s, 76 s for the ambush or about 215 s for the star system) at 30 fps as JPG frames plus a WAV
   soundtrack, then quits. Add `-features` to `StarSystem.exe -reel <dir>` for the feature reel
-  (about 310 s: mining, combat, landing and mini-warps), or `-orbits` for the orbits and stations
-  reel (about 210 s). Join the frames and sound with ffmpeg:
+  (about 310 s: mining, combat, landing and mini-warps), `-orbits` for the orbits and stations
+  reel (about 210 s), or `-all` for everything in one reel. That includes the ship's console and
+  the captain. Add `-reelcoop <address>:<port>` to `-all` for its co-op scene: two scripted
+  wingmen (`Tools/CoopTest/wingman.py <server url> <name> <right,up,forward>`, started first,
+  named `Kestrel 2` and `Kestrel 3`) wait on that server and fly in formation with the frigate.
+  Join the frames and sound with ffmpeg:
 
   ```
   ffmpeg -framerate 30 -i <dir>/f%05d.jpg -i <dir>/reel.wav -c:v libx264 -crf 18 -pix_fmt yuv420p -c:a aac reel.mp4

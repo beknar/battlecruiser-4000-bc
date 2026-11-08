@@ -239,10 +239,14 @@ namespace CarrierGame.Demo
             var dock = Docking.Instance;
             if (hp == null || dock == null) yield break;
             // something to repair and something to sell; then out of combat before docking
+            // (the hold may already have what the frigate mined)
             if (hullF != null) hullF.Damage(900f);
-            demo.Cargo.Add(Mineral.Iron, 140f);
-            demo.Cargo.Add(Mineral.Nickel, 40f);
-            demo.Cargo.Add(Mineral.Platinum, 6f);
+            if (demo.Cargo.Used < 50f)
+            {
+                demo.Cargo.Add(Mineral.Iron, 140f);
+                demo.Cargo.Add(Mineral.Nickel, 40f);
+                demo.Cargo.Add(Mineral.Platinum, 6f);
+            }
             yield return Wait(sysDrive.recentHitSeconds + 0.5f);
             Vector3 berth = hp.BerthPosition;
             Vector3 way = hp.berth != null ? hp.berth.forward : hp.transform.forward;

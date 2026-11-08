@@ -175,16 +175,39 @@ Enemy guns lead their target and have some spread. The enemies fly orbits around
   - she smiles at a kill, an arrival, docking, touchdown, a rock mined out and a full hold;
   - she is awed in warp, grieves when the ship is lost, and is determined when it is back.
 
-  The portrait is animated: one expression crossfades into the next, she breathes and blinks, she
-  mouths each message as it appears, and the picture jolts and flashes red when the ship is hit.
-  There are five captains to choose from in the pause menu: Elena Vasquez, Amara Okafor, Yuki
-  Tanaka, Freya Lindqvist and Priya Raman. The choice is remembered between sessions.
+  The portrait is animated:
+  - **Expressions in steps.** Each expression has three steps: a hint of it, clearly it, and all
+    of it. A new expression grows through its steps, each blended into the next. On the way to
+    another, she first relaxes back down through the steps of the one she is leaving. A shock,
+    like a hit, comes on faster.
+  - **Life.** She breathes, her head sways a little, and she blinks: eyelids half shut, closed,
+    then open again, now and then twice. She mouths each message as it appears, her lips
+    parting and opening through two steps.
+  - **Hits.** The picture jolts and flashes red when the ship is hit.
+  - **Speech.** She says a short line about what has just happened, typed out on the console's
+    comms line while her mouth moves. For example: "Shields are holding!", "Missile inbound!",
+    "Scratch one.", "Arrived at Jovara.", "Rocks don't shoot back. I like rocks."
+    - There are 268 lines for 33 events, in `Assets/Carrier/Resources/Captains/lines.txt`, which
+      is easy to edit.
+    - A line is chosen at random, and none repeats until all of its event's lines have been
+      used.
+    - Urgent news (a hit, the shield down, a missile, contact, a kill) can cut in. Anything else
+      waits its turn, and she doesn't say the same kind of thing again too soon.
+    - She takes command as each level starts, and remarks on the quiet now and then.
 
-  The portraits were made with a local [InvokeAI](https://github.com/invoke-ai/InvokeAI) server.
-  Each captain's base portrait came from Juggernaut XL v9. Each expression is an edit of that
-  portrait with FLUX.1 Kontext dev, so the face stays the same from one expression to the next.
-  There are ten expressions per captain: calm, blinking, talking, smiling, determined, alarmed,
-  wincing, intent, awed and sorrowful.
+  There are five captains to choose from in the pause menu: Elena Vasquez, Amara Okafor, Yuki
+  Tanaka, Freya Lindqvist and Priya Raman. All are young officers in their late twenties. The
+  choice is remembered between sessions.
+
+  The portraits were made with a local [InvokeAI](https://github.com/invoke-ai/InvokeAI) server:
+  - Each captain's base portrait came from Juggernaut XL v9.
+  - Every step of every expression is an edit of that portrait with FLUX.1 Kontext dev, so the
+    face stays the same throughout.
+  - Each picture was then lined up with the base portrait (OpenCV, matched on the background and
+    uniform), so only the expression moves.
+
+  Each captain has 26 pictures: calm, three steps each of smiling, determined, alarmed, wincing,
+  intent, awed and sorrowful, and two steps each of blinking and talking.
 - **Camera.** The orbit camera can be dragged with the mouse or turned with the right stick, and it
   zooms.
 - **Gamepad.** A connection toast appears when a pad is plugged in or unplugged, and the pad rumbles
@@ -487,8 +510,9 @@ In the web version, use the page's Full screen button rather than F11.
   breakup, enemy weapons and sound synthesis
 - `Assets/Carrier/Scripts/Demo`: input and gamepad support, HUD (the ship's console and the
   captain), camera, autopilot, the self-test and the demo reel recorder
-- `Assets/Carrier/Resources/Captains`: the five captains' portraits, ten expressions each
-  (`<captain>_<expression>.jpg`), generated as described under The captain
+- `Assets/Carrier/Resources/Captains`: the five captains' portraits, 26 each
+  (`<captain>_neutral.jpg` and `<captain>_<expression>_<step>.jpg`), generated as described
+  under The captain
 - `Assets/Carrier/Shaders`: the shield bubble and planet atmosphere shaders (URP, additive)
 - `Assets/Carrier/Editor`: `CarrierBuilder` generates the materials, prefabs, breakup chunks and
   scene; `CarrierPlayerBuild` builds the Windows player; `CarrierCommandWatcher` runs builds from
@@ -565,7 +589,10 @@ WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use
   Iskra, checks the tails point away from the star and mines ice. Last, it lands on Ochre and
   mines a vein in the ground.
   Add `-hudtest` (or `?hudtest` on the web) to test the ship's console and the captain:
-  - the console sits in the bottom-left corner, and all five captains have all ten faces;
+  - the console sits in the bottom-left corner, and all five captains have all 26 pictures;
+  - an expression grows through its steps;
+  - there are at least 250 lines, at least 5 for every event, and she speaks about what happens
+    during the test, each line in its turn;
   - the captain reacts as she should to:
     - hits on the shield and hull;
     - the bow gun charging and firing, and a scan;

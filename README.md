@@ -20,6 +20,7 @@ file is also on the [release page](https://github.com/beknar/battlecruiser-4000-
 | Asteroid Ambush | [battlecruiser-4000-bc-asteroid-ambush-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-windows.zip) (82 MB) | [76 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-reel.mp4) (93 MB) |
 | Star System | [battlecruiser-4000-bc-star-system-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-windows.zip) (96 MB) | [214 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4) (290 MB) |
 | Star System: mining, combat, landing and mini-warps | The Star System downloads above | [5 min 10 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-features-reel.mp4) (382 MB) |
+| Star System: orbits, stations and launch systems | The Star System downloads above | [3 min 29 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-orbits-reel.mp4) (157 MB) |
 | Star System, web version | [battlecruiser-4000-bc-star-system-web.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-web.zip) (58 MB) | See [The web version](#the-web-version) |
 
 ### Carrier Demo
@@ -75,6 +76,27 @@ caption, and the scenes cut through black so there are no long flights in betwee
   Selene with its planet in the sky.
 - **Mini-warps.** The system map, then warps to Jovara, Comet Mirren and the star Kestrel, and
   home to Thalassa.
+
+### Star System: the orbits and stations reel
+
+[![The frigate docked at the Thalassa Highport, its ring turning and the space elevator's tether running out past it (click to download the reel)](docs/star-system-orbits-thumb.jpg)](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-orbits-reel.mp4)
+
+A 3½-minute reel of the orbits, stations and launch systems. Each scene has a caption, and the
+scenes cut through black.
+- **Orbits.** The system map with the orbits sped up 200 times: the planets, moons and comets go
+  round, and the Lagrange points go with Thalassa and Jovara. Then Selene circling Thalassa, 120
+  times faster. Only the orbits are sped up; the frigate and everything else run at normal speed.
+- **Lagrange points.** The L1 observatory drifts off its unstable point and fires its thrusters
+  to get back. The propellant depot at Jovara's L5, and the Trojan asteroids at L4.
+- **The Highport and the space elevator.** The geostationary station with its turning ring, and a
+  climber riding the tether.
+- **Docking.** At the Highport: the hull is repaired and the ore sold.
+- **Launch systems.** The launch loop on Thalassa, the StarTram and spin launcher on Ochre, the
+  mass driver on Selene and the slingatron on Steropes, each launching a payload.
+- **Stations.** Deepcut Station, Ochre Relay and Brontes Shipyard.
+- **Armed places.** The guns of Corsair Haven and the Cinder Orbital Battery open fire, and the
+  bow beam destroys a gun and a platform. Then the colony on Selene, and Cinder Fortress with its
+  garrison firing.
 
 ## Features
 
@@ -526,7 +548,8 @@ WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use
 - `CarrierDemo.exe -reel <dir>` (or `AsteroidAmbush.exe` / `StarSystem.exe`): records a demo reel
   (60 s, 76 s for the ambush or about 215 s for the star system) at 30 fps as JPG frames plus a WAV
   soundtrack, then quits. Add `-features` to `StarSystem.exe -reel <dir>` for the feature reel
-  (about 310 s: mining, combat, landing and mini-warps). Join the frames and sound with ffmpeg:
+  (about 310 s: mining, combat, landing and mini-warps), or `-orbits` for the orbits and stations
+  reel (about 210 s). Join the frames and sound with ffmpeg:
 
   ```
   ffmpeg -framerate 30 -i <dir>/f%05d.jpg -i <dir>/reel.wav -c:v libx264 -crf 18 -pix_fmt yuv420p -c:a aac reel.mp4

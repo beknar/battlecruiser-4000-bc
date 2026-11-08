@@ -31,6 +31,9 @@ namespace CarrierGame
 
         float burnUntil = -1f;
 
+        /// <summary>Set how far off the point it has drifted (metres; for the reel, to show a burn).</summary>
+        public void Nudge(float drift) => Drift = drift;
+
         void Start()
         {
             Drift = startDrift;

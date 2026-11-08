@@ -42,8 +42,10 @@ namespace CarrierGame.Demo
         {
             var args = Environment.GetCommandLineArgs();
             if (Array.IndexOf(args, "-reel") >= 0) CarrierDemoInput.ReelMode = true;
-            // -features: the Star System feature reel (mining, combat, landing, mini-warps)
-            Features = CarrierDemoInput.ReelMode && Array.IndexOf(args, "-features") >= 0;
+            // -features: the Star System feature reel (mining, combat, landing, mini-warps);
+            // -orbits: the orbits and stations reel (it runs on the feature reel's machinery)
+            Orbits = CarrierDemoInput.ReelMode && Array.IndexOf(args, "-orbits") >= 0;
+            Features = CarrierDemoInput.ReelMode && (Orbits || Array.IndexOf(args, "-features") >= 0);
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -70,7 +72,7 @@ namespace CarrierGame.Demo
             if (Features && sysMap != null)
             {
                 seconds = 900f;                     // a cap: the shot list ends it
-                StartCoroutine(FeatureReel());
+                StartCoroutine(Orbits ? OrbitReel() : FeatureReel());
             }
             Log($"screen {Screen.width}x{Screen.height}, gfx {SystemInfo.graphicsDeviceType}, audio {AudioSettings.outputSampleRate} Hz {AudioSettings.speakerMode}, {seconds:F0} s");
 

@@ -41,6 +41,11 @@ namespace CarrierGame
 
         /// <summary>Orbital time (s): game time since the level started.</summary>
         public double Time { get; private set; }
+
+        /// <summary>The orbits run this many times faster than the game (a time-lapse, for the
+        /// reel); 1 normally. Only the orbits: the game's own clock is untouched.</summary>
+        [System.NonSerialized] public float timeLapse = 1f;
+        double ahead;                        // seconds the orbits have run ahead of the game
         /// <summary>The reach the frigate is in (held still), or null in open space.</summary>
         public Transform Anchor { get; private set; }
         public int AnchorChanges { get; private set; }
@@ -98,7 +103,8 @@ namespace CarrierGame
         void LateUpdate()
         {
             if (orbits == null) return;
-            Time = UnityEngine.Time.timeSinceLevelLoad;
+            if (timeLapse != 1f) ahead += UnityEngine.Time.deltaTime * (timeLapse - 1f);
+            Time = UnityEngine.Time.timeSinceLevelLoad + ahead;
 
             for (int i = 0; i < reaches.Count; i++) before[i] = reaches[i].t != null ? reaches[i].t.position : Vector3.zero;
             int anchor = -1;

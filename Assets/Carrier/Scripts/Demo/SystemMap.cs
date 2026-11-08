@@ -12,6 +12,9 @@ namespace CarrierGame.Demo
     /// frigate's own position and heading, and for the chosen destination its distance and how
     /// long the trip will take. Built places are small squares; a name that would run into
     /// another is left off until the place is chosen. Pick a destination and warp from here.
+    /// Everything moves on its orbit (OrbitalSystem), and the map with it: the comets' long
+    /// ellipses are drawn, and the five Lagrange points of Thalassa and Jovara, going round
+    /// with them.
     ///
     /// Keyboard and mouse: M opens and closes it; click a place (or use the arrow keys / WASD,
     /// Tab to step through), then click WARP, double-click, or press Enter. Esc closes it.
@@ -277,8 +280,37 @@ namespace CarrierGame.Demo
                 DottedCircle(c, r, w.orbitParent != null ? new Color(0.6f, 0.7f, 0.85f, 0.25f) : new Color(0.6f, 0.7f, 0.85f, 0.35f),
                              Mathf.Clamp(Mathf.RoundToInt(r * 0.35f), 24, 260));
             }
-            // the bodies and fields, then what is built
+            // the comets' orbits, and the Lagrange points
             var label = Hud.Text(15);
+            var orbits = OrbitalSystem.Instance;
+            if (orbits != null && Event.current.type == EventType.Repaint)
+            {
+                Vector3 sp = orbits.StarPosition;
+                var small = Hud.Text(12);
+                foreach (var o in orbits.Orbits)
+                {
+                    if (o == null) continue;
+                    if (o.kind == Orbit.Kind.Kepler && o.parent == null && o.eccentricity > 0.01)
+                    {
+                        float dot = Mathf.Max(1.5f, 2f * s);
+                        for (int k = 0; k < 140; k++)
+                        {
+                            Vector2 q = ToScreen(sp + o.EllipsePoint(k * System.Math.PI * 2.0 / 140.0));
+                            Hud.Fill(new Rect(q.x - dot * 0.5f, q.y - dot * 0.5f, dot, dot), new Color(0.55f, 0.85f, 1f, 0.3f));
+                        }
+                    }
+                    if (o.lagrangeOnMap)
+                        for (int n = 1; n <= 5; n++)
+                        {
+                            Vector2 q = ToScreen(orbits.LagrangePoint(o, n));
+                            var c = n >= 4 ? new Color(0.78f, 0.72f, 1f, 0.85f) : new Color(0.78f, 0.72f, 1f, 0.55f);
+                            Hud.Fill(new Rect(q.x - 5f * s, q.y - 0.75f * s, 10f * s, 1.5f * s), c);
+                            Hud.Fill(new Rect(q.x - 0.75f * s, q.y - 5f * s, 1.5f * s, 10f * s), c);
+                            GUI.Label(new Rect(q.x + 4f * s, q.y + 1f * s, 40f * s, 16f * s), $"<color=#b8b0f0>L{n}</color>", small);
+                        }
+                }
+            }
+            // the bodies and fields, then what is built
             foreach (var w in order)
             {
                 Vector2 p = ScreenPosOf(w);
@@ -369,6 +401,23 @@ namespace CarrierGame.Demo
             GUI.matrix = m;
         }
 
+        /// <summary>How a place goes round (null for the star).</summary>
+        public static string OrbitText(WarpPoint w)
+        {
+            var o = OrbitalSystem.OrbitOf(w.transform);
+            if (o == null) return null;
+            string Min(double sec) => sec >= 5400.0 ? $"{sec / 3600.0:F1} h" : $"{sec / 60.0:F0} min";
+            if (o.kind == Orbit.Kind.Lagrange && o.secondary != null)
+                return $"Goes round with {o.secondary.name.Replace(" (orbit)", "")}, every {Min(o.Period)}";
+            string round = o.parent != null ? o.parent.name.Replace(" (orbit)", "") : "Kestrel";
+            string orbitName = o.name.Replace(" (orbit)", "");
+            bool own = w.transform == o.transform || w.transform.parent == o.transform;
+            if (!own && w.kind == WarpPoint.Kind.Station) return $"Geostationary: always over the same place on {orbitName}";
+            if (!own) return $"On {orbitName}, which orbits {round} every {Min(o.Period)}";
+            string what = o.eccentricity > 0.01 ? "Orbits Kestrel on a long ellipse" : $"Orbits {round}";
+            return $"{what} every {Min(o.Period)}";
+        }
+
         /// <summary>What the info panel calls a place.</summary>
         public static string KindText(WarpPoint w)
         {
@@ -401,6 +450,14 @@ namespace CarrierGame.Demo
                 string kind = KindText(Selected);
                 GUI.Label(new Rect(x, y, w, 24f * s), $"<color=#9aa4b0>{kind}</color>", body);
                 y += 30f * s;
+                string orbitText = OrbitText(Selected);
+                if (orbitText != null)
+                {
+                    var oc = new GUIContent($"<color=#9aa4b0>{orbitText}</color>");
+                    float oh = body.CalcHeight(oc, w);
+                    GUI.Label(new Rect(x, y, w, oh), oc, body);
+                    y += oh + 8f * s;
+                }
                 var desc = new GUIContent(Selected.description + (Selected.hostile ? "\n<color=#ff6050>Hostile contacts reported.</color>" : ""));
                 float h = body.CalcHeight(desc, w);
                 GUI.Label(new Rect(x, y, w, h), desc, body);

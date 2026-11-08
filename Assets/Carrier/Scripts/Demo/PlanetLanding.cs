@@ -54,6 +54,10 @@ namespace CarrierGame.Demo
         /// <summary>Fading down or up: the controls are off.</summary>
         public static bool Transitioning => Instance != null && (Instance.Current == State.Descending || Instance.Current == State.Ascending);
 
+        /// <summary>Where the ship goes back to on take-off, from the body's centre.</summary>
+        public Vector3 OrbitOffset => orbitOffset;
+        bool returnToArrival;
+
         public WarpPoint Body { get; private set; }
         public SurfaceSite Site { get; private set; }
         /// <summary>The planet's surface being flown over (null in space).</summary>
@@ -71,7 +75,9 @@ namespace CarrierGame.Demo
 
         float fade;
         Color fadeColor = Color.black;
-        Vector3 orbitPosition;
+        // where the ship was in orbit, from the body's centre (the body moves along its orbit
+        // while the ship is down)
+        Vector3 orbitOffset;
         Quaternion orbitRotation;
 
         void Awake()
@@ -94,15 +100,22 @@ namespace CarrierGame.Demo
         {
             why = "";
             if (carrier == null) return null;
+            // in range of several (a moon by its planet, a base on a moon): the smallest of them
             WarpPoint best = null;
-            float bestRatio = float.MaxValue;
+            float bestZone = float.MaxValue;
             foreach (var w in WarpPoint.All)
             {
                 if (w == null || w.surface == SurfaceKind.None) continue;
                 float ratio = Vector3.Distance(carrier.transform.position, w.Position) / Mathf.Max(1f, w.arrivalDistance);
-                if (ratio < landingRange && ratio < bestRatio) { bestRatio = ratio; best = w; }
+                if (ratio < landingRange && w.arrivalDistance < bestZone) { bestZone = w.arrivalDistance; best = w; }
             }
             if (best == null) return null;
+            // at a place with no surface of its own nearer than the planet (the L1 observatory,
+            // 27 km out from Thalassa but in its landing range), it's that place it is at
+            foreach (var w in WarpPoint.All)
+                if (w != null && w != best && w.surface == SurfaceKind.None && w.kind != WarpPoint.Kind.Planet && w.kind != WarpPoint.Kind.Star &&
+                    w.arrivalDistance < best.arrivalDistance &&
+                    Vector3.Distance(carrier.transform.position, w.Position) < w.arrivalDistance * 1.1f) return null;
             if (carrier.Destroyed) why = "the frigate is destroyed";
             else if (Docking.Busy) why = "undock first";
             else if (drive != null && drive.Current != WarpDrive.State.Ready) why = "in warp";
@@ -134,7 +147,10 @@ namespace CarrierGame.Demo
         public bool LandOn(WarpPoint body)
         {
             if (Current != State.InSpace || body == null || body.surface == SurfaceKind.None || carrier.Destroyed) return false;
-            StartCoroutine(Descend(body.LandingBody));
+            var target = body.LandingBody;
+            // from far off: on take-off it comes back into orbit of the body, not out where it was
+            returnToArrival = Vector3.Distance(carrier.transform.position, target.Position) > target.arrivalDistance * landingRange;
+            StartCoroutine(Descend(target));
             return true;
         }
 
@@ -152,7 +168,12 @@ namespace CarrierGame.Demo
             Current = State.Descending;
             Body = body;
             if (drive != null) drive.lockedBecause = "take off first";
-            orbitPosition = carrier.transform.position;
+            orbitOffset = carrier.transform.position - body.Position;
+            // the ground under where it was; the way back up is to the same place (or, sent down
+            // from far off by LandOn, into orbit of the body)
+            Vector3 down = orbitOffset;
+            if (returnToArrival) orbitOffset = body.ArrivalPoint(carrier.transform.position) - body.Position;
+            returnToArrival = false;
             orbitRotation = carrier.transform.rotation;
             carrier.SetTarget(null);
             carrier.externalMotion = true;
@@ -172,7 +193,7 @@ namespace CarrierGame.Demo
             yield return null;
 
             // the ground under the point the ship was over
-            Vector3 world = orbitPosition - body.Position;
+            Vector3 world = down;
             Vector3 local = body.kind == WarpPoint.Kind.AsteroidField ? world : body.transform.InverseTransformDirection(world);
             local = local.sqrMagnitude > 1f ? local.normalized : Vector3.up;
             var w = WorldFor(body);
@@ -278,10 +299,10 @@ namespace CarrierGame.Demo
             if (moveShip)
             {
                 // back where it left, nose turned away from the body so it doesn't fly into it
-                Vector3 away = orbitPosition - (Body != null ? Body.Position : Vector3.zero);
+                Vector3 away = orbitOffset;
                 away.y = 0f;
                 if (away.sqrMagnitude < 1f) away = orbitRotation * Vector3.back;
-                carrier.transform.position = orbitPosition;
+                carrier.transform.position = (Body != null ? Body.Position : Vector3.zero) + orbitOffset;
                 carrier.SetAttitude(Mathf.Atan2(away.x, away.z) * Mathf.Rad2Deg, 0f);
                 carrier.SetMotion(30f);
                 carrier.throttle = Mathf.Max(carrier.throttle, 0.2f);

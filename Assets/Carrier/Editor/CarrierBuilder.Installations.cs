@@ -127,12 +127,14 @@ namespace Carrier.EditorTools
 
         static void Highport(SystemRefs s, Transform parent, Built b)
         {
-            Vector3 th = s.thalassa.transform.position;
-            Vector3 pos = th + new Vector3(Mathf.Cos(150f * Mathf.Deg2Rad), 0f, Mathf.Sin(150f * Mathf.Deg2Rad)) * 12000f + Vector3.up * 900f;
-            Vector3 away = pos - th; away.y = 0f;
+            // at the top of the space elevator: in geostationary orbit over Thalassa's equator,
+            // its docking arm (and the tether, on to the counterweight) pointing straight out
+            Vector3 th = s.thalassa.transform.position, axis = s.thalassa.transform.up;
+            Vector3 radial = Vector3.ProjectOnPlane(new Vector3(Mathf.Cos(150f * Mathf.Deg2Rad), 0f, Mathf.Sin(150f * Mathf.Deg2Rad)), axis).normalized;
+            Vector3 pos = th + radial * ThalassaGeo;
             var go = new GameObject("Thalassa Highport");
             go.transform.SetParent(parent, false);
-            go.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(away.normalized, Vector3.up));
+            go.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(radial, axis));
 
             // the hub, its docking arm, solar wings and radiators (still)
             var hub = new Geo(go.transform, "Hub");
@@ -188,11 +190,17 @@ namespace Carrier.EditorTools
             var berth = Berth(go.transform, new Vector3(150f, 0f, 450f), Vector3.forward);
             Facility(go, "Thalassa Highport", WarpPoint.Kind.Station, false, berth, true);
             Obstruct(go, 760f, 90f, false);
-            Destination(go, "Thalassa Highport", WarpPoint.Kind.Station,
-                "Thalassa's orbital port: a habitat ring 1.4 km across, turning slowly round its docking hub. " +
-                "Dock here (K) for repairs and to sell your ore.", 700f, 3200f, FriendlyStation, s.wThalassa);
+            var hw = Destination(go, "Thalassa Highport", WarpPoint.Kind.Station,
+                "Thalassa's orbital port, at the top of its space elevator in geostationary orbit: a habitat ring 1.4 km across, " +
+                "turning slowly round its docking hub. Dock here (K) for repairs and to sell your ore.", 700f, 3200f, FriendlyStation, s.wThalassa);
+            // arrive off its berth side, level with it: from the near side, the way in could be from
+            // the planet; along the hub it would be down the tether
+            hw.overhead = true;
+            hw.overheadAxis = Vector3.right;
+            hw.overheadSide = 0.1f;
             b.shots.Add(("inst_highport", pos + go.transform.rotation * new Vector3(1500f, 500f, 1700f), pos));
             b.shots.Add(("inst_highport_berth", go.transform.TransformPoint(new Vector3(420f, 120f, 760f)), go.transform.TransformPoint(new Vector3(100f, 0f, 420f))));
+            go.transform.SetParent(s.thalassa.transform, true);   // it turns with the planet
         }
 
         // ------------------------------------------------------------------ asteroid bases
@@ -674,7 +682,7 @@ namespace Carrier.EditorTools
         {
             Vector3 th = s.thalassa.transform.position, st = s.star.position;
             Vector3 toStar = (st - th).normalized;
-            Vector3 pos = th + toStar * 30000f;
+            Vector3 pos = LagrangeAtStart(s.thalassa, 1);
             var go = new GameObject("Thalassa L1 Observatory");
             go.transform.SetParent(parent, false);
             go.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(toStar, Vector3.up));
@@ -699,18 +707,31 @@ namespace Carrier.EditorTools
             Bake(g, "Observatory_L1", true, s.layer);
             NavLight(go.transform, new Vector3(300f, 0f, 45f), sm.red, 6f, 2f, 0f);
             NavLight(go.transform, new Vector3(-300f, 0f, 45f), sm.green, 6f, 2f, 0f);
+            // station-keeping thrusters (L1 is unstable): plumes shown during a burn
+            foreach (var (x, y, z, dz) in new[] { (60f, -70f, -100f, -1f), (-60f, -70f, -100f, -1f), (0f, 30f, -290f, -1f), (0f, 0f, 50f, 1f) })
+            {
+                var plume = new GameObject("Thruster", typeof(MeshFilter), typeof(MeshRenderer));
+                plume.transform.SetParent(go.transform, false);
+                plume.transform.localPosition = new Vector3(x, y, z + dz * 25f);
+                plume.transform.localScale = new Vector3(10f, 10f, 50f);
+                plume.GetComponent<MeshFilter>().sharedMesh = Prim(PrimitiveType.Sphere);
+                var pr = plume.GetComponent<MeshRenderer>();
+                pr.sharedMaterial = Mats["FX_EnginePlume"];
+                pr.shadowCastingMode = ShadowCastingMode.Off;
+            }
             Facility(go, "Thalassa L1 Observatory", WarpPoint.Kind.Lagrange, false);
             Obstruct(go, 320f, 40f, false);
             Destination(go, "Thalassa L1 Observatory", WarpPoint.Kind.Lagrange,
-                "A solar observatory at the L1 point between Kestrel and Thalassa, where the pulls of the star and the planet balance " +
-                "and it can stay put between them: a 600 m sunshield, and a telescope in its shadow.",
+                "A solar observatory at the L1 point between Kestrel and Thalassa, 27.6 km sunward of the planet, where the pulls of " +
+                "the star and the planet balance and it goes round with Thalassa. L1 is unstable: it drifts off, faster and faster, " +
+                "unless it fires its thrusters, every few minutes. A 600 m sunshield, and a telescope in its shadow.",
                 320f, 3200f, LagrangeColour, null, false, "Lagrange point L1 of Thalassa");
             b.shots.Add(("inst_observatory", pos - toStar * 1300f + go.transform.right * 700f + Vector3.up * 300f, pos));
         }
 
         static void Depot(SystemRefs s, Transform parent, Built b)
         {
-            Vector3 pos = Polar(270f, 178f, 2f);
+            Vector3 pos = LagrangeAtStart(s.jovara, 5);
             Vector3 along = Vector3.Cross(Vector3.up, pos).normalized;   // along the orbit
             var go = new GameObject("Jovara L5 Depot");
             go.transform.SetParent(parent, false);
@@ -746,8 +767,9 @@ namespace Carrier.EditorTools
             Facility(go, "Jovara L5 Depot", WarpPoint.Kind.Lagrange, false, berth, true);
             Obstruct(go, 470f, 60f, false);
             Destination(go, "Jovara L5 Depot", WarpPoint.Kind.Lagrange,
-                "A propellant depot at Jovara's trailing Lagrange point, L5, 60 degrees behind the planet in its orbit, where it keeps " +
-                "station without effort (the Trojan rocks gather at the leading point, L4). Dock here (K) for repairs and to sell ore.",
+                "A propellant depot at Jovara's trailing Lagrange point, L5, 60 degrees behind the planet in its orbit and going round " +
+                "with it. L4 and L5 are stable: the depot swings slowly round the point and stays (the Trojan rocks gather at the leading " +
+                "point, L4). Dock here (K) for repairs and to sell ore.",
                 470f, 3200f, LagrangeColour, null, false, "Lagrange point L5 of Jovara");
             b.shots.Add(("inst_depot", go.transform.TransformPoint(new Vector3(900f, 350f, 700f)), pos));
         }

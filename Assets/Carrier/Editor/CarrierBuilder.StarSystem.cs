@@ -332,7 +332,9 @@ namespace Carrier.EditorTools
                 "A yellow-white main-sequence star. A close pass gives a spectacular view, and nowhere to hide.",
                 3500f, 24000f, new Color(1f, 0.85f, 0.45f));
 
-            // the planets
+            // the planets (the star's mass is set by Thalassa's 90-minute year; Thalassa turns
+            // fast enough for a geostationary orbit at 10 km, the top of its space elevator)
+            SetStarMass(Polar(250f, 128f, 0.8f));
             var cinder = MakePlanet("Cinder", sys, Polar(20f, 55f, 0.4f), 3200f, matVolc, atmoVolc, 1.03f, layer, 0.4f);
             var wCinder = MakeWarpPoint(cinder, "Cinder", WarpPoint.Kind.Planet,
                 "A small volcanic world close to the star, its crust split by rivers of lava. A corsair patrol (a heavy cruiser and two destroyers) holds station here.",
@@ -342,9 +344,10 @@ namespace Carrier.EditorTools
             var wOchre = MakeWarpPoint(ochre, "Ochre", WarpPoint.Kind.Planet,
                 "A dry desert planet of dune seas and dust basins under a thin, hazy atmosphere.", 5000f, 13000f, new Color(0.9f, 0.65f, 0.4f));
             wOchre.surface = SurfaceKind.Desert;
-            var thalassa = MakePlanet("Thalassa", sys, Polar(250f, 128f, 0.8f), 6500f, matOcean, atmoOcean, 1.04f, layer, 0.25f);
+            var thalassa = MakePlanet("Thalassa", sys, Polar(250f, 128f, 0.8f), 6500f, matOcean, atmoOcean, 1.04f, layer, ThalassaSpin());
+            // (arrivals 30 km out: clear of the moons' orbits, at 16 and 24 km)
             var wThalassa = MakeWarpPoint(thalassa, "Thalassa", WarpPoint.Kind.Planet,
-                "An ocean world with scattered continents, polar ice and a thick blue atmosphere. Two moons.", 6500f, 17000f, new Color(0.35f, 0.6f, 1f));
+                "An ocean world with scattered continents, polar ice and a thick blue atmosphere. Two moons, and a space elevator.", 6500f, 30000f, new Color(0.35f, 0.6f, 1f));
             wThalassa.surface = SurfaceKind.Ocean;
             var jovara = MakePlanet("Jovara", sys, Polar(330f, 178f, 2f), 16000f, matGas, atmoGas, 1.03f, layer, 0.15f);
             var wJovara = MakeWarpPoint(jovara, "Jovara", WarpPoint.Kind.Planet,
@@ -404,7 +407,8 @@ namespace Carrier.EditorTools
 
             // the frigate, in high orbit over Thalassa's day side
             var frigate = (GameObject)PrefabUtility.InstantiatePrefab(frigatePrefab);
-            Vector3 start = wThalassa.ArrivalPoint(Vector3.zero);
+            // (from 70 degrees round from the star: off the line to the L1 point, on the day side)
+            Vector3 start = wThalassa.ArrivalPoint(thalassa.transform.position + Quaternion.Euler(0f, 70f, 0f) * -thalassa.transform.position);
             Vector3 look = thalassa.transform.position - start;
             look.y = 0f;
             frigate.transform.SetPositionAndRotation(start, Quaternion.LookRotation(look));
@@ -541,12 +545,17 @@ namespace Carrier.EditorTools
                 "methane and ammonia, with a little deuterium.");
 
             // stations, bases, the orbital battery, the Lagrange point installations
-            var built = BuildInstallations(new SystemRefs
+            var refs = new SystemRefs
             {
                 sys = sys, star = star.transform, cinder = cinder, ochre = ochre, thalassa = thalassa, jovara = jovara,
                 wCinder = wCinder, wThalassa = wThalassa, wSelene = wSelene, wBrontes = wBrontes,
                 innerC = innerC, outerC = outerC, rockMat = rockMat, layer = layer, kit = surfaceKit,
-            }, p);
+            };
+            var built = BuildInstallations(refs, p);
+            // launch structures on the planets and moons
+            BuildLaunchers(refs, built);
+            // and everything on its orbit
+            SetUpOrbits(sys, frigate.transform, all);
 
             // camera, controls and the system map
             var camGo = new GameObject("Main Camera");
@@ -623,14 +632,16 @@ namespace Carrier.EditorTools
             Shot("sys_thalassa_moons", thalassa.position + new Vector3(-30000f, 9000f, -38000f), thalassa.position + new Vector3(5000f, 0f, 5000f));
             Shot("sys_jovara", jovara.position + new Vector3(-90000f, 25000f, -70000f), jovara.position);
             Shot("sys_star", star.position + new Vector3(20000f, 3000f, 11000f), star.position);
+            // (everything is inside its orbit's frame now: look for it anywhere in the system)
+            Transform Find(string n) => sys.GetComponentsInChildren<Transform>(true).First(x => x.name == n);
             foreach (var n in new[] { "Cinder", "Ochre", "Glacis" })
             {
-                var t = sys.Find(n);
+                var t = Find(n);
                 var wp = t.GetComponent<WarpPoint>();
                 Vector3 from = wp.ArrivalPoint(Vector3.zero);
                 Shot($"sys_{n.ToLower()}", from + Vector3.up * 400f, t.position);
             }
-            var tro = sys.Find("Jovara Trojans (warp point)");
+            var tro = Find("Jovara Trojans (warp point)");
             Shot("sys_trojans", tro.position + new Vector3(-7000f, 1500f, -5000f), tro.position);
             foreach (var comet in sys.GetComponentsInChildren<Comet>())
             {

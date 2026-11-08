@@ -14,14 +14,20 @@ namespace CarrierGame.Demo
     /// </summary>
     public class GameMenu : MonoBehaviour
     {
-        public static bool IsOpen { get; private set; }
+        /// <summary>The pause menu is up, or something else that takes the keys and mouse (the
+        /// co-op panel): the game itself takes no input.</summary>
+        public static bool IsOpen => open || Overlay;
+        static bool open;
+        /// <summary>Another panel is up that takes the input (the co-op panel).</summary>
+        public static bool Overlay;
+        bool paused;
         static int closedFrame = -10;
         int openedFrame = -10;
         /// <summary>Closed this frame or the last (so the key that closed it isn't also read by the game).</summary>
         public static bool JustClosed => Time.frameCount - closedFrame <= 1;
 
-        enum Item { Resume, Restart, Sound, Captain, Quit }
-        static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Captain, Item.Quit };
+        enum Item { Resume, Restart, Sound, Captain, Coop, Quit }
+        static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Captain, Item.Coop, Item.Quit };
 
         int selected;
         Item? confirming;
@@ -32,28 +38,32 @@ namespace CarrierGame.Demo
         float savedTimeScale = 1f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { IsOpen = false; closedFrame = -10; }
+        static void ResetStatics() { open = false; Overlay = false; closedFrame = -10; }
 
         public void Open()
         {
             if (IsOpen || SystemMap.IsOpen) return;
-            IsOpen = true;
+            open = true;
             openedFrame = Time.frameCount;
             selected = 0;
             confirming = null;
-            savedTimeScale = Time.timeScale > 0f ? Time.timeScale : 1f;
-            Time.timeScale = 0f;
-            AudioListener.pause = true;
+            // in co-op the game goes on (the others are still playing)
+            paused = !CoopClient.Active;
+            if (paused)
+            {
+                savedTimeScale = Time.timeScale > 0f ? Time.timeScale : 1f;
+                Time.timeScale = 0f;
+                AudioListener.pause = true;
+            }
             PadSupport.StopRumble();
         }
 
         public void Close()
         {
-            if (!IsOpen) return;
-            IsOpen = false;
+            if (!open) return;
+            open = false;
             closedFrame = Time.frameCount;
-            Time.timeScale = savedTimeScale;
-            AudioListener.pause = false;
+            if (paused) { Time.timeScale = savedTimeScale; AudioListener.pause = false; paused = false; }
         }
 
         public void Toggle() { if (IsOpen) Close(); else Open(); }
@@ -61,10 +71,9 @@ namespace CarrierGame.Demo
         void OnDestroy()
         {
             // leaving the scene with the menu up (restart): don't leave the game paused
-            if (!IsOpen) return;
-            IsOpen = false;
-            Time.timeScale = savedTimeScale;
-            AudioListener.pause = false;
+            if (!open) return;
+            open = false;
+            if (paused) { Time.timeScale = savedTimeScale; AudioListener.pause = false; paused = false; }
         }
 
         string Label(Item it)
@@ -76,6 +85,7 @@ namespace CarrierGame.Demo
                 case Item.Restart: return sure ? "Restart: press again to confirm" : "Restart";
                 case Item.Sound: return SoundFX.Muted ? "Sound: off" : "Sound: on";
                 case Item.Captain: return $"Captain:  <   {Demo.Captain.Current.name}   >";
+                case Item.Coop: return CoopClient.Active ? $"Co-op: {CoopClient.Instance.Players.Count} playing" : "Co-op: join a game";
                 default: return sure ? "Quit: press again to confirm" : "Quit";
             }
         }
@@ -95,7 +105,12 @@ namespace CarrierGame.Demo
             {
                 case Item.Resume: Close(); break;
                 case Item.Sound: SoundFX.Muted = !SoundFX.Muted; break;
-                case Item.Captain: Demo.Captain.Index++; break;
+                case Item.Captain: Demo.Captain.Index++; if (CoopClient.Active) CoopClient.Instance.SendCaptain(); break;
+                case Item.Coop:
+                    Close();
+                    var coop = FindAnyObjectByType<CoopMenu>();
+                    if (coop != null) coop.Open();
+                    break;
                 case Item.Restart: Restart(); break;
                 case Item.Quit: Quit(); break;
             }
@@ -144,7 +159,7 @@ namespace CarrierGame.Demo
         void Update()
         {
             // not on the frame it opened: the key that opened it (Esc, Start) would close it again
-            if (!IsOpen || Time.frameCount == openedFrame) return;
+            if (!open || Time.frameCount == openedFrame) return;
             var k = Keyboard.current;
             var pad = Gamepad.current;
             if (k != null)
@@ -221,7 +236,7 @@ namespace CarrierGame.Demo
 
         void OnGUI()
         {
-            if (!IsOpen) return;
+            if (!open) return;
             GUI.depth = -100;   // over the HUD panels
             float s = Hud.S;
             Hud.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0.01f, 0.03f, 0.55f));

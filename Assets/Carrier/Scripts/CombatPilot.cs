@@ -136,6 +136,19 @@ namespace CarrierGame
             Current = startLurking ? State.Lurk : State.Engage;
         }
 
+        float nextRetarget;
+
+        /// <summary>With more than one player ship about (co-op), go for the nearest now and then.</summary>
+        void Retarget()
+        {
+            if (PlayerShips.Count < 2 || Time.time < nextRetarget) return;
+            nextRetarget = Time.time + 2f;
+            var nearest = PlayerShips.Nearest(transform.position);
+            if (nearest == null || nearest == target) return;
+            target = nearest;
+            if (weapons != null) weapons.SetTarget(nearest);
+        }
+
         void Start()
         {
             if (target == null)
@@ -149,6 +162,13 @@ namespace CarrierGame
                 weapons.weaponsFree = Current != State.Lurk;
             }
             if (health != null) { health.onRespawned.AddListener(OnRespawned); hitsWhileLurking = health.Hits; }
+        }
+
+        /// <summary>Co-op: lying in wait or not, as the host's game has it (this one is a puppet).</summary>
+        public void NetLurk(bool lurk)
+        {
+            var want = lurk ? State.Lurk : State.Engage;
+            if (Current != want) Current = want;
         }
 
         /// <summary>A ship lying in wait for an ambush (not shown or targetable yet). One flying
@@ -201,6 +221,7 @@ namespace CarrierGame
         void Update()
         {
             if (health != null && health.Dead) return;
+            Retarget();
             float dt = Time.deltaTime;
             Vector3 pos = transform.position;
             Vector3 desired = transform.forward;

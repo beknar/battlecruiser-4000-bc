@@ -522,6 +522,11 @@ In the web version, use the page's Full screen button rather than F11.
 - `Assets/WebGLTemplates/StarSystem`: the web page (full-window canvas, loader, Full screen
   button) and `xbox360.js`; `Assets/Carrier/Plugins/WebGL` holds the bridge between the game and
   the page
+- `Assets/Carrier/Scripts/Net`: co-op: the connection (`CoopClient`, over a WebSocket in both
+  the Windows and web versions), the shared world (`CoopWorld`), other players' ships
+  (`RemotePlayer`) and the co-op panel (`CoopMenu`)
+- `Server/CoopServer`: the co-op server (.NET 8, Windows and Linux)
+- `Tools/CoopTest`: the co-op server test and the scripted second player
 - `Tools/WebTest`: the headless Chrome gamepad test and its stand-in controller
 - `Tools/Blender`: the scripts that make those models (frigate conversion from GLB, ball turret,
   CIWS, beam emitter, carrier parts) and preview renders
@@ -555,6 +560,97 @@ WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use
   `xbox360.js` translates it so the game still sees a normal gamepad. Rumble works through the
   browser.
 - **Quitting.** Quit in the pause menu closes the game, and the page offers Play again.
+
+## Co-op
+
+Up to four players can fly together in any of the three games, on Windows or in the web
+version, through a small server that any of them (or a machine elsewhere) runs.
+
+### Joining a game
+
+When the game starts it asks whether to play alone or join a co-op game, with your name and
+the server's address and port (remembered for next time). The same panel is under **Co-op** in
+the pause menu. While you're connected, a panel at the top of the screen lists the players,
+who is hosting, and the round trip to the server.
+
+To skip the question, start the game with `-connect <address>:<port> [-name <name>]`, or open
+the web version with `?server=<address>:<port>&name=<name>&connect`.
+
+### What is shared
+
+- **Ships.** Each game shows the other players' ships, smoothed, with their names. A ship
+  disappears while its player is in warp, on a planet or destroyed.
+- **Enemies.** Each level has a host: the first player there. The host's game runs the enemies,
+  and every other game shows copies that follow them. A hit on a copy goes to the host's game,
+  which applies it, so a kill counts for everyone. Enemies go for whichever player is nearest,
+  and their hits land on that player's ship.
+- **Fire.** Shots, missiles and main-gun beams appear in every game.
+- **Hand-over.** When the host leaves, the next player takes the enemies over where they are.
+- **The Star System.** Every game runs the orbits on the same clock, so the planets, stations
+  and everything round them are in the same places for everyone.
+- **Not shared.** Fights down on a planet's surface stay in each player's own game. The pause
+  menu doesn't pause the game while you're connected.
+
+### Running the server
+
+The server is in `Server/CoopServer` (.NET 8). It runs on Windows and Linux and needs nothing
+else installed when built as below.
+
+```
+CoopServer [--port 7777] [--bind 0.0.0.0] [--max-players 4]
+           [--allow 192.168.1.0/24,10.0.0.5] [--config coopserver.json]
+           [--cert server.pfx --cert-password secret]
+```
+
+- **Settings.** They are in `coopserver.json` next to the program, and anything given on the
+  command line wins over the file. `CoopServer --help` lists them all.
+- **Allow-list.** `allow` (or `--allow`) limits who may connect, by single IPs or CIDR ranges,
+  IPv4 or IPv6. Anyone else is refused with HTTP 403. An empty list lets anyone in.
+- **Live changes.** Saved changes to the file's `allow` and `maxPlayers` take effect at once,
+  without a restart.
+- **Console.** While the server runs, type `status` for who is on, `reload` to re-read the
+  settings, or `quit`.
+- **Status page.** `http://<server>:<port>/` shows the same status to allowed addresses.
+- **Web players.** A web page served over https can only connect to `wss://`, so give the
+  server a certificate (`--cert`), or put it behind a proxy that has one. A page served over
+  plain http, or from localhost, can use `ws://`.
+- **Firewall.** Open the port (TCP) on the server's firewall for players on other machines.
+
+To build it, install the .NET 8 SDK and run this from `Server/CoopServer`:
+
+```
+dotnet publish -c Release -r win-x64   -o ../../../Builds/CoopServer/win-x64
+dotnet publish -c Release -r linux-x64 -o ../../../Builds/CoopServer/linux-x64
+```
+
+Each build is a single self-contained file (about 47 MB) plus `coopserver.json`. On Linux,
+`chmod +x CoopServer` first.
+
+### Testing co-op
+
+- `Tools/CoopTest/server_test.py <host> <port> [--allowtest <settings file>]` tests a running
+  server:
+  - four players get in and a fifth is turned away;
+  - messages reach the right players, and the server's own messages can't be forged;
+  - the host hands over when it leaves, and the clock and rooms work;
+  - a game speaking another protocol is refused, and the status page answers;
+  - with `--allowtest`, addresses off the allow-list are refused, and a saved change lets
+    them in.
+- `StarSystem.exe -systemtest <dir> -cooptest -connect <address>:<port>` plays co-op against
+  `Tools/CoopTest/bot.py`, a scripted second player. Start the bot first, so it hosts.
+  - First the game is a guest. It checks that the bot's ship shows where it is, that an enemy
+    goes where the bot puts it, and that the bot's hits and shots arrive. It also checks that
+    its own hits on the enemy reach the bot.
+  - Then the bot leaves and the game takes the enemies over. The bot comes back as a guest,
+    receives the enemies, and its hits land on the real ones.
+  - At Corsair Haven the station's guns go for the bot's ship, and the hits reach it.
+  - Last, it leaves, checking the game carries on alone.
+  - `-coopquick` skips the Corsair Haven part. On the web, use
+    `?systemtest&cooptest&server=<address>:<port>&connect`.
+- `Tools/WebTest/cooptest.sh [build dir]` runs the quick version against the web build in
+  headless Chrome, with its own server and bot. It renders in software (WebGL 2), so the GPU
+  isn't used; the web version connects the same way under WebGPU.
+- These tools need Python's `websockets` package.
 
 ## Command-line modes
 

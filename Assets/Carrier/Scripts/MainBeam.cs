@@ -60,6 +60,24 @@ namespace CarrierGame
         static readonly int EmissionId = Shader.PropertyToID("_EmissionColor");
         static readonly RaycastHit[] Hits = new RaycastHit[32];
 
+        /// <summary>Co-op: a beam has started firing (announced to the other players' games).</summary>
+        public static event System.Action<MainBeam> Began;
+        /// <summary>Co-op: this beam only shows what another player's game is doing: no damage.</summary>
+        [System.NonSerialized] public bool cosmetic;
+        /// <summary>Which way it is firing now.</summary>
+        public Vector3 BeamDirection => beamDir;
+
+        /// <summary>Co-op: fire now along `dir`, for show (the real beam is in another game).</summary>
+        public void NetFire(Vector3 dir)
+        {
+            cosmetic = true;
+            if (Current == State.Charging) Cancel();
+            if (Current == State.Firing) return;
+            stateStart = Time.time;
+            BeginFiring();
+            beamDir = dir.sqrMagnitude > 1e-6f ? dir.normalized : Forward;
+        }
+
         void Awake()
         {
             owner = transform.root;
@@ -143,6 +161,7 @@ namespace CarrierGame
             SetEmitting(streamParticles, true);
             SetEmitting(sparkleParticles, true);
             SoundFX.PlayFitted(fireSound, Origin, fireDuration, false);
+            if (!cosmetic) Began?.Invoke(this);
         }
 
         void EndFiring()
@@ -170,7 +189,7 @@ namespace CarrierGame
         void Fire()
         {
             // the beam swings with the emitter (and follows the target inside the assist cone)
-            beamDir = Vector3.RotateTowards(beamDir, AimDirection(), 20f * Mathf.Deg2Rad * Time.deltaTime, 0f);
+            if (!cosmetic) beamDir = Vector3.RotateTowards(beamDir, AimDirection(), 20f * Mathf.Deg2Rad * Time.deltaTime, 0f);
             Vector3 o = Origin;
             float length = range;
             LastHit = null;
@@ -188,10 +207,12 @@ namespace CarrierGame
                 length = bestDist;
                 LastHit = best.transform;
                 var h = best.collider.GetComponentInParent<Health>();
-                if (h != null && !h.Dead)
+                if (h != null && !h.Dead && !cosmetic)
                 {
                     float dmg = damagePerSecond * Time.deltaTime;
+                    Health.Source = owner;
                     h.Damage(dmg, best.point, HitKind.Beam);
+                    Health.Source = null;
                     DamageDealt += dmg;
                 }
             }

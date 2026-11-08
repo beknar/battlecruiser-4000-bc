@@ -35,6 +35,8 @@ namespace CarrierGame
         /// <summary>Payloads on the track or in flight now.</summary>
         public int Active => shots.Count;
         public float TrackLength { get; private set; }
+        /// <summary>Seconds till the next payload starts along the track.</summary>
+        public float NextLaunchIn => next - Time.time;
 
         class Shot { public Transform t; public float age; public bool free; public Vector3 vel; public TrailRenderer trail; }
         readonly List<Shot> shots = new List<Shot>();

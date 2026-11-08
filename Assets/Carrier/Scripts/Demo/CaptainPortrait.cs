@@ -67,11 +67,11 @@ namespace CarrierGame.Demo
             var cc = demo != null ? demo.carrier : null;
             if (cc != null)
             {
-                hull = cc.GetComponent<Health>();
-                shield = cc.GetComponentInChildren<Shield>(true);
-                warp = cc.GetComponent<WarpDrive>();
+                hull = demo.Hull;
+                shield = demo.ShieldGen;
+                warp = demo.Warp;
                 missiles = cc.missiles;
-                ciws = cc.GetComponent<CiwsDirector>();
+                ciws = demo.Ciws;
                 if (hull != null) hullHitSeen = hull.LastHitTime;
                 if (shield != null) shieldHitSeen = shield.LastHitTime;
                 shotsSeen = Shots(cc.mainTurrets);
@@ -81,9 +81,9 @@ namespace CarrierGame.Demo
             }
             toastsSeen = CarrierDemoInput.Toasts;
             nextBlink = Time.time + Random.Range(1.5f, 4f);
-            Captain.Changed += OnCaptainChanged;
         }
 
+        void OnEnable() => Captain.Changed += OnCaptainChanged;
         void OnDisable() => Captain.Changed -= OnCaptainChanged;
 
         void OnCaptainChanged()
@@ -198,7 +198,13 @@ namespace CarrierGame.Demo
                 if (!cc.Destroyed) React(Mood.Determined, 8, 2.5f, "BACK IN ACTION");
                 else { hitFlash = 1f; shake = 1f; }
             }
-            if (cc.Destroyed) return;
+            if (cc.Destroyed)
+            {
+                // (the hit that destroyed it is not news when it comes back)
+                if (hull != null) hullHitSeen = hull.LastHitTime;
+                if (shield != null) shieldHitSeen = shield.LastHitTime;
+                return;
+            }
 
             // hits
             if (hull != null && hull.LastHitTime > hullHitSeen)
@@ -260,7 +266,7 @@ namespace CarrierGame.Demo
             // travel
             if (warp != null)
             {
-                if (warpWas != WarpDrive.State.Ready && warp.Current == WarpDrive.State.Ready && warpWas == WarpDrive.State.Arriving)
+                if (warp.Current == WarpDrive.State.Ready && warpWas == WarpDrive.State.Arriving)
                     React(Mood.Smile, 3, 2f, "ARRIVED");
                 warpWas = warp.Current;
             }

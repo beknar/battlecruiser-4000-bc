@@ -273,6 +273,10 @@ namespace CarrierGame.Demo
         public MiningLaser Laser { get { FindSystems(); return miningLaser; } }
         public MineralSensor Sensor { get { FindSystems(); return sensor; } }
         public CargoHold Cargo { get { FindSystems(); return cargo; } }
+        public Health Hull { get { FindSystems(); return hull; } }
+        public Shield ShieldGen { get { FindSystems(); return shield; } }
+        public CiwsDirector Ciws { get { FindSystems(); return ciws; } }
+        public WarpDrive Warp => warp;
 
         /// <summary>The cargo list (I) is open.</summary>
         public static bool ManifestOpen { get; private set; }

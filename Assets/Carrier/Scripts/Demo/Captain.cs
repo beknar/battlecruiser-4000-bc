@@ -64,31 +64,27 @@ namespace CarrierGame.Demo
 
         static readonly Dictionary<string, Texture2D> cache = new Dictionary<string, Texture2D>();
 
-        /// <summary>A captain's picture for a mood; the calm one if that mood is missing, or null.</summary>
-        public static Texture2D Face(int captain, Mood mood)
+        /// <summary>A captain's picture for a mood, exactly as stored (null if missing).</summary>
+        static Texture2D Load(int captain, Mood mood)
         {
             var id = Roster[Mathf.Clamp(captain, 0, Roster.Length - 1)].id;
             string key = $"{id}_{mood.ToString().ToLowerInvariant()}";
-            if (!cache.TryGetValue(key, out var tex))
-            {
-                tex = Resources.Load<Texture2D>("Captains/" + key);
-                cache[key] = tex;
-            }
-            if (tex == null && mood != Mood.Neutral) return Face(captain, Mood.Neutral);
+            if (!cache.TryGetValue(key, out var tex)) cache[key] = tex = Resources.Load<Texture2D>("Captains/" + key);
             return tex;
+        }
+
+        /// <summary>A captain's picture for a mood; the calm one if that mood is missing, or null.</summary>
+        public static Texture2D Face(int captain, Mood mood)
+        {
+            var tex = Load(captain, mood);
+            return tex == null && mood != Mood.Neutral ? Load(captain, Mood.Neutral) : tex;
         }
 
         /// <summary>How many of the portraits are there (for the self-test).</summary>
         public static int FacesFound(int captain)
         {
             int n = 0;
-            foreach (Mood m in Enum.GetValues(typeof(Mood)))
-            {
-                var id = Roster[captain].id;
-                string key = $"{id}_{m.ToString().ToLowerInvariant()}";
-                if (!cache.TryGetValue(key, out var tex)) cache[key] = tex = Resources.Load<Texture2D>("Captains/" + key);
-                if (tex != null) n++;
-            }
+            foreach (Mood m in Enum.GetValues(typeof(Mood))) if (Load(captain, m) != null) n++;
             return n;
         }
     }

@@ -31,8 +31,16 @@ namespace CarrierGame.Demo
         WarpDrive warp;
         CiwsDirector ciws;
         float nextScan;
-        readonly System.Collections.Generic.HashSet<Health> alive = new System.Collections.Generic.HashSet<Health>();
+        // the hostiles near the ship, each with a listener on its destruction (a kill is counted
+        // when it happens, even for one whose object is gone before the next look round)
+        readonly System.Collections.Generic.Dictionary<Health, UnityEngine.Events.UnityAction> near =
+            new System.Collections.Generic.Dictionary<Health, UnityEngine.Events.UnityAction>();
+        readonly System.Collections.Generic.HashSet<Health> seenNow = new System.Collections.Generic.HashSet<Health>();
         readonly System.Collections.Generic.List<Health> gone = new System.Collections.Generic.List<Health>();
+        /// <summary>Among the rocks: how many of the hostiles near can see the ship, of how many.</summary>
+        public static int CoverSeen { get; private set; }
+        public static int CoverTotal { get; private set; }
+        static string dimHex;
         // (reused each time the GUI draws, rather than new ones every frame)
         readonly System.Collections.Generic.List<string> alerts = new System.Collections.Generic.List<string>();
         readonly System.Collections.Generic.List<string> lines = new System.Collections.Generic.List<string>();
@@ -46,27 +54,47 @@ namespace CarrierGame.Demo
             HostilesNear = 0; MissilesInbound = 0; Kills = 0; Alerts = "";
             var cc = demo != null ? demo.carrier : null;
             if (cc == null) return;
-            hull = cc.GetComponent<Health>();
-            shield = cc.GetComponentInChildren<Shield>(true);
-            warp = cc.GetComponent<WarpDrive>();
-            ciws = cc.GetComponent<CiwsDirector>();
+            hull = demo.Hull;
+            shield = demo.ShieldGen;
+            warp = demo.Warp;
+            ciws = demo.Ciws;
         }
 
-        void OnDestroy() => Rect = UnityEngine.Rect.zero;
+        void OnDestroy()
+        {
+            Rect = UnityEngine.Rect.zero;
+            Forget(true);
+        }
+
+        /// <summary>Stop watching the hostiles that are no longer near (all of them, with `all`).</summary>
+        void Forget(bool all)
+        {
+            gone.Clear();
+            foreach (var kv in near) if (all || !seenNow.Contains(kv.Key)) gone.Add(kv.Key);
+            foreach (var h in gone)
+            {
+                if (h != null && h.onDestroyed != null) h.onDestroyed.RemoveListener(near[h]);
+                near.Remove(h);
+            }
+        }
 
         void Update()
         {
             var cc = demo != null ? demo.carrier : null;
             if (cc == null || Time.time < nextScan) return;
             nextScan = Time.time + 0.25f;
-            // in the warp tunnel nothing can touch the ship (it only passes things by)
-            if (warp != null && warp.Current == WarpDrive.State.Warping) { HostilesNear = 0; MissilesInbound = 0; return; }
+            // in the warp tunnel nothing can touch the ship (it only passes things by), and what
+            // it left behind is no longer near
+            if (warp != null && warp.Current == WarpDrive.State.Warping)
+            {
+                HostilesNear = 0; MissilesInbound = 0; CoverSeen = CoverTotal = 0;
+                Forget(true);
+                return;
+            }
             Vector3 me = cc.transform.position;
-            int n = 0;
+            int n = 0, seen = 0;
             float nearest = float.MaxValue;
-            gone.Clear();
-            foreach (var h in alive) if (h == null || h.Dead) gone.Add(h);
-            foreach (var h in gone) { alive.Remove(h); if (h != null) Kills++; }
+            seenNow.Clear();
             foreach (var info in TargetInfo.All)
             {
                 if (info == null || !info.Hostile) continue;
@@ -76,10 +104,24 @@ namespace CarrierGame.Demo
                 if (CombatPilot.IsHidden(info.transform)) continue;
                 n++;
                 nearest = Mathf.Min(nearest, Vector3.Distance(info.transform.position, me));
-                if (h != null) alive.Add(h);
+                if (Cover.Active && Cover.Visible(info.transform.position, me)) seen++;
+                if (h == null || h.onDestroyed == null) continue;
+                seenNow.Add(h);
+                if (!near.ContainsKey(h))
+                {
+                    var watched = h;
+                    UnityEngine.Events.UnityAction killed = () => { if (near.ContainsKey(watched)) Kills++; };
+                    near[h] = killed;
+                    h.onDestroyed.AddListener(killed);
+                }
             }
+            // keep listening to the ones near, and to those that have just died (respawning ones)
+            foreach (var kv in near) if (kv.Key != null && kv.Key.Dead) seenNow.Add(kv.Key);
+            Forget(false);
             HostilesNear = n;
             NearestHostile = n > 0 ? nearest : 0f;
+            CoverSeen = Cover.Active ? seen : 0;
+            CoverTotal = Cover.Active ? n : 0;
             int m = 0;
             foreach (var missile in Missile.Active)
                 if (missile != null && missile.target != null && missile.target.root == cc.transform.root) m++;
@@ -99,6 +141,8 @@ namespace CarrierGame.Demo
         {
             var cc = demo != null ? demo.carrier : null;
             if (cc == null) return;
+            var ev = Event.current.type;
+            if (ev != EventType.Layout && ev != EventType.Repaint) return;
             float s = Hud.S;
             float pad = 10f * s, portrait = 196f * s, colW = 340f * s, row = 21f * s;
             bool flash = Mathf.Repeat(Time.unscaledTime, 0.8f) < 0.5f;
@@ -148,7 +192,7 @@ namespace CarrierGame.Demo
             float x = pr.xMax + pad, y = panel.y + pad;
             string reason = cap != null ? cap.Reason : "";
             GUI.Label(new Rect(x, y, colW, 22f * s),
-                $"<b>{cc.shipName.ToUpperInvariant()}</b>   <color=#{ColorUtility.ToHtmlStringRGB(Dim)}>{reason}</color>", Hud.Text(16));
+                $"<b>{cc.shipName.ToUpperInvariant()}</b>   <color={dimHex ??= "#" + ColorUtility.ToHtmlStringRGB(Dim)}>{reason}</color>", Hud.Text(16));
             y += 22f * s + 6f * s;
 
             // the alert strip
@@ -209,8 +253,8 @@ namespace CarrierGame.Demo
                         Bar(x, ref y, colW, row, "WARP", 1f, Cyan, "ARRIVING");
                         break;
                     default:
-                        if (!string.IsNullOrEmpty(warp.lockedBecause)) Bar(x, ref y, colW, row, "WARP", 0f, Dim, warp.lockedBecause.ToUpperInvariant());
-                        else if (warp.InCombat(out string why)) Bar(x, ref y, colW, row, "WARP", 0f, Red, "LOCKED: " + why.ToUpperInvariant());
+                        if (!string.IsNullOrEmpty(warp.lockedBecause)) Bar(x, ref y, colW, row, "WARP", 0f, Dim, "LOCKED");
+                        else if (warp.InCombat(out _)) Bar(x, ref y, colW, row, "WARP", 0f, Red, "LOCKED");
                         else Bar(x, ref y, colW, row, "WARP", 1f, Green * 0.7f, "READY");
                         break;
                 }
@@ -272,7 +316,19 @@ namespace CarrierGame.Demo
         System.Collections.Generic.List<string> InfoLines(CarrierController cc)
         {
             lines.Clear();
-            string dim = "#" + ColorUtility.ToHtmlStringRGB(Dim);
+            string dim = dimHex ??= "#" + ColorUtility.ToHtmlStringRGB(Dim);
+            // attitude: pitch, climb and the elevator thrusters
+            lines.Add($"Pitch {cc.Pitch:+0;-0;0}°   climb {cc.ClimbRate:+0;-0;0} m/s" +
+                      (Mathf.Abs(cc.LiftSpeed) > 0.5f ? $"   <color=#9ad0ff>elevators {(cc.LiftSpeed > 0 ? "up" : "down")}</color>" : ""));
+            // why the warp drive is locked
+            if (warp != null && warp.Current == WarpDrive.State.Ready)
+            {
+                if (!string.IsNullOrEmpty(warp.lockedBecause)) lines.Add($"Warp  <color={dim}>{warp.lockedBecause}</color>");
+                else if (warp.InCombat(out string why)) lines.Add($"Warp  <color=#ff6050>locked: {why}</color>");
+            }
+            // among the rocks: who can see the ship (the rest can't shoot)
+            if (CoverTotal > 0)
+                lines.Add(CoverSeen == 0 ? "Cover  <color=#7ee08a>hidden from every enemy</color>" : $"Cover  in sight of {CoverSeen} of {CoverTotal} enemies");
             if (cc.target != null)
             {
                 string name = cc.target.GetComponent<TargetInfo>() is TargetInfo ti && ti != null ? ti.Name : cc.target.name;

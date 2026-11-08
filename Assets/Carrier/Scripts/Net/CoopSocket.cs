@@ -73,7 +73,9 @@ namespace CarrierGame.Demo
                 var sender = new System.Threading.Thread(SendLoop) { IsBackground = true, Name = "co-op send" };
                 sender.Start();
                 var buffer = new byte[64 * 1024];
-                var text = new System.Text.StringBuilder();
+                // a message can arrive in pieces: keep the bytes, and decode it whole (a letter
+                // can be split between pieces)
+                var bytes = new System.IO.MemoryStream();
                 while (ws.State == System.Net.WebSockets.WebSocketState.Open)
                 {
                     var r = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), stop.Token);
@@ -82,10 +84,10 @@ namespace CarrierGame.Demo
                         if (r.CloseStatus != System.Net.WebSockets.WebSocketCloseStatus.NormalClosure) error = r.CloseStatusDescription ?? "closed by the server";
                         break;
                     }
-                    text.Append(System.Text.Encoding.UTF8.GetString(buffer, 0, r.Count));
+                    bytes.Write(buffer, 0, r.Count);
                     if (!r.EndOfMessage) continue;
-                    inbox.Enqueue(text.ToString());
-                    text.Clear();
+                    inbox.Enqueue(System.Text.Encoding.UTF8.GetString(bytes.GetBuffer(), 0, (int)bytes.Length));
+                    bytes.SetLength(0);
                 }
             }
             catch (Exception e)
@@ -122,7 +124,12 @@ namespace CarrierGame.Demo
 
         public override State Status => (State)state;
         public override string Error => error;
-        public override void Send(string text) { if (state == (int)State.Open && !outbox.IsAddingCompleted) outbox.TryAdd(text); }
+        public override void Send(string text)
+        {
+            if (state != (int)State.Open) return;
+            // (the connection can close between the check and the add: then it's dropped)
+            try { outbox.TryAdd(text); } catch (InvalidOperationException) { }
+        }
         public override bool Receive(out string text) => inbox.TryDequeue(out text);
 
         public override void Close()

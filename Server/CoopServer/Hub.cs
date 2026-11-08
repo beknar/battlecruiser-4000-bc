@@ -63,7 +63,7 @@ public sealed class Hub
     {
         string from = address?.IsIPv4MappedToIPv6 == true ? address.MapToIPv4().ToString() : address?.ToString() ?? "?";
         var buffer = new byte[64 * 1024];
-        var text = new StringBuilder();
+        var text = new MemoryStream();         // a message's bytes (it can come in pieces)
         Player? me = null;
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(stop);
         Task? writer = null;
@@ -156,9 +156,9 @@ public sealed class Hub
     }
 
     /// <summary>One whole message (frames put together), or null when the socket closes or goes quiet.</summary>
-    static async Task<JsonObject?> Receive(WebSocket ws, byte[] buffer, StringBuilder text, TimeSpan quiet, CancellationToken token)
+    static async Task<JsonObject?> Receive(WebSocket ws, byte[] buffer, MemoryStream text, TimeSpan quiet, CancellationToken token)
     {
-        text.Clear();
+        text.SetLength(0);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         timeout.CancelAfter(quiet);
         while (true)
@@ -167,12 +167,13 @@ public sealed class Hub
             try { r = await ws.ReceiveAsync(buffer, timeout.Token); }
             catch (OperationCanceledException) when (!token.IsCancellationRequested) { return null; }
             if (r.MessageType == WebSocketMessageType.Close) return null;
-            text.Append(Encoding.UTF8.GetString(buffer, 0, r.Count));
+            text.Write(buffer, 0, r.Count);
             if (text.Length > 1024 * 1024) return null;            // nothing we send is this big
             if (!r.EndOfMessage) continue;
-            if (r.MessageType != WebSocketMessageType.Text) { text.Clear(); continue; }
-            try { return JsonNode.Parse(text.ToString()) as JsonObject; }
-            catch { text.Clear(); continue; }                       // not JSON: ignore it
+            if (r.MessageType != WebSocketMessageType.Text) { text.SetLength(0); continue; }
+            // decoded whole, as a letter can be split between pieces
+            try { return JsonNode.Parse(text.GetBuffer().AsSpan(0, (int)text.Length)) as JsonObject; }
+            catch { text.SetLength(0); continue; }                  // not JSON: ignore it
         }
     }
 

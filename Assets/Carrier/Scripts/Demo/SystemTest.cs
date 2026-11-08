@@ -24,7 +24,7 @@ namespace CarrierGame.Demo
     /// motion checked against Kepler's laws and the Lagrange points, the map before and after,
     /// the launchers launching, a warp to a moving planet, and a restart.
     /// </summary>
-    public class SystemTest : MonoBehaviour
+    public partial class SystemTest : MonoBehaviour
     {
         string dir, log = "";
         SystemMap map;
@@ -58,6 +58,8 @@ namespace CarrierGame.Demo
             t.stationOnly = Array.IndexOf(args, "-stationtest") >= 0 || (web && HasQueryKey(Application.absoluteURL, "stationtest"));
             // -orbittest (or ?orbittest): only the orbits and the launchers
             t.orbitOnly = Array.IndexOf(args, "-orbittest") >= 0 || (web && HasQueryKey(Application.absoluteURL, "orbittest"));
+            // -hudtest (or ?hudtest): only the ship's console and the captain
+            t.hudOnly = Array.IndexOf(args, "-hudtest") >= 0 || (web && HasQueryKey(Application.absoluteURL, "hudtest"));
         }
 
         bool web, landOnly, mineOnly, mineSurfaceOnly, stationOnly, orbitOnly;
@@ -181,6 +183,13 @@ namespace CarrierGame.Demo
             if (orbitOnly)
             {
                 yield return OrbitTest(kb);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
+            if (hudOnly)
+            {
+                yield return HudTest(kb, InputSystem.AddDevice<Mouse>("SystemTestHudMouse"));
                 Log("done");
                 if (!web) Application.Quit();
                 yield break;

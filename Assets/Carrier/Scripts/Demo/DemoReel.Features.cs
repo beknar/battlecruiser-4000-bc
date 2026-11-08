@@ -195,7 +195,9 @@ namespace CarrierGame.Demo
                     var c1 = new GUIContent(capTitle);
                     var c2 = new GUIContent(capSub ?? "");
                     Vector2 s1 = big.CalcSize(c1), s2 = small.CalcSize(c2);
-                    float x = 44f * s, y = Screen.height - 150f * s - s1.y - s2.y;
+                    // just above the ship's console (bottom left), or near the bottom without one
+                    float bottom = ShipConsole.Rect.height > 0f ? ShipConsole.Rect.yMin - 30f * s : Screen.height - 150f * s;
+                    float x = 44f * s, y = bottom - s1.y - s2.y;
                     float w = Mathf.Max(s1.x, s2.x);
                     var old = GUI.color;
                     GUI.color = new Color(1f, 1f, 1f, a);

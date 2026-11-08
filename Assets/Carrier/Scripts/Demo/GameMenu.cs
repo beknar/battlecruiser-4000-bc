@@ -6,7 +6,8 @@ namespace CarrierGame.Demo
 {
     /// <summary>
     /// The pause menu: Esc on the keyboard, Start on the pad. The game stops while it is open.
-    /// Resume, Restart (the level from the beginning), Sound on/off, and Quit. Restart and Quit
+    /// Resume, Restart (the level from the beginning), Sound on/off, Captain (which of the five
+    /// captains is on the HUD: left/right, Enter, or click her portrait), and Quit. Restart and Quit
     /// ask for a second press to make sure. Mouse (hover and click), keyboard (up/down or W/S,
     /// Enter or Space, Esc to resume) and pad (D-pad or left stick, A, B or Start to resume).
     /// In a web page, Quit shuts the game down and the page offers to start it again.
@@ -19,14 +20,15 @@ namespace CarrierGame.Demo
         /// <summary>Closed this frame or the last (so the key that closed it isn't also read by the game).</summary>
         public static bool JustClosed => Time.frameCount - closedFrame <= 1;
 
-        enum Item { Resume, Restart, Sound, Quit }
-        static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Quit };
+        enum Item { Resume, Restart, Sound, Captain, Quit }
+        static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Captain, Item.Quit };
 
         int selected;
         Item? confirming;
         float confirmUntil;
         float stickRepeat;
         Rect[] itemRects = new Rect[Items.Length];
+        readonly Rect[] captainRects = new Rect[Demo.Captain.Roster.Length];
         float savedTimeScale = 1f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -73,6 +75,7 @@ namespace CarrierGame.Demo
                 case Item.Resume: return "Resume";
                 case Item.Restart: return sure ? "Restart: press again to confirm" : "Restart";
                 case Item.Sound: return SoundFX.Muted ? "Sound: off" : "Sound: on";
+                case Item.Captain: return $"Captain:  <   {Demo.Captain.Current.name}   >";
                 default: return sure ? "Quit: press again to confirm" : "Quit";
             }
         }
@@ -92,6 +95,7 @@ namespace CarrierGame.Demo
             {
                 case Item.Resume: Close(); break;
                 case Item.Sound: SoundFX.Muted = !SoundFX.Muted; break;
+                case Item.Captain: Demo.Captain.Index++; break;
                 case Item.Restart: Restart(); break;
                 case Item.Quit: Quit(); break;
             }
@@ -148,6 +152,12 @@ namespace CarrierGame.Demo
                 if (k.escapeKey.wasPressedThisFrame || k.pKey.wasPressedThisFrame) { Close(); return; }
                 if (k.upArrowKey.wasPressedThisFrame || k.wKey.wasPressedThisFrame) Move(-1);
                 if (k.downArrowKey.wasPressedThisFrame || k.sKey.wasPressedThisFrame) Move(+1);
+                // left/right on the Captain row: the previous or next captain
+                if (Items[selected] == Item.Captain)
+                {
+                    if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame) Demo.Captain.Index--;
+                    if (k.rightArrowKey.wasPressedThisFrame || k.dKey.wasPressedThisFrame) Demo.Captain.Index++;
+                }
                 if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame || k.spaceKey.wasPressedThisFrame) { Activate(selected); return; }
             }
             if (pad != null)
@@ -155,6 +165,11 @@ namespace CarrierGame.Demo
                 if (pad.startButton.wasPressedThisFrame || pad.buttonEast.wasPressedThisFrame) { Close(); return; }
                 if (pad.dpad.up.wasPressedThisFrame) Move(-1);
                 if (pad.dpad.down.wasPressedThisFrame) Move(+1);
+                if (Items[selected] == Item.Captain)
+                {
+                    if (pad.dpad.left.wasPressedThisFrame) Demo.Captain.Index--;
+                    if (pad.dpad.right.wasPressedThisFrame) Demo.Captain.Index++;
+                }
                 // the left stick steps through the items, repeating while held
                 float y = pad.leftStick.y.ReadValue();
                 if (Mathf.Abs(y) < 0.4f) stickRepeat = 0f;
@@ -176,6 +191,14 @@ namespace CarrierGame.Demo
                         if (mouse.delta.ReadValue().sqrMagnitude > 0.01f && selected != i) { selected = i; confirming = null; }
                         if (mouse.leftButton.wasPressedThisFrame) { Activate(i); return; }
                     }
+                // a click on a captain's portrait chooses her
+                for (int i = 0; i < captainRects.Length; i++)
+                    if (captainRects[i].Contains(gui) && mouse.leftButton.wasPressedThisFrame)
+                    {
+                        Demo.Captain.Index = i;
+                        selected = System.Array.IndexOf(Items, Item.Captain);
+                        return;
+                    }
             }
         }
 
@@ -183,6 +206,13 @@ namespace CarrierGame.Demo
         public Vector2 ItemScreenPos(int index)
         {
             var r = itemRects[Mathf.Clamp(index, 0, itemRects.Length - 1)];
+            return new Vector2(r.center.x, Screen.height - r.center.y);
+        }
+
+        /// <summary>Where a captain's portrait is on screen (for the self-test's mouse).</summary>
+        public Vector2 CaptainScreenPos(int index)
+        {
+            var r = captainRects[Mathf.Clamp(index, 0, captainRects.Length - 1)];
             return new Vector2(r.center.x, Screen.height - r.center.y);
         }
 
@@ -195,8 +225,10 @@ namespace CarrierGame.Demo
             GUI.depth = -100;   // over the HUD panels
             float s = Hud.S;
             Hud.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0.01f, 0.03f, 0.55f));
-            float w = 440f * s, rowH = 46f * s, pad = 22f * s;
-            float h = pad * 2f + 54f * s + rowH * Items.Length + 40f * s;
+            int n = Demo.Captain.Roster.Length;
+            float thumb = 78f * s, gap = 8f * s;
+            float w = Mathf.Max(440f * s, n * thumb + (n - 1) * gap + 44f * s), rowH = 46f * s, pad = 22f * s;
+            float h = pad * 2f + 54f * s + rowH * Items.Length + thumb + 30f * s + 40f * s;
             var panel = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
             Hud.Fill(panel, new Color(0.03f, 0.05f, 0.1f, 0.95f));
             GUI.Label(new Rect(panel.x, panel.y + pad, w, 40f * s), "PAUSED", Hud.Text(26, true, TextAnchor.MiddleCenter));
@@ -213,6 +245,25 @@ namespace CarrierGame.Demo
                 GUI.Label(r, text, Hud.Text(19, sel, TextAnchor.MiddleCenter));
                 y += rowH;
             }
+            // the captains: click one to choose her
+            float tx = panel.x + (w - (n * thumb + (n - 1) * gap)) * 0.5f;
+            for (int i = 0; i < n; i++)
+            {
+                var r = new Rect(tx + i * (thumb + gap), y + 4f * s, thumb, thumb);
+                captainRects[i] = r;
+                bool chosen = i == Demo.Captain.Index;
+                var face = Demo.Captain.Face(i, Mood.Neutral);
+                Hud.Fill(r, new Color(0f, 0f, 0f, 0.6f));
+                if (face != null)
+                {
+                    var old = GUI.color;
+                    if (!chosen) GUI.color = new Color(0.6f, 0.6f, 0.65f, 1f);
+                    GUI.DrawTexture(r, face, ScaleMode.ScaleAndCrop);
+                    GUI.color = old;
+                }
+                Hud.Outline(r, Mathf.Max(1f, (chosen ? 3f : 1f) * s), chosen ? new Color(1f, 0.72f, 0.3f) : new Color(1f, 1f, 1f, 0.2f));
+            }
+            GUI.Label(new Rect(panel.x, y + thumb + 8f * s, w, 20f * s), $"Capt. {Demo.Captain.Current.name}", Hud.Text(14, true, TextAnchor.MiddleCenter));
             string hint = Gamepad.current != null ? "A select   B or Start resume" : "Enter select   Esc or P resume";
             GUI.Label(new Rect(panel.x, panel.yMax - pad - 22f * s, w, 22f * s), hint, Hud.Text(13, false, TextAnchor.MiddleCenter));
         }

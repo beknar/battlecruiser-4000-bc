@@ -146,7 +146,7 @@ namespace CarrierGame.Demo
             Vector3 sp = cam.WorldToScreenPoint(t.position);
             if (sp.z <= 0f || sp.x < 0 || sp.x > Screen.width || sp.y < 0 || sp.y > Screen.height) return;
             var gp = new Vector2(sp.x, Screen.height - sp.y);
-            if (CarrierDemoInput.HelpRect.Contains(gp) || PanelRect.Contains(gp)) return;
+            if (CarrierDemoInput.HelpRect.Contains(gp) || ShipConsole.Rect.Contains(gp) || PanelRect.Contains(gp)) return;
             var ti = t.GetComponent<TargetInfo>();
             float half = 11f * s;
             var r = new Rect(sp.x - half, Screen.height - sp.y - half, half * 2f, half * 2f);
@@ -180,6 +180,7 @@ namespace CarrierGame.Demo
                 // keep the label readable: never under the (see-through) panels
                 if (lr.Overlaps(PanelRect)) lr.x = PanelRect.x - lsz.x - 8f * s;
                 if (lr.Overlaps(CarrierDemoInput.HelpRect)) lr.x = CarrierDemoInput.HelpRect.xMax + 8f * s;
+                if (lr.Overlaps(ShipConsole.Rect)) lr.x = ShipConsole.Rect.xMax + 8f * s;
                 GUI.Label(lr, lc, ls);
                 return;
             }
@@ -204,6 +205,9 @@ namespace CarrierGame.Demo
             var padded = new Rect(box.x - 6f * s, box.y - 3f * s, box.width + 12f * s, box.height + 6f * s);
             if (padded.Overlaps(PanelRect)) box.y = PanelRect.yMax + 10f * s;
             else if (padded.Overlaps(CarrierDemoInput.HelpRect)) box.y = CarrierDemoInput.HelpRect.yMax + 10f * s;
+            // and the console sits at the bottom left: lift the pointer above it
+            if (new Rect(box.x - 6f * s, box.y - 3f * s, box.width + 12f * s, box.height + 6f * s).Overlaps(ShipConsole.Rect))
+                box.y = ShipConsole.Rect.yMin - box.height - 10f * s;
             Hud.Panel(new Rect(box.x - 6f * s, box.y - 3f * s, box.width + 12f * s, box.height + 6f * s));
             GUI.Label(box, content, st);
         }

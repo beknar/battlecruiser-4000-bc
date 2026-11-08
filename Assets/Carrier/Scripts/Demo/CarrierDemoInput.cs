@@ -72,6 +72,11 @@ namespace CarrierGame.Demo
             display.targets = targets;
             var md = gameObject.AddComponent<MiningDisplay>();
             md.carrier = carrier;
+            // the console in the bottom-left corner, and the captain on it
+            var portrait = gameObject.AddComponent<CaptainPortrait>();
+            portrait.demo = this;
+            var console = gameObject.AddComponent<ShipConsole>();
+            console.demo = this;
         }
 
         void Start()
@@ -268,6 +273,10 @@ namespace CarrierGame.Demo
         public MiningLaser Laser { get { FindSystems(); return miningLaser; } }
         public MineralSensor Sensor { get { FindSystems(); return sensor; } }
         public CargoHold Cargo { get { FindSystems(); return cargo; } }
+        public Health Hull { get { FindSystems(); return hull; } }
+        public Shield ShieldGen { get { FindSystems(); return shield; } }
+        public CiwsDirector Ciws { get { FindSystems(); return ciws; } }
+        public WarpDrive Warp => warp;
 
         /// <summary>The cargo list (I) is open.</summary>
         public static bool ManifestOpen { get; private set; }
@@ -336,120 +345,6 @@ namespace CarrierGame.Demo
                     Toast("Main gun charge cancelled");
                     break;
             }
-        }
-
-        string SystemsText()
-        {
-            FindSystems();
-            var sb = new System.Text.StringBuilder();
-            if (carrier.Destroyed)
-                return $"\n<color=#ff6050><b>DESTROYED</b></color>   respawning in {Mathf.CeilToInt(carrier.RespawnIn)} s";
-            if (shield != null || hull != null)
-            {
-                string sh = shield == null ? "" : shield.Up
-                    ? $"Shield {Pct(shield.Fraction)}" : "Shield <color=#ff6050>DOWN</color>";
-                string hu = hull == null ? "" : $"   Hull {Pct(hull.Current / Mathf.Max(1f, hull.maxHealth))}";
-                sb.Append("\n" + sh + hu);
-            }
-            if (mainGun != null)
-            {
-                string key = PadSupport.UsingPad && Gamepad.current != null ? "X" : "B";
-                string g = mainGun.Current switch
-                {
-                    MainBeam.State.Charging => $"<color=#bfe6ff>charging {mainGun.ChargeTimeLeft:F1} s</color>  {Bar(mainGun.ChargeProgress)}",
-                    MainBeam.State.Firing => "<color=#ffffff><b>FIRING</b></color>",
-                    _ => $"<color=#9aa4b0>{key} to charge</color>",
-                };
-                sb.Append($"\nMain gun  {g}");
-                if (mainGun.Current == MainBeam.State.Charging && carrier.target != null)
-                {
-                    float err = ShipAutopilot.BowError(carrier, carrier.target.position);
-                    sb.Append(err <= mainGun.aimAssist ? "  <color=#7ee08a>on target</color>" : $"  <color=#ffb060>{err:F0}° off</color>");
-                }
-            }
-            if (warp != null)
-            {
-                string key = PadSupport.UsingPad && Gamepad.current != null ? "R3" : "M";
-                string w = warp.Current switch
-                {
-                    WarpDrive.State.Charging => $"<color=#bfe6ff>charging for {warp.Destination?.displayName}  {Mathf.Max(0f, warp.chargeTime - warp.StateTime):F1} s</color>",
-                    WarpDrive.State.Warping => $"<color=#bfe6ff><b>IN WARP</b> to {warp.Destination?.displayName}  {warp.TimeLeft:F1} s</color>",
-                    WarpDrive.State.Arriving => $"<color=#bfe6ff>dropping out at {warp.Destination?.displayName}</color>",
-                    _ when !string.IsNullOrEmpty(warp.lockedBecause) => $"<color=#9aa4b0>{warp.lockedBecause}</color>",
-                    _ => warp.InCombat(out string why) ? $"<color=#ff6050>locked: {why}</color>" : $"<color=#7ee08a>ready</color>  <color=#9aa4b0>{key} system map</color>",
-                };
-                sb.Append($"\nWarp  {w}");
-                string dock = Docking.Instance != null ? Docking.Instance.HudText() : null;
-                if (dock != null) sb.Append("\n" + dock);
-                string land = Landing != null ? Landing.HudText() : null;
-                if (land != null) sb.Append("\n" + land);
-                var here = WarpPoint.Nearest(carrier.transform.position);
-                if (here != null && warp.Current == WarpDrive.State.Ready && !PlanetLanding.Busy)
-                    sb.Append($"\nNear  {here.displayName}  <color=#9aa4b0>{Vector3.Distance(here.Position, carrier.transform.position) / 1000f:F0} km</color>");
-            }
-            if (Cover.Active)
-            {
-                // among the rocks: how many hostiles can see us (the rest can't shoot)
-                int seen = 0, total = 0;
-                foreach (var info in TargetInfo.All)
-                {
-                    if (info == null || !info.Hostile) continue;
-                    var h = info.GetComponent<Health>();
-                    if (h != null && h.Dead) continue;
-                    if (CombatPilot.IsHidden(info.transform)) continue;
-                    // only the ones close enough to matter (not a patrol on the far side of the system)
-                    if (!TargetDisplay.InRange(info.transform, carrier.transform.position)) continue;
-                    total++;
-                    if (Cover.Visible(info.transform.position, carrier.transform.position)) seen++;
-                }
-                if (total > 0)
-                    sb.Append(seen == 0 ? "\nCover  <color=#7ee08a>hidden from every enemy</color>"
-                                        : $"\nCover  in sight of {seen} of {total} enemies");
-            }
-            if (cargo != null)
-                sb.Append($"\nCargo  {cargo.Used:F0} / {cargo.capacity:F0} t  {Bar(cargo.Fraction)}" +
-                          (cargo.Used > 0.5f ? $"  <color=#9aa4b0>{cargo.Value:N0} cr</color>" : "") +
-                          (cargo.Credits > 0.5f ? $"   Credits <color=#ffd27a>{cargo.Credits:N0} cr</color>" : ""));
-            if (miningLaser != null)
-            {
-                string key = PadSupport.UsingPad && Gamepad.current != null ? "Back+A" : "Z";
-                string l = !miningLaser.On ? $"<color=#9aa4b0>{key} to cut ore</color>"
-                         : miningLaser.Cutting ? $"<color=#ffc070>{miningLaser.Status}</color>"
-                         : $"<color=#bfe6ff>{miningLaser.Status}</color>";
-                sb.Append($"\nMining laser  {l}");
-            }
-            if (sensor != null)
-            {
-                string key = PadSupport.UsingPad && Gamepad.current != null ? "Back+Y" : "V";
-                string what = PlanetLanding.OnSurface ? "veins" : "deposits";
-                string sn = sensor.Sweeping ? $"<color=#bfe6ff>scanning  {Bar(sensor.SweepProgress)}</color>"
-                          : sensor.Traces > 0 ? $"traces of {sensor.Traces} {what} within {sensor.Range / 1000f:F0} km  <color=#9aa4b0>{key} scan</color>"
-                          : $"<color=#9aa4b0>no minerals within {sensor.Range / 1000f:F0} km</color>";
-                sb.Append($"\nSensor  {sn}");
-            }
-            if (ciws != null)
-            {
-                var t = ciws.EngagedTarget;
-                string n = t == null ? null : t.GetComponent<TargetInfo>() is TargetInfo ti && ti != null ? ti.Name : t.name;
-                sb.Append(n == null ? "\nCIWS  <color=#9aa4b0>standing by</color>" : $"\nCIWS  engaging {n}");
-            }
-            return sb.ToString();
-        }
-
-        static string Pct(float f)
-        {
-            string c = f > 0.6f ? "#7ee08a" : f > 0.3f ? "#ffc04d" : "#ff6050";
-            return $"<color={c}>{f:P0}</color>";
-        }
-
-        /// <summary>The bar's block. The browser has no system fonts to fall back on, and the
-        /// built-in font has no '■'.</summary>
-        static readonly char Block = OnWeb ? '|' : '■';
-
-        static string Bar(float k)
-        {
-            int n = Mathf.RoundToInt(Mathf.Clamp01(k) * 10f);
-            return "<color=#bfe6ff>" + new string(Block, n) + "</color><color=#4a5560>" + new string(Block, 10 - n) + "</color>";
         }
 
         // ------------------------------------------------------------ gamepad
@@ -667,7 +562,7 @@ namespace CarrierGame.Demo
             var cam = Camera.main;
             if (cam == null || targets == null) return;
             var gui = new Vector2(screen.x, Screen.height - screen.y);
-            if (helpRect.Contains(gui) || (display != null && display.PanelRect.Contains(gui)) || MiningDisplay.ManifestRect.Contains(gui)) return;
+            if (helpRect.Contains(gui) || ShipConsole.Rect.Contains(gui) || (display != null && display.PanelRect.Contains(gui)) || MiningDisplay.ManifestRect.Contains(gui)) return;
 
             Transform best = null;
             // the nearest thing under the cursor that isn't our own ship or its shield
@@ -705,11 +600,15 @@ namespace CarrierGame.Demo
         static float ToastClock => ReelMode ? Time.time : Time.unscaledTime;
         static float toastUntil;
 
+        /// <summary>How many messages have been shown (the captain says each one).</summary>
+        public static int Toasts { get; private set; }
+
         /// <summary>Show a short message at the bottom of the screen.</summary>
         public static void Toast(string message)
         {
             toast = message;
             toastUntil = ToastClock + 2.5f;
+            Toasts++;
         }
 
         // ------------------------------------------------------------ display + HUD
@@ -793,29 +692,20 @@ namespace CarrierGame.Demo
         {
             if (carrier == null) return;
             float s = Hud.S;
-            var style = Hud.Text(20);
-            string target = carrier.target == null ? "<color=#9aa4b0>none</color>"
-                : carrier.target.GetComponent<TargetInfo>() is TargetInfo ti && ti != null ? ti.Name : carrier.target.name;
             bool pad = PadSupport.UsingPad && Gamepad.current != null;
-            string guns = carrier.GunsBearingText();
-            string text =
-                $"<b>{carrier.shipName.ToUpper()}</b>" + (SoundFX.Muted ? "   <color=#9aa4b0>(sound off)</color>" : "") + "\n" +
-                $"Speed {carrier.Speed:F0} m/s   throttle {carrier.throttle:P0}\n" +
-                $"Pitch {carrier.Pitch:+0;-0;0}°   climb {carrier.ClimbRate:+0;-0;0} m/s" +
-                (Mathf.Abs(carrier.LiftSpeed) > 0.5f ? $"   <color=#9ad0ff>elevators {(carrier.LiftSpeed > 0 ? "up" : "down")}</color>" : "") + "\n" +
-                (carrier.HasHangar ? $"Fighters {carrier.fighterStock}  Drones {carrier.droneStock}  Dropships {carrier.dropshipStock}\n" +
-                                     $"In flight {carrier.Wing.Count}   " : "") +
-                (carrier.HasMissiles ? $"Missile cells ready {carrier.missiles.ReadyCells}\n" : carrier.HasHangar ? "\n" : "") +
-                $"Target {target}" +
-                (guns.Length > 0 ? $"\nGuns bearing  {(guns.StartsWith("none") ? "<color=#ffb060>" + guns + "</color>" : guns)}" : "") +
-                SystemsText() +
-                (ReelMode ? "" : "\n\n" + (showHelp ? (pad ? PadHelp : KeyHelp) : (pad ? "<i>Back: show controls</i>" : "<i>H show controls</i>")));
-            var content = new GUIContent(text);
-            Vector2 sz = style.CalcSize(content);
             float pad2 = 12f * s;
-            helpRect = new Rect(pad2, pad2, sz.x + pad2 * 2f, sz.y + pad2 * 2f);
-            Hud.Panel(helpRect);
-            GUI.Label(new Rect(helpRect.x + pad2, helpRect.y + pad2, sz.x, sz.y), content, style);
+            helpRect = Rect.zero;
+            if (!ReelMode)
+            {
+                // the controls (the ship's state is on the console, bottom left)
+                var style = Hud.Text(showHelp ? 18 : 16);
+                string text = showHelp ? (pad ? PadHelp : KeyHelp) : (pad ? "<i>Back: show controls</i>" : "<i>H show controls</i>");
+                var content = new GUIContent(text);
+                Vector2 sz = style.CalcSize(content);
+                helpRect = new Rect(pad2, pad2, sz.x + pad2 * 2f, sz.y + pad2 * 2f);
+                Hud.Panel(helpRect);
+                GUI.Label(new Rect(helpRect.x + pad2, helpRect.y + pad2, sz.x, sz.y), content, style);
+            }
 
             if (carrier.Destroyed)
             {
@@ -834,6 +724,7 @@ namespace CarrierGame.Demo
                 var tc = new GUIContent(toast);
                 Vector2 tsz = ts.CalcSize(tc);
                 var r = new Rect((Screen.width - tsz.x) * 0.5f - pad2, Screen.height - tsz.y - pad2 * 6f, tsz.x + pad2 * 2f, tsz.y + pad2);
+                if (r.Overlaps(ShipConsole.Rect)) r.y = ShipConsole.Rect.yMin - r.height - pad2;
                 Hud.Panel(r);
                 GUI.Label(r, tc, ts);
             }

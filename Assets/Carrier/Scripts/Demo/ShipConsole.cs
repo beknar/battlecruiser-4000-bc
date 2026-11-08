@@ -41,6 +41,7 @@ namespace CarrierGame.Demo
         public static int CoverSeen { get; private set; }
         public static int CoverTotal { get; private set; }
         static string dimHex;
+        GUIStyle wrapped;
         // (reused each time the GUI draws, rather than new ones every frame)
         readonly System.Collections.Generic.List<string> alerts = new System.Collections.Generic.List<string>();
         readonly System.Collections.Generic.List<string> lines = new System.Collections.Generic.List<string>();
@@ -172,7 +173,10 @@ namespace CarrierGame.Demo
             var small = Hud.Text(13);
             float infoH = info.Count * small.lineHeight * 1.05f;
             float colH = 22f * s + 6f * s + 26f * s + 6f * s + bars * row + 6f * s + 20f * s + 6f * s + infoH;
-            float h = Mathf.Max(portrait + 26f * s, colH) + pad * 2f;
+            // and a comms line across the bottom: what the captain is saying
+            var comms = Hud.Text(14);
+            float commsH = comms.lineHeight * 2.1f + 8f * s;
+            float h = Mathf.Max(portrait + 26f * s, colH) + pad * 2f + commsH;
             float w = pad * 3f + portrait + colW;
             var panel = new Rect(pad, Screen.height - h - pad, w, h);
             Rect = panel;
@@ -279,6 +283,25 @@ namespace CarrierGame.Demo
             {
                 GUI.Label(new Rect(x, y, colW + pad, small.lineHeight * 1.05f), line, small);
                 y += small.lineHeight * 1.05f;
+            }
+
+            // the captain's words, typed out as she says them
+            var cr = new Rect(panel.x + pad, panel.yMax - pad - commsH + 4f * s, panel.width - pad * 2f, commsH - 4f * s);
+            Hud.Fill(new Rect(cr.x, cr.y - 4f * s, cr.width, Mathf.Max(1f, s)), new Color(1f, 1f, 1f, 0.12f));
+            if (cap != null)
+            {
+                string said = cap.QuoteShown(out float a);
+                if (said.Length > 0)
+                {
+                    string full = Captain.Current.name;
+                    string surname = full.Substring(full.LastIndexOf(' ') + 1).ToUpperInvariant();
+                    if (wrapped == null || wrapped.fontSize != comms.fontSize) wrapped = new GUIStyle(comms) { wordWrap = true };
+                    var old = GUI.color;
+                    GUI.color = new Color(1f, 1f, 1f, a);
+                    GUI.Label(cr, $"<color=#ffc070><b>{surname}:</b></color>  \"{said}{(said.Length < cap.Quote.Length ? "" : "\"")}", wrapped);
+                    GUI.color = old;
+                }
+                else GUI.Label(cr, $"<color={dimHex ??= "#" + ColorUtility.ToHtmlStringRGB(Dim)}><i>comms open</i></color>", comms);
             }
         }
 

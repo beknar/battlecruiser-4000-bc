@@ -42,14 +42,31 @@ namespace CarrierGame.Demo
 
             // ---- the captains' faces
             int[] found = Captain.Roster.Select((c, i) => Captain.FacesFound(i)).ToArray();
-            int moods = Enum.GetValues(typeof(Mood)).Length;
+            int moods = Captain.FacesWanted;
             Log($"faces: {string.Join(", ", Captain.Roster.Select((c, i) => $"{c.name} {found[i]}/{moods}"))}");
-            results.Add(("five captains, every face", Captain.Roster.Length == 5 && found.All(n => n == moods)));
+            results.Add(("five captains, every face at every step", Captain.Roster.Length == 5 && found.All(n => n == moods)));
+
+            // ---- what she can say
+            int lines = CaptainLines.Count;
+            var thin = CaptainLines.Events.Where(e => CaptainLines.CountFor(e) < 5).ToArray();
+            Log($"lines: {lines} for {CaptainLines.Events.Length} events; fewest {CaptainLines.Events.Min(e => CaptainLines.CountFor(e))}" +
+                (thin.Length > 0 ? $"; too few for {string.Join(", ", thin)}" : ""));
+            results.Add(("at least 250 lines, at least 5 for every event", lines >= 250 && thin.Length == 0));
 
             // ---- reactions
             yield return Settle(cap);
             Log($"at rest: {cap.Mood} '{cap.Reason}'");
             results.Add(("calm when all is quiet", cap.Mood == Mood.Neutral));
+
+            // an expression grows through its steps: watch a smile come on
+            var levels = new List<float>();
+            cap.React(Mood.Smile, 9, 2.5f, "TEST SMILE");
+            float watch = Time.time + 1.2f;
+            while (Time.time < watch) { if (cap.Face == Mood.Smile) levels.Add(cap.Level); yield return null; }
+            int distinct = levels.Select(l => Mathf.FloorToInt(l * 4f)).Distinct().Count();
+            Log($"  a smile coming on: {levels.Count} frames, from {(levels.Count > 0 ? levels.Min() : 0f):F2} to {(levels.Count > 0 ? levels.Max() : 0f):F2} ({distinct} distinct quarter-steps)");
+            results.Add(("an expression grows through its steps", levels.Count > 10 && distinct >= 8 && levels.Max() > 2.9f));
+            yield return Settle(cap);
 
             // a hit on the shield, then one on the hull
             hull.Damage(250f, cc.transform.position + cc.transform.forward * 60f, HitKind.Cannon);
@@ -157,6 +174,17 @@ namespace CarrierGame.Demo
             while (Time.time < stop) { if (cap.Shown == Mood.Blink) blinks++; yield return null; }
             Log($"  a message: {talks} frames talking in 1 s; {blinks} frames blinking in 8 s");
             results.Add(("talks when a message shows, and blinks", talks > 0 && blinks > 0));
+
+            // she has been talking all along: about what was happening, each line in its turn
+            var said = cap.Said.ToList();
+            var events = said.Select(x => x.ev).Distinct().ToList();
+            float closest = 999f;
+            for (int i = 1; i < said.Count; i++) closest = Mathf.Min(closest, said[i].at - said[i - 1].at);
+            Log($"  she said {said.Count} lines about {events.Count} kinds of thing ({string.Join(", ", events)}); closest two {closest:F1} s apart");
+            foreach (var x in said.Take(14)) Log($"    [{x.ev}] {x.line}");
+            Shot("h12_speaking");
+            results.Add(("she speaks lines about what happens", said.Count >= 10 && events.Count >= 10 && closest >= 1.4f &&
+                                                                 said.All(x => !x.line.Contains("{")) && events.Contains("TARGET DESTROYED")));
 
             // ---- choosing a captain in the pause menu, by clicking her portrait
             var menu = FindAnyObjectByType<GameMenu>();

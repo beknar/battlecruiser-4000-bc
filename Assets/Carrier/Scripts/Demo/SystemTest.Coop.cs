@@ -63,9 +63,11 @@ namespace CarrierGame.Demo
             // ---- a guest
             bool guest = !client.IsHost && world.Puppeting;
             double orbit = OrbitalSystem.Instance != null ? OrbitalSystem.Instance.Time : -1, room = client.OrbitClock;
-            Log($"  a guest: host #{client.HostId}, puppets {world.Puppeting}; orbit clock {orbit:F2} s, the room's {room:F2} s");
+            // the orbits read the clock once a frame, so they can be a frame behind (a slow one, in software rendering)
+            double frame = Time.unscaledDeltaTime;
+            Log($"  a guest: host #{client.HostId}, puppets {world.Puppeting}; orbit clock {orbit:F2} s, the room's {room:F2} s (frame {frame:F2} s)");
             results.Add(("a guest: the enemies are the host's (puppets here)", guest));
-            results.Add(("the orbits run on the room's clock", OrbitalSystem.Instance == null || Math.Abs(orbit - room) < 0.25));
+            results.Add(("the orbits run on the room's clock", OrbitalSystem.Instance == null || Math.Abs(orbit - room) < 0.25 + frame));
 
             // an enemy for the bot to move about: the nearest with a hull
             var hull = cc.GetComponent<Health>();

@@ -54,9 +54,12 @@ namespace CarrierGame
         readonly List<(Transform t, float r)> reaches = new List<(Transform, float)>();
         Vector3[] before = new Vector3[0];
         Vector3[] last = new Vector3[0];     // where each reach was at the end of the last frame
+        int firstExtra;                      // reaches from here on are stations' (extraReach)
+        int frame;
         Vector3[] delta = new Vector3[0];
         readonly List<GameObject> roots = new List<GameObject>();
-        readonly Dictionary<GameObject, IOriginShift[]> shifters = new Dictionary<GameObject, IOriginShift[]>();
+        readonly Dictionary<GameObject, (IOriginShift[] list, int count)> shifters = new Dictionary<GameObject, (IOriginShift[] list, int count)>();
+        readonly List<GameObject> dead = new List<GameObject>();
         readonly List<IOriginShift> buffer = new List<IOriginShift>();
 
         void Awake()
@@ -68,6 +71,7 @@ namespace CarrierGame
             orbits = system.GetComponentsInChildren<Orbit>(true).OrderBy(Depth).ToArray();
             reaches.Clear();
             foreach (var o in orbits) if (o.reach > 0f) reaches.Add((o.transform, o.reach));
+            firstExtra = reaches.Count;
             if (extraReach != null)
                 for (int i = 0; i < extraReach.Length; i++)
                     if (extraReach[i] != null) reaches.Add((extraReach[i], extraReachRadius != null && i < extraReachRadius.Length ? extraReachRadius[i] : 5000f));
@@ -103,6 +107,11 @@ namespace CarrierGame
                 // the reach it is in already, while it is still in it; otherwise the smallest it is in
                 int now = Anchor != null ? IndexOf(Anchor) : -1;
                 anchor = now >= 0 && (player.position - before[now]).sqrMagnitude < reaches[now].r * reaches[now].r ? now : ReachOf(player.position, before);
+                // flying (not warping) up to a station in the reach it is in: the station's own
+                // reach takes over, so a station turning with its planet doesn't sweep past it
+                for (int i = firstExtra; i < reaches.Count; i++)
+                    if (i != anchor && reaches[i].t != null && (anchor < 0 || reaches[i].r < reaches[anchor].r) &&
+                        (player.position - before[i]).sqrMagnitude < reaches[i].r * reaches[i].r) { anchor = i; break; }
             }
 
             foreach (var o in orbits) if (o != null) o.Apply(Time);
@@ -122,6 +131,14 @@ namespace CarrierGame
 
             Carry(shift);
             Physics.SyncTransforms();
+        }
+
+        /// <summary>The smallest reach a point is in now (a planet, moon, station or field), or null.</summary>
+        public Transform ReachAt(Vector3 p)
+        {
+            for (int i = 0; i < reaches.Count; i++) before[i] = reaches[i].t != null ? reaches[i].t.position : Vector3.zero;
+            int i0 = ReachOf(p, before);
+            return i0 >= 0 ? reaches[i0].t : null;
         }
 
         /// <summary>The smallest reach a point is in (by where the reaches were), or -1.</summary>
@@ -147,6 +164,13 @@ namespace CarrierGame
         void Carry(Vector3 openSpace)
         {
             CarriedLastFrame = 0;
+            // now and then, forget the roots that have gone (shots, wrecks)
+            if (++frame % 300 == 0)
+            {
+                dead.Clear();
+                foreach (var k in shifters.Keys) if (k == null) dead.Add(k);
+                foreach (var k in dead) shifters.Remove(k);
+            }
             var scene = gameObject.scene;
             if (!scene.IsValid()) return;
             scene.GetRootGameObjects(roots);
@@ -166,14 +190,15 @@ namespace CarrierGame
                 if (d.sqrMagnitude < 1e-8f) continue;
                 t.position = p + d;
                 CarriedLastFrame++;
-                if (!shifters.TryGetValue(go, out var list))
+                // (looked up again when something has been added under it or taken away)
+                int count = t.hierarchyCount;
+                if (!shifters.TryGetValue(go, out var entry) || entry.count != count)
                 {
-                    if (shifters.Count > 4000) shifters.Clear();   // (shots come and go)
                     buffer.Clear();
                     go.GetComponentsInChildren(true, buffer);
-                    shifters[go] = list = buffer.ToArray();
+                    shifters[go] = entry = (buffer.ToArray(), count);
                 }
-                foreach (var s in list) if (s != null) s.OriginShifted(d);
+                foreach (var s in entry.list) if (s != null) s.OriginShifted(d);
             }
         }
 

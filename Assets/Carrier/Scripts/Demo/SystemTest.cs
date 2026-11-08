@@ -482,6 +482,7 @@ namespace CarrierGame.Demo
             {
                 Vector3 now = o.transform.position - (o.parent != null ? o.parent.transform.position : S());
                 float moved = AngleAround(off0[o], now), want = (float)(360.0 * dt / o.Period);
+                want %= 360f;
                 want = want > 180f ? 360f - want : want;
                 float dr = Mathf.Abs(now.magnitude - off0[o].magnitude);
                 bool ok = Mathf.Abs(moved - want) < 0.5f && dr < 2f;
@@ -491,11 +492,17 @@ namespace CarrierGame.Demo
             }
             results.Add(("planets, moons and stations move as their periods say", anglesOk));
 
-            // geostationary: the Highport is over the same point of Thalassa
+            // geostationary: the Highport stays over the same point of Thalassa, and Thalassa's day
+            // is the period of an orbit at the Highport's height (so it is a real orbit, not a tower)
             float hpDrift = Vector3.Distance(thalassaBody.InverseTransformPoint(highport.transform.position), hpLocal0) * thalassaBody.lossyScale.x;
-            float spun = (float)(dt * thalassaBody.GetComponent<Drift>().spin.y) % 360f;
-            Log($"  Highport: {hpDrift:F2} m from where it was over Thalassa (which turned {spun:F0} deg)");
-            results.Add(("the Highport is geostationary", hpDrift < 1f));
+            float spinRate = thalassaBody.GetComponent<Drift>().spin.y;
+            float spun = (float)(dt * spinRate) % 360f;
+            var thOrbit = OrbitalSystem.OrbitOf(thalassaBody);
+            double hpR = Vector3.Distance(highport.transform.position, thalassaBody.position);
+            double kepler = thOrbit != null ? 2.0 * System.Math.PI * System.Math.Sqrt(hpR * hpR * hpR / thOrbit.BodyGM) : 0.0;
+            float day = 360f / Mathf.Max(1e-6f, Mathf.Abs(spinRate));
+            Log($"  Highport: {hpDrift:F2} m from where it was over Thalassa (which turned {spun:F0} deg); Thalassa's day {day:F0} s, an orbit at {hpR / 1000.0:F1} km takes {kepler:F0} s");
+            results.Add(("the Highport is geostationary", hpDrift < 1f && kepler > 0.0 && System.Math.Abs(kepler - day) < day * 0.01));
 
             // the Lagrange points
             Vector3 sT = thalassa.transform.position - S(), sL1 = l1.transform.position - S();

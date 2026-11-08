@@ -110,6 +110,12 @@ namespace CarrierGame.Demo
                 if (ratio < landingRange && w.arrivalDistance < bestZone) { bestZone = w.arrivalDistance; best = w; }
             }
             if (best == null) return null;
+            // at a place with no surface of its own nearer than the planet (the L1 observatory,
+            // 27 km out from Thalassa but in its landing range), it's that place it is at
+            foreach (var w in WarpPoint.All)
+                if (w != null && w != best && w.surface == SurfaceKind.None && w.kind != WarpPoint.Kind.Planet && w.kind != WarpPoint.Kind.Star &&
+                    w.arrivalDistance < best.arrivalDistance &&
+                    Vector3.Distance(carrier.transform.position, w.Position) < w.arrivalDistance * 1.1f) return null;
             if (carrier.Destroyed) why = "the frigate is destroyed";
             else if (Docking.Busy) why = "undock first";
             else if (drive != null && drive.Current != WarpDrive.State.Ready) why = "in warp";

@@ -34,8 +34,11 @@ namespace CarrierGame
         /// <summary>Degrees between where the tails point and straight away from the star.</summary>
         public float TailError => tails != null ? Vector3.Angle(tails.forward, AntiSun) : 180f;
 
+        Orbit orbit;
+
         void Start()
         {
+            orbit = GetComponentInParent<Orbit>();
             Orient();
             foreach (var ps in new[] { coma, ionTail, dustTail })
                 if (ps != null && !ps.isPlaying) ps.Play();
@@ -45,6 +48,11 @@ namespace CarrierGame
 
         void Orient()
         {
+            if (orbit != null && orbit.kind == Orbit.Kind.Kepler)
+            {
+                Vector3 v = orbit.Velocity(OrbitalSystem.Instance != null ? OrbitalSystem.Instance.Time : UnityEngine.Time.timeSinceLevelLoad);
+                if (v.sqrMagnitude > 1e-6f) orbitDirection = v.normalized;
+            }
             if (tails != null) tails.rotation = TailRotation(transform.position, star != null ? star.position : Vector3.zero, orbitDirection);
         }
 

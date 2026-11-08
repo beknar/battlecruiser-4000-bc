@@ -18,6 +18,7 @@ namespace CarrierGame
         public float Travelled { get; private set; }
 
         float[] phase;
+        bool placed;
 
         void Start()
         {
@@ -42,8 +43,9 @@ namespace CarrierGame
                 else k = 0f;
                 Vector3 was = climbers[i].localPosition;
                 climbers[i].localPosition = Vector3.Lerp(bottom, top, k);
-                Travelled += Vector3.Distance(was, climbers[i].localPosition);
+                if (placed) Travelled += Vector3.Distance(was, climbers[i].localPosition);
             }
+            placed = true;
         }
     }
 }

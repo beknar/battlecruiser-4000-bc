@@ -130,8 +130,7 @@ namespace CarrierGame
             hum = SoundFX.EngineHum(transform, 1500f);
             heading = transform.eulerAngles.y;
             pitchAngle = Mathf.Clamp(-Mathf.DeltaAngle(0f, transform.eulerAngles.x), -maxPitch, maxPitch);
-            spawnPosition = transform.position;
-            spawnRotation = transform.rotation;
+            SetSpawn(transform.position, transform.rotation);
             health = GetComponent<Health>();
             FindSystems();
             if (health != null)
@@ -156,7 +155,7 @@ namespace CarrierGame
         /// <summary>Back at the starting point, whole, at rest, with everything working.</summary>
         void OnShipRespawned()
         {
-            if (spawnFrame != null) spawnPosition = spawnFrame.position + spawnOffset;
+            if (spawnFrame != null) spawnPosition = spawnFrame.position + spawnFrame.rotation * spawnOffset;
             transform.SetPositionAndRotation(spawnPosition, spawnRotation);
             heading = spawnRotation.eulerAngles.y;
             pitchAngle = 0f;
@@ -242,13 +241,19 @@ namespace CarrierGame
         }
 
         /// <summary>Where the ship comes back after being destroyed (the last place it warped to),
-        /// kept relative to `frame` if given (a planet or station moving along its orbit).</summary>
+        /// kept relative to the reach it is in (a planet's, moon's or field's orbit, which doesn't
+        /// spin, or a station turning with its planet), or else to `frame`.</summary>
         public void SetSpawn(Vector3 position, Quaternion rotation, Transform frame = null)
         {
+            if (OrbitalSystem.Instance != null)
+            {
+                var reach = OrbitalSystem.Instance.ReachAt(position);
+                if (reach != null) frame = reach;
+            }
             spawnPosition = position;
             spawnRotation = rotation;
             spawnFrame = frame;
-            spawnOffset = frame != null ? position - frame.position : Vector3.zero;
+            spawnOffset = frame != null ? Quaternion.Inverse(frame.rotation) * (position - frame.position) : Vector3.zero;
         }
 
         void Update()

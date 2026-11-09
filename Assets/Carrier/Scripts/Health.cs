@@ -47,6 +47,9 @@ namespace CarrierGame
         /// <summary>What dealt the hit being made now (the ship whose shot, missile or beam it
         /// is), set just before Damage by the weapon; null when unknown.</summary>
         public static Transform Source;
+        /// <summary>Co-op: can change a hit's strength before anything else sees it (the
+        /// enemies hit harder with more players). Null in single-player.</summary>
+        public static System.Func<Health, float, float> Adjust;
 
         void Awake()
         {
@@ -61,10 +64,11 @@ namespace CarrierGame
         public void Damage(float amount, Vector3 point, HitKind kind)
         {
             if (Dead || amount <= 0f) return;
+            if (Adjust != null) amount = Adjust(this, amount);
             if (Intercept != null && Intercept(this, amount, point, kind)) return;
             if (!shieldLooked) { shield = GetComponentInChildren<Shield>(true); shieldLooked = true; }
             if (shield != null && shield.Up) amount = shield.Absorb(amount, point, kind);
-            if (amount > 0f) Damage(amount);
+            if (amount > 0f) TakeHull(amount);
         }
 
         /// <summary>Put the hull back to full (between the scenes of a demo reel).</summary>
@@ -73,10 +77,28 @@ namespace CarrierGame
             if (!Dead) Current = maxHealth;
         }
 
+        /// <summary>Co-op: a new full strength (the enemies are tougher with more players),
+        /// keeping how damaged it is.</summary>
+        public void SetMaxHealth(float max)
+        {
+            if (max <= 0f) return;
+            float fraction = maxHealth > 0f ? Current / maxHealth : 1f;
+            maxHealth = max;
+            if (!Dead) Current = Mathf.Max(fraction * max, Mathf.Min(1f, max));
+        }
+
         public void Damage(float amount)
         {
             if (Dead || amount <= 0f) return;
+            if (Adjust != null) amount = Adjust(this, amount);
             if (Intercept != null && Intercept(this, amount, transform.position, HitKind.Cannon)) return;
+            TakeHull(amount);
+        }
+
+        /// <summary>What gets past the shield (and anything else) comes off the hull.</summary>
+        void TakeHull(float amount)
+        {
+            if (Dead || amount <= 0f) return;
             float applied = Mathf.Min(amount, cannotDie ? Mathf.Max(0f, Current - 1f) : Current);
             Current -= applied;
             TotalDamage += applied;

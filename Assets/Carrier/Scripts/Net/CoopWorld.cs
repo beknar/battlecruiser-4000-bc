@@ -38,6 +38,8 @@ namespace CarrierGame.Demo
             public double ts0 = -1, ts1 = -1;
             public Vector3 p0, p1, v1;
             public Quaternion q0 = Quaternion.identity, q1 = Quaternion.identity;
+            public float baseHull;                 // its hull as built, for one player
+            public Shield[] shields;
         }
 
         readonly Dictionary<string, Ent> ents = new Dictionary<string, Ent>();
@@ -55,6 +57,7 @@ namespace CarrierGame.Demo
         string level;
         bool registered, puppeting, clockOn;
         float nextShip, nextEnts;
+        int scaledFor = 1;
 
         // ---- for the self-test
         public bool Puppeting => puppeting;
@@ -69,6 +72,12 @@ namespace CarrierGame.Demo
         public int ShotsShown { get; private set; }
         public int ShotsSent { get; private set; }
         public Transform EntityTransform(string id) => ents.TryGetValue(id, out var e) ? e.t : null;
+        /// <summary>The number of players the enemies are scaled for (1 alone).</summary>
+        public int ScaledFor => scaledFor;
+        /// <summary>An enemy's hull as built, for one player.</summary>
+        public float BaseHullOf(Health h) => h != null && entByHealth.TryGetValue(h, out var e) ? e.baseHull : h != null ? h.maxHealth : 0f;
+        /// <summary>The last hit sent to another player's game (after scaling).</summary>
+        public float LastHitToPlayer { get; private set; }
 
         static readonly HashSet<Type> Keep = new HashSet<Type>
         {
@@ -90,6 +99,7 @@ namespace CarrierGame.Demo
             Missile.Spawned += OnMissile;
             MainBeam.Began += OnBeam;
             Health.Intercept = Intercept;
+            Health.Adjust = AdjustHit;
             PlayerShips.Available = t => !remoteByRoot.TryGetValue(t.root, out var rp) || !rp.Hidden;
         }
 
@@ -100,6 +110,7 @@ namespace CarrierGame.Demo
             Missile.Spawned -= OnMissile;
             MainBeam.Began -= OnBeam;
             if (Health.Intercept == (Func<Health, float, Vector3, HitKind, bool>)Intercept) Health.Intercept = null;
+            if (Health.Adjust == (Func<Health, float, float>)AdjustHit) Health.Adjust = null;
             PlayerShips.Available = null;
             OrbitalSystem.ClockOverride = null;
             if (Instance == this) Instance = null;
@@ -128,7 +139,8 @@ namespace CarrierGame.Demo
                 string id = PathOf(t);
                 string unique = id;
                 for (int n = 2; ents.ContainsKey(unique); n++) unique = $"{id}#{n}";
-                var e = new Ent { id = unique, t = t, h = t.GetComponent<Health>(), pilot = t.GetComponent<CombatPilot>() };
+                var e = new Ent { id = unique, t = t, h = t.GetComponent<Health>(), pilot = t.GetComponent<CombatPilot>(), shields = t.GetComponentsInChildren<Shield>(true) };
+                e.baseHull = e.h != null ? e.h.maxHealth : 0f;
                 ents[unique] = e;
                 entByTransform[t] = e;
                 if (e.h != null) entByHealth[e.h] = e;
@@ -193,6 +205,48 @@ namespace CarrierGame.Demo
 
         void Off(Behaviour b) { if (b != null && b.enabled) { b.enabled = false; directorsOff.Add(b); } }
 
+        // ------------------------------------------------------------------ more players, harder enemies
+
+        /// <summary>Players in this level's room, me included (every game counts the same list).</summary>
+        int PlayersHere()
+        {
+            int n = 0;
+            foreach (var p in Client.Players) if (p.level == level) n++;
+            return Mathf.Max(1, n);
+        }
+
+        /// <summary>Every enemy's hull and shields made as strong as `players` call for (see
+        /// CoopScaling), each keeping how damaged it is.</summary>
+        void ScaleEnemies(int players)
+        {
+            int was = scaledFor;
+            scaledFor = players;
+            float k = CoopScaling.Toughness(players);
+            foreach (var e in ents.Values)
+            {
+                if (e.t == null) continue;
+                if (e.h != null && e.baseHull > 0f) e.h.SetMaxHealth(e.baseHull * k);
+                if (e.shields != null) foreach (var s in e.shields) if (s != null) s.ScaleTo(k);
+            }
+            Debug.Log($"[Co-op] {players} players here: the enemies' hull and shields x{k:0.##}, their hits x{CoopScaling.Firepower(players):0.##}");
+            if (players > 1) CarrierDemoInput.Toast($"{players} players here: the enemies are {k:0.#}x as tough and hit {CoopScaling.Firepower(players):0.##}x as hard");
+            else if (was > 1) CarrierDemoInput.Toast("Flying alone: the enemies are back to normal");
+        }
+
+        /// <summary>Health.Adjust: an enemy's hit on a player's ship (mine, or another player's in
+        /// my game) is made as hard as the players here call for. Only the game running the
+        /// enemies deals their hits (the host's, or one alone), and the hits it sends on to other
+        /// players' games are already scaled, so nothing is scaled twice.</summary>
+        float AdjustHit(Health h, float amount)
+        {
+            if (scaledFor <= 1 || !On || me == null || h == null) return amount;
+            var src = Health.Source;
+            if (src == null) return amount;
+            bool onAPlayer = h == myHealth || remoteByRoot.ContainsKey(h.transform.root);
+            if (!onAPlayer || EntOf(src) == null) return amount;
+            return amount * CoopScaling.Firepower(scaledFor);
+        }
+
         static System.Collections.IEnumerator RespawnLater(Health h, float seconds)
         {
             yield return new WaitForSeconds(seconds);
@@ -217,6 +271,9 @@ namespace CarrierGame.Demo
                 }
             }
             SetPuppeting(on && !Client.IsHost);
+            // the enemies, as hard as the number of players here calls for
+            int players = on ? PlayersHere() : 1;
+            if (players != scaledFor) ScaleEnemies(players);
             if (!on)
             {
                 if (remotes.Count > 0) ClearRemotes();
@@ -410,6 +467,7 @@ namespace CarrierGame.Demo
                     Vector3 p = ToNet(point);
                     Client.Send(new HitPlayerMsg { to = rp.Id, a = amount, kd = (int)kind, x = p.x, y = p.y, z = p.z });
                     HitsSentToPlayers++;
+                    LastHitToPlayer = amount;
                 }
                 return true;
             }

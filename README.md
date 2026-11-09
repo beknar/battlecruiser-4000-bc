@@ -586,6 +586,13 @@ the web version with `?server=<address>:<port>&name=<name>&connect`.
   and their hits land on that player's ship.
 - **Fire.** Shots, missiles and main-gun beams appear in every game.
 - **Hand-over.** When the host leaves, the next player takes the enemies over where they are.
+- **More players, harder enemies.** Every encounter in space is scaled for the number of
+  players in the level. This covers raiders, ambushes, capital ships and station guns. Each
+  player after the first adds 60% to every enemy's hull and shields (shields also recharge
+  faster), and 12% to the damage of its guns, missiles and beams. With seven players, enemies
+  are 4.6 times as tough and hit 1.72 times as hard. When players join or leave, enemies keep
+  how damaged they are. The players panel shows the current scaling, and a message announces
+  each change. Fights on a planet's surface are each player's own, so they aren't scaled.
 - **The Star System.** Every game runs the orbits on the same clock, so the planets, stations
   and everything round them are in the same places for everyone.
 - **Not shared.** Fights down on a planet's surface stay in each player's own game. The pause
@@ -647,7 +654,9 @@ Each build is a single self-contained file (about 47 MB) plus `coopserver.json`.
   - Then the bot leaves and the game takes the enemies over. The bot comes back as a guest,
     receives the enemies, and its hits land on the real ones.
   - At Corsair Haven the station's guns go for the bot's ship, and the hits reach it.
-  - Last, it leaves, checking the game carries on alone.
+  - With the bot in the level, it checks that the enemies are scaled for two players: their
+    hull is tougher, and an enemy's hit on the bot's ship is sent at the stronger damage.
+  - Last, it leaves, checking the game carries on alone and the enemies are back to normal.
   - `-coopquick` skips the Corsair Haven part. On the web, use
     `?systemtest&cooptest&server=<address>:<port>&connect`.
 - `Tools/WebTest/cooptest.sh [build dir]` runs the quick version against the web build in

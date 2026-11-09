@@ -54,6 +54,19 @@ namespace CarrierGame
             Push();
         }
 
+        float baseCapacity = -1f, baseRecharge;
+
+        /// <summary>Co-op: `k` times as strong as it was built (an enemy's, with more players),
+        /// recharging `k` times as fast, keeping how charged it is.</summary>
+        public void ScaleTo(float k)
+        {
+            if (baseCapacity < 0f) { baseCapacity = capacity; baseRecharge = rechargeRate; }
+            float fraction = Fraction;
+            capacity = baseCapacity * k;
+            rechargeRate = baseRecharge * k;
+            if (Strength > 0f) Strength = fraction * capacity;
+        }
+
         /// <summary>Take a hit: returns the damage the shield couldn't stop (0 while it holds).</summary>
         public float Absorb(float damage, Vector3 point, HitKind kind)
         {

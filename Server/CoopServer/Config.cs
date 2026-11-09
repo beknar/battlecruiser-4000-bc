@@ -13,7 +13,7 @@ public sealed class ServerConfig
 {
     public string Bind { get; set; } = "0.0.0.0";
     public int Port { get; set; } = 7777;
-    public int MaxPlayers { get; set; } = 4;
+    public int MaxPlayers { get; set; } = 7;
     /// <summary>Addresses allowed to connect: single IPs ("192.168.1.20", "::1") or ranges in CIDR
     /// form ("192.168.1.0/24", "10.0.0.0/8"). Empty: anyone may connect.</summary>
     public List<string> Allow { get; set; } = new();

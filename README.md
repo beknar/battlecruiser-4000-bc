@@ -563,7 +563,7 @@ WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use
 
 ## Co-op
 
-Up to four players can fly together in any of the three games, on Windows or in the web
+Up to seven players can fly together in any of the three games, on Windows or in the web
 version, through a small server that any of them (or a machine elsewhere) runs.
 
 ### Joining a game
@@ -597,7 +597,7 @@ The server is in `Server/CoopServer` (.NET 8). It runs on Windows and Linux and 
 else installed when built as below.
 
 ```
-CoopServer [--port 7777] [--bind 0.0.0.0] [--max-players 4]
+CoopServer [--port 7777] [--bind 0.0.0.0] [--max-players 7]
            [--allow 192.168.1.0/24,10.0.0.5] [--config coopserver.json]
            [--cert server.pfx --cert-password secret]
 ```
@@ -606,6 +606,8 @@ CoopServer [--port 7777] [--bind 0.0.0.0] [--max-players 4]
   command line wins over the file. `CoopServer --help` lists them all.
 - **Allow-list.** `allow` (or `--allow`) limits who may connect, by single IPs or CIDR ranges,
   IPv4 or IPv6. Anyone else is refused with HTTP 403. An empty list lets anyone in.
+- **Players.** `maxPlayers` (or `--max-players`) is how many can be on at once: seven by
+  default. A `coopserver.json` kept from an older copy keeps its own number (4 in those).
 - **Live changes.** Saved changes to the file's `allow` and `maxPlayers` take effect at once,
   without a restart.
 - **Console.** While the server runs, type `status` for who is on, `reload` to re-read the
@@ -630,7 +632,8 @@ Each build is a single self-contained file (about 47 MB) plus `coopserver.json`.
 
 - `Tools/CoopTest/server_test.py <host> <port> [--allowtest <settings file>]` tests a running
   server:
-  - four players get in and a fifth is turned away;
+  - as many players as the server takes (seven by default; it needs to take at least four)
+    get in, and one more is turned away;
   - messages reach the right players, and the server's own messages can't be forged;
   - the host hands over when it leaves, and the clock and rooms work;
   - a game speaking another protocol is refused, and the status page answers;

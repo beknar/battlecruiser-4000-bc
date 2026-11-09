@@ -2,7 +2,8 @@
 
     python server_test.py <host> <port> [--allowtest <config file the server is using>]
 
-- 4 players get in, a fifth is turned away (server full);
+- as many players as the server takes (it says how many when the first joins; 7 by default) get
+  in, and one more is turned away (server full); the server needs to take at least 4;
 - a client speaking another protocol is turned away;
 - messages are passed on: to everyone else in the room, to one player ("to"), to the host only
   ("toHost"), each with "from" added; the server's own message types can't be forged;
@@ -46,39 +47,54 @@ async def join(name, level="TestLevel", v=1):
     return ws
 
 
+async def strays(xs, wait=0.6):
+    """How many of xs get a chat message within the wait (all listened to at once)."""
+    got = await asyncio.gather(*(recv_until(x, "chat", wait) for x in xs))
+    return sum(1 for g in got if g is not None)
+
+
 async def main():
     print(f"co-op server test against {URL}")
-    # ---- four players, then one too many
-    # one at a time, so they join in this order (P0 first, so P0 hosts)
-    clients, welcomes = [], []
-    for i in range(4):
+    # ---- a full server, then one too many
+    # one at a time, so they join in this order (P0 first, so P0 hosts); the first welcome says
+    # how many the server takes
+    clients, welcomes = [await join("P0")], []
+    welcomes.append(await recv_until(clients[0], "welcome"))
+    if welcomes[0] is None:
+        print("  FAIL no welcome from the server"); sys.exit(1)
+    MAX = int(welcomes[0].get("max", 0))
+    if MAX < 4:
+        print(f"  the server takes {MAX} players: this test needs one that takes at least 4"); sys.exit(2)
+    for i in range(1, MAX):
         clients.append(await join(f"P{i}"))
         welcomes.append(await recv_until(clients[-1], "welcome"))
     ids = [w["id"] if w else 0 for w in welcomes]
-    check("four players are welcomed", all(ids) and len(set(ids)) == 4, f"ids {ids}")
+    check(f"{MAX} players are welcomed", all(ids) and len(set(ids)) == MAX, f"ids {ids}")
     check("the first in a room hosts it", all(w and w["host"] == ids[0] for w in welcomes), f"host {welcomes[0]['host'] if welcomes[0] else '?'}")
     check("each room has an orbit clock that starts where its first player's was",
           welcomes[0] is not None and abs((welcomes[0]["now"] - welcomes[0]["epoch"]) - 12.5) < 1.0)
-    fifth = await join("P5")
-    rej = await recv_until(fifth, "reject")
-    check("a fifth player is turned away (the server is full)", rej is not None and "full" in rej.get("why", ""), rej.get("why", "") if rej else "no reject")
-    await fifth.close()
+    extra = await join(f"P{MAX}")
+    rej = await recv_until(extra, "reject")
+    check("one more is turned away (the server is full)", rej is not None and "full" in rej.get("why", ""), rej.get("why", "") if rej else "no reject")
+    await extra.close()
 
     # ---- passing messages on
-    a, b, c, d = clients
+    a, b, c, d = clients[:4]
+    others = clients[1:]
     await a.send(json.dumps({"t": "chat", "k": "hello all"}))
-    got = [await recv_until(x, "chat", 2.0) for x in (b, c, d)]
+    got = [await recv_until(x, "chat", 2.0) for x in others]
     check("a message goes to everyone else in the room, with who sent it",
-          all(g and g["from"] == ids[0] and g["k"] == "hello all" for g in got))
+          all(g and g["from"] == ids[0] and g["k"] == "hello all" for g in got), f"{sum(1 for g in got if g)} of {len(others)}")
     await b.send(json.dumps({"t": "chat", "k": "just c", "to": ids[2]}))
     got_c = await recv_until(c, "chat", 2.0)
-    got_d = await recv_until(d, "chat", 0.6)
-    got_a = await recv_until(a, "chat", 0.3)
-    check("a message to one player goes to that player only", got_c is not None and got_c["k"] == "just c" and got_d is None and got_a is None)
+    stray = await strays([x for x in clients if x not in (b, c)])
+    check("a message to one player goes to that player only", got_c is not None and got_c["k"] == "just c" and not stray,
+          f"{stray} others got it too" if stray else "")
     await c.send(json.dumps({"t": "chat", "k": "host", "toHost": True}))
     got_a = await recv_until(a, "chat", 2.0)
-    got_b = await recv_until(b, "chat", 0.6)
-    check("a message for the host goes to the host only", got_a is not None and got_a["k"] == "host" and got_b is None)
+    stray = await strays([x for x in clients if x not in (a, c)])
+    check("a message for the host goes to the host only", got_a is not None and got_a["k"] == "host" and not stray,
+          f"{stray} others got it too" if stray else "")
     await d.send(json.dumps({"t": "welcome", "id": 99, "host": 99}))
     forged = await recv_until(b, "welcome", 0.6)
     check("the server's own messages can't be forged", forged is None)
@@ -91,16 +107,16 @@ async def main():
 
     # ---- the host leaves
     await a.close()
-    rooms = [await recv_until(x, "room", 3.0) for x in (b, c, d)]
+    rooms = [await recv_until(x, "room", 3.0) for x in others]
     check("when the host leaves, the next player hosts and everyone is told", all(r and r["host"] == ids[1] for r in rooms),
           f"new host {rooms[0]['host'] if rooms[0] else '?'}")
     left = await recv_until(c, "players", 2.0)
-    check("everyone gets the new list of players", left is not None and len(left["players"]) == 3)
+    check("everyone gets the new list of players", left is not None and len(left["players"]) == MAX - 1)
     # a player moving to another level gets its own room
     await d.send(json.dumps({"t": "level", "level": "Other", "clock": 3.0}))
     r = await recv_until(d, "room", 2.0)
     check("a player in another level is in that level's room, hosting it", r is not None and r["level"] == "Other" and r["host"] == ids[3])
-    for x in (b, c, d):
+    for x in others:
         await x.close()
 
     # ---- the wrong protocol
@@ -121,7 +137,7 @@ async def main():
         cfg = sys.argv[sys.argv.index("--allowtest") + 1]
         def write(allow):
             with open(cfg, "w") as f:
-                json.dump({"port": PORT, "maxPlayers": 4, "allow": allow}, f)
+                json.dump({"port": PORT, "maxPlayers": MAX, "allow": allow}, f)
         write(["10.123.0.0/16"])
         await asyncio.sleep(3.0)     # a change notice, or the server's 2 s check
         try:

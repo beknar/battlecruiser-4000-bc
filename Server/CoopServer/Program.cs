@@ -9,13 +9,13 @@ if (args.Contains("--help") || args.Contains("-h") || args.Contains("/?"))
     Console.WriteLine("""
         Battlecruiser 4000 BC co-op server
 
-          CoopServer [--port 7777] [--bind 0.0.0.0] [--max-players 4]
+          CoopServer [--port 7777] [--bind 0.0.0.0] [--max-players 7]
                      [--allow 192.168.1.0/24,10.0.0.5] [--config coopserver.json]
                      [--cert server.pfx --cert-password secret]
 
           --port          the port players connect to (default 7777)
           --bind          the address to listen on (0.0.0.0: every network; 127.0.0.1: this computer only)
-          --max-players   how many players at once (default 4)
+          --max-players   how many players at once (default 7)
           --allow         only these addresses may connect: IPs or CIDR ranges, comma-separated or
                           repeated (default: anyone). Overrides the config file's list.
           --config        the settings file (default: coopserver.json next to the program). Its

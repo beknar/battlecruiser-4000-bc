@@ -63,6 +63,18 @@ namespace CarrierGame.Demo
             Instance.Open(address, port, name);
         }
 
+        /// <summary>The server's WebSocket address: ws://host:port/coop (wss:// when `secure`, an
+        /// IPv6 address in brackets), or a full ws:// or wss:// address as given, with /coop
+        /// added when it has no path.</summary>
+        internal static string UrlFor(string address, int port, bool secure)
+        {
+            address = (address ?? "").Trim();
+            if (address.StartsWith("ws://") || address.StartsWith("wss://"))
+                return address.Substring(address.IndexOf("//") + 2).Contains("/") ? address : address + "/coop";
+            string host = address.Contains(":") && !address.StartsWith("[") ? $"[{address}]" : address;
+            return $"{(secure ? "wss" : "ws")}://{host}:{port}/coop";
+        }
+
         public static void Disconnect()
         {
             if (Instance != null) Instance.Close("disconnected");
@@ -73,14 +85,9 @@ namespace CarrierGame.Demo
             Close("");
             address = (address ?? "").Trim();
             MyName = string.IsNullOrWhiteSpace(name) ? "Captain" : name.Trim();
-            string url = address;
-            if (!url.StartsWith("ws://") && !url.StartsWith("wss://"))
-            {
-                // a page served over https may only open wss:// sockets
-                bool secure = CarrierDemoInput.OnWeb && Application.absoluteURL.StartsWith("https:");
-                url = $"{(secure ? "wss" : "ws")}://{address}:{port}/coop";
-            }
-            else if (!url.Substring(url.IndexOf("//") + 2).Contains("/")) url += "/coop";
+            // a page served over https may only open wss:// sockets
+            bool secure = CarrierDemoInput.OnWeb && Application.absoluteURL.StartsWith("https:");
+            string url = UrlFor(address, port, secure);
             Url = url;
             Status = $"connecting to {url}...";
             Debug.Log($"[Co-op] connecting to {url}");

@@ -1,0 +1,33 @@
+[SystemTest]    0.0s  screen 1262x624, 33 warp points: Ochre StarTram (SurfaceBase), Cinder (Planet), Outer Drift (AsteroidField), Pyrois (Moon), Jovara L5 Depot (Lagrange), Deepcut Station (AsteroidBase), Cinder Orbital Battery (Weapons), Cinder Fortress (SurfaceBase), Ochre Relay (Installation), Thalassa Space Elevator (SurfaceBase), Thalassa Launch Loop (SurfaceBase), Thalassa (Planet), Comet Iskra (Comet), Corsair Haven (AsteroidBase), Brontes Shipyard (Installation), Comet Mirren (Comet), Selene (Moon), Glacis (Planet), Thalassa L1 Observatory (Lagrange), Selene Mass Driver (SurfaceBase), Brontes (Moon), Mnemos (Moon), Ochre (Planet), Kestrel (Star), Thalassa Highport (Station), Steropes Slingatron (SurfaceBase), Inner Belt (AsteroidField), Ochre Spin Launcher (SurfaceBase), Arges (Moon), Steropes (Moon), Selene Base (SurfaceBase), Jovara (Planet), Jovara Trojans (AsteroidField)
+[SystemTest]    0.0s  kinds: 1 star, 5 planets, 6 moons, 3 asteroid fields, 2 comets
+[SystemTest]    2.1s  start: near Thalassa, warp ready True 
+[SystemTest]    2.1s  connected to ws://127.0.0.1:7793/coop as #2: room 'StarSystem', host #1, 2 players, 25 enemies
+[SystemTest]    4.3s    a guest: host #1, puppets True; orbit clock 316.30 s, the room's 316.53 s (frame 0.24 s)
+[SystemTest]    4.3s    asked the bot (the host) to fly beside me, move 'Kestrel System/Cinder (orbit)/Cinder Orbital Battery (orbit)/Cinder Orbital Battery/Battery Platform B' 1.5 km ahead, hit me and shoot ('FrigateBolt')
+[SystemTest]    4.8s    the bot's ship: 'Bot's frigate', shown True, 75 m from where it should be, 9 updates
+[SystemTest]    4.8s    the puppet: 75 m from where the host put it, hull 60 % (the host says 60 %)
+[SystemTest]    4.8s    hits from the host: 3 (shield and hull down 900); shots shown 1
+[SystemTest]    4.8s    scaled for 2 players: 'Kestrel System/Cinder (orbit)/Cinder Orbital Battery (orbit)/Cinder Orbital Battery/Battery Platform B' hull 4160 (built 2600, x1.6)
+[SystemTest]    7.9s    bot: de=4
+[SystemTest]    7.9s    my hits on the puppet: 4 sent to the host; the bot got 4; the puppet's hull here 60 % (unchanged: the host's game decides)
+[SystemTest]    8.7s    the bot left: host now #2 (me #2); puppets False
+[SystemTest]    9.2s    bot: es=25
+[SystemTest]    9.6s    the bot back as a guest: it got 25 enemies from this game; its hits applied 3 ('Kestrel System/Cinder (orbit)/Cinder Orbital Battery (orbit)/Cinder Orbital Battery/Battery Platform B' hull 2496 -> 1896)
+[SystemTest]   10.1s    a shot from 'Raider Drone A': damage 6.7 (built 6.0, x1.12 for two players)
+[SystemTest]   12.0s    left: connected False, puppets False, other ships 0; the orbit clock went 324.5 -> 325.5 s
+[SystemTest]   12.0s    alone: scaled for 1; 'Kestrel System/Cinder (orbit)/Cinder Orbital Battery (orbit)/Cinder Orbital Battery/Battery Platform B' hull 2600 (built 2600)
+[SystemTest]   12.0s    ok   a guest: the enemies are the host's (puppets here)
+[SystemTest]   12.0s    ok   the orbits run on the room's clock
+[SystemTest]   12.0s    ok   another player's ship shows, where they are
+[SystemTest]   12.0s    ok   a puppet goes where the host says, as damaged as the host says
+[SystemTest]   12.0s    ok   the host's hits on me land, and its shots show
+[SystemTest]   12.0s    ok   with two players the enemies are tougher
+[SystemTest]   12.0s    ok   my hits on a puppet go to the host
+[SystemTest]   12.0s    ok   the host leaves: this game takes the enemies over
+[SystemTest]   12.0s    ok   as host, the enemies go to the guests
+[SystemTest]   12.0s    ok   a guest's hits land on the real enemy
+[SystemTest]   12.0s    ok   with two players the enemies' shots hit harder
+[SystemTest]   12.0s    ok   leaving: back to a game of one, the orbits carrying on
+[SystemTest]   12.0s    ok   alone again, the enemies are back to normal
+[SystemTest]   12.0s  PASS: co-op (13 of 13)
+[SystemTest]   12.0s  done

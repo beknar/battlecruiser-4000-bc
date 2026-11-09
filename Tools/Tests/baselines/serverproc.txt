@@ -1,0 +1,18 @@
+co-op server test against ws://127.0.0.1:7795/coop
+  ok   7 players are welcomed  (ids [1, 2, 3, 4, 5, 6, 7])
+  ok   the first in a room hosts it  (host 1)
+  ok   each room has an orbit clock that starts where its first player's was
+  ok   one more is turned away (the server is full)  (the server is full (7 of 7 players))
+  ok   a message goes to everyone else in the room, with who sent it  (6 of 6)
+  ok   a message to one player goes to that player only
+  ok   a message for the host goes to the host only
+  ok   the server's own messages can't be forged
+  ok   a ping is answered with the server's clock  (0 ms)
+  ok   when the host leaves, the next player hosts and everyone is told  (new host 2)
+  ok   everyone gets the new list of players
+  ok   a player in another level is in that level's room, hosting it
+  ok   a game speaking another protocol is turned away
+  ok   the status page answers  (Battlecruiser 4000 BC co-op server: 0 of 7 players, up 00:00:02)
+  ok   an address not on the allow-list is refused (HTTP 403)
+  ok   a saved change to the allow-list lets it in, without a restart
+PASS: co-op server (16 of 16)

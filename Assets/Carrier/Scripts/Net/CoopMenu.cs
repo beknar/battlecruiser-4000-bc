@@ -43,7 +43,7 @@ namespace CarrierGame.Demo
                 playerName = Query(url, "name") ?? playerName;
             }
             // -connect address:port [-name name]: straight in
-            string connect = Arg("-connect") ?? (CarrierDemoInput.OnWeb && Query(Application.absoluteURL, "connect") != null ? $"{address}:{port}" : null);
+            string connect = Arg("-connect") ?? (CarrierDemoInput.OnWeb && Query(Application.absoluteURL, "connect") != null ? JoinAddress(address, port) : null);
             if (connect != null)
             {
                 SplitAddress(connect, ref address, ref port);
@@ -75,30 +75,34 @@ namespace CarrierGame.Demo
             return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
         }
 
-        static string Query(string url, string key)
-        {
-            if (string.IsNullOrEmpty(url) || !SystemTest.HasQueryKey(url, key)) return null;
-            int q = url.IndexOf('?');
-            foreach (var part in url.Substring(q + 1).Split('&', '#'))
-            {
-                var kv = part.Split('=');
-                if (kv[0] == key) return kv.Length > 1 ? System.Uri.UnescapeDataString(kv[1]) : "";
-            }
-            return null;
-        }
+        /// <summary>A page address's query option: its value, "" for one without a value, or null.</summary>
+        static string Query(string url, string key) =>
+            SystemTest.HasQueryKey(url, key) ? SystemTest.QueryValue(url, key) ?? "" : null;
 
         static string HostOf(string url)
         {
             try { return new System.Uri(url).Host; } catch { return ""; }
         }
 
-        static void SplitAddress(string s, ref string address, ref string port)
+        /// <summary>An address and port as one "address:port", the way SplitAddress takes it apart:
+        /// an IPv6 address in brackets, a full ws:// or wss:// address as it is.</summary>
+        internal static string JoinAddress(string address, string port)
+        {
+            address = (address ?? "").Trim();
+            if (address.StartsWith("ws://") || address.StartsWith("wss://")) return address;
+            return address.Contains(":") && !address.StartsWith("[") ? $"[{address}]:{port}" : $"{address}:{port}";
+        }
+
+        /// <summary>"address:port" into its parts (the port is left as it was when none is given).</summary>
+        internal static void SplitAddress(string s, ref string address, ref string port)
         {
             s = s.Trim();
             if (s.StartsWith("ws://") || s.StartsWith("wss://")) { address = s; return; }
             int colon = s.LastIndexOf(':');
-            // (an IPv6 address has colons of its own: [::1]:7777)
-            if (colon > 0 && s.IndexOf(']') < colon && int.TryParse(s.Substring(colon + 1), out _))
+            // an IPv6 address has colons of its own: with a port it is in brackets, [::1]:7777;
+            // without brackets (::1, fe80::2) all of it is the address
+            bool bareIPv6 = s.IndexOf(':') != colon && s.IndexOf('[') < 0;
+            if (colon > 0 && !bareIPv6 && s.IndexOf(']') < colon && int.TryParse(s.Substring(colon + 1), out _))
             {
                 address = s.Substring(0, colon).Trim('[', ']');
                 port = s.Substring(colon + 1);

@@ -15,7 +15,9 @@ namespace CarrierGame.Demo
     /// the bot's hits and shots arrive, and this game's hits on the puppet go to the bot. Then
     /// the bot leaves and this game takes the enemies over; the bot comes back as a guest and gets
     /// the enemies, its hits land on the real ones, and at Corsair Haven the guns go for the bot's
-    /// ship and the hits reach the bot. Last, leaving: back to a game of one, the orbits carrying on.
+    /// ship and the hits reach the bot. With the two of them, the enemies are tougher and hit
+    /// harder (CoopScaling). Last, leaving: back to a game of one, the enemies back to normal and
+    /// the orbits carrying on.
     /// </summary>
     public partial class SystemTest
     {
@@ -107,6 +109,11 @@ namespace CarrierGame.Demo
             results.Add(("a puppet goes where the host says, as damaged as the host says", entOff >= 0f && entOff < 150f && Mathf.Abs(hullFrac - 0.6f) < 0.05f));
             results.Add(("the host's hits on me land, and its shots show", world.HitsTaken - taken0 >= 3 && lost > 0f && world.ShotsShown > shown0));
 
+            // two players here: the enemies are tougher
+            float tough2 = CoopScaling.Toughness(2), built = th != null ? th.BuiltMaxHealth : 0f;
+            Log($"  scaled for {world.ScaledFor} players: '{target}' hull {(th != null ? th.maxHealth : 0f):F0} (built {built:F0}, x{tough2:0.##})");
+            results.Add(("with two players the enemies are tougher", world.ScaledFor == 2 && th != null && built > 0f && Mathf.Abs(th.maxHealth - built * tough2) < 1f));
+
             // my hits on the puppet go to the host
             int sent0 = world.HitsSentToHost;
             if (tt != null)
@@ -181,6 +188,27 @@ namespace CarrierGame.Demo
                 results.Add(("the host's enemies go for a guest's ship, and the hits reach them", world.HitsSentToPlayers - toPlayers0 >= 3 && dpN >= 3));
             }
 
+            // an enemy's shot, fired here (the host), is as hard as two players call for
+            EnemyWeapons gunner = null;
+            foreach (var id in world.EntityIds)
+            {
+                var et = world.EntityTransform(id);
+                var w = et != null ? et.GetComponentInChildren<EnemyWeapons>() : null;
+                if (w != null && w.gunPrefab != null) { gunner = w; break; }
+            }
+            float fire2 = CoopScaling.Firepower(2), built2 = gunner != null ? gunner.gunPrefab.damage : 0f, fired = -1f;
+            if (gunner != null)
+            {
+                // straight up, well clear of everything, then gone
+                var shot = Instantiate(gunner.gunPrefab, gunner.transform.position + Vector3.up * 20000f, Quaternion.LookRotation(Vector3.up));
+                shot.owner = gunner.transform;
+                yield return null;
+                yield return null;
+                if (shot != null) { fired = shot.damage; Destroy(shot.gameObject); }
+            }
+            Log($"  a shot from '{(gunner != null ? gunner.name : "none")}': damage {fired:F1} (built {built2:F1}, x{fire2:0.##} for two players)");
+            results.Add(("with two players the enemies' shots hit harder", gunner != null && built2 > 0f && Mathf.Abs(fired - built2 * fire2) < 0.01f));
+
             // ---- leaving
             Note("bye");
             yield return new WaitForSeconds(0.5f);
@@ -191,6 +219,8 @@ namespace CarrierGame.Demo
             bool alone = !CoopClient.Active && !world.Puppeting && OrbitalSystem.ClockOverride == null && world.Remotes == 0;
             Log($"  left: connected {CoopClient.Active}, puppets {world.Puppeting}, other ships {world.Remotes}; the orbit clock went {t0:F1} -> {t1:F1} s");
             results.Add(("leaving: back to a game of one, the orbits carrying on", alone && (OrbitalSystem.Instance == null || Math.Abs(t1 - t0 - 1.0) < 0.5)));
+            Log($"  alone: scaled for {world.ScaledFor}; '{target}' hull {(th != null ? th.maxHealth : 0f):F0} (built {built:F0})");
+            results.Add(("alone again, the enemies are back to normal", world.ScaledFor == 1 && th != null && Mathf.Abs(th.maxHealth - built) < 1f));
             hull.cannotDie = false;
             CoopClient.Message -= OnBotMessage;
 

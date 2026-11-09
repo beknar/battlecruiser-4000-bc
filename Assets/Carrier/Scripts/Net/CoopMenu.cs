@@ -229,6 +229,8 @@ namespace CarrierGame.Demo
             var st = Hud.Text(13);
             var sb = new System.Text.StringBuilder();
             sb.Append($"<b>CO-OP</b>  <color=#9aa4b0>{c.Players.Count}/{c.MaxPlayers} players   {c.Rtt * 1000.0:F0} ms</color>");
+            int scaledFor = CoopWorld.Instance != null ? CoopWorld.Instance.ScaledFor : 1;
+            if (scaledFor > 1) sb.Append($"\n<color=#ff9a6a>Enemies x{CoopScaling.Toughness(scaledFor):0.#} tough, x{CoopScaling.Firepower(scaledFor):0.##} firepower</color>");
             foreach (var p in c.Players)
             {
                 bool here = p.level == c.RoomLevel;

@@ -73,6 +73,21 @@ namespace CarrierGame
             if (!Dead) Current = maxHealth;
         }
 
+        float builtMax = -1f;
+
+        /// <summary>Its full strength as built (before any co-op scaling).</summary>
+        public float BuiltMaxHealth => builtMax >= 0f ? builtMax : maxHealth;
+
+        /// <summary>Co-op: `k` times as strong as it was built (an enemy's, with more players),
+        /// keeping how damaged it is.</summary>
+        public void ScaleTo(float k)
+        {
+            if (builtMax < 0f) builtMax = maxHealth;
+            float fraction = maxHealth > 0f ? Current / maxHealth : 1f;
+            maxHealth = builtMax * k;
+            if (!Dead) Current = Mathf.Max(fraction * maxHealth, Mathf.Min(1f, maxHealth));
+        }
+
         public void Damage(float amount)
         {
             if (Dead || amount <= 0f) return;

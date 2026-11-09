@@ -38,6 +38,7 @@ namespace CarrierGame.Demo
             public double ts0 = -1, ts1 = -1;
             public Vector3 p0, p1, v1;
             public Quaternion q0 = Quaternion.identity, q1 = Quaternion.identity;
+            public Shield[] shields;
         }
 
         readonly Dictionary<string, Ent> ents = new Dictionary<string, Ent>();
@@ -55,6 +56,7 @@ namespace CarrierGame.Demo
         string level;
         bool registered, puppeting, clockOn;
         float nextShip, nextEnts;
+        int scaledFor = 1;
 
         // ---- for the self-test
         public bool Puppeting => puppeting;
@@ -69,6 +71,8 @@ namespace CarrierGame.Demo
         public int ShotsShown { get; private set; }
         public int ShotsSent { get; private set; }
         public Transform EntityTransform(string id) => ents.TryGetValue(id, out var e) ? e.t : null;
+        /// <summary>The number of players the enemies are scaled for (1 alone).</summary>
+        public int ScaledFor => scaledFor;
 
         static readonly HashSet<Type> Keep = new HashSet<Type>
         {
@@ -128,7 +132,7 @@ namespace CarrierGame.Demo
                 string id = PathOf(t);
                 string unique = id;
                 for (int n = 2; ents.ContainsKey(unique); n++) unique = $"{id}#{n}";
-                var e = new Ent { id = unique, t = t, h = t.GetComponent<Health>(), pilot = t.GetComponent<CombatPilot>() };
+                var e = new Ent { id = unique, t = t, h = t.GetComponent<Health>(), pilot = t.GetComponent<CombatPilot>(), shields = t.GetComponentsInChildren<Shield>(true) };
                 ents[unique] = e;
                 entByTransform[t] = e;
                 if (e.h != null) entByHealth[e.h] = e;
@@ -193,6 +197,49 @@ namespace CarrierGame.Demo
 
         void Off(Behaviour b) { if (b != null && b.enabled) { b.enabled = false; directorsOff.Add(b); } }
 
+        // ------------------------------------------------------------------ more players, harder enemies
+
+        /// <summary>Players out in space in this level, me included. One who has landed on a
+        /// planet is left out: fights down there are each player's own. Every game sees the same
+        /// list and the same ships, so they agree. (A handful of players: cheap every frame.)</summary>
+        int PlayersHere()
+        {
+            var landing = PlanetLanding.Instance;
+            int n = landing != null && landing.Current != PlanetLanding.State.InSpace ? 0 : 1;
+            foreach (var p in Client.Players)
+            {
+                if (p.id == Client.MyId || p.level != level) continue;
+                if (remotes.TryGetValue(p.id, out var r) && r != null && r.Surface.Length > 0) continue;
+                n++;
+            }
+            return Mathf.Max(1, n);
+        }
+
+        /// <summary>Every enemy's hull and shields made as strong as `players` call for (see
+        /// CoopScaling), each keeping how damaged it is.</summary>
+        void ScaleEnemies(int players)
+        {
+            int was = scaledFor;
+            scaledFor = players;
+            float k = CoopScaling.Toughness(players);
+            foreach (var e in ents.Values)
+            {
+                if (e.t == null) continue;
+                if (e.h != null) e.h.ScaleTo(k);
+                if (e.shields != null) foreach (var s in e.shields) if (s != null) s.ScaleTo(k);
+            }
+            Debug.Log($"[Co-op] {players} players here: the enemies' hull and shields x{k:0.##}, their hits x{CoopScaling.Firepower(players):0.##}");
+            if (players > 1) CarrierDemoInput.Toast($"{players} players here: the enemies are {k:0.#}x as tough and hit {CoopScaling.Firepower(players):0.##}x as hard");
+            else if (was > 1) CarrierDemoInput.Toast("Flying alone: the enemies are back to normal");
+        }
+
+        /// <summary>How much harder an enemy's shot, missile or beam is, set as it is fired. Only
+        /// the game running the enemies (the host's, or one alone) fires them for real; the hits
+        /// it passes on to other players' games are already scaled, so nothing is scaled twice.
+        /// A guest's puppets only fire for show (no damage).</summary>
+        float EnemyFire(Transform shooter) =>
+            scaledFor > 1 && !puppeting && shooter != null && EntOf(shooter) != null ? CoopScaling.Firepower(scaledFor) : 1f;
+
         static System.Collections.IEnumerator RespawnLater(Health h, float seconds)
         {
             yield return new WaitForSeconds(seconds);
@@ -217,6 +264,9 @@ namespace CarrierGame.Demo
                 }
             }
             SetPuppeting(on && !Client.IsHost);
+            // the enemies, as hard as the number of players here calls for
+            int players = on ? PlayersHere() : 1;
+            if (players != scaledFor) ScaleEnemies(players);
             if (!on)
             {
                 if (remotes.Count > 0) ClearRemotes();
@@ -454,7 +504,9 @@ namespace CarrierGame.Demo
 
         void OnShot(Projectile p)
         {
-            if (!On || p == null || p.damage <= 0f) return;          // a shown shot (no damage) isn't news
+            if (p == null) return;
+            p.damage *= EnemyFire(p.owner);
+            if (!On || p.damage <= 0f) return;          // a shown shot (no damage) isn't news
             string src = SourceOf(p.owner);
             if (src == null || !Budget(src)) return;
             Vector3 pos = ToNet(p.transform.position), d = p.transform.forward;
@@ -464,7 +516,9 @@ namespace CarrierGame.Demo
 
         void OnMissile(Missile m)
         {
-            if (!On || m == null || m.damage <= 0f) return;
+            if (m == null) return;
+            m.damage *= EnemyFire(m.owner);
+            if (!On || m.damage <= 0f) return;
             string src = SourceOf(m.owner);
             if (src == null) return;
             Vector3 pos = ToNet(m.transform.position), d = m.transform.forward;
@@ -474,7 +528,9 @@ namespace CarrierGame.Demo
 
         void OnBeam(MainBeam b)
         {
-            if (!On || b == null) return;
+            if (b == null) return;
+            b.damageScale = EnemyFire(b.transform);      // (its owner is the top of the level, for a station's)
+            if (!On) return;
             string src = SourceOf(b.transform);
             if (src == null) return;
             Vector3 d = b.BeamDirection;

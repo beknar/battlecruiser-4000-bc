@@ -38,7 +38,6 @@ namespace CarrierGame.Demo
             public double ts0 = -1, ts1 = -1;
             public Vector3 p0, p1, v1;
             public Quaternion q0 = Quaternion.identity, q1 = Quaternion.identity;
-            public float baseHull;                 // its hull as built, for one player
             public Shield[] shields;
         }
 
@@ -74,10 +73,6 @@ namespace CarrierGame.Demo
         public Transform EntityTransform(string id) => ents.TryGetValue(id, out var e) ? e.t : null;
         /// <summary>The number of players the enemies are scaled for (1 alone).</summary>
         public int ScaledFor => scaledFor;
-        /// <summary>An enemy's hull as built, for one player.</summary>
-        public float BaseHullOf(Health h) => h != null && entByHealth.TryGetValue(h, out var e) ? e.baseHull : h != null ? h.maxHealth : 0f;
-        /// <summary>The last hit sent to another player's game (after scaling).</summary>
-        public float LastHitToPlayer { get; private set; }
 
         static readonly HashSet<Type> Keep = new HashSet<Type>
         {
@@ -99,7 +94,6 @@ namespace CarrierGame.Demo
             Missile.Spawned += OnMissile;
             MainBeam.Began += OnBeam;
             Health.Intercept = Intercept;
-            Health.Adjust = AdjustHit;
             PlayerShips.Available = t => !remoteByRoot.TryGetValue(t.root, out var rp) || !rp.Hidden;
         }
 
@@ -110,7 +104,6 @@ namespace CarrierGame.Demo
             Missile.Spawned -= OnMissile;
             MainBeam.Began -= OnBeam;
             if (Health.Intercept == (Func<Health, float, Vector3, HitKind, bool>)Intercept) Health.Intercept = null;
-            if (Health.Adjust == (Func<Health, float, float>)AdjustHit) Health.Adjust = null;
             PlayerShips.Available = null;
             OrbitalSystem.ClockOverride = null;
             if (Instance == this) Instance = null;
@@ -140,7 +133,6 @@ namespace CarrierGame.Demo
                 string unique = id;
                 for (int n = 2; ents.ContainsKey(unique); n++) unique = $"{id}#{n}";
                 var e = new Ent { id = unique, t = t, h = t.GetComponent<Health>(), pilot = t.GetComponent<CombatPilot>(), shields = t.GetComponentsInChildren<Shield>(true) };
-                e.baseHull = e.h != null ? e.h.maxHealth : 0f;
                 ents[unique] = e;
                 entByTransform[t] = e;
                 if (e.h != null) entByHealth[e.h] = e;
@@ -207,11 +199,19 @@ namespace CarrierGame.Demo
 
         // ------------------------------------------------------------------ more players, harder enemies
 
-        /// <summary>Players in this level's room, me included (every game counts the same list).</summary>
+        /// <summary>Players out in space in this level, me included. One who has landed on a
+        /// planet is left out: fights down there are each player's own. Every game sees the same
+        /// list and the same ships, so they agree. (A handful of players: cheap every frame.)</summary>
         int PlayersHere()
         {
-            int n = 0;
-            foreach (var p in Client.Players) if (p.level == level) n++;
+            var landing = PlanetLanding.Instance;
+            int n = landing != null && landing.Current != PlanetLanding.State.InSpace ? 0 : 1;
+            foreach (var p in Client.Players)
+            {
+                if (p.id == Client.MyId || p.level != level) continue;
+                if (remotes.TryGetValue(p.id, out var r) && r != null && r.Surface.Length > 0) continue;
+                n++;
+            }
             return Mathf.Max(1, n);
         }
 
@@ -225,7 +225,7 @@ namespace CarrierGame.Demo
             foreach (var e in ents.Values)
             {
                 if (e.t == null) continue;
-                if (e.h != null && e.baseHull > 0f) e.h.SetMaxHealth(e.baseHull * k);
+                if (e.h != null) e.h.ScaleTo(k);
                 if (e.shields != null) foreach (var s in e.shields) if (s != null) s.ScaleTo(k);
             }
             Debug.Log($"[Co-op] {players} players here: the enemies' hull and shields x{k:0.##}, their hits x{CoopScaling.Firepower(players):0.##}");
@@ -233,19 +233,12 @@ namespace CarrierGame.Demo
             else if (was > 1) CarrierDemoInput.Toast("Flying alone: the enemies are back to normal");
         }
 
-        /// <summary>Health.Adjust: an enemy's hit on a player's ship (mine, or another player's in
-        /// my game) is made as hard as the players here call for. Only the game running the
-        /// enemies deals their hits (the host's, or one alone), and the hits it sends on to other
-        /// players' games are already scaled, so nothing is scaled twice.</summary>
-        float AdjustHit(Health h, float amount)
-        {
-            if (scaledFor <= 1 || !On || me == null || h == null) return amount;
-            var src = Health.Source;
-            if (src == null) return amount;
-            bool onAPlayer = h == myHealth || remoteByRoot.ContainsKey(h.transform.root);
-            if (!onAPlayer || EntOf(src) == null) return amount;
-            return amount * CoopScaling.Firepower(scaledFor);
-        }
+        /// <summary>How much harder an enemy's shot, missile or beam is, set as it is fired. Only
+        /// the game running the enemies (the host's, or one alone) fires them for real; the hits
+        /// it passes on to other players' games are already scaled, so nothing is scaled twice.
+        /// A guest's puppets only fire for show (no damage).</summary>
+        float EnemyFire(Transform shooter) =>
+            scaledFor > 1 && !puppeting && shooter != null && EntOf(shooter) != null ? CoopScaling.Firepower(scaledFor) : 1f;
 
         static System.Collections.IEnumerator RespawnLater(Health h, float seconds)
         {
@@ -467,7 +460,6 @@ namespace CarrierGame.Demo
                     Vector3 p = ToNet(point);
                     Client.Send(new HitPlayerMsg { to = rp.Id, a = amount, kd = (int)kind, x = p.x, y = p.y, z = p.z });
                     HitsSentToPlayers++;
-                    LastHitToPlayer = amount;
                 }
                 return true;
             }
@@ -512,7 +504,9 @@ namespace CarrierGame.Demo
 
         void OnShot(Projectile p)
         {
-            if (!On || p == null || p.damage <= 0f) return;          // a shown shot (no damage) isn't news
+            if (p == null) return;
+            p.damage *= EnemyFire(p.owner);
+            if (!On || p.damage <= 0f) return;          // a shown shot (no damage) isn't news
             string src = SourceOf(p.owner);
             if (src == null || !Budget(src)) return;
             Vector3 pos = ToNet(p.transform.position), d = p.transform.forward;
@@ -522,7 +516,9 @@ namespace CarrierGame.Demo
 
         void OnMissile(Missile m)
         {
-            if (!On || m == null || m.damage <= 0f) return;
+            if (m == null) return;
+            m.damage *= EnemyFire(m.owner);
+            if (!On || m.damage <= 0f) return;
             string src = SourceOf(m.owner);
             if (src == null) return;
             Vector3 pos = ToNet(m.transform.position), d = m.transform.forward;
@@ -532,7 +528,9 @@ namespace CarrierGame.Demo
 
         void OnBeam(MainBeam b)
         {
-            if (!On || b == null) return;
+            if (b == null) return;
+            b.damageScale = EnemyFire(b.transform);      // (its owner is the top of the level, for a station's)
+            if (!On) return;
             string src = SourceOf(b.transform);
             if (src == null) return;
             Vector3 d = b.BeamDirection;

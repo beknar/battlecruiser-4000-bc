@@ -587,7 +587,8 @@ the web version with `?server=<address>:<port>&name=<name>&connect`.
 - **Fire.** Shots, missiles and main-gun beams appear in every game.
 - **Hand-over.** When the host leaves, the next player takes the enemies over where they are.
 - **More players, harder enemies.** Every encounter in space is scaled for the number of
-  players in the level. This covers raiders, ambushes, capital ships and station guns. Each
+  players flying in the level. This covers raiders, ambushes, capital ships and station guns.
+  Players who have landed on a planet don't count until they take off again. Each
   player after the first adds 60% to every enemy's hull and shields (shields also recharge
   faster), and 12% to the damage of its guns, missiles and beams. With seven players, enemies
   are 4.6 times as tough and hit 1.72 times as hard. When players join or leave, enemies keep
@@ -655,7 +656,7 @@ Each build is a single self-contained file (about 47 MB) plus `coopserver.json`.
     receives the enemies, and its hits land on the real ones.
   - At Corsair Haven the station's guns go for the bot's ship, and the hits reach it.
   - With the bot in the level, it checks that the enemies are scaled for two players: their
-    hull is tougher, and an enemy's hit on the bot's ship is sent at the stronger damage.
+    hull is tougher, and an enemy's shot fires at the stronger damage.
   - Last, it leaves, checking the game carries on alone and the enemies are back to normal.
   - `-coopquick` skips the Corsair Haven part. On the web, use
     `?systemtest&cooptest&server=<address>:<port>&connect`.

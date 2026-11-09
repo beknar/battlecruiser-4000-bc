@@ -64,6 +64,8 @@ namespace CarrierGame
         public static event System.Action<MainBeam> Began;
         /// <summary>Co-op: this beam only shows what another player's game is doing: no damage.</summary>
         [System.NonSerialized] public bool cosmetic;
+        /// <summary>Co-op: an enemy's beam burns this much harder with more players (CoopScaling).</summary>
+        [System.NonSerialized] public float damageScale = 1f;
         /// <summary>Which way it is firing now.</summary>
         public Vector3 BeamDirection => beamDir;
 
@@ -209,7 +211,7 @@ namespace CarrierGame
                 var h = best.collider.GetComponentInParent<Health>();
                 if (h != null && !h.Dead && !cosmetic)
                 {
-                    float dmg = damagePerSecond * Time.deltaTime;
+                    float dmg = damagePerSecond * damageScale * Time.deltaTime;
                     Health.Source = owner;
                     h.Damage(dmg, best.point, HitKind.Beam);
                     Health.Source = null;

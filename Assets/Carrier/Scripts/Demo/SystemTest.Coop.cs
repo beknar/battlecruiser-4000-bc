@@ -110,9 +110,9 @@ namespace CarrierGame.Demo
             results.Add(("the host's hits on me land, and its shots show", world.HitsTaken - taken0 >= 3 && lost > 0f && world.ShotsShown > shown0));
 
             // two players here: the enemies are tougher
-            float tough2 = CoopScaling.Toughness(2), built = th != null ? world.BaseHullOf(th) : 0f;
+            float tough2 = CoopScaling.Toughness(2), built = th != null ? th.BuiltMaxHealth : 0f;
             Log($"  scaled for {world.ScaledFor} players: '{target}' hull {(th != null ? th.maxHealth : 0f):F0} (built {built:F0}, x{tough2:0.##})");
-            results.Add(("with two players the enemies are tougher", world.ScaledFor == 2 && th != null && Mathf.Abs(th.maxHealth - built * tough2) < 1f));
+            results.Add(("with two players the enemies are tougher", world.ScaledFor == 2 && th != null && built > 0f && Mathf.Abs(th.maxHealth - built * tough2) < 1f));
 
             // my hits on the puppet go to the host
             int sent0 = world.HitsSentToHost;
@@ -188,20 +188,26 @@ namespace CarrierGame.Demo
                 results.Add(("the host's enemies go for a guest's ship, and the hits reach them", world.HitsSentToPlayers - toPlayers0 >= 3 && dpN >= 3));
             }
 
-            // an enemy's hit on the bot's ship goes to the bot as hard as two players call for
-            var botNow = client.Players.Where(p => p.id != client.MyId).Select(p => world.RemoteOf(p.id)).FirstOrDefault(r => r != null);
-            var botHull = botNow != null ? botNow.GetComponent<Health>() : null;
-            int toPlayers = world.HitsSentToPlayers;
-            if (botHull != null && tt != null)
+            // an enemy's shot, fired here (the host), is as hard as two players call for
+            EnemyWeapons gunner = null;
+            foreach (var id in world.EntityIds)
             {
-                Health.Source = tt;
-                botHull.Damage(100f, botNow.transform.position, HitKind.Cannon);
-                Health.Source = null;
+                var et = world.EntityTransform(id);
+                var w = et != null ? et.GetComponentInChildren<EnemyWeapons>() : null;
+                if (w != null && w.gunPrefab != null) { gunner = w; break; }
             }
-            float fire2 = CoopScaling.Firepower(2);
-            Log($"  an enemy's 100-point hit on the bot's ship: {world.HitsSentToPlayers - toPlayers} sent, as {world.LastHitToPlayer:F0} (x{fire2:0.##} for two players)");
-            results.Add(("with two players the enemies hit harder, and the host sends their hits on that way",
-                world.HitsSentToPlayers - toPlayers == 1 && Mathf.Abs(world.LastHitToPlayer - 100f * fire2) < 0.5f));
+            float fire2 = CoopScaling.Firepower(2), built2 = gunner != null ? gunner.gunPrefab.damage : 0f, fired = -1f;
+            if (gunner != null)
+            {
+                // straight up, well clear of everything, then gone
+                var shot = Instantiate(gunner.gunPrefab, gunner.transform.position + Vector3.up * 20000f, Quaternion.LookRotation(Vector3.up));
+                shot.owner = gunner.transform;
+                yield return null;
+                yield return null;
+                if (shot != null) { fired = shot.damage; Destroy(shot.gameObject); }
+            }
+            Log($"  a shot from '{(gunner != null ? gunner.name : "none")}': damage {fired:F1} (built {built2:F1}, x{fire2:0.##} for two players)");
+            results.Add(("with two players the enemies' shots hit harder", gunner != null && built2 > 0f && Mathf.Abs(fired - built2 * fire2) < 0.01f));
 
             // ---- leaving
             Note("bye");

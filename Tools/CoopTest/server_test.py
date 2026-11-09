@@ -1,8 +1,9 @@
 """Tests for the co-op server, against a running one.
 
-    python server_test.py <host> <port> [--max <the server's max players, 7>] [--allowtest <config file the server is using>]
+    python server_test.py <host> <port> [--allowtest <config file the server is using>]
 
-- as many players as the server takes (7) get in, and one more is turned away (server full);
+- as many players as the server takes (it says how many when the first joins; 7 by default) get
+  in, and one more is turned away (server full); the server needs to take at least 4;
 - a client speaking another protocol is turned away;
 - messages are passed on: to everyone else in the room, to one player ("to"), to the host only
   ("toHost"), each with "from" added; the server's own message types can't be forged;
@@ -19,7 +20,6 @@ import websockets
 
 HOST, PORT = sys.argv[1], int(sys.argv[2])
 URL = f"ws://{HOST}:{PORT}/coop"
-MAX = int(sys.argv[sys.argv.index("--max") + 1]) if "--max" in sys.argv else 7
 results = []
 
 
@@ -47,12 +47,25 @@ async def join(name, level="TestLevel", v=1):
     return ws
 
 
+async def strays(xs, wait=0.6):
+    """How many of xs get a chat message within the wait (all listened to at once)."""
+    got = await asyncio.gather(*(recv_until(x, "chat", wait) for x in xs))
+    return sum(1 for g in got if g is not None)
+
+
 async def main():
     print(f"co-op server test against {URL}")
     # ---- a full server, then one too many
-    # one at a time, so they join in this order (P0 first, so P0 hosts)
-    clients, welcomes = [], []
-    for i in range(MAX):
+    # one at a time, so they join in this order (P0 first, so P0 hosts); the first welcome says
+    # how many the server takes
+    clients, welcomes = [await join("P0")], []
+    welcomes.append(await recv_until(clients[0], "welcome"))
+    if welcomes[0] is None:
+        print("  FAIL no welcome from the server"); sys.exit(1)
+    MAX = int(welcomes[0].get("max", 0))
+    if MAX < 4:
+        print(f"  the server takes {MAX} players: this test needs one that takes at least 4"); sys.exit(2)
+    for i in range(1, MAX):
         clients.append(await join(f"P{i}"))
         welcomes.append(await recv_until(clients[-1], "welcome"))
     ids = [w["id"] if w else 0 for w in welcomes]
@@ -74,13 +87,14 @@ async def main():
           all(g and g["from"] == ids[0] and g["k"] == "hello all" for g in got), f"{sum(1 for g in got if g)} of {len(others)}")
     await b.send(json.dumps({"t": "chat", "k": "just c", "to": ids[2]}))
     got_c = await recv_until(c, "chat", 2.0)
-    got_d = await recv_until(d, "chat", 0.6)
-    got_a = await recv_until(a, "chat", 0.3)
-    check("a message to one player goes to that player only", got_c is not None and got_c["k"] == "just c" and got_d is None and got_a is None)
+    stray = await strays([x for x in clients if x not in (b, c)])
+    check("a message to one player goes to that player only", got_c is not None and got_c["k"] == "just c" and not stray,
+          f"{stray} others got it too" if stray else "")
     await c.send(json.dumps({"t": "chat", "k": "host", "toHost": True}))
     got_a = await recv_until(a, "chat", 2.0)
-    got_b = await recv_until(b, "chat", 0.6)
-    check("a message for the host goes to the host only", got_a is not None and got_a["k"] == "host" and got_b is None)
+    stray = await strays([x for x in clients if x not in (a, c)])
+    check("a message for the host goes to the host only", got_a is not None and got_a["k"] == "host" and not stray,
+          f"{stray} others got it too" if stray else "")
     await d.send(json.dumps({"t": "welcome", "id": 99, "host": 99}))
     forged = await recv_until(b, "welcome", 0.6)
     check("the server's own messages can't be forged", forged is None)

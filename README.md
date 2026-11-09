@@ -606,6 +606,8 @@ CoopServer [--port 7777] [--bind 0.0.0.0] [--max-players 7]
   command line wins over the file. `CoopServer --help` lists them all.
 - **Allow-list.** `allow` (or `--allow`) limits who may connect, by single IPs or CIDR ranges,
   IPv4 or IPv6. Anyone else is refused with HTTP 403. An empty list lets anyone in.
+- **Players.** `maxPlayers` (or `--max-players`) is how many can be on at once: seven by
+  default. A `coopserver.json` kept from an older copy keeps its own number (4 in those).
 - **Live changes.** Saved changes to the file's `allow` and `maxPlayers` take effect at once,
   without a restart.
 - **Console.** While the server runs, type `status` for who is on, `reload` to re-read the
@@ -630,8 +632,8 @@ Each build is a single self-contained file (about 47 MB) plus `coopserver.json`.
 
 - `Tools/CoopTest/server_test.py <host> <port> [--allowtest <settings file>]` tests a running
   server:
-  - seven players get in and an eighth is turned away (`--max <n>` for a server set
-    to another number);
+  - as many players as the server takes (seven by default; it needs to take at least four)
+    get in, and one more is turned away;
   - messages reach the right players, and the server's own messages can't be forged;
   - the host hands over when it leaves, and the clock and rooms work;
   - a game speaking another protocol is refused, and the status page answers;

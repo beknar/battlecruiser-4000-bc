@@ -79,7 +79,7 @@ namespace CarrierGame.Demo
             float yaw = cc.Heading - 45f;                                       // (Jovara behind them)
             Shot(490, cc.transform, ClearOfCaption(yaw, d * 2.7f, d * 0.3f), d * 2.7f, yaw, 15f, 0.6f);
             yield return FadeIn();
-            Caption("CO-OP", "Up to four players fly together through a small server for Windows or Linux, from Windows or the web", 6f);
+            Caption("CO-OP", "Up to seven players fly together through a small server for Windows or Linux, from Windows or the web", 6f);
             yield return Wait(6f);
 
             // a slow turn, the wingmen holding their places, and a volley ahead

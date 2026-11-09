@@ -563,7 +563,7 @@ WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use
 
 ## Co-op
 
-Up to four players can fly together in any of the three games, on Windows or in the web
+Up to seven players can fly together in any of the three games, on Windows or in the web
 version, through a small server that any of them (or a machine elsewhere) runs.
 
 ### Joining a game
@@ -597,7 +597,7 @@ The server is in `Server/CoopServer` (.NET 8). It runs on Windows and Linux and 
 else installed when built as below.
 
 ```
-CoopServer [--port 7777] [--bind 0.0.0.0] [--max-players 4]
+CoopServer [--port 7777] [--bind 0.0.0.0] [--max-players 7]
            [--allow 192.168.1.0/24,10.0.0.5] [--config coopserver.json]
            [--cert server.pfx --cert-password secret]
 ```
@@ -630,7 +630,8 @@ Each build is a single self-contained file (about 47 MB) plus `coopserver.json`.
 
 - `Tools/CoopTest/server_test.py <host> <port> [--allowtest <settings file>]` tests a running
   server:
-  - four players get in and a fifth is turned away;
+  - seven players get in and an eighth is turned away (`--max <n>` for a server set
+    to another number);
   - messages reach the right players, and the server's own messages can't be forged;
   - the host hands over when it leaves, and the clock and rooms work;
   - a game speaking another protocol is refused, and the status page answers;

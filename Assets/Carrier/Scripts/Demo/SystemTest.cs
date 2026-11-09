@@ -72,12 +72,22 @@ namespace CarrierGame.Demo
         bool web, landOnly, mineOnly, mineSurfaceOnly, stationOnly, orbitOnly;
         string landWorld;
 
-        static string QueryValue(string url, string key)
+        /// <summary>A page address's query: what is between the ? and any #, or null if it has
+        /// none (a ? after the # is part of the fragment, not the query).</summary>
+        static string QueryOf(string url)
         {
             if (string.IsNullOrEmpty(url)) return null;
-            int q = url.IndexOf('?');
-            if (q < 0) return null;
-            foreach (var part in url.Substring(q + 1).Split('&', '#'))
+            int q = url.IndexOf('?'), hash = url.IndexOf('#');
+            if (q < 0 || (hash >= 0 && hash < q)) return null;
+            return hash < 0 ? url.Substring(q + 1) : url.Substring(q + 1, hash - q - 1);
+        }
+
+        /// <summary>The value of a URL's query option (?key=value), or null if it has none.</summary>
+        internal static string QueryValue(string url, string key)
+        {
+            string query = QueryOf(url);
+            if (query == null) return null;
+            foreach (var part in query.Split('&'))
             {
                 var kv = part.Split('=');
                 if (kv[0] == key && kv.Length > 1) return Uri.UnescapeDataString(kv[1]);
@@ -88,11 +98,8 @@ namespace CarrierGame.Demo
         /// <summary>Is `key` one of the URL's query options (?key, ?key=..., &key...)?</summary>
         public static bool HasQueryKey(string url, string key)
         {
-            if (string.IsNullOrEmpty(url)) return false;
-            int q = url.IndexOf('?');
-            if (q < 0) return false;
-            int hash = url.IndexOf('#', q);
-            string query = hash < 0 ? url.Substring(q + 1) : url.Substring(q + 1, hash - q - 1);
+            string query = QueryOf(url);
+            if (query == null) return false;
             foreach (var part in query.Split('&'))
                 if (part.Split('=')[0] == key) return true;
             return false;

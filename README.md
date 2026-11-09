@@ -525,7 +525,12 @@ In the web version, use the page's Full screen button rather than F11.
 - `Assets/Carrier/Scripts/Net`: co-op: the connection (`CoopClient`, over a WebSocket in both
   the Windows and web versions), the shared world (`CoopWorld`), other players' ships
   (`RemotePlayer`) and the co-op panel (`CoopMenu`)
-- `Server/CoopServer`: the co-op server (.NET 8, Windows and Linux)
+- `Server/CoopServer`: the co-op server (.NET 8, Windows and Linux); `Server/CoopServer.Tests`
+  its unit and integration tests
+- `Assets/Carrier/Tests`: the game's unit and integration tests (Unity Test Framework). The game's
+  code is its own assembly, `Carrier.Game` (`Assets/Carrier/Scripts`), and the editor tools are
+  `Carrier.Editor`, so the tests can reference them
+- `Tools/Tests`: `run_tests.py`, which runs every test, and the regression baselines
 - `Tools/CoopTest`: the co-op server test, the scripted second player and the reel's wingmen
 - `Tools/WebTest`: the headless Chrome gamepad test and its stand-in controller
 - `Tools/Blender`: the scripts that make those models (frigate conversion from GLB, ball turret,
@@ -664,6 +669,78 @@ Each build is a single self-contained file (about 47 MB) plus `coopserver.json`.
   headless Chrome, with its own server and bot. It renders in software (WebGL 2), so the GPU
   isn't used; the web version connects the same way under WebGPU.
 - These tools need Python's `websockets` package.
+
+## Tests
+
+`python Tools/Tests/run_tests.py` runs all of them, one after another, and exits 1 if anything
+fails. Add `--build` to build the games first, or `--quick` for the quicker half (about 15
+minutes; the whole run takes about an hour). The results go to `../Builds/test_run`. The run
+needs:
+
+- the .NET 8 SDK;
+- Unity 6000.6, with the editor closed;
+- Python 3.8 or later, with the `websockets` package;
+- Chrome and Git Bash, for the web stage.
+
+The games run one at a time, in a 1280x720 window.
+
+- **Unit tests.**
+  - The game (`Assets/Carrier/Tests/EditMode`): the co-op enemy scaling, the co-op messages
+    and the server address, minerals and the cargo hold, Kepler orbits and the Lagrange points,
+    comet tails, noise, and the captain's portraits and lines.
+  - The server (`Server/CoopServer.Tests`): the allow-list, and reading and reloading the
+    settings.
+  - The run's own regression checker (`Tools/Tests/test_regression.py`).
+- **Integration tests.**
+  - The game's Play mode tests (`Assets/Carrier/Tests/PlayMode`):
+    - hull and shield together: damage, death and respawn;
+    - co-op scaling and the host's control of the hull;
+    - shots flying through the physics world to land on a shield or a hull, missing, sparing
+      their own ship and the enemies' own side.
+  - The server's hub, driven over real WebSocket connections: joining, the seven-player
+    limit, rooms and hosts, passing messages on and what it refuses.
+  - The server program end to end (`Tools/CoopTest/server_test.py`).
+  - The games' own self-tests (see Command-line modes): the HUD and captain, co-op against
+    the scripted bot, the web build's co-op, and the full, landing, orbit and station tests.
+- **Regression tests.** Each report is compared with its baseline in `Tools/Tests/baselines`:
+  - **Self-test reports:** every check must pass, and no check or verdict in the baseline may
+    disappear.
+  - **Autotest reports (Carrier Demo and Asteroid Ambush):** these have no verdict of their
+    own. Every line must keep its shape (with the numbers masked, since combat varies), and a
+    set of facts must hold, for example:
+    - no shot misses its aim or hits the frigate;
+    - the frigate comes back whole after it is destroyed;
+    - the main gun fires after its 10 s charge;
+    - every sound is there.
+  - **Unit tests:** their number may not drop.
+
+  After a deliberate change, `--bless` saves the run's reports as the new baselines. It lists
+  how they differ from the old ones first.
+
+`--only` and `--skip` pick the stages:
+
+| Stage | What it runs |
+|---|---|
+| `tools` | the regression checker's tests |
+| `server` | the server's tests |
+| `unity` | the game's Edit mode and Play mode tests |
+| `build` | the builds (with `--build`) |
+| `serverproc` | the server program, end to end |
+| `autotest` | the Carrier Demo and Asteroid Ambush autotests |
+| `hud`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
+| `web` | the web build's co-op test |
+
+`--quick` runs `tools`, `server`, `unity`, `serverproc`, `autotest`, `hud` and `coop`.
+
+Each part can also be run alone:
+
+- `dotnet test Server/CoopServer.Tests` runs the server's tests.
+- Unity runs the game's tests in its Test Runner window (Window > General > Test Runner), or
+  in batch mode:
+
+  ```
+  Unity.exe -batchmode -nographics -projectPath . -runTests -testPlatform EditMode -testResults results.xml
+  ```
 
 ## Command-line modes
 

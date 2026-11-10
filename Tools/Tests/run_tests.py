@@ -183,13 +183,19 @@ class Runner:
             return None
         return exe if self.fresh_build(name, exe.parent / f"{name}_Data", st) else None
 
+    # what goes into a build: a change to any of these makes an older build stale (not Materials or
+    # Settings, which a build itself rewrites and the tidy-up then puts back)
+    BUILD_INPUTS = ("Scripts", "Resources", "Scenes", "Prefabs", "Shaders")
+
     def fresh_build(self, name, data, st):
-        """A build older than the newest game script would test old code."""
-        code = max((f.stat().st_mtime for f in (PROJECT / "Assets" / "Carrier" / "Scripts").rglob("*.cs")), default=0)
+        """A build older than the newest game script or asset would test old code or old assets."""
+        carrier = PROJECT / "Assets" / "Carrier"
+        code = max((f.stat().st_mtime for d in self.BUILD_INPUTS for f in (carrier / d).rglob("*")
+                    if f.is_file() and f.suffix != ".meta"), default=0)
         built = max((f.stat().st_mtime for f in data.iterdir() if f.is_file()), default=0) if data.is_dir() else 0
         if built < code:
             st.fail(f"the {name} build ({time.strftime('%Y-%m-%d %H:%M', time.localtime(built))}) is older than the game's "
-                    f"code ({time.strftime('%Y-%m-%d %H:%M', time.localtime(code))}): rebuild it, or add --build")
+                    f"code or assets ({time.strftime('%Y-%m-%d %H:%M', time.localtime(code))}): rebuild it, or add --build")
             return False
         return True
 

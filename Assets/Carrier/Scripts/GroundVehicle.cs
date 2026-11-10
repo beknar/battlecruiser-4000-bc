@@ -35,20 +35,13 @@ namespace CarrierGame
             angle = Random.Range(0f, Mathf.PI * 2f);
             circleSign = Random.value < 0.5f ? -1f : 1f;
             health = GetComponent<Health>();
-            var cc = FindAnyObjectByType<CarrierController>();
-            if (cc != null) target = cc.transform;
+            target = PlayerShips.Primary;
         }
 
         public void OriginShifted(Vector3 d) => home += d;
 
         /// <summary>With more than one player ship about (co-op), go for the nearest now and then.</summary>
-        void Retarget()
-        {
-            if (PlayerShips.Count < 2 || Time.time < nextRetarget) return;
-            nextRetarget = Time.time + 2f;
-            var nearest = PlayerShips.Nearest(transform.position);
-            if (nearest != null) target = nearest;
-        }
+        void Retarget() => target = PlayerShips.Retarget(target, transform.position, ref nextRetarget);
 
         void Update()
         {

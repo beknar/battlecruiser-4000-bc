@@ -12,6 +12,8 @@ import asyncio, json, sys, time
 
 import websockets
 
+from protocol import PROTOCOL
+
 URL = sys.argv[1] if len(sys.argv) > 1 else "ws://127.0.0.1:7790/coop"
 LEVEL = sys.argv[2] if len(sys.argv) > 2 else "StarSystem"
 
@@ -56,7 +58,7 @@ class Bot:
 
     async def session(self, name, clock):
         async with websockets.connect(URL, max_size=4 * 1024 * 1024) as ws:
-            await self.send(ws, {"t": "hello", "v": 1, "name": name, "level": LEVEL, "client": "bot", "captain": 1, "clock": clock})
+            await self.send(ws, {"t": "hello", "v": PROTOCOL, "name": name, "level": LEVEL, "client": "bot", "captain": 1, "clock": clock})
             tick = 0
             while not self.done and not self.leaving:
                 try:

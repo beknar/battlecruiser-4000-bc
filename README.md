@@ -643,6 +643,14 @@ Each build is a single self-contained file (about 47 MB) plus `coopserver.json`.
 
 ### Testing co-op
 
+The protocol's version and message names are in one file,
+`Assets/Carrier/Scripts/Net/CoopWire.cs`. The game builds it, the server builds the same file,
+and the test bots read the version from it. `Server/protocol` holds a sample of each message the
+server sends. The server's tests check that it sends nothing that isn't in the samples, and the
+game's tests check that it reads every field in them. A field added on one side but not the other
+fails a test. Adding fields or messages keeps the protocol version; renaming one never happens,
+because released games and servers must keep understanding each other.
+
 - `Tools/CoopTest/server_test.py <host> <port> [--allowtest <settings file>]` tests a running
   server:
   - as many players as the server takes (seven by default; it needs to take at least four)

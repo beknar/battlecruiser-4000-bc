@@ -40,24 +40,21 @@ namespace CarrierGame.Demo
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Flag()
         {
-            var args = Environment.GetCommandLineArgs();
-            if (Array.IndexOf(args, "-reel") >= 0) CarrierDemoInput.ReelMode = true;
+            if (LaunchArgs.Has("-reel")) CarrierDemoInput.ReelMode = true;
             // -features: the Star System feature reel (mining, combat, landing, mini-warps);
             // -orbits: the orbits and stations reel (it runs on the feature reel's machinery)
             // -all: everything in one reel
-            Orbits = CarrierDemoInput.ReelMode && Array.IndexOf(args, "-orbits") >= 0;
-            All = CarrierDemoInput.ReelMode && Array.IndexOf(args, "-all") >= 0;
-            Features = CarrierDemoInput.ReelMode && (Orbits || All || Array.IndexOf(args, "-features") >= 0);
+            Orbits = CarrierDemoInput.ReelMode && LaunchArgs.Has("-orbits");
+            All = CarrierDemoInput.ReelMode && LaunchArgs.Has("-all");
+            Features = CarrierDemoInput.ReelMode && (Orbits || All || LaunchArgs.Has("-features"));
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
         {
-            var args = Environment.GetCommandLineArgs();
-            int i = Array.IndexOf(args, "-reel");
-            if (i < 0) return;
+            if (!LaunchArgs.Has("-reel")) return;
             var r = new GameObject("DemoReel").AddComponent<DemoReel>();
-            r.dir = i + 1 < args.Length && !args[i + 1].StartsWith("-") ? args[i + 1] : Application.persistentDataPath;
+            r.dir = LaunchArgs.FolderAfter("-reel", Application.persistentDataPath);
             Time.captureFramerate = Fps;
         }
 

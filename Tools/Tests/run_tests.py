@@ -30,7 +30,7 @@ project; --builds to change it). Needs Python 3.8+ with the 'websockets' package
 stages), the .NET 8 SDK, Unity 6000.6 (--unity or UNITY_EXE) and, for the web stage, Chrome and
 Git Bash. Writes everything to <builds>/test_run (--out) and exits 1 if anything failed.
 """
-import argparse, json, os, re, shutil, socket, subprocess, sys, time, xml.etree.ElementTree as ET
+import argparse, contextlib, json, os, re, shutil, signal, socket, subprocess, sys, time, xml.etree.ElementTree as ET
 from pathlib import Path
 
 sys.dont_write_bytecode = True
@@ -92,7 +92,7 @@ class Runner:
         self.args = args
         self.builds = Path(args.builds).resolve()
         self.out = Path(args.out).resolve() if args.out else self.builds / "test_run"
-        self.unity = args.unity or os.environ.get("UNITY_EXE") or r"C:\Program Files\Unity\Hub\Editor\6000.6.7f1\Editor\Unity.exe"
+        self.unity = args.unity or os.environ.get("UNITY_EXE") or default_unity()
         self.dotnet = shutil.which("dotnet") or (r"C:\Program Files\dotnet\dotnet.exe" if WINDOWS else "dotnet")
         self.server_exe = None
         self.counts = json.loads(COUNTS.read_text()) if COUNTS.exists() else {}
@@ -105,7 +105,7 @@ class Runner:
         log.parent.mkdir(parents=True, exist_ok=True)
         with open(log, "w", encoding="utf-8", errors="replace") as f:
             p = subprocess.Popen([str(c) for c in cmd], stdout=f, stderr=subprocess.STDOUT, cwd=cwd, env=env,
-                                 stdin=subprocess.DEVNULL)
+                                 stdin=subprocess.DEVNULL, start_new_session=not WINDOWS)
             try:
                 return p.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
@@ -126,10 +126,42 @@ class Runner:
     def start(self, cmd, log, cwd=None, env=None):
         log.parent.mkdir(parents=True, exist_ok=True)
         f = open(log, "w", encoding="utf-8", errors="replace")
-        p = subprocess.Popen([str(c) for c in cmd], stdout=f, stderr=subprocess.STDOUT, cwd=cwd, env=env,
-                             stdin=subprocess.DEVNULL)
+        try:
+            p = subprocess.Popen([str(c) for c in cmd], stdout=f, stderr=subprocess.STDOUT, cwd=cwd, env=env,
+                                 stdin=subprocess.DEVNULL, start_new_session=not WINDOWS)
+        except BaseException:
+            f.close()
+            raise
         p.log_file = f
         return p
+
+    @contextlib.contextmanager
+    def coop_server(self, exe, d, preferred_port, *args):
+        """A co-op server on loopback (its log in d/server.log) for the length of a `with`;
+        gives the port it listens on."""
+        port = free_port(preferred_port)
+        srv = self.start([exe] + list(args) + ["--bind", "127.0.0.1", "--port", port], d / "server.log")
+        try:
+            wait_port(port, 15)
+            yield port
+        finally:
+            stop(srv)
+
+    def judge(self, st, baseline_name, lines, compare, prefix=""):
+        """A report's problems: what must hold whatever the baseline says (the report compared
+        with itself: it ran to the end, every check passed), then the comparison with the
+        baseline, unless there is none yet or this run is to become it (--bless: what differs
+        from the old one is noted). A report that holds is saved as the baseline with --bless.
+        Returns the baseline (None if there is none) and the problems."""
+        base = self.baseline(baseline_name)
+        hard = compare(lines, lines)
+        problems = hard if self.args.bless or base is None else compare(base, lines)
+        if self.args.bless and base is not None:
+            for p in compare(base, lines):
+                st.note(f"{prefix}differs from the old baseline: {p}")
+        if not hard:
+            self.bless(baseline_name, lines, st)
+        return base, problems
 
     def fresh(self, name):
         d = self.out / name
@@ -304,14 +336,9 @@ class Runner:
         d = self.fresh("serverproc")
         cfg = d / "coopserver.json"
         shutil.copy(PROJECT / "Server" / "CoopServer" / "coopserver.json", cfg)
-        port = free_port(7795)
-        srv = self.start([exe, "--config", cfg, "--bind", "127.0.0.1", "--port", port], d / "server.log")
-        try:
-            wait_port(port, 15)
+        with self.coop_server(exe, d, 7795, "--config", cfg) as port:
             code = self.play(st, "server_test.py", [sys.executable, "-B", PROJECT / "Tools" / "CoopTest" / "server_test.py",
                                                     "127.0.0.1", port, "--allowtest", cfg], d / "server_test.log", 300)
-        finally:
-            stop(srv)
         lines = (d / "server_test.log").read_text(errors="replace").splitlines()
         self.selftest_result(st, "serverproc.txt", lines, require_done=False)
         if code != 0:
@@ -326,16 +353,10 @@ class Runner:
             self.play(st, name, [exe] + WINDOW + ["-autotest", d, "-logFile", d / "player.log"], d / "run.out", 600, cwd=exe.parent)
             report = d / "autotest.txt"
             lines = report.read_text(encoding="utf-8", errors="replace").splitlines() if report.exists() else []
-            base = self.baseline(f"autotest_{name}.txt")
             if not lines:
                 st.fail(f"{name}: no report (see {d / 'player.log'})")
                 continue
-            # what must hold whatever the baseline says; then the comparison with the baseline
-            hard = R.compare_autotest(lines, lines)
-            problems = hard if self.args.bless or base is None else R.compare_autotest(base, lines)
-            if self.args.bless and base is not None:
-                for p in R.compare_autotest(base, lines):
-                    st.note(f"{name}: differs from the old baseline: {p}")
+            base, problems = self.judge(st, f"autotest_{name}.txt", lines, R.compare_autotest, prefix=f"{name}: ")
             for p in problems[:25]:
                 st.fail(f"{name}: {p}")
             if len(problems) > 25:
@@ -344,21 +365,11 @@ class Runner:
                 st.note(f"{name}: no baseline yet ({len(lines)} lines); --bless to save one")
             elif not problems:
                 st.note(f"{name}: matches its baseline ({len(lines)} lines, {len(R.AUTOTEST_FACTS)} facts)")
-            if not hard:
-                self.bless(f"autotest_{name}.txt", lines, st)
 
     def selftest_result(self, st, baseline_name, lines, require_done=True):
-        base = self.baseline(baseline_name)
-        got = R.SelfTest(lines)
-        for kind, text in got.verdicts:
+        for kind, text in R.SelfTest(lines).verdicts:
             st.note(f"{kind}: {text}")
-        # what must hold whatever the baseline says (every check passed, the test finished); then
-        # the comparison with the baseline (no check lost), unless this run is the new baseline
-        hard = R.compare_selftest(lines, lines, require_done)
-        problems = hard if self.args.bless or base is None else R.compare_selftest(base, lines, require_done)
-        if self.args.bless and base is not None:
-            for p in R.compare_selftest(base, lines, require_done):
-                st.note(f"differs from the old baseline: {p}")
+        base, problems = self.judge(st, baseline_name, lines, lambda b, g: R.compare_selftest(b, g, require_done))
         for p in problems:
             st.fail(p)
         if base is None:
@@ -366,8 +377,6 @@ class Runner:
         else:
             for t in R.new_checks(base, lines):
                 st.note(f"new (not in the baseline): {t}")
-        if not hard:
-            self.bless(baseline_name, lines, st)
 
     def selftest(self, st, stage, extra, limit):
         exe = self.game("StarSystem", st)
@@ -390,26 +399,23 @@ class Runner:
         if not server:
             return
         d = self.fresh("coop")
-        port = free_port(7790)
-        srv = self.start([server, "--bind", "127.0.0.1", "--port", port], d / "server.log")
         bot = None
-        try:
-            wait_port(port, 15)
-            # the bot joins first, so it hosts
-            bot = self.start([sys.executable, "-B", "-u", PROJECT / "Tools" / "CoopTest" / "bot.py", f"ws://127.0.0.1:{port}/coop", "StarSystem"], d / "bot.log")
-            # the server logs each player who gets in: wait for the bot before the game joins
-            joined = lambda: "joined from" in (d / "server.log").read_text(errors="replace")
-            end = time.time() + 20
-            while time.time() < end and not joined() and bot.poll() is None:
-                time.sleep(0.25)
-            if not joined():
-                st.fail(f"the bot didn't get in (see {d / 'bot.log'})")
-                return
-            self.play(st, "StarSystem", [exe] + WINDOW + ["-systemtest", d, "-cooptest", "-connect", f"127.0.0.1:{port}", "-name", "Tester",
-                                         "-logFile", d / "player.log"], d / "run.out", 600, cwd=exe.parent)
-        finally:
-            stop(bot)
-            stop(srv)
+        with self.coop_server(server, d, 7790) as port:
+            try:
+                # the bot joins first, so it hosts
+                bot = self.start([sys.executable, "-B", "-u", PROJECT / "Tools" / "CoopTest" / "bot.py", f"ws://127.0.0.1:{port}/coop", "StarSystem"], d / "bot.log")
+                # the server logs each player who gets in: wait for the bot before the game joins
+                joined = lambda: "joined from" in (d / "server.log").read_text(errors="replace")
+                end = time.time() + 20
+                while time.time() < end and not joined() and bot.poll() is None:
+                    time.sleep(0.25)
+                if not joined():
+                    st.fail(f"the bot didn't get in (see {d / 'bot.log'})")
+                    return
+                self.play(st, "StarSystem", [exe] + WINDOW + ["-systemtest", d, "-cooptest", "-connect", f"127.0.0.1:{port}", "-name", "Tester",
+                                             "-logFile", d / "player.log"], d / "run.out", 600, cwd=exe.parent)
+            finally:
+                stop(bot)
         report = d / "systemtest.txt"
         lines = report.read_text(encoding="utf-8", errors="replace").splitlines() if report.exists() else []
         self.selftest_result(st, "selftest_coop.txt", lines)
@@ -488,6 +494,22 @@ class Runner:
         return 1 if failed else 0
 
 
+def unity_version():
+    """The editor version the project is on (ProjectSettings/ProjectVersion.txt)."""
+    m = re.search(r"m_EditorVersion: (\S+)", (PROJECT / "ProjectSettings" / "ProjectVersion.txt").read_text())
+    return m.group(1) if m else "6000.6.7f1"
+
+
+def default_unity():
+    """Where Unity Hub puts that editor."""
+    v = unity_version()
+    if WINDOWS:
+        return rf"C:\Program Files\Unity\Hub\Editor\{v}\Editor\Unity.exe"
+    if sys.platform == "darwin":
+        return f"/Applications/Unity/Hub/Editor/{v}/Unity.app/Contents/MacOS/Unity"
+    return os.path.expanduser(f"~/Unity/Hub/Editor/{v}/Editor/Unity")
+
+
 def posix(p):
     """A path as Git Bash takes it (forward slashes)."""
     return str(p).replace("\\", "/")
@@ -515,14 +537,22 @@ def stop(p):
     if p is None:
         return
     if p.poll() is None:
+        # the whole tree: the editor's import workers, or the web test's Chrome, server and bot
         if WINDOWS:
-            # the whole tree: the editor's import workers, or the web test's Chrome, server and bot
             subprocess.run(["taskkill", "/F", "/T", "/PID", str(p.pid)], capture_output=True)
         else:
-            p.terminate()
+            try:
+                os.killpg(p.pid, signal.SIGTERM)      # its own group (start_new_session)
+            except (ProcessLookupError, PermissionError):
+                p.terminate()
         try:
             p.wait(timeout=10)
         except subprocess.TimeoutExpired:
+            if not WINDOWS:
+                try:
+                    os.killpg(p.pid, signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    pass
             p.kill()
             p.wait(timeout=10)
     f = getattr(p, "log_file", None)
@@ -540,7 +570,7 @@ def parse(argv=None):
     ap.add_argument("--bless", action="store_true", help="save this run's reports as the new baselines")
     ap.add_argument("--builds", default=str(PROJECT.parent / "Builds"), help="where the builds are (default ../Builds)")
     ap.add_argument("--out", help="where to write the results (default <builds>/test_run)")
-    ap.add_argument("--unity", help="the Unity editor program (default UNITY_EXE, or Unity 6000.6.7f1's usual place)")
+    ap.add_argument("--unity", help="the Unity editor program (default UNITY_EXE, or the project's Unity version in its usual place)")
     ap.add_argument("--bash", help="bash, for the web stage (default Git Bash)")
     return ap.parse_args(argv)
 

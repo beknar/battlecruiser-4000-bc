@@ -36,7 +36,7 @@ public sealed class HubTests : IAsyncDisposable
     }
 
     /// <summary>A new connection to the hub (nothing sent yet).</summary>
-    async Task<TestClient> Open()
+    internal async Task<TestClient> Open()
     {
         var tcp = new TcpClient();
         var connecting = tcp.ConnectAsync(IPAddress.Loopback, ((IPEndPoint)listener.LocalEndpoint).Port);
@@ -55,7 +55,7 @@ public sealed class HubTests : IAsyncDisposable
     }
 
     /// <summary>A player in a level, past its welcome.</summary>
-    async Task<(TestClient c, JsonObject welcome)> Join(string name, string level, double clock = 0.0, int captain = 0)
+    internal async Task<(TestClient c, JsonObject welcome)> Join(string name, string level, double clock = 0.0, int captain = 0)
     {
         var c = await Open();
         await c.Send(new JsonObject { ["t"] = "hello", ["v"] = Hub.Protocol, ["name"] = name, ["level"] = level, ["client"] = "Test", ["captain"] = captain, ["clock"] = clock });
@@ -264,14 +264,10 @@ public sealed class HubTests : IAsyncDisposable
         Assert.False(await b.Gets("de"));
     }
 
+    public static IEnumerable<object[]> ServerOnly => CarrierGame.CoopWire.ServerOnly.Select(t => new object[] { t });
+
     [Theory]
-    [InlineData("welcome")]
-    [InlineData("players")]
-    [InlineData("room")]
-    [InlineData("join")]
-    [InlineData("leave")]
-    [InlineData("reject")]
-    [InlineData("pong")]
+    [MemberData(nameof(ServerOnly))]
     public async Task OnlyTheServerSendsItsOwnMessages(string forged)
     {
         var (a, _) = await Join("Alpha", "L");

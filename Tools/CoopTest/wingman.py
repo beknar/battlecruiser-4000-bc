@@ -15,6 +15,8 @@ import asyncio, json, sys, time
 
 import websockets
 
+from protocol import PROTOCOL
+
 URL = sys.argv[1] if len(sys.argv) > 1 else "ws://127.0.0.1:7790/coop"
 NAME = sys.argv[2] if len(sys.argv) > 2 else "Wing"
 SLOT = tuple(float(c) for c in (sys.argv[3] if len(sys.argv) > 3 else "250,20,-200").split(","))
@@ -111,7 +113,7 @@ class Wingman:
 
     async def run(self):
         async with websockets.connect(URL) as ws:
-            await self.send(ws, {"t": "hello", "v": 1, "name": NAME, "level": "Lobby", "client": "wingman", "captain": CAPTAIN, "clock": 0.0})
+            await self.send(ws, {"t": "hello", "v": PROTOCOL, "name": NAME, "level": "Lobby", "client": "wingman", "captain": CAPTAIN, "clock": 0.0})
             while not self.done:
                 try:
                     raw = await asyncio.wait_for(ws.recv(), timeout=0.03)

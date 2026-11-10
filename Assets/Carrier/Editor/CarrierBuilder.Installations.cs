@@ -367,7 +367,7 @@ namespace Carrier.EditorTools
                 var t = Place(p.mainTurret.gameObject, unit, "Turret");
                 t.transform.localPosition = new Vector3(0f, -6f, 0f);
                 t.transform.localScale = Vector3.one * 0.62f;
-                foreach (var r in t.GetComponentsInChildren<Renderer>()) r.sharedMaterials = r.sharedMaterials.Select(_ => Mats["Enemy_Hull"]).ToArray();
+                Paint(t, Mats["Enemy_Hull"]);
                 var tu = HostileTurret(t.GetComponent<CarrierTurret>(), p, name, 4800f, 3.6f);
                 var col = unit.gameObject.AddComponent<BoxCollider>();
                 col.center = new Vector3(0f, -6f, 0f);
@@ -495,7 +495,7 @@ namespace Carrier.EditorTools
                 t.transform.localPosition = mounts[i].pos;
                 t.transform.localRotation = Quaternion.LookRotation(mounts[i].facing, Vector3.up);
                 t.transform.localScale = Vector3.one * 0.55f;
-                foreach (var r in t.GetComponentsInChildren<Renderer>()) r.sharedMaterials = r.sharedMaterials.Select(_ => hull).ToArray();
+                Paint(t, hull);
                 turrets.Add(HostileTurret(t.GetComponent<CarrierTurret>(), p, $"{name} turret {i + 1}", 5200f, 3.4f));
                 parts.Add(t.transform);
             }

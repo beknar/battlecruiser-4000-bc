@@ -17,6 +17,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- the protocol's version and message names, shared with the game -->
+    <Compile Include="..\..\Assets\Carrier\Scripts\Net\CoopWire.cs" Link="Shared\CoopWire.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="coopserver.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 

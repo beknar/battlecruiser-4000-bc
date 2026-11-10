@@ -13,7 +13,7 @@ namespace CarrierGame.Demo
     /// </summary>
     public class CoopClient : MonoBehaviour
     {
-        public const int Protocol = 1;
+        public const int Protocol = CoopWire.Protocol;
         public static CoopClient Instance { get; private set; }
 
         /// <summary>Connected, welcomed, and playing together.</summary>
@@ -85,7 +85,7 @@ namespace CarrierGame.Demo
             address = (address ?? "").Trim();
             MyName = string.IsNullOrWhiteSpace(name) ? "Captain" : name.Trim();
             // a page served over https may only open wss:// sockets
-            bool secure = CarrierDemoInput.OnWeb && Application.absoluteURL.StartsWith("https:");
+            bool secure = LaunchArgs.PageUrl.StartsWith("https:");
             string url = UrlFor(address, port, secure);
             Url = url;
             Status = $"connecting to {url}...";
@@ -169,7 +169,7 @@ namespace CarrierGame.Demo
         {
             switch (m.t)
             {
-                case "welcome":
+                case CoopWire.Welcome:
                     MyId = m.id;
                     MaxPlayers = m.max;
                     clock.Welcome(m.now, Time.realtimeSinceStartupAsDouble);
@@ -177,24 +177,24 @@ namespace CarrierGame.Demo
                     Status = $"connected to {Url}";
                     Debug.Log($"[Co-op] welcome: player #{MyId}, room '{RoomLevel}', host #{HostId}");
                     return;
-                case "reject":
+                case CoopWire.Reject:
                     Close($"refused: {m.why}");
                     return;
-                case "room":
+                case CoopWire.Room:
                     SetRoom(m.level, m.epoch, m.host);
                     return;
-                case "players":
+                case CoopWire.Players:
                     Players.Clear();
                     if (m.players != null) Players.AddRange(m.players);
                     if (m.max > 0) MaxPlayers = m.max;
                     return;
-                case "pong":
+                case CoopWire.Pong:
                     clock.Pong(m.c, m.s, Time.realtimeSinceStartupAsDouble);
                     return;
-                case "join":
+                case CoopWire.Join:
                     if (m.p != null) CarrierDemoInput.Toast($"{m.p.name} joined the game");
                     break;
-                case "leave":
+                case CoopWire.Leave:
                 {
                     var who = Players.Find(x => x.id == m.id);
                     CarrierDemoInput.Toast($"{(who != null ? who.name : "A player")} left the game");

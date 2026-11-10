@@ -53,24 +53,9 @@ namespace Carrier.EditorTools
             return kit;
         }
 
-        static Material ParticleAlpha(string name, Texture2D tex, Color tint)
-        {
-            var m = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit"));
-            m.SetFloat("_Surface", 1f);
-            m.SetFloat("_Blend", 0f);
-            m.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
-            m.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
-            m.SetFloat("_SrcBlendAlpha", (float)BlendMode.One);
-            m.SetFloat("_DstBlendAlpha", (float)BlendMode.OneMinusSrcAlpha);
-            m.SetFloat("_ZWrite", 0f);
-            m.SetFloat("_Cull", 0f);
-            m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            m.SetOverrideTag("RenderType", "Transparent");
-            m.renderQueue = (int)RenderQueue.Transparent;
-            m.SetColor("_BaseColor", tint);
-            if (tex) m.SetTexture("_BaseMap", tex);
-            return SaveMat(name, m);
-        }
+        /// <summary>URP particle material, alpha-blended, using the texture's alpha and the particle colour.</summary>
+        static Material ParticleAlpha(string name, Texture2D tex, Color tint) =>
+            Transparent(name, "Universal Render Pipeline/Particles/Unlit", 0f, BlendMode.SrcAlpha, BlendMode.OneMinusSrcAlpha, BlendMode.OneMinusSrcAlpha, tint, tex);
 
         static Mesh FirstMesh(string path)
         {

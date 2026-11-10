@@ -4,6 +4,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading.Channels;
+using CarrierGame;
 
 namespace CoopServer;
 
@@ -20,7 +21,7 @@ namespace CoopServer;
 /// </summary>
 public sealed class Hub
 {
-    public const int Protocol = 1;
+    public const int Protocol = CoopWire.Protocol;
     /// <summary>Messages that can wait to go out to one player.</summary>
     public const int QueueLength = 2000;
     readonly ServerConfig cfg;
@@ -61,7 +62,7 @@ public sealed class Hub
         public double Epoch;
         public int Host;
         public readonly List<int> Members = new();
-        public JsonObject Info() => new() { ["t"] = "room", ["level"] = Level, ["epoch"] = Epoch, ["host"] = Host };
+        public JsonObject Info() => new() { ["t"] = CoopWire.Room, ["level"] = Level, ["epoch"] = Epoch, ["host"] = Host };
     }
 
     static void Log(string s) => Console.WriteLine($"{DateTime.Now:HH:mm:ss}  {s}");
@@ -88,7 +89,7 @@ public sealed class Hub
         {
             // the first thing a client sends is its hello
             var hello = await Receive(ws, buffer, text, TimeSpan.FromSeconds(10), cts.Token);
-            if (hello == null || Str(hello["t"]) != "hello")
+            if (hello == null || Str(hello["t"]) != CoopWire.Hello)
             {
                 await Reject(ws, "expected a hello first");
                 Log($"{from}: no hello, closed");
@@ -166,7 +167,7 @@ public sealed class Hub
     {
         try
         {
-            var bytes = Encoding.UTF8.GetBytes(new JsonObject { ["t"] = "reject", ["why"] = why }.ToJsonString());
+            var bytes = Encoding.UTF8.GetBytes(new JsonObject { ["t"] = CoopWire.Reject, ["why"] = why }.ToJsonString());
             await ws.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
             await ws.CloseAsync(WebSocketCloseStatus.PolicyViolation, why.Length > 100 ? why[..100] : why, CancellationToken.None);
         }
@@ -221,29 +222,30 @@ public sealed class Hub
         string t = Str(msg["t"]) ?? "";
         switch (t)
         {
-            case "ping":
-                Send(me, new JsonObject { ["t"] = "pong", ["c"] = msg["c"]?.DeepClone(), ["s"] = Now });
+            case CoopWire.Ping:
+                Send(me, new JsonObject { ["t"] = CoopWire.Pong, ["c"] = msg["c"]?.DeepClone(), ["s"] = Now });
                 return;
-            case "level":
+            case CoopWire.Level:
                 Join(me, Clean(Str(msg["level"]), "?"), Num(msg["clock"]) ?? 0.0, false);
                 return;
-            case "captain":
+            case CoopWire.Captain:
                 lock (gate) me.Captain = Int(msg["captain"]) ?? me.Captain;
                 Roster();
                 return;
-            case "hello": case "welcome": case "reject": case "players": case "room": case "join": case "leave": case "pong":
-                return;                                             // only the server says these
+            case CoopWire.Hello:
+                return;                                             // only the first one counts
         }
-        msg["from"] = me.Id;
+        if (Array.IndexOf(CoopWire.ServerOnly, t) >= 0) return;    // only the server says these
+        msg[CoopWire.From] = me.Id;
         lock (gate)
         {
-            if (Int(msg["to"]) is int to && to > 0)
+            if (Int(msg[CoopWire.To]) is int to && to > 0)
             {
                 if (players.TryGetValue(to, out var target)) Send(target, msg);
                 return;
             }
             if (!rooms.TryGetValue(me.Level, out var room)) return;
-            if (msg["toHost"] is JsonNode th && th.GetValueKind() == System.Text.Json.JsonValueKind.True)
+            if (msg[CoopWire.ToHost] is JsonNode th && th.GetValueKind() == System.Text.Json.JsonValueKind.True)
             {
                 if (room.Host != me.Id && players.TryGetValue(room.Host, out var host)) Send(host, msg);
                 return;
@@ -270,7 +272,7 @@ public sealed class Hub
             room.Members.Add(me.Id);
             var welcome = new JsonObject
             {
-                ["t"] = first ? "welcome" : "room",
+                ["t"] = first ? CoopWire.Welcome : CoopWire.Room,
                 ["id"] = me.Id,
                 ["max"] = cfg.MaxPlayers,
                 ["now"] = Now,
@@ -281,7 +283,7 @@ public sealed class Hub
             Send(me, welcome);
             foreach (int id in room.Members)
                 if (id != me.Id && players.TryGetValue(id, out var other))
-                    Send(other, new JsonObject { ["t"] = "join", ["p"] = me.Public() });
+                    Send(other, new JsonObject { ["t"] = CoopWire.Join, ["p"] = me.Public() });
             Log($"  {me.Name} is in '{level}' ({room.Members.Count} there, host #{room.Host})");
         }
         Roster();
@@ -292,7 +294,7 @@ public sealed class Hub
         if (!rooms.TryGetValue(me.Level, out var room)) return;
         room.Members.Remove(me.Id);
         foreach (int id in room.Members)
-            if (players.TryGetValue(id, out var other)) Send(other, new JsonObject { ["t"] = "leave", ["id"] = me.Id });
+            if (players.TryGetValue(id, out var other)) Send(other, new JsonObject { ["t"] = CoopWire.Leave, ["id"] = me.Id });
         if (room.Members.Count == 0)
         {
             rooms.Remove(me.Level);
@@ -327,7 +329,7 @@ public sealed class Hub
         {
             var list = new JsonArray();
             foreach (var p in players.Values.OrderBy(p => p.Id)) list.Add(p.Public());
-            var msg = new JsonObject { ["t"] = "players", ["max"] = cfg.MaxPlayers, ["players"] = list };
+            var msg = new JsonObject { ["t"] = CoopWire.Players, ["max"] = cfg.MaxPlayers, ["players"] = list };
             foreach (var p in players.Values) Send(p, msg.DeepClone());
         }
     }

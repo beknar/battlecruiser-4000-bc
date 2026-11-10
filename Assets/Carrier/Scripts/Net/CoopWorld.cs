@@ -510,7 +510,7 @@ namespace CarrierGame.Demo
             string src = SourceOf(p.owner);
             if (src == null || !Budget(src)) return;
             Vector3 pos = ToNet(p.transform.position), d = p.transform.forward;
-            Client.Send(new FireMsg { src = src, k = "shot", pf = BaseName(p.name), x = pos.x, y = pos.y, z = pos.z, dx = d.x, dy = d.y, dz = d.z });
+            Client.Send(new FireMsg { src = src, k = CoopWire.Shot, pf = BaseName(p.name), x = pos.x, y = pos.y, z = pos.z, dx = d.x, dy = d.y, dz = d.z });
             ShotsSent++;
         }
 
@@ -522,7 +522,7 @@ namespace CarrierGame.Demo
             string src = SourceOf(m.owner);
             if (src == null) return;
             Vector3 pos = ToNet(m.transform.position), d = m.transform.forward;
-            Client.Send(new FireMsg { src = src, k = "msl", pf = BaseName(m.name), tg = IdOf(m.target), x = pos.x, y = pos.y, z = pos.z, dx = d.x, dy = d.y, dz = d.z });
+            Client.Send(new FireMsg { src = src, k = CoopWire.Missile, pf = BaseName(m.name), tg = IdOf(m.target), x = pos.x, y = pos.y, z = pos.z, dx = d.x, dy = d.y, dz = d.z });
             ShotsSent++;
         }
 
@@ -534,7 +534,7 @@ namespace CarrierGame.Demo
             string src = SourceOf(b.transform);
             if (src == null) return;
             Vector3 d = b.BeamDirection;
-            Client.Send(new FireMsg { src = src, k = "beam", dx = d.x, dy = d.y, dz = d.z });
+            Client.Send(new FireMsg { src = src, k = CoopWire.Beam, dx = d.x, dy = d.y, dz = d.z });
             ShotsSent++;
         }
 
@@ -587,7 +587,7 @@ namespace CarrierGame.Demo
             if (dir.sqrMagnitude < 1e-6f) dir = ship.forward;
             switch (m.k)
             {
-                case "shot":
+                case CoopWire.Shot:
                 {
                     var prefab = PrefabOf<Projectile>(ship, m.pf);
                     if (prefab == null) return;
@@ -597,7 +597,7 @@ namespace CarrierGame.Demo
                     ShotsShown++;
                     break;
                 }
-                case "msl":
+                case CoopWire.Missile:
                 {
                     var prefab = PrefabOf<Missile>(ship, m.pf);
                     if (prefab == null) return;
@@ -608,7 +608,7 @@ namespace CarrierGame.Demo
                     ShotsShown++;
                     break;
                 }
-                case "beam":
+                case CoopWire.Beam:
                 {
                     var beam = ship.GetComponentInChildren<MainBeam>(true);
                     if (beam == null) return;
@@ -627,16 +627,16 @@ namespace CarrierGame.Demo
             if (!On || m.from == Client.MyId) return;
             switch (m.t)
             {
-                case "ps":
+                case CoopWire.Ship:
                     Remote(m.from)?.Push(m);
                     break;
-                case "es":
+                case CoopWire.Enemies:
                     if (puppeting) ApplyEntities(m);
                     break;
-                case "fx":
+                case CoopWire.Fire:
                     ShowFire(m);
                     break;
-                case "de":
+                case CoopWire.HitEnemy:
                     // a hit from another player's game on one of my enemies (I'm the host)
                     if (IsHost && ents.TryGetValue(m.tg ?? "", out var e) && e.h != null && !e.h.Dead)
                     {
@@ -646,7 +646,7 @@ namespace CarrierGame.Demo
                         HitsAppliedForOthers++;
                     }
                     break;
-                case "dp":
+                case CoopWire.HitPlayer:
                     // the host's enemies hit me
                     if (myHealth != null && !myHealth.Dead)
                     {
@@ -655,10 +655,10 @@ namespace CarrierGame.Demo
                         HitsTaken++;
                     }
                     break;
-                case "leave":
+                case CoopWire.Leave:
                     RemoveRemote(m.id);
                     break;
-                case "players":
+                case CoopWire.Players:
                     foreach (var p in Client.Players) if (remotes.TryGetValue(p.id, out var r) && r != null) r.Rename(p.name);
                     break;
             }

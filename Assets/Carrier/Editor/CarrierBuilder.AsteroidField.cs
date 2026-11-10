@@ -516,20 +516,7 @@ namespace Carrier.EditorTools
             }, 35f)).ToArray();
 
             // camera, controls and the ambush itself
-            var camGo = new GameObject("Main Camera");
-            camGo.tag = "MainCamera";
-            var cam = camGo.AddComponent<Camera>();
-            cam.farClipPlane = 140000f;
-            cam.nearClipPlane = 1f;
-            cam.fieldOfView = 50f;
-            var data = cam.GetUniversalAdditionalCameraData();
-            data.renderPostProcessing = true;
-            data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
-            var orbit = camGo.AddComponent<OrbitCamera>();
-            orbit.target = frigate.transform;
-            camGo.transform.position = route[0] + new Vector3(-600f, 200f, -300f);
-            camGo.transform.LookAt(route[0]);
-            camGo.AddComponent<AudioListener>();
+            var orbit = MainCamera(frigate.transform, 1f, 140000f, route[0] + new Vector3(-600f, 200f, -300f), route[0]);
 
             var demo = new GameObject("Demo").AddComponent<CarrierDemoInput>();
             demo.carrier = cc;

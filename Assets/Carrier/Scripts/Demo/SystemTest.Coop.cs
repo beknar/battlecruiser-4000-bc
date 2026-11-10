@@ -26,7 +26,7 @@ namespace CarrierGame.Demo
 
         void OnBotMessage(CoopMsg m)
         {
-            if (m.t == "test" && !string.IsNullOrEmpty(m.note)) { botNotes.Add(m.note); Log($"  bot: {m.note}"); }
+            if (m.t == CoopWire.Test && !string.IsNullOrEmpty(m.note)) { botNotes.Add(m.note); Log($"  bot: {m.note}"); }
         }
 
         void Note(string note, string[] ids = null) => CoopClient.Instance?.Send(new TestMsg { note = note, ids = ids });

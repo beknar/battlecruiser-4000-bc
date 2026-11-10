@@ -121,10 +121,7 @@ namespace CarrierGame
             if (!leadTarget || projectilePrefab == null || projectilePrefab.speed <= 0f) return p;
             if (moverOf != target) { moverOf = target; mover = Motion.Of(target); }
             if (mover == null) return p;
-            Vector3 origin = AimOrigin(), v = mover.Velocity;
-            float t = Vector3.Distance(origin, p) / projectilePrefab.speed;
-            for (int i = 0; i < 2; i++) t = Vector3.Distance(origin, p + v * t) / projectilePrefab.speed;
-            return p + v * t;
+            return Ballistics.Lead(AimOrigin(), p, mover.Velocity, projectilePrefab.speed, refine: 2);
         }
 
         /// <summary>Whether this gun can be brought to bear on a point: inside its traverse,

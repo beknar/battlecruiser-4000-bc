@@ -218,6 +218,64 @@ namespace Carrier.EditorTools
             finally { Object.DestroyImmediate(editor); }
         }
 
+        /// <summary>A level's camera: it orbits `target`, with URP post-processing and SMAA, and
+        /// carries the audio listener.</summary>
+        static OrbitCamera MainCamera(Transform target, float near, float far, Vector3 position, Vector3 lookAt)
+        {
+            var camGo = new GameObject("Main Camera");
+            camGo.tag = "MainCamera";
+            var cam = camGo.AddComponent<Camera>();
+            cam.farClipPlane = far;
+            cam.nearClipPlane = near;
+            cam.fieldOfView = 50f;
+            var data = cam.GetUniversalAdditionalCameraData();
+            data.renderPostProcessing = true;
+            data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
+            var orbit = camGo.AddComponent<OrbitCamera>();
+            orbit.target = target;
+            camGo.transform.position = position;
+            camGo.transform.LookAt(lookAt);
+            camGo.AddComponent<AudioListener>();
+            return orbit;
+        }
+
+        /// <summary>An engine's exhaust on its node `eg` (which faces out of the nozzle): the plume
+        /// model stretched to the engine's size on a "Plume" node, a glow light, and the
+        /// EngineThrust that drives them.</summary>
+        static EngineThrust Exhaust(GameObject eg, GameObject plumeModel, float radius, Color glow)
+        {
+            var wrap = Node("Plume", eg.transform).transform;
+            if (plumeModel != null)
+            {
+                var pm = Place(plumeModel, wrap, "PlumeMesh");
+                var (ax, len) = AlignLongAxis(pm.transform, Vector3.forward);
+                var pb = ParentBounds(pm.transform);
+                float width = Mathf.Max(0.1f, Mathf.Max(pb.size.x, pb.size.y));
+                Stretch(pm.transform, ax, len, radius * 6f, radius * 1.5f / width);
+                pb = ParentBounds(pm.transform);
+                pm.transform.localPosition += new Vector3(-pb.center.x, -pb.center.y, -1f - pb.min.z);
+                foreach (var r in pm.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = ShadowCastingMode.Off;
+            }
+            var l = Node("Glow", eg.transform, new Vector3(0, 0, radius * 3f)).AddComponent<Light>();
+            l.type = LightType.Point;
+            l.color = glow;
+            l.range = radius * 14f;
+            var et = eg.AddComponent<EngineThrust>();
+            et.plume = wrap;
+            et.glow = l;
+            et.maxIntensity = 600f;
+            return et;
+        }
+
+        /// <summary>Every renderer under a model in one material (each of its slots).</summary>
+        static void Paint(GameObject go, Material mat)
+        {
+            foreach (var r in go.GetComponentsInChildren<Renderer>())
+                r.sharedMaterials = r.sharedMaterials.Select(_ => mat).ToArray();
+        }
+
+        static void Paint(Component c, Material mat) => Paint(c.gameObject, mat);
+
         /// <summary>Whether a saved material already has everything we set on a new one: shader,
         /// queue, render type, keywords, GI flags and every property the shader has.</summary>
         static bool SameMaterial(Material a, Material b)
@@ -289,24 +347,30 @@ namespace Carrier.EditorTools
             return SaveMat(name, m);
         }
 
-        static Material Additive(string name, Color hdr, Texture2D tex = null)
+        /// <summary>A see-through, two-sided URP material that doesn't write depth: `blend` is
+        /// URP's blending mode (0 alpha, 2 additive) with the colour blend factors to match.</summary>
+        static Material Transparent(string name, string shader, float blend, BlendMode src, BlendMode dst, BlendMode dstAlpha, Color color, Texture2D tex)
         {
-            var m = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            var m = new Material(Shader.Find(shader));
             m.SetFloat("_Surface", 1f);
-            m.SetFloat("_Blend", 2f);
-            m.SetFloat("_SrcBlend", (float)BlendMode.One);
-            m.SetFloat("_DstBlend", (float)BlendMode.One);
+            m.SetFloat("_Blend", blend);
+            m.SetFloat("_SrcBlend", (float)src);
+            m.SetFloat("_DstBlend", (float)dst);
             m.SetFloat("_SrcBlendAlpha", (float)BlendMode.One);
-            m.SetFloat("_DstBlendAlpha", (float)BlendMode.One);
+            m.SetFloat("_DstBlendAlpha", (float)dstAlpha);
             m.SetFloat("_ZWrite", 0f);
             m.SetFloat("_Cull", 0f);
             m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
             m.SetOverrideTag("RenderType", "Transparent");
             m.renderQueue = (int)RenderQueue.Transparent;
-            m.SetColor("_BaseColor", hdr);
+            m.SetColor("_BaseColor", color);
             if (tex) m.SetTexture("_BaseMap", tex);
             return SaveMat(name, m);
         }
+
+        /// <summary>Unlit and additive: glows, bolts and plumes.</summary>
+        static Material Additive(string name, Color hdr, Texture2D tex = null) =>
+            Transparent(name, "Universal Render Pipeline/Unlit", 2f, BlendMode.One, BlendMode.One, BlendMode.One, hdr, tex);
 
         static void BuildMaterials()
         {
@@ -641,8 +705,7 @@ namespace Carrier.EditorTools
             var m = Place(model, go.transform, "Model");
             m.transform.localRotation = Quaternion.Euler(rot);
             m.transform.localScale = Vector3.one * scale;
-            foreach (var r in m.GetComponentsInChildren<Renderer>())
-                r.sharedMaterials = r.sharedMaterials.Select(_ => Mats["Enemy_Hull"]).ToArray();
+            Paint(m, Mats["Enemy_Hull"]);
             var b = LocalBounds(go.transform);
             m.transform.localPosition = -b.center;
             b = LocalBounds(go.transform);
@@ -699,8 +762,7 @@ namespace Carrier.EditorTools
             cc.pointDefense = new CarrierTurret[0];
 
             var hull = Place(OwnModel("Frigate_Hull"), root.transform, "Hull");
-            foreach (var r in hull.GetComponentsInChildren<Renderer>())
-                r.sharedMaterials = r.sharedMaterials.Select(_ => hullMat).ToArray();
+            Paint(hull, hullMat);
             // the hull's shape, so the guns can tell when their line of fire would cross it
             foreach (var mf in hull.GetComponentsInChildren<MeshFilter>())
                 mf.gameObject.AddComponent<MeshCollider>().sharedMesh = mf.sharedMesh;
@@ -757,24 +819,7 @@ namespace Carrier.EditorTools
                 cc.engines = fhp.engines.Select((e, i) =>
                 {
                     var eg = Node("Engine" + (i + 1), engines, V3(e.exit), Quaternion.LookRotation(V3(e.dir), Vector3.up));
-                    var wrap = Node("Plume", eg.transform).transform;
-                    var pm = Place(plumeModel, wrap, "PlumeMesh");
-                    var (ax, len) = AlignLongAxis(pm.transform, Vector3.forward);
-                    var pb = ParentBounds(pm.transform);
-                    float width = Mathf.Max(0.1f, Mathf.Max(pb.size.x, pb.size.y));
-                    Stretch(pm.transform, ax, len, e.radius * 6f, e.radius * 1.5f / width);
-                    pb = ParentBounds(pm.transform);
-                    pm.transform.localPosition += new Vector3(-pb.center.x, -pb.center.y, -1f - pb.min.z);
-                    foreach (var r in pm.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = ShadowCastingMode.Off;
-                    var l = Node("Glow", eg.transform, new Vector3(0, 0, e.radius * 3f)).AddComponent<Light>();
-                    l.type = LightType.Point;
-                    l.color = new Color(0.55f, 0.72f, 1f);
-                    l.range = e.radius * 14f;
-                    var et = eg.AddComponent<EngineThrust>();
-                    et.plume = wrap;
-                    et.glow = l;
-                    et.maxIntensity = 600f;
-                    return et;
+                    return Exhaust(eg, plumeModel, e.radius, new Color(0.55f, 0.72f, 1f));
                 }).ToArray();
             }
 
@@ -897,20 +942,7 @@ namespace Carrier.EditorTools
                 e.transform.position = o.center + Quaternion.Euler(0, o.startAngle, 0) * Vector3.forward * o.radius + Vector3.up * o.height;
             }
 
-            var camGo = new GameObject("Main Camera");
-            camGo.tag = "MainCamera";
-            var cam = camGo.AddComponent<Camera>();
-            cam.farClipPlane = 30000f;
-            cam.nearClipPlane = 0.5f;
-            cam.fieldOfView = 50f;
-            var data = cam.GetUniversalAdditionalCameraData();
-            data.renderPostProcessing = true;
-            data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
-            var orbit = camGo.AddComponent<OrbitCamera>();
-            orbit.target = carrier.transform;
-            camGo.transform.position = new Vector3(700f, 300f, 800f);
-            camGo.transform.LookAt(carrier.transform.position);
-            camGo.AddComponent<AudioListener>();
+            var orbit = MainCamera(carrier.transform, 0.5f, 30000f, new Vector3(700f, 300f, 800f), carrier.transform.position);
 
             var demo = new GameObject("Demo").AddComponent<CarrierDemoInput>();
             demo.carrier = cc;

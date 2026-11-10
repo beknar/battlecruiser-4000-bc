@@ -311,6 +311,35 @@ public sealed class HubTests : IAsyncDisposable
         Assert.Equal(7, (int)(await a.Next("pong"))["c"]!);
     }
 
+    [Theory]
+    [InlineData("{\"t\":\"captain\",\"captain\":\"four\"}")]
+    [InlineData("{\"t\":\"captain\",\"captain\":2.5}")]
+    [InlineData("{\"t\":\"level\",\"level\":5,\"clock\":\"soon\"}")]
+    [InlineData("{\"t\":\"dp\",\"to\":1.5}")]
+    [InlineData("{\"t\":\"dp\",\"to\":99999999999}")]
+    [InlineData("{\"t\":7}")]
+    [InlineData("{\"t\":\"ping\",\"c\":{\"x\":1}}")]
+    public async Task AFieldOfTheWrongTypeDoesntEndTheConnection(string bad)
+    {
+        var (a, _) = await Join("Alpha", "L", captain: 3);
+        await a.SendRaw(bad);
+        await a.Send(new JsonObject { ["t"] = "ping", ["c"] = 7 });
+        await a.Next("pong", m => Hub.Num(m["c"]) == 7);
+        Assert.Equal(1, hub.Count);
+    }
+
+    [Fact]
+    public async Task AHelloWithFieldsOfTheWrongTypeIsStillWelcomed()
+    {
+        var c = await Open();
+        await c.SendRaw($"{{\"t\":\"hello\",\"v\":{Hub.Protocol},\"name\":42,\"level\":[1],\"captain\":\"x\",\"clock\":\"y\"}}");
+        var welcome = await c.Next("welcome");
+        Assert.Equal("?", (string?)welcome["level"]);
+        var me = Assert.Single((await c.Next("players"))["players"]!.AsArray());
+        Assert.StartsWith("Player ", (string?)me!["name"]);
+        Assert.Equal(0, (int)me["captain"]!);
+    }
+
     [Fact]
     public async Task AFloodOfMessagesGetsAPlayerDisconnected()
     {
@@ -332,6 +361,34 @@ public sealed class HubTests : IAsyncDisposable
         Assert.Contains("2 of 7 players", status);
         Assert.Contains("StarSystem: 2 player(s)", status);
         Assert.Contains($"#{a.Id} Alpha (Test)  host", status);
+    }
+}
+
+/// <summary>Unit tests: reading a client's fields without trusting their types.</summary>
+public sealed class FieldTests
+{
+    [Fact]
+    public void FieldsOfTheRightTypeAreRead()
+    {
+        var o = JsonNode.Parse("{\"s\":\"x\",\"i\":3,\"d\":2.5}")!;
+        Assert.Equal("x", Hub.Str(o["s"]));
+        Assert.Equal(3, Hub.Int(o["i"]));
+        Assert.Equal(2.5, Hub.Num(o["d"]));
+        Assert.Equal(3.0, Hub.Num(o["i"]));
+    }
+
+    [Fact]
+    public void FieldsOfTheWrongTypeOrMissingReadAsMissing()
+    {
+        var o = JsonNode.Parse("{\"s\":\"x\",\"i\":3,\"d\":2.5,\"n\":null,\"a\":[1],\"big\":99999999999}")!;
+        Assert.Null(Hub.Str(o["i"]));
+        Assert.Null(Hub.Int(o["s"]));
+        Assert.Null(Hub.Int(o["d"]));
+        Assert.Null(Hub.Int(o["big"]));
+        Assert.Null(Hub.Num(o["s"]));
+        Assert.Null(Hub.Str(o["n"]));
+        Assert.Null(Hub.Int(o["a"]));
+        Assert.Null(Hub.Str(o["missing"]));
     }
 }
 

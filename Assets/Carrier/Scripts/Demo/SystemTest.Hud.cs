@@ -54,7 +54,7 @@ namespace CarrierGame.Demo
             results.Add(("at least 250 lines, at least 5 for every event", lines >= 250 && thin.Length == 0));
 
             // ---- reactions
-            yield return Settle(cap);
+            yield return Settle();
             Log($"at rest: {cap.Mood} '{cap.Reason}'");
             results.Add(("calm when all is quiet", cap.Mood == Mood.Neutral));
 
@@ -66,27 +66,27 @@ namespace CarrierGame.Demo
             int distinct = levels.Select(l => Mathf.FloorToInt(l * 4f)).Distinct().Count();
             Log($"  a smile coming on: {levels.Count} frames, from {(levels.Count > 0 ? levels.Min() : 0f):F2} to {(levels.Count > 0 ? levels.Max() : 0f):F2} ({distinct} distinct quarter-steps)");
             results.Add(("an expression grows through its steps", levels.Count > 10 && distinct >= 8 && levels.Max() > 2.9f));
-            yield return Settle(cap);
+            yield return Settle();
 
             // a hit on the shield, then one on the hull
             hull.Damage(250f, cc.transform.position + cc.transform.forward * 60f, HitKind.Cannon);
             yield return Expect(cap, Mood.Alarmed, "SHIELD", 1f, "h1_shield_hit", results, "alarmed when the shield is hit");
-            yield return Settle(cap);
+            yield return Settle();
             hull.Damage(500f);
             yield return Expect(cap, Mood.Pain, "HULL", 1f, "h2_hull_hit", results, "wincing when the hull is hit");
             hull.Repair();
-            yield return Settle(cap);
+            yield return Settle();
 
             // the bow gun: intent while it charges, set-jawed as it fires
             demo.ChargeMainGun();
             yield return Expect(cap, Mood.Focused, "CHARGING", 2f, "h3_charging", results, "intent while the bow gun charges");
             yield return Expect(cap, Mood.Determined, "MAIN GUN", 14f, "h4_firing", results, "determined as the bow gun fires");
-            yield return Settle(cap);
+            yield return Settle();
 
             // a scan
             demo.MineralScan();
             yield return Expect(cap, Mood.Focused, "SCANNING", 2f, "h5_scan", results, "intent while scanning");
-            yield return Settle(cap);
+            yield return Settle();
 
             // a warp: awed in the tunnel, pleased to arrive
             int seen = cap.History.Count;
@@ -161,7 +161,7 @@ namespace CarrierGame.Demo
             while (cc.Destroyed && Time.time < back) yield return null;
             yield return Expect(cap, Mood.Determined, "BACK", 3f, "h11_back", results, "back in action after the respawn");
             Log($"  lost: alert '{lostAlert}'");
-            yield return Settle(cap);
+            yield return Settle();
 
             // a message: she says it
             int talks = 0;
@@ -229,7 +229,7 @@ namespace CarrierGame.Demo
             string.Join(" > ", cap.History.Skip(from).Select(h => $"{h.mood} '{h.reason}'"));
 
         /// <summary>Wait for a reaction to pass (or a few seconds).</summary>
-        IEnumerator Settle(CaptainPortrait cap)
+        IEnumerator Settle()
         {
             yield return new WaitForSeconds(3.5f);
         }

@@ -21,6 +21,8 @@ namespace CoopServer;
 public sealed class Hub
 {
     public const int Protocol = 1;
+    /// <summary>Messages that can wait to go out to one player.</summary>
+    public const int QueueLength = 2000;
     readonly ServerConfig cfg;
     readonly object gate = new();
     readonly Dictionary<int, Player> players = new();
@@ -43,7 +45,13 @@ public sealed class Hub
         public string Address = "";
         public double JoinedAt;
         public WebSocket Ws = null!;
-        public readonly Channel<string> Out = Channel.CreateBounded<string>(new BoundedChannelOptions(2000) { FullMode = BoundedChannelFullMode.DropOldest });
+        /// <summary>Ends the connection (from anywhere: it is run on the thread pool, never
+        /// inside the hub's lock).</summary>
+        public CancellationTokenSource? Session;
+        public bool Overflowed;
+        // what is waiting to go out; a player this far behind is let go rather than have
+        // messages dropped (a lost 'room' would leave them wrong about who hosts)
+        public readonly Channel<string> Out = Channel.CreateBounded<string>(new BoundedChannelOptions(QueueLength) { FullMode = BoundedChannelFullMode.Wait });
         public JsonObject Public() => new() { ["id"] = Id, ["name"] = Name, ["level"] = Level, ["client"] = Client, ["captain"] = Captain };
     }
 
@@ -57,6 +65,13 @@ public sealed class Hub
     }
 
     static void Log(string s) => Console.WriteLine($"{DateTime.Now:HH:mm:ss}  {s}");
+
+    // A client's fields, read without trusting their types: one of the wrong type (a name sent
+    // as a number, a captain as a string, a fraction where a whole number goes) reads as missing
+    // instead of throwing and ending the connection.
+    internal static string? Str(JsonNode? n) => n is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+    internal static int? Int(JsonNode? n) => n is JsonValue v && v.TryGetValue<int>(out var i) ? i : null;
+    internal static double? Num(JsonNode? n) => n is JsonValue v && v.TryGetValue<double>(out var d) ? d : null;
 
     /// <summary>Serve one connection until it closes.</summary>
     public async Task Run(WebSocket ws, IPAddress? address, CancellationToken stop)
@@ -73,13 +88,13 @@ public sealed class Hub
         {
             // the first thing a client sends is its hello
             var hello = await Receive(ws, buffer, text, TimeSpan.FromSeconds(10), cts.Token);
-            if (hello == null || (string?)hello["t"] != "hello")
+            if (hello == null || Str(hello["t"]) != "hello")
             {
                 await Reject(ws, "expected a hello first");
                 Log($"{from}: no hello, closed");
                 return;
             }
-            int v = (int?)hello["v"] ?? 0;
+            int v = Int(hello["v"]) ?? 0;
             if (v != Protocol)
             {
                 await Reject(ws, $"this server speaks co-op protocol {Protocol}, the game speaks {v}: update one or the other");
@@ -93,12 +108,13 @@ public sealed class Hub
                 else me = new Player
                 {
                     Id = nextId++,
-                    Name = Clean((string?)hello["name"], $"Player {nextId - 1}"),
-                    Client = Clean((string?)hello["client"], "?"),
-                    Captain = (int?)hello["captain"] ?? 0,
+                    Name = Clean(Str(hello["name"]), $"Player {nextId - 1}"),
+                    Client = Clean(Str(hello["client"]), "?"),
+                    Captain = Int(hello["captain"]) ?? 0,
                     Address = from,
                     JoinedAt = Now,
                     Ws = ws,
+                    Session = cts,
                 };
                 if (me != null) players[me.Id] = me;
             }
@@ -110,7 +126,7 @@ public sealed class Hub
             }
             writer = Task.Run(() => Writer(me, cts.Token));
             Log($"{me.Name} (#{me.Id}, {me.Client}) joined from {from}: {Count}/{cfg.MaxPlayers} players");
-            Join(me, Clean((string?)hello["level"], "?"), (double?)hello["clock"] ?? 0.0, true);
+            Join(me, Clean(Str(hello["level"]), "?"), Num(hello["clock"]) ?? 0.0, true);
 
             while (!cts.IsCancellationRequested && ws.State == WebSocketState.Open)
             {
@@ -119,7 +135,9 @@ public sealed class Hub
                 // a flood is a bug or worse: drop the connection
                 if (Now - secondStart >= 1.0) { secondStart = Now; perSecond = 0; }
                 if (++perSecond > 400) { Log($"{me.Name}: over 400 messages a second, disconnected"); break; }
-                Handle(me, msg);
+                // one bad message is the client's bug: say so and carry on
+                try { Handle(me, msg); }
+                catch (Exception e) { Log($"{me.Name}: a message was ignored ({e.GetType().Name}: {e.Message})"); }
             }
         }
         catch (OperationCanceledException) { }
@@ -186,23 +204,31 @@ public sealed class Hub
         }
     }
 
-    static void Send(Player p, JsonNode msg) => p.Out.Writer.TryWrite(msg.ToJsonString());
+    static void Send(Player p, JsonNode msg)
+    {
+        if (p.Out.Writer.TryWrite(msg.ToJsonString()) || p.Overflowed) return;
+        // the queue is full: this player has fallen too far behind to catch up
+        p.Overflowed = true;
+        Log($"{p.Name} (#{p.Id}): {QueueLength} messages waiting to go out, disconnected");
+        var session = p.Session;
+        if (session != null) ThreadPool.QueueUserWorkItem(_ => { try { session.Cancel(); } catch (ObjectDisposedException) { } });
+    }
 
     // ------------------------------------------------------------------ messages
 
     void Handle(Player me, JsonObject msg)
     {
-        string t = (string?)msg["t"] ?? "";
+        string t = Str(msg["t"]) ?? "";
         switch (t)
         {
             case "ping":
                 Send(me, new JsonObject { ["t"] = "pong", ["c"] = msg["c"]?.DeepClone(), ["s"] = Now });
                 return;
             case "level":
-                Join(me, Clean((string?)msg["level"], "?"), (double?)msg["clock"] ?? 0.0, false);
+                Join(me, Clean(Str(msg["level"]), "?"), Num(msg["clock"]) ?? 0.0, false);
                 return;
             case "captain":
-                lock (gate) me.Captain = (int?)msg["captain"] ?? me.Captain;
+                lock (gate) me.Captain = Int(msg["captain"]) ?? me.Captain;
                 Roster();
                 return;
             case "hello": case "welcome": case "reject": case "players": case "room": case "join": case "leave": case "pong":
@@ -211,7 +237,7 @@ public sealed class Hub
         msg["from"] = me.Id;
         lock (gate)
         {
-            if (msg["to"] is JsonNode toNode && toNode.GetValueKind() == System.Text.Json.JsonValueKind.Number && (int)toNode is int to && to > 0)
+            if (Int(msg["to"]) is int to && to > 0)
             {
                 if (players.TryGetValue(to, out var target)) Send(target, msg);
                 return;

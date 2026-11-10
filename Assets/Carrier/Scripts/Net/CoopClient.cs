@@ -32,14 +32,12 @@ namespace CarrierGame.Demo
         public double Epoch { get; private set; }
         public readonly List<CoopPlayer> Players = new List<CoopPlayer>();
         /// <summary>The round trip to the server, seconds.</summary>
-        public double Rtt { get; private set; }
+        public double Rtt => clock.Rtt;
         /// <summary>Am I the one whose game runs the enemies in my level?</summary>
         public bool IsHost => Connected && HostId == MyId;
-        public double ServerNow => Time.realtimeSinceStartupAsDouble + clockOffset;
+        public double ServerNow => Time.realtimeSinceStartupAsDouble + clock.Offset;
         /// <summary>The room's orbit clock: the same in every game in the room.</summary>
         public double OrbitClock => ServerNow - Epoch;
-        /// <summary>Messages received (for the self-test).</summary>
-        public int Received { get; private set; }
 
         /// <summary>Raised for every game message (not the server's own ones), and when the
         /// room changes host.</summary>
@@ -47,7 +45,8 @@ namespace CarrierGame.Demo
         public static event Action RoomChanged;
 
         CoopSocket socket;
-        double clockOffset, bestRtt = double.MaxValue, nextPing;
+        readonly ClockSync clock = new ClockSync();
+        double nextPing;
         bool helloSent;
 
         /// <summary>Connect (closing any connection there is): address as a host name or IP
@@ -93,7 +92,7 @@ namespace CarrierGame.Demo
             Debug.Log($"[Co-op] connecting to {url}");
             socket = CoopSocket.Open(url);
             helloSent = false;
-            bestRtt = double.MaxValue;
+            clock.Reset();
         }
 
         void Close(string why)
@@ -149,7 +148,6 @@ namespace CarrierGame.Demo
                 try { m = JsonUtility.FromJson<CoopMsg>(text); }
                 catch { continue; }
                 if (m == null || string.IsNullOrEmpty(m.t)) continue;
-                Received++;
                 Handle(m);
             }
             if (socket != null && socket.Status == CoopSocket.State.Closed)
@@ -162,7 +160,7 @@ namespace CarrierGame.Demo
             // keep the clock in step (more often at first)
             if (Connected && Time.realtimeSinceStartupAsDouble >= nextPing)
             {
-                nextPing = Time.realtimeSinceStartupAsDouble + (bestRtt == double.MaxValue ? 0.25 : 2.0);
+                nextPing = Time.realtimeSinceStartupAsDouble + (clock.Synced ? 2.0 : 0.25);
                 Send(new PingMsg { c = Time.realtimeSinceStartupAsDouble });
             }
         }
@@ -174,7 +172,7 @@ namespace CarrierGame.Demo
                 case "welcome":
                     MyId = m.id;
                     MaxPlayers = m.max;
-                    clockOffset = m.now - Time.realtimeSinceStartupAsDouble;
+                    clock.Welcome(m.now, Time.realtimeSinceStartupAsDouble);
                     SetRoom(m.level, m.epoch, m.host);
                     Status = $"connected to {Url}";
                     Debug.Log($"[Co-op] welcome: player #{MyId}, room '{RoomLevel}', host #{HostId}");
@@ -191,18 +189,8 @@ namespace CarrierGame.Demo
                     if (m.max > 0) MaxPlayers = m.max;
                     return;
                 case "pong":
-                {
-                    // the best (shortest) round trip gives the truest clock
-                    double now = Time.realtimeSinceStartupAsDouble, rtt = Math.Max(0.0, now - m.c);
-                    Rtt = Rtt <= 0 ? rtt : Rtt * 0.8 + rtt * 0.2;
-                    if (rtt <= bestRtt * 1.2)
-                    {
-                        bestRtt = Math.Min(bestRtt, rtt);
-                        double offset = m.s + rtt * 0.5 - now;
-                        clockOffset = Math.Abs(offset - clockOffset) > 1.0 ? offset : clockOffset * 0.7 + offset * 0.3;
-                    }
+                    clock.Pong(m.c, m.s, Time.realtimeSinceStartupAsDouble);
                     return;
-                }
                 case "join":
                     if (m.p != null) CarrierDemoInput.Toast($"{m.p.name} joined the game");
                     break;

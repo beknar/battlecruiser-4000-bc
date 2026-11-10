@@ -34,8 +34,6 @@ namespace CarrierGame.Demo
         public Mood Shown { get; private set; } = Mood.Neutral;
         /// <summary>What she is reacting to, in a few words.</summary>
         public string Reason { get; private set; } = "ALL QUIET";
-        /// <summary>How many times her mood has changed (for the self-test).</summary>
-        public int Changes { get; private set; }
         /// <summary>Every mood she has shown, with its reason, latest last (for the self-test).</summary>
         public readonly System.Collections.Generic.List<(Mood mood, string reason, float at)> History =
             new System.Collections.Generic.List<(Mood, string, float)>();
@@ -185,7 +183,6 @@ namespace CarrierGame.Demo
             }
             if (m == Mood) return;
             Mood = m;
-            Changes++;
             History.Add((m, why, Time.time));
             if (History.Count > 200) History.RemoveAt(0);
         }

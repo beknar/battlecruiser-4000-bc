@@ -16,11 +16,8 @@ namespace CarrierGame.Demo
         public string Name { get; private set; } = "";
         public float Shield { get; private set; } = 1f;
         public float Hull { get; private set; } = 1f;
-        public bool ShieldUp { get; private set; } = true;
         public bool Dead { get; private set; }
-        public bool Docked { get; private set; }
         public int Warp { get; private set; }
-        public int CaptainIndex { get; private set; }
         public string Surface { get; private set; } = "";
         /// <summary>Not in this space now (in warp, on a planet, destroyed, or not heard from).</summary>
         public bool Hidden { get; private set; } = true;
@@ -56,8 +53,8 @@ namespace CarrierGame.Demo
             LastHeard = Time.unscaledTime;
             Updates++;
             bool wasDead = Dead;
-            Shield = m.sh; Hull = m.hu; ShieldUp = m.su; Dead = m.dead; Docked = m.dock;
-            Warp = m.warp; CaptainIndex = m.cap; Surface = m.surf ?? "";
+            Shield = m.sh; Hull = m.hu; Dead = m.dead;
+            Warp = m.warp; Surface = m.surf ?? "";
             // it blew up: an explosion where it was
             if (Dead && !wasDead && health != null && health.deathEffect != null && shown)
             {

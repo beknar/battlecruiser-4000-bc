@@ -340,9 +340,7 @@ namespace Carrier.EditorTools
             mesh.RecalculateBounds();
             mesh.RecalculateTangents();
             foreach (var p in parts) Object.DestroyImmediate(p.mesh);
-            string path = $"{StructDir}/{asset}.asset";
-            AssetDatabase.DeleteAsset(path);
-            AssetDatabase.CreateAsset(mesh, path);
+            mesh = SaveMesh(mesh, $"{StructDir}/{asset}.asset");
             foreach (var mf in pieces) if (mf != null) Object.DestroyImmediate(mf.gameObject);
             root.gameObject.AddComponent<MeshFilter>().sharedMesh = mesh;
             var r = root.gameObject.AddComponent<MeshRenderer>();

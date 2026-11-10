@@ -73,11 +73,25 @@ namespace Carrier.EditorTools
         static Explosion breakupBlast;
         const string ChunkDir = Root + "/Generated/Chunks";
 
+        static readonly HashSet<string> chunksMade = new HashSet<string>();
+
+        /// <summary>Start a build's chunks. The folder is kept (chunks are overwritten in place, so
+        /// the prefabs that use them don't change); RemoveStaleChunks clears out the rest.</summary>
         static void ResetChunkFolder()
         {
-            AssetDatabase.DeleteAsset(ChunkDir);
+            chunksMade.Clear();
             if (!AssetDatabase.IsValidFolder(Root + "/Generated")) AssetDatabase.CreateFolder(Root, "Generated");
-            AssetDatabase.CreateFolder(Root + "/Generated", "Chunks");
+            if (!AssetDatabase.IsValidFolder(ChunkDir)) AssetDatabase.CreateFolder(Root + "/Generated", "Chunks");
+        }
+
+        /// <summary>Delete chunks this build didn't make (from a ship that has gone, or has fewer).</summary>
+        static void RemoveStaleChunks()
+        {
+            foreach (var guid in AssetDatabase.FindAssets("t:Mesh", new[] { ChunkDir }))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (!chunksMade.Contains(path) && AssetDatabase.DeleteAsset(path)) Log("removed old chunk " + path);
+            }
         }
 
         /// <summary>
@@ -238,7 +252,9 @@ namespace Carrier.EditorTools
                 foreach (var kv in perMat) { mesh.SetTriangles(kv.Value, sm++); chunkMats.Add(mats[kv.Key]); }
                 mesh.RecalculateBounds();
                 mesh.RecalculateTangents();
-                AssetDatabase.CreateAsset(mesh, $"{ChunkDir}/{name}_chunk{c}.asset");
+                string chunkPath = $"{ChunkDir}/{name}_chunk{c}.asset";
+                mesh = SaveMesh(mesh, chunkPath);
+                chunksMade.Add(chunkPath);
 
                 var go = Node($"Chunk{c}", chunkNode, pivot);
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;

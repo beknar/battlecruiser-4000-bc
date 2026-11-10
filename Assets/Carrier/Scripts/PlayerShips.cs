@@ -19,6 +19,9 @@ namespace CarrierGame
         public static int Count { get { all.RemoveAll(t => t == null); return all.Count; } }
         public static IReadOnlyList<Transform> All => all;
 
+        /// <summary>Is this ship here to be seen (co-op: not one in warp or down on a planet)?</summary>
+        public static bool Present(Transform t) => t != null && (Available == null || Available(t));
+
         /// <summary>The nearest ship still in the fight (the nearest at all if none is), or null.</summary>
         public static Transform Nearest(Vector3 p)
         {

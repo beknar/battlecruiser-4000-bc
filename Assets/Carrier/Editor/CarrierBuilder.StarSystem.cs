@@ -558,21 +558,8 @@ namespace Carrier.EditorTools
             SetUpOrbits(sys, frigate.transform, all);
 
             // camera, controls and the system map
-            var camGo = new GameObject("Main Camera");
-            camGo.tag = "MainCamera";
-            var cam = camGo.AddComponent<Camera>();
-            cam.farClipPlane = 1200000f;
-            cam.nearClipPlane = 1f;
-            cam.fieldOfView = 50f;
-            var data = cam.GetUniversalAdditionalCameraData();
-            data.renderPostProcessing = true;
-            data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
-            var orbit = camGo.AddComponent<OrbitCamera>();
-            orbit.target = frigate.transform;
+            var orbit = MainCamera(frigate.transform, 1f, 1200000f, start + new Vector3(-600f, 200f, -300f), start);
             orbit.maxDistance = 6000f;
-            camGo.transform.position = start + new Vector3(-600f, 200f, -300f);
-            camGo.transform.LookAt(start);
-            camGo.AddComponent<AudioListener>();
 
             var demoGo = new GameObject("Demo");
             var demo = demoGo.AddComponent<CarrierDemoInput>();

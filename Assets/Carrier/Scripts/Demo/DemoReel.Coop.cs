@@ -16,12 +16,7 @@ namespace CarrierGame.Demo
     {
         static readonly string[] Wingmen = { "Kestrel 2", "Kestrel 3" };
 
-        static string ReelCoopServer()
-        {
-            var args = Environment.GetCommandLineArgs();
-            int i = Array.IndexOf(args, "-reelcoop");
-            return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
-        }
+        static string ReelCoopServer() => LaunchArgs.ValueOf("-reelcoop");
 
         void CoopNote(string note) => CoopClient.Instance?.Send(new TestMsg { note = note });
 

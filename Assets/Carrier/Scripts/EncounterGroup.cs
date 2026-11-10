@@ -17,12 +17,9 @@ namespace CarrierGame
         public bool Active { get; private set; }
         public int TimesSprung { get; private set; }
         Transform player;
+        float nextLook;
 
-        void Start()
-        {
-            var cc = FindAnyObjectByType<CarrierController>();
-            if (cc != null) player = cc.transform;
-        }
+        void Start() => player = PlayerShips.Primary;
 
         /// <summary>They break cover and attack now.</summary>
         public void Spring()
@@ -45,11 +42,8 @@ namespace CarrierGame
                 if (p.Current == CombatPilot.State.Lurk) anyLurking = true; else anyEngaged = true;
             }
             // with more than one player ship about (co-op): the one nearest the group
-            if (PlayerShips.Count > 1 && pilots.Length > 0 && pilots[0] != null)
-            {
-                var nearest = PlayerShips.Nearest(pilots[0].transform.position);
-                if (nearest != null) player = nearest;
-            }
+            if (pilots.Length > 0 && pilots[0] != null)
+                player = PlayerShips.Retarget(player, pilots[0].transform.position, ref nextLook, 0f);
             if (!Active)
             {
                 Vector3 pp = player.position;

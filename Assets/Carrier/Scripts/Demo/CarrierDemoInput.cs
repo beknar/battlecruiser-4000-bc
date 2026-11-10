@@ -542,7 +542,7 @@ namespace CarrierGame.Demo
 
         /// <summary>Running in a web browser (the page owns the window: no resizing; quitting goes
         /// through the page).</summary>
-        public static bool OnWeb => Application.platform == RuntimePlatform.WebGLPlayer;
+        public static bool OnWeb => LaunchArgs.OnWeb;
 
         public void SelectTarget(Transform t) => Select(t);
 
@@ -618,15 +618,13 @@ namespace CarrierGame.Demo
 
         // ------------------------------------------------------------ display + HUD
 
-        public static bool HasArg(string arg) => System.Array.IndexOf(System.Environment.GetCommandLineArgs(), arg) >= 0;
-
         /// <summary>Standalone builds run borderless full screen at the monitor's native resolution.
         /// If an earlier run left a different size in the registry, fix it once the game is up and
         /// running (never during startup), and only when it actually differs. A size given on the
         /// command line (-screen-fullscreen / -screen-width) is left alone.</summary>
         System.Collections.IEnumerator FixDisplayWhenReady()
         {
-            if (Application.isEditor || OnWeb || HasArg("-screen-fullscreen") || HasArg("-screen-width") || HasArg("-autotest")) yield break;
+            if (Application.isEditor || OnWeb || LaunchArgs.Has("-screen-fullscreen") || LaunchArgs.Has("-screen-width") || LaunchArgs.Has("-autotest")) yield break;
             yield return new WaitForSecondsRealtime(1f);
             int w = Display.main.systemWidth, h = Display.main.systemHeight;
             if (Screen.fullScreenMode == FullScreenMode.FullScreenWindow && Screen.width == w && Screen.height == h) yield break;

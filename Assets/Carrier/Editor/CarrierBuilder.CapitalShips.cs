@@ -92,8 +92,7 @@ namespace Carrier.EditorTools
             var go = new GameObject(name);
             var m = Place(model, go.transform, "Model");
             m.transform.localScale = Vector3.one * scale;
-            foreach (var r in m.GetComponentsInChildren<Renderer>())
-                r.sharedMaterials = r.sharedMaterials.Select(_ => Mats["Enemy_Hull"]).ToArray();
+            Paint(m, Mats["Enemy_Hull"]);
             var b = LocalBounds(go.transform);
             m.transform.localPosition = -b.center;
             b = LocalBounds(go.transform);
@@ -127,8 +126,7 @@ namespace Carrier.EditorTools
                 var facing = go.transform.InverseTransformDirection(m.transform.TransformDirection(spots[i].facing));
                 t.transform.localRotation = Quaternion.LookRotation(facing, Vector3.up);
                 t.transform.localScale = Vector3.one * turretScale;
-                foreach (var r in t.GetComponentsInChildren<Renderer>())
-                    r.sharedMaterials = r.sharedMaterials.Select(_ => Mats["Enemy_Hull"]).ToArray();
+                Paint(t, Mats["Enemy_Hull"]);
                 var tu = t.GetComponent<CarrierTurret>();
                 tu.projectilePrefab = p.enemyCannon;
                 tu.fireSound = Sfx.Cannon;
@@ -152,27 +150,7 @@ namespace Carrier.EditorTools
                 Vector3 dir = go.transform.InverseTransformDirection(m.transform.TransformDirection(V3(e.dir)));
                 float radius = e.radius * scale * engineScale;
                 var eg = Node("Engine" + (i + 1), engineNode, exit, Quaternion.LookRotation(dir, Vector3.up));
-                var wrap = Node("Plume", eg.transform).transform;
-                if (plumeModel != null)
-                {
-                    var pm = Place(plumeModel, wrap, "PlumeMesh");
-                    var (ax, len) = AlignLongAxis(pm.transform, Vector3.forward);
-                    var pb = ParentBounds(pm.transform);
-                    float width = Mathf.Max(0.1f, Mathf.Max(pb.size.x, pb.size.y));
-                    Stretch(pm.transform, ax, len, radius * 6f, radius * 1.5f / width);
-                    pb = ParentBounds(pm.transform);
-                    pm.transform.localPosition += new Vector3(-pb.center.x, -pb.center.y, -1f - pb.min.z);
-                    foreach (var r in pm.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = ShadowCastingMode.Off;
-                }
-                var l = Node("Glow", eg.transform, new Vector3(0, 0, radius * 3f)).AddComponent<Light>();
-                l.type = LightType.Point;
-                l.color = new Color(1f, 0.45f, 0.3f);
-                l.range = radius * 14f;
-                var et = eg.AddComponent<EngineThrust>();
-                et.plume = wrap;
-                et.glow = l;
-                et.maxIntensity = 600f;
-                et.throttle = 0.55f;
+                Exhaust(eg, plumeModel, radius, new Color(1f, 0.45f, 0.3f)).throttle = 0.55f;
                 parts.Add(eg.transform);
             }
 

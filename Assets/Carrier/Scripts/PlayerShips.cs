@@ -19,6 +19,28 @@ namespace CarrierGame
         public static int Count { get { all.RemoveAll(t => t == null); return all.Count; } }
         public static IReadOnlyList<Transform> All => all;
 
+        /// <summary>The local player's ship (the one with the controls; the other players' ships
+        /// in co-op are copies without them), or null.</summary>
+        public static Transform Primary
+        {
+            get
+            {
+                var cc = Object.FindAnyObjectByType<CarrierController>();
+                return cc != null ? cc.transform : null;
+            }
+        }
+
+        /// <summary>For a hostile going for a ship: with more than one about (co-op), the nearest
+        /// to `from`, looked for at most every `interval` seconds (`next` keeps the time); else
+        /// `current`, unchanged.</summary>
+        public static Transform Retarget(Transform current, Vector3 from, ref float next, float interval = 2f)
+        {
+            if (Count < 2 || Time.time < next) return current;
+            next = Time.time + interval;
+            var nearest = Nearest(from);
+            return nearest != null ? nearest : current;
+        }
+
         /// <summary>Is this ship here to be seen (co-op: not one in warp or down on a planet)?</summary>
         public static bool Present(Transform t) => t != null && (Available == null || Available(t));
 

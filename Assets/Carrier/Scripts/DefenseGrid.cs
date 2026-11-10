@@ -31,11 +31,12 @@ namespace CarrierGame
         Transform player;
         Health playerHealth;
         Health[] healths;
+        float nextLook;
 
         void Start()
         {
-            var cc = FindAnyObjectByType<CarrierController>();
-            if (cc != null) { player = cc.transform; playerHealth = cc.GetComponent<Health>(); }
+            player = PlayerShips.Primary;
+            if (player != null) playerHealth = player.GetComponent<Health>();
             healths = new Health[weapons != null ? weapons.Length : 0];
             for (int i = 0; i < healths.Length; i++)
             {
@@ -76,11 +77,8 @@ namespace CarrierGame
         void Update()
         {
             // with more than one player ship about (co-op): the one nearest the guns
-            if (PlayerShips.Count > 1)
-            {
-                var nearest = PlayerShips.Nearest(transform.position);
-                if (nearest != null && nearest != player) { player = nearest; playerHealth = nearest.GetComponentInParent<Health>(); }
-            }
+            var nearest = PlayerShips.Retarget(player, transform.position, ref nextLook, 0f);
+            if (nearest != player) { player = nearest; playerHealth = nearest.GetComponentInParent<Health>(); }
             if (player == null || weapons == null) return;
             bool playerAlive = playerHealth == null || !playerHealth.Dead;
             float d = NearestGun(player.position, out var gun);

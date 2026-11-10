@@ -50,7 +50,7 @@ namespace CarrierGame
         // deposits it couldn't get a clear line to, and until when it leaves them alone
         readonly Dictionary<IMineralSource, float> skip = new Dictionary<IMineralSource, float>();
         readonly List<IMineralSource> candidates = new List<IMineralSource>();
-        readonly List<SurfaceVein> veins = new List<SurfaceVein>();
+        readonly List<IMineralSource> near = new List<IMineralSource>();
         static readonly RaycastHit[] Hits = new RaycastHit[24];
         /// <summary>How far a vein spreads round its middle (m).</summary>
         public const float VeinRadius = 200f;
@@ -81,9 +81,8 @@ namespace CarrierGame
         public string Blocked()
         {
             if (ship == null || hold == null) return "no mining gear fitted";
-            if (ship.Destroyed) return "the ship is destroyed";
-            if (warp != null && warp.Current != WarpDrive.State.Ready) return "the ship is in warp";
-            if (PlanetLanding.Transitioning) return "not while landing or taking off";
+            string busy = MineralSources.ShipBusy(ship, warp);
+            if (busy != null) return busy;
             if (hold.Full) return $"the cargo hold is full ({hold.capacity:F0} t)";
             return null;
         }
@@ -286,14 +285,9 @@ namespace CarrierGame
                 foreach (var kv in skip) if (Time.time > kv.Value) done.Add(kv.Key);
                 foreach (var k in done) skip.Remove(k);
             }
-            if (PlanetLanding.OnSurface)
-            {
-                var surf = PlanetLanding.Instance.Surface;
-                SurfaceVeins.Near(surf, From, range + 100f, veins);
-                foreach (var v in veins) if (Usable(v, out _) && !skip.ContainsKey(v)) candidates.Add(v);
-                return;
-            }
-            foreach (var d in MineralDeposit.All) if (Usable(d, out _) && !skip.ContainsKey(d)) candidates.Add(d);
+            // looked for a little further than it reaches, then each checked from the muzzle
+            MineralSources.Near(From, range + 100f, near);
+            foreach (var s in near) if (Usable(s, out _) && !skip.ContainsKey(s)) candidates.Add(s);
         }
 
         IMineralSource Pick()

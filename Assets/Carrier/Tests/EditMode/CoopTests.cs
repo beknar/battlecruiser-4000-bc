@@ -43,16 +43,41 @@ namespace CarrierGame.Tests
 
     public class CoopMessageTests
     {
-        static readonly string[] ServerOnly = { "welcome", "reject", "players", "room", "join", "leave", "pong" };
+        static readonly string[] ServerOnly = CoopWire.ServerOnly;
+        static string Server(params string[] path) => Path.GetFullPath(Path.Combine(new[] { Application.dataPath, "..", "Server" }.Concat(path).ToArray()));
 
         [Test]
         public void TheGameSpeaksTheServersProtocol()
         {
-            string hub = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Server", "CoopServer", "Hub.cs"));
-            if (!File.Exists(hub)) Assert.Ignore($"no server source at {hub}");
-            var m = Regex.Match(File.ReadAllText(hub), @"public const int Protocol = (\d+);");
-            Assert.That(m.Success, "the server's protocol number");
-            Assert.That(CoopClient.Protocol, Is.EqualTo(int.Parse(m.Groups[1].Value)));
+            // the server builds the game's own CoopWire.cs, and takes its version from it
+            string project = Server("CoopServer", "CoopServer.csproj"), hub = Server("CoopServer", "Hub.cs");
+            if (!File.Exists(project)) Assert.Ignore($"no server source at {project}");
+            StringAssert.Contains(@"Assets\Carrier\Scripts\Net\CoopWire.cs", File.ReadAllText(project));
+            StringAssert.Contains("public const int Protocol = CoopWire.Protocol;", File.ReadAllText(hub));
+            Assert.That(CoopClient.Protocol, Is.EqualTo(CoopWire.Protocol));
+        }
+
+        [Test]
+        public void TheGameReadsEveryFieldOfTheServersMessages()
+        {
+            // Server/protocol: one of each message the server sends, with all its fields (the
+            // server's tests check it sends nothing else)
+            string dir = Server("protocol");
+            if (!Directory.Exists(dir)) Assert.Ignore($"no samples at {dir}");
+            var fields = new System.Collections.Generic.HashSet<string>(
+                typeof(CoopMsg).GetFields().Concat(typeof(CoopPlayer).GetFields()).Select(f => f.Name));
+            foreach (var type in ServerOnly)
+            {
+                string json = File.ReadAllText(Path.Combine(dir, type + ".json"));
+                Assert.That(JsonUtility.FromJson<CoopMsg>(json).t, Is.EqualTo(type));
+                foreach (Match key in Regex.Matches(json, "\"(\\w+)\"\\s*:"))
+                    Assert.That(fields, Has.Member(key.Groups[1].Value), $"'{type}' has a field '{key.Groups[1].Value}' the game doesn't read");
+            }
+            var players = JsonUtility.FromJson<CoopMsg>(File.ReadAllText(Path.Combine(dir, "players.json")));
+            Assert.That(players.players.Length, Is.EqualTo(2));
+            Assert.That(players.players[1].client, Is.EqualTo("WebGLPlayer"));
+            var join = JsonUtility.FromJson<CoopMsg>(File.ReadAllText(Path.Combine(dir, "join.json")));
+            Assert.That(join.p.name, Is.EqualTo("Bravo"));
         }
 
         [Test]
@@ -179,7 +204,7 @@ namespace CarrierGame.Tests
         [TestCase("http://host/index.html", "connect", false)]
         [TestCase(null, "connect", false)]
         public void APageAddressIsSearchedForItsSwitches(string url, string key, bool found) =>
-            Assert.That(SystemTest.HasQueryKey(url, key), Is.EqualTo(found));
+            Assert.That(LaunchArgs.HasQueryKey(url, key), Is.EqualTo(found));
 
         [TestCase("http://host/index.html?server=1.2.3.4%3A7777&connect", "server", "1.2.3.4:7777")]
         [TestCase("http://host/index.html?landworld=Thalassa_Prime#top", "landworld", "Thalassa_Prime")]
@@ -187,7 +212,7 @@ namespace CarrierGame.Tests
         [TestCase("http://host/index.html#?server=x", "server", null)]
         [TestCase("http://host/index.html", "server", null)]
         public void APageAddressGivesItsValues(string url, string key, string value) =>
-            Assert.That(SystemTest.QueryValue(url, key), Is.EqualTo(value));
+            Assert.That(LaunchArgs.QueryValue(url, key), Is.EqualTo(value));
     }
 
     /// <summary>Keeping the game's clock in step with the server's.</summary>

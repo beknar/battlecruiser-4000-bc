@@ -18,6 +18,8 @@ import asyncio, json, sys, time, urllib.request
 
 import websockets
 
+from protocol import PROTOCOL
+
 HOST, PORT = sys.argv[1], int(sys.argv[2])
 URL = f"ws://{HOST}:{PORT}/coop"
 results = []
@@ -41,7 +43,7 @@ async def recv_until(ws, t, timeout=3.0):
     return None
 
 
-async def join(name, level="TestLevel", v=1):
+async def join(name, level="TestLevel", v=PROTOCOL):
     ws = await websockets.connect(URL)
     await ws.send(json.dumps({"t": "hello", "v": v, "name": name, "level": level, "client": "test", "captain": 0, "clock": 12.5}))
     return ws

@@ -17,7 +17,7 @@ namespace CarrierGame.Demo
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
         {
-            if (!CarrierDemoInput.OnWeb || !SystemTest.HasQueryKey(Application.absoluteURL, "padtest")) return;
+            if (!LaunchArgs.PageHas("padtest")) return;
             if (FindAnyObjectByType<WebPadTest>() != null) return;
             var go = new GameObject("WebPadTest");
             DontDestroyOnLoad(go);

@@ -141,21 +141,15 @@ namespace CarrierGame
         /// <summary>With more than one player ship about (co-op), go for the nearest now and then.</summary>
         void Retarget()
         {
-            if (PlayerShips.Count < 2 || Time.time < nextRetarget) return;
-            nextRetarget = Time.time + 2f;
-            var nearest = PlayerShips.Nearest(transform.position);
-            if (nearest == null || nearest == target) return;
+            var nearest = PlayerShips.Retarget(target, transform.position, ref nextRetarget);
+            if (nearest == target) return;
             target = nearest;
             if (weapons != null) weapons.SetTarget(nearest);
         }
 
         void Start()
         {
-            if (target == null)
-            {
-                var player = FindAnyObjectByType<CarrierController>();
-                if (player != null) target = player.transform;
-            }
+            if (target == null) target = PlayerShips.Primary;
             if (weapons != null)
             {
                 weapons.target = target;
@@ -360,8 +354,8 @@ namespace CarrierGame
                 extending = true;
                 return extendPoint - pos;
             }
-            float t = to.magnitude / Mathf.Max(1f, attackSpeed + 400f);
-            return (tp + (targetMover != null ? targetMover.Velocity * t : Vector3.zero)) - pos;
+            // aimed as if its shots were 400 m/s quicker than it flies
+            return Ballistics.Lead(pos, tp, targetMover != null ? targetMover.Velocity : Vector3.zero, Mathf.Max(1f, attackSpeed + 400f)) - pos;
         }
 
         /// <summary>Hold the stand-off range, circling the target slowly.</summary>

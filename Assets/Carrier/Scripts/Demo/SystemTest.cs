@@ -35,75 +35,38 @@ namespace CarrierGame.Demo
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
         {
-            var args = Environment.GetCommandLineArgs();
-            int i = Array.IndexOf(args, "-systemtest");
             // in a web build: open the page with ?systemtest, and the results go to the browser console
-            bool web = CarrierDemoInput.OnWeb && HasQueryKey(Application.absoluteURL, "systemtest");
-            if (i < 0 && !web) return;
+            bool web = LaunchArgs.PageHas("systemtest");
+            if (!LaunchArgs.Has("-systemtest") && !web) return;
             var t = new GameObject("SystemTest").AddComponent<SystemTest>();
             t.web = web;
-            t.dir = i >= 0 && i + 1 < args.Length && !args[i + 1].StartsWith("-") ? args[i + 1] : Application.persistentDataPath;
+            t.dir = LaunchArgs.FolderAfter("-systemtest", Application.persistentDataPath);
             // -landtest (or ?landtest): only the landings, on every kind of world
-            t.landOnly = Array.IndexOf(args, "-landtest") >= 0 || (web && HasQueryKey(Application.absoluteURL, "landtest"));
+            t.landOnly = LaunchArgs.Switch("landtest");
             // -landworld <name> (or ?landworld=<name>, spaces as _): after Thalassa, only that world
-            int lw = Array.IndexOf(args, "-landworld");
-            if (lw >= 0 && lw + 1 < args.Length) t.landWorld = args[lw + 1].Replace('_', ' ');
-            if (web) t.landWorld = QueryValue(Application.absoluteURL, "landworld")?.Replace('_', ' ') ?? t.landWorld;
+            t.landWorld = (LaunchArgs.PageValue("landworld") ?? LaunchArgs.ValueOf("-landworld"))?.Replace('_', ' ') ?? t.landWorld;
             // -minetest (or ?minetest): only the mining
-            t.mineOnly = Array.IndexOf(args, "-minetest") >= 0 || (web && HasQueryKey(Application.absoluteURL, "minetest"));
+            t.mineOnly = LaunchArgs.Switch("minetest");
             // -minesurface: only the vein on a planet (quick)
-            t.mineSurfaceOnly = Array.IndexOf(args, "-minesurface") >= 0;
+            t.mineSurfaceOnly = LaunchArgs.Has("-minesurface");
             if (t.mineSurfaceOnly) t.mineOnly = true;
             // -stationtest (or ?stationtest): only the stations, bases and installations
-            t.stationOnly = Array.IndexOf(args, "-stationtest") >= 0 || (web && HasQueryKey(Application.absoluteURL, "stationtest"));
+            t.stationOnly = LaunchArgs.Switch("stationtest");
             // -orbittest (or ?orbittest): only the orbits and the launchers
-            t.orbitOnly = Array.IndexOf(args, "-orbittest") >= 0 || (web && HasQueryKey(Application.absoluteURL, "orbittest"));
+            t.orbitOnly = LaunchArgs.Switch("orbittest");
             // -hudtest (or ?hudtest): only the ship's console and the captain
-            t.hudOnly = Array.IndexOf(args, "-hudtest") >= 0 || (web && HasQueryKey(Application.absoluteURL, "hudtest"));
+            t.hudOnly = LaunchArgs.Switch("hudtest");
             // -cooptest (or ?cooptest), with -connect address:port (?server=...&connect): co-op with
             // the scripted second player (Tools/CoopTest/bot.py); -coopquick (?coopquick) skips the
             // part at Corsair Haven
-            t.coopQuick = Array.IndexOf(args, "-coopquick") >= 0 || (web && HasQueryKey(Application.absoluteURL, "coopquick"));
-            t.coopOnly = t.coopQuick || Array.IndexOf(args, "-cooptest") >= 0 || (web && HasQueryKey(Application.absoluteURL, "cooptest"));
+            t.coopQuick = LaunchArgs.Switch("coopquick");
+            t.coopOnly = t.coopQuick || LaunchArgs.Switch("cooptest");
         }
 
         bool coopQuick;
 
         bool web, landOnly, mineOnly, mineSurfaceOnly, stationOnly, orbitOnly;
         string landWorld;
-
-        /// <summary>A page address's query: what is between the ? and any #, or null if it has
-        /// none (a ? after the # is part of the fragment, not the query).</summary>
-        static string QueryOf(string url)
-        {
-            if (string.IsNullOrEmpty(url)) return null;
-            int q = url.IndexOf('?'), hash = url.IndexOf('#');
-            if (q < 0 || (hash >= 0 && hash < q)) return null;
-            return hash < 0 ? url.Substring(q + 1) : url.Substring(q + 1, hash - q - 1);
-        }
-
-        /// <summary>The value of a URL's query option (?key=value), or null if it has none.</summary>
-        internal static string QueryValue(string url, string key)
-        {
-            string query = QueryOf(url);
-            if (query == null) return null;
-            foreach (var part in query.Split('&'))
-            {
-                var kv = part.Split('=');
-                if (kv[0] == key && kv.Length > 1) return Uri.UnescapeDataString(kv[1]);
-            }
-            return null;
-        }
-
-        /// <summary>Is `key` one of the URL's query options (?key, ?key=..., &key...)?</summary>
-        public static bool HasQueryKey(string url, string key)
-        {
-            string query = QueryOf(url);
-            if (query == null) return false;
-            foreach (var part in query.Split('&'))
-                if (part.Split('=')[0] == key) return true;
-            return false;
-        }
 
         void Log(string s)
         {

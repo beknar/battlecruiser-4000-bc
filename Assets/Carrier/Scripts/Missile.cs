@@ -53,7 +53,7 @@ namespace CarrierGame
                     Vector3 to = target.position - transform.position;
                     // lead the target a little if it moves
                     if (moverOf != target) { moverOf = target; mover = Motion.Of(target); }
-                    if (mover != null) to += mover.Velocity * Mathf.Min(3f, to.magnitude / Mathf.Max(1f, speed));
+                    if (mover != null) to = Ballistics.Lead(transform.position, target.position, mover.Velocity, Mathf.Max(1f, speed), maxTime: 3f) - transform.position;
                     var want = Quaternion.LookRotation(to, transform.up);
                     transform.rotation = Quaternion.RotateTowards(transform.rotation, want, turnRate * dt);
                     if (to.magnitude < proximity) { Detonate(); return; }

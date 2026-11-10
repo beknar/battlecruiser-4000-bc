@@ -55,11 +55,7 @@ namespace CarrierGame
         void Start()
         {
             health = GetComponent<Health>();
-            if (target == null)
-            {
-                var player = FindAnyObjectByType<CarrierController>();
-                if (player != null) target = player.transform;
-            }
+            if (target == null) target = PlayerShips.Primary;
             if (target != null) targetMover = Motion.Of(target);
             float t0 = Time.time + holdFire;
             nextBurst = t0 + Random.Range(0f, burstInterval);
@@ -88,11 +84,10 @@ namespace CarrierGame
             // with more than one player ship about (co-op), a gun with no pilot to choose for it
             // goes for the nearest now and then
             if (!pilotLooked) { pilot = GetComponent<CombatPilot>(); pilotLooked = true; }
-            if (pilot == null && PlayerShips.Count > 1 && Time.time >= nextRetarget)
+            if (pilot == null)
             {
-                nextRetarget = Time.time + 2f;
-                var nearest = PlayerShips.Nearest(transform.position);
-                if (nearest != null && nearest != target) SetTarget(nearest);
+                var nearest = PlayerShips.Retarget(target, transform.position, ref nextRetarget);
+                if (nearest != target) SetTarget(nearest);
             }
             if (target != null && targetHealth == null) targetHealth = target.GetComponentInParent<Health>();
             // turrets aim and fire for themselves (they hold fire behind cover); they only get the
@@ -206,9 +201,8 @@ namespace CarrierGame
         Vector3 Lead(float shotSpeed)
         {
             Vector3 p = target.position;
-            if (targetMover == null || shotSpeed <= 0f) return p;
-            float t = Vector3.Distance(transform.position, p) / shotSpeed;
-            return p + targetMover.Velocity * t;
+            if (targetMover == null) return p;
+            return Ballistics.Lead(transform.position, p, targetMover.Velocity, shotSpeed);
         }
     }
 }

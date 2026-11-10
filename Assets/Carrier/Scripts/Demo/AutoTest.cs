@@ -29,11 +29,9 @@ namespace CarrierGame.Demo
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
         {
-            var args = Environment.GetCommandLineArgs();
-            int i = Array.IndexOf(args, "-autotest");
-            if (i < 0) return;
+            if (!LaunchArgs.Has("-autotest")) return;
             var t = new GameObject("AutoTest").AddComponent<AutoTest>();
-            t.dir = i + 1 < args.Length && !args[i + 1].StartsWith("-") ? args[i + 1] : Application.persistentDataPath;
+            t.dir = LaunchArgs.FolderAfter("-autotest", Application.persistentDataPath);
         }
 
         int overlapFrames, checkedFrames;

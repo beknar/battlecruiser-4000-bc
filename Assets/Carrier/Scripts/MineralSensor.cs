@@ -47,7 +47,6 @@ namespace CarrierGame
         float sweepStart, traceAt;
         Vector3 sweepCenter;
         readonly List<IMineralSource> pool = new List<IMineralSource>();
-        readonly List<SurfaceVein> veins = new List<SurfaceVein>();
         readonly HashSet<IMineralSource> found = new HashSet<IMineralSource>();
 
         const int RingPoints = 96;
@@ -71,9 +70,8 @@ namespace CarrierGame
         public string Blocked()
         {
             if (ship == null) return "no sensor fitted";
-            if (ship.Destroyed) return "the ship is destroyed";
-            if (warp != null && warp.Current != WarpDrive.State.Ready) return "the ship is in warp";
-            if (PlanetLanding.Transitioning) return "not while landing or taking off";
+            string busy = MineralSources.ShipBusy(ship, warp);
+            if (busy != null) return busy;
             if (Sweeping) return "already scanning";
             return null;
         }
@@ -95,18 +93,7 @@ namespace CarrierGame
         }
 
         /// <summary>Every deposit (not mined out) within `range` of a point.</summary>
-        void Gather(Vector3 at, float range)
-        {
-            pool.Clear();
-            if (PlanetLanding.OnSurface)
-            {
-                SurfaceVeins.Near(PlanetLanding.Instance.Surface, at, range, veins);
-                foreach (var v in veins) if (!v.Depleted) pool.Add(v);
-                return;
-            }
-            foreach (var d in MineralDeposit.All)
-                if (d != null && !d.Depleted && Vector3.Distance(at, d.Position) - d.Radius <= range) pool.Add(d);
-        }
+        void Gather(Vector3 at, float range) => MineralSources.Near(at, range, pool);
 
         void Update()
         {

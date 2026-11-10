@@ -36,48 +36,24 @@ namespace CarrierGame.Demo
             // a web page: its own server by default, or ?server=address:port
             if (CarrierDemoInput.OnWeb)
             {
-                var url = Application.absoluteURL;
-                string q = Query(url, "server");
+                string q = LaunchArgs.PageOption("server");
                 if (q != null) SplitAddress(q, ref address, ref port);
-                else if (address.Length == 0) address = HostOf(url);
-                playerName = Query(url, "name") ?? playerName;
+                else if (address.Length == 0) address = HostOf(LaunchArgs.PageUrl);
+                playerName = LaunchArgs.PageOption("name") ?? playerName;
             }
             // -connect address:port [-name name]: straight in
-            string connect = Arg("-connect") ?? (CarrierDemoInput.OnWeb && Query(Application.absoluteURL, "connect") != null ? JoinAddress(address, port) : null);
+            string connect = LaunchArgs.ValueOf("-connect") ?? (LaunchArgs.PageHas("connect") ? JoinAddress(address, port) : null);
             if (connect != null)
             {
                 SplitAddress(connect, ref address, ref port);
-                playerName = Arg("-name") ?? playerName;
+                playerName = LaunchArgs.ValueOf("-name") ?? playerName;
                 if (!CoopClient.Active && (CoopClient.Instance == null || !CoopClient.Instance.Connecting)) Connect();
                 offered = true;
                 return;
             }
-            if (!offered && !Automated()) Open();
+            if (!offered && !LaunchArgs.Automated && !CarrierDemoInput.ReelMode) Open();
             offered = true;
         }
-
-        static bool Automated()
-        {
-            string[] modes = { "-systemtest", "-reel", "-autotest", "-webpadtest", "-cooptest" };
-            foreach (var m in modes) if (CarrierDemoInput.HasArg(m)) return true;
-            if (CarrierDemoInput.OnWeb)
-            {
-                var url = Application.absoluteURL;
-                foreach (var m in new[] { "systemtest", "padtest" }) if (SystemTest.HasQueryKey(url, m)) return true;
-            }
-            return CarrierDemoInput.ReelMode;
-        }
-
-        static string Arg(string name)
-        {
-            var args = System.Environment.GetCommandLineArgs();
-            int i = System.Array.IndexOf(args, name);
-            return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
-        }
-
-        /// <summary>A page address's query option: its value, "" for one without a value, or null.</summary>
-        static string Query(string url, string key) =>
-            SystemTest.HasQueryKey(url, key) ? SystemTest.QueryValue(url, key) ?? "" : null;
 
         static string HostOf(string url)
         {

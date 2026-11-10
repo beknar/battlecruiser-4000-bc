@@ -104,9 +104,6 @@ namespace CarrierGame
             }
         }
 
-        /// <summary>Kept for older callers: the same as RequestFire.</summary>
-        public bool FireIfBearing() => RequestFire();
-
         /// <summary>Manual fire: shoot as soon as the gun is lined up on the target (within
         /// `window` seconds), rather than wherever it happens to point now. Returns false if the
         /// gun can't bear on the target at all.</summary>

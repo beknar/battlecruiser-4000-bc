@@ -530,6 +530,7 @@ namespace CarrierGame
             if (flash) Destroy(flash.gameObject);
             if (ring) Destroy(ring.gameObject);
             if (flashLight) Destroy(flashLight.gameObject);
+            if (vignette) Destroy(vignette);     // made in code (DontSave), so nothing else frees it
         }
 
         void OnGUI()

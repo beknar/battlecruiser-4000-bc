@@ -189,4 +189,77 @@ namespace CarrierGame.Tests
         public void APageAddressGivesItsValues(string url, string key, string value) =>
             Assert.That(SystemTest.QueryValue(url, key), Is.EqualTo(value));
     }
+
+    /// <summary>Keeping the game's clock in step with the server's.</summary>
+    public class ClockSyncTests
+    {
+        // a server clock 100 s ahead of ours; a ping sent at local time t with round trip rtt
+        // comes back at t + rtt carrying the server's time at its half-way point
+        const double Ahead = 100.0;
+
+        static void Ping(ClockSync c, double t, double rtt) => c.Pong(t, t + rtt * 0.5 + Ahead, t + rtt);
+
+        [Test]
+        public void TheWelcomeSetsTheClock()
+        {
+            var c = new ClockSync();
+            c.Welcome(1000.0, 400.0);
+            Assert.That(c.Offset, Is.EqualTo(600.0));
+            Assert.That(c.Synced, Is.False);
+        }
+
+        [Test]
+        public void PingsBringTheClockInStep()
+        {
+            var c = new ClockSync();
+            c.Welcome(Ahead + 0.3, 0.0);        // the welcome is 0.3 s out (it came over a slow link)
+            for (int i = 0; i < 20; i++) Ping(c, 1.0 + i * 2.0, 0.02);
+            Assert.That(c.Synced, Is.True);
+            Assert.That(c.Offset, Is.EqualTo(Ahead).Within(1e-3));
+            Assert.That(c.Rtt, Is.EqualTo(0.02).Within(1e-9));
+        }
+
+        [Test]
+        public void AClockFarOutIsSetOutright()
+        {
+            var c = new ClockSync();
+            c.Welcome(0.0, 0.0);                 // 100 s out
+            Ping(c, 1.0, 0.05);
+            Assert.That(c.Offset, Is.EqualTo(Ahead).Within(1e-9));
+        }
+
+        [Test]
+        public void ASlowPingDoesntMoveTheClock()
+        {
+            var c = new ClockSync();
+            c.Welcome(Ahead, 0.0);
+            Ping(c, 1.0, 0.01);
+            // a ping held up on the way back: half its extra delay would show as a clock error
+            c.Pong(3.0, 3.005 + Ahead, 3.4);
+            Assert.That(c.Offset, Is.EqualTo(Ahead).Within(1e-9));
+        }
+
+        [Test]
+        public void ALastingRiseInLatencyIsTakenUp()
+        {
+            // 2 ms at first, then the link settles at 10 ms and the server's clock steps 50 ms
+            // ahead (it was restarted, say): the clock must follow within a minute or two
+            var c = new ClockSync();
+            c.Welcome(Ahead, 0.0);
+            double t = 1.0;
+            for (int i = 0; i < 5; i++, t += 2.0) Ping(c, t, 0.002);
+            for (int i = 0; i < 60; i++, t += 2.0) c.Pong(t, t + 0.005 + Ahead + 0.05, t + 0.010);
+            Assert.That(c.Offset, Is.EqualTo(Ahead + 0.05).Within(1e-3));
+        }
+
+        [Test]
+        public void AResetStartsOver()
+        {
+            var c = new ClockSync();
+            Ping(c, 1.0, 0.01);
+            c.Reset();
+            Assert.That(c.Synced, Is.False);
+            Assert.That(c.Rtt, Is.EqualTo(0.0));
+        }
+    }
 }

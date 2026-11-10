@@ -63,7 +63,7 @@ namespace CarrierGame.Demo
             if (CarrierDemoInput.OnWeb)
             {
                 var url = Application.absoluteURL;
-                foreach (var m in new[] { "systemtest", "padtest", "autotest" }) if (SystemTest.HasQueryKey(url, m)) return true;
+                foreach (var m in new[] { "systemtest", "padtest" }) if (SystemTest.HasQueryKey(url, m)) return true;
             }
             return CarrierDemoInput.ReelMode;
         }

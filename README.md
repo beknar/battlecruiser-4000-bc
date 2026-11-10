@@ -224,11 +224,11 @@ Enemy guns lead their target and have some spread. The enemies fly orbits around
   crossfades to the combat one while fighting is going on nearby. A master limiter stops the mix
   from clipping.
 
-### Carrier mode
+### The original carrier
 
-The code still supports the original carrier, which has a hangar of fighters, drones and dropships,
-missile salvos and wing orders (attack, escort, return). The HUD and controls adapt to whichever
-ship is in the scene.
+The game began with a carrier. Its prefab, and its fighters, drones and dropships, are no longer
+built; its hull lives on as the enemy dreadnought. The code for a ship with a hangar (launching
+craft and giving wing orders) is still there but no ship uses it now.
 
 ### Second game: Asteroid Ambush
 

@@ -185,7 +185,7 @@ class Runner:
 
     # what goes into a build: a change to any of these makes an older build stale (not Materials or
     # Settings, which a build itself rewrites and the tidy-up then puts back)
-    BUILD_INPUTS = ("Scripts", "Resources", "Scenes", "Prefabs", "Shaders")
+    BUILD_INPUTS = ("Scripts", "Resources", "Scenes", "Prefabs", "Shaders", "Plugins")
 
     def fresh_build(self, name, data, st):
         """A build older than the newest game script or asset would test old code or old assets."""

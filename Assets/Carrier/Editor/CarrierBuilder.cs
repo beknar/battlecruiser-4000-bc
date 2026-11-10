@@ -15,9 +15,10 @@ using Object = UnityEngine.Object;
 namespace Carrier.EditorTools
 {
     /// <summary>
-    /// Builds the carrier from the Blender-made parts (Assets/Carrier/Models) and the kit parts
-    /// copied from the Unreal export (Assets/Carrier/Kit): materials, prefabs, the assembled
-    /// Carrier prefab, a showcase scene, and review screenshots in Temp/carrier_shots.
+    /// Builds the three levels from the Blender-made parts (Assets/Carrier/Models) and the kit parts
+    /// copied from the Unreal export (Assets/Carrier/Kit): materials, prefabs (the frigate, the
+    /// enemies, the capital ships on the carrier's hull), the scenes, and review screenshots in
+    /// Temp/carrier_shots.
     /// Tools > Carrier > Build Everything (or -executeMethod Carrier.EditorTools.CarrierBuilder.BuildAll).
     /// </summary>
     public static partial class CarrierBuilder
@@ -85,12 +86,12 @@ namespace Carrier.EditorTools
                 BuildMaterials();
                 RemapModelMaterials();
                 var p = BuildPrefabs();
-                BuildCarrierPrefab(p);                 // kept as a prefab; the scene now uses the frigate
                 var frigate = BuildFrigatePrefab(p);
                 BuildScene(p, frigate);
                 TakeScreenshots();
                 BuildAsteroidScene(p, frigate);     // the second level: the asteroid-field ambush
                 BuildStarSystemScene(p, frigate);   // the third level: the star system and its mini-warp
+                RemoveStaleChunks();
                 Log("BUILD_OK");
             }
             catch (Exception e)
@@ -178,7 +179,15 @@ namespace Carrier.EditorTools
         {
             Directory.CreateDirectory(MatDir);
             string path = $"{MatDir}/{name}.mat";
+            // as the editor would leave it (URP fills in its render type, passes and colours)
+            Validate(m);
             var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (existing != null && SameMaterial(existing, m))
+            {
+                Object.DestroyImmediate(m);
+                Mats[name] = existing;
+                return existing;
+            }
             if (existing != null)
             {
                 existing.shader = m.shader;
@@ -186,6 +195,7 @@ namespace Carrier.EditorTools
                 existing.shaderKeywords = m.shaderKeywords;
                 existing.renderQueue = m.renderQueue;
                 existing.SetOverrideTag("RenderType", m.GetTag("RenderType", false));
+                Validate(existing);
                 EditorUtility.SetDirty(existing);
                 Mats[name] = existing;
                 return existing;
@@ -193,6 +203,69 @@ namespace Carrier.EditorTools
             AssetDatabase.CreateAsset(m, path);
             Mats[name] = m;
             return m;
+        }
+
+        /// <summary>What the editor does to a material when it is opened or edited: its shader's
+        /// own editor (URP's Lit, Unlit...) sets the render type, the passes and the keywords that
+        /// follow from its properties. A material made in code doesn't get this until someone
+        /// looks at it, so without it a rebuild would undo what the editor did, and the editor
+        /// would do it again: a change to every material each time.</summary>
+        static void Validate(Material m)
+        {
+            var editor = Editor.CreateEditor(m) as MaterialEditor;
+            if (editor == null) return;
+            try { editor.customShaderGUI?.ValidateMaterial(m); }
+            finally { Object.DestroyImmediate(editor); }
+        }
+
+        /// <summary>Whether a saved material already has everything we set on a new one: shader,
+        /// queue, render type, keywords, GI flags and every property the shader has.</summary>
+        static bool SameMaterial(Material a, Material b)
+        {
+            if (a.shader != b.shader || a.renderQueue != b.renderQueue || a.GetTag("RenderType", false) != b.GetTag("RenderType", false)) return false;
+            if (a.globalIlluminationFlags != b.globalIlluminationFlags || a.doubleSidedGI != b.doubleSidedGI) return false;
+            if (!new HashSet<string>(a.shaderKeywords).SetEquals(b.shaderKeywords)) return false;
+            var s = b.shader;
+            for (int i = 0; i < s.GetPropertyCount(); i++)
+            {
+                string n = s.GetPropertyName(i);
+                switch (s.GetPropertyType(i))
+                {
+                    case UnityEngine.Rendering.ShaderPropertyType.Float:
+                    case UnityEngine.Rendering.ShaderPropertyType.Range:
+                        if (!Mathf.Approximately(a.GetFloat(n), b.GetFloat(n))) return false;
+                        break;
+                    case UnityEngine.Rendering.ShaderPropertyType.Int:
+                        if (a.GetInteger(n) != b.GetInteger(n)) return false;
+                        break;
+                    case UnityEngine.Rendering.ShaderPropertyType.Color:
+                        if (a.GetColor(n) != b.GetColor(n)) return false;
+                        break;
+                    case UnityEngine.Rendering.ShaderPropertyType.Vector:
+                        if (a.GetVector(n) != b.GetVector(n)) return false;
+                        break;
+                    case UnityEngine.Rendering.ShaderPropertyType.Texture:
+                        if (a.GetTexture(n) != b.GetTexture(n) || a.GetTextureScale(n) != b.GetTextureScale(n) || a.GetTextureOffset(n) != b.GetTextureOffset(n)) return false;
+                        break;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>Save a mesh made in code as an asset. One already there is overwritten in place,
+        /// so it keeps its GUID and everything that uses it stays as it was.</summary>
+        static Mesh SaveMesh(Mesh mesh, string path)
+        {
+            var existing = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (existing == null)
+            {
+                AssetDatabase.CreateAsset(mesh, path);
+                return mesh;
+            }
+            EditorUtility.CopySerialized(mesh, existing);
+            Object.DestroyImmediate(mesh);
+            EditorUtility.SetDirty(existing);
+            return existing;
         }
 
         static Material Lit(string name, Color color, Texture2D baseMap = null, Texture2D normal = null, float metallic = 0.4f,
@@ -262,8 +335,6 @@ namespace Carrier.EditorTools
 
             Additive("FX_EnginePlume", new Color(0.45f, 0.65f, 1f) * 2.5f, fx);
             Additive("FX_BeamBolt", new Color(0.4f, 0.9f, 1f) * 8f);
-            Additive("FX_PDBolt", new Color(1f, 0.55f, 0.2f) * 6f);
-            Additive("FX_FighterBolt", new Color(1f, 0.3f, 0.25f) * 6f);
             Additive("FX_Explosion", new Color(1f, 0.55f, 0.2f) * 6f);
             Additive("FX_MissileTrail", new Color(1f, 0.8f, 0.5f) * 3f);
             FrigateSystemMaterials();
@@ -435,11 +506,10 @@ namespace Carrier.EditorTools
         // ------------------------------------------------------------------ prefabs
         class Prefabs
         {
-            public Projectile beam, pdBolt, fighterBolt, frigateBolt, ciwsBolt, enemyCannon, enemyBlaster;
+            public Projectile beam, frigateBolt, ciwsBolt, enemyCannon, enemyBlaster;
             public Explosion explosion, explosionSmall;
             public Missile missile;
-            public CarrierTurret mainTurret, pdTurret;
-            public Craft fighter, drone, dropship;
+            public CarrierTurret mainTurret;
             public GameObject enemyCruiser, enemyDrone, enemyFighter, enemyDestroyer, enemyDreadnought;
         }
 
@@ -493,8 +563,6 @@ namespace Carrier.EditorTools
             p.explosion = MakeExplosion("Explosion", 6f, 90f, 1.6f, 40000f);
             p.explosionSmall = MakeExplosion("ExplosionSmall", 2f, 22f, 0.7f, 3000f);
             p.beam = MakeBolt("BeamBolt", "FX_BeamBolt", new Vector3(1.4f, 1.4f, 24f), 2400f, 60f, p.explosionSmall);
-            p.pdBolt = MakeBolt("PDBolt", "FX_PDBolt", new Vector3(0.5f, 0.5f, 9f), 1800f, 10f, null);
-            p.fighterBolt = MakeBolt("FighterBolt", "FX_FighterBolt", new Vector3(0.35f, 0.35f, 6f), 1600f, 6f, null);
             p.frigateBolt = MakeBolt("FrigateBolt", "FX_BeamBolt", new Vector3(1.0f, 1.0f, 16f), 2600f, 90f, p.explosionSmall);
 
             // missile
@@ -549,40 +617,6 @@ namespace Carrier.EditorTools
                 p.mainTurret = SavePrefab<CarrierTurret>(go, "TripleTurret");
             }
 
-            // point-defence turret: kit twin turret, scaled up, turning as a whole
-            {
-                var go = new GameObject("PDTurret");
-                var yaw = Node("Yaw", go.transform).transform;
-                var model = Place(Model("Spaceship_Kit/SM_turret"), yaw, "Model");
-                model.transform.localScale = Vector3.one * 2.2f;
-                model.transform.localRotation = Quaternion.Euler(KitRotation["Spaceship_Kit/SM_turret"]);
-                var b = LocalBounds(yaw);
-                model.transform.localPosition = new Vector3(-b.center.x, -b.min.y, -b.center.z);
-                b = LocalBounds(yaw);
-                var muzzle = Node("Muzzle", yaw, new Vector3(0, b.center.y, b.max.z)).transform;
-                var tu = go.AddComponent<CarrierTurret>();
-                tu.yaw = yaw;
-                tu.muzzles = new[] { muzzle };
-                tu.projectilePrefab = p.pdBolt;
-                tu.fireSound = Sfx.PointDefense;
-                tu.yawSpeed = 90f;
-                tu.fireInterval = 0.35f;
-                tu.range = 3000f;
-                tu.fireCone = 5f;
-                tu.yawLimit = 175f;
-                Log($"PD turret size {b.size:F1}");
-                p.pdTurret = SavePrefab<CarrierTurret>(go, "PDTurret");
-            }
-
-            p.fighter = MakeCraft("Fighter", Model("Mega_City/SM_ship_flying"), KitRotation["Mega_City/SM_ship_flying"], 1f,
-                Craft.Kind.Fighter, 200f, 290f, 85f, 1000f, p.fighterBolt, 0.25f, 60f, p.explosionSmall);
-            p.drone = MakeCraft("Drone", OwnModel("Drone"), Vector3.zero, 1.6f,
-                Craft.Kind.Drone, 170f, 240f, 120f, 700f, p.fighterBolt, 0.5f, 30f, p.explosionSmall);
-            p.dropship = MakeCraft("Dropship", Model("CargoShip/SM_SpaceShip_Outer_Body2"), KitRotation["CargoShip/SM_SpaceShip_Outer_Body2"], 1f,
-                Craft.Kind.Dropship, 90f, 90f, 30f, 1400f, null, 1f, 400f, p.explosion);
-            p.dropship.launchTime = 7f;
-            EditorUtility.SetDirty(p.dropship);
-
             // demo enemies, armed so the frigate's shield has something to stop
             MakeSystemBolts(p);
             p.enemyCruiser = MakeEnemy("EnemyCruiser", Model("CargoShip/SM_SpaceShip_Outer_Body2"),
@@ -598,35 +632,6 @@ namespace Carrier.EditorTools
             MakeCapitalShips(p);
             AssetDatabase.SaveAssets();
             return p;
-        }
-
-        static Craft MakeCraft(string name, GameObject model, Vector3 rot, float scale, Craft.Kind kind, float cruise, float attack,
-            float turn, float escort, Projectile gun, float fireInterval, float health, Explosion death)
-        {
-            var go = new GameObject(name);
-            var m = Place(model, go.transform, "Model");
-            m.transform.localRotation = Quaternion.Euler(rot);
-            m.transform.localScale = Vector3.one * scale;
-            var b = LocalBounds(go.transform);
-            m.transform.localPosition = -b.center;
-            b = LocalBounds(go.transform);
-            var col = go.AddComponent<BoxCollider>();
-            col.center = b.center;
-            col.size = b.size;
-            var c = go.AddComponent<Craft>();
-            c.kind = kind;
-            c.cruiseSpeed = cruise;
-            c.attackSpeed = attack;
-            c.turnRate = turn;
-            c.escortRadius = escort;
-            c.gunPrefab = gun;
-            c.fireInterval = fireInterval;
-            c.guns = new[] { Node("Gun", go.transform, new Vector3(0, 0, b.max.z + 1f)).transform };
-            var h = go.AddComponent<Health>();
-            h.maxHealth = health;
-            h.deathEffect = death;
-            Log($"{name}: size {b.size:F1}");
-            return SavePrefab<Craft>(go, name);
         }
 
         static GameObject MakeEnemy(string name, GameObject model, Vector3 rot, float scale, float health, Explosion death, float deathScale,
@@ -660,189 +665,6 @@ namespace Carrier.EditorTools
             go.AddComponent<OrbitMover>();
             arm?.Invoke(go);
             return SavePrefab(go, name);
-        }
-
-        // ------------------------------------------------------------------ the carrier
-        static GameObject BuildCarrierPrefab(Prefabs p)
-        {
-            var root = new GameObject("Carrier");
-            var cc = root.AddComponent<CarrierController>();
-            var hull = Place(OwnModel("Carrier_Hull"), root.transform, "Hull");
-            var hb = LocalBounds(hull.transform);
-            Log($"hull bounds center {hb.center:F1} size {hb.size:F1} (expect ~154 x 177 x 702, bow at +Z)");
-
-            // main turrets
-            var mains = Node("MainTurrets", root.transform).transform;
-            cc.mainTurrets = hp.main_turrets.Select((t, i) =>
-            {
-                var go = Place(p.mainTurret.gameObject, mains, $"MainTurret_{i + 1}");
-                go.transform.localPosition = V3(t.pos);
-                go.transform.localRotation = Quaternion.LookRotation(V3(t.facing), Vector3.up);
-                return go.GetComponent<CarrierTurret>();
-            }).ToArray();
-
-            // point defence
-            var pds = Node("PointDefense", root.transform).transform;
-            cc.pointDefense = hp.pd_turrets.Select((t, i) =>
-            {
-                var go = Place(p.pdTurret.gameObject, pds, $"PD_{i + 1}");
-                Vector3 up = V3(t.up).normalized;
-                Vector3 fwd = Vector3.ProjectOnPlane(Vector3.forward, up).normalized;
-                go.transform.localPosition = V3(t.pos);
-                go.transform.localRotation = Quaternion.LookRotation(fwd, up);
-                return go.GetComponent<CarrierTurret>();
-            }).ToArray();
-
-            // flank launch bays with hangar-kit interiors
-            var bays = Node("FlankBays", root.transform).transform;
-            var floorTile = Model("MC_Environment/SM_Hangar_floor_8x8");
-            var pad = Model("Mega_City/SM_landing_pad_module");
-            var rib = Model("MC_Environment/SM_Hangar_arch_a");
-            cc.flankBays = hp.flank_bays.Select(b =>
-            {
-                Vector3 outDir = V3(b.launch_dir).normalized;
-                var bayGo = Node(b.name, bays, V3(b.mouth), Quaternion.LookRotation(outDir, Vector3.up));
-                var bay = bayGo.AddComponent<LaunchBay>();
-                bay.mouth = bayGo.transform;
-                bay.launchSpeed = 70f;
-                bay.interval = 1.8f;
-                Vector3 floor = V3(b.floor_center);
-                var interior = Node("Interior", bays);
-                float depth = b.floor_size[0], length = b.floor_size[1];
-                // the bay's depth runs along carrier X (inward from the mouth), its length along Z
-                float inward = -Mathf.Sign(outDir.x);
-                for (int ix = 0; ix < 3; ix++)
-                for (int iz = 0; iz < 4; iz++)
-                {
-                    var tile = Place(floorTile, interior.transform, "Floor");
-                    var tb0 = ParentBounds(tile.transform);
-                    tile.transform.localScale = new Vector3(depth / 3f / Mathf.Max(0.1f, tb0.size.x), 1f, length / 4f / Mathf.Max(0.1f, tb0.size.z));
-                    var tb = ParentBounds(tile.transform);
-                    CenterAt(tile.transform, floor + new Vector3((ix - 1) * depth / 3f, 0.05f - tb.extents.y, (iz - 1.5f) * length / 4f));
-                }
-                var padGo = Place(pad, interior.transform, "LaunchPad");
-                var pb = ParentBounds(padGo.transform);
-                CenterAt(padGo.transform, floor + new Vector3(inward * 4f, 0.3f - pb.extents.y, 0));
-                for (int k = 0; k < 3; k++)
-                {
-                    var r = Place(rib, interior.transform, "CeilingRib");
-                    AlignLongAxis(r.transform, Vector3.forward);
-                    var rb = ParentBounds(r.transform);
-                    CenterAt(r.transform, floor + new Vector3((k - 1) * 9f, b.height - 0.6f - rb.extents.y, 0));
-                }
-                var light = Node("BayLight", interior.transform, floor + Vector3.up * (b.height - 4f)).AddComponent<Light>();
-                light.type = LightType.Point;
-                light.color = new Color(1f, 0.93f, 0.8f);
-                light.range = 70f;
-                light.intensity = 900f;
-                bay.launchPoints = new[] { -7f, 7f }.Select((dz, i) =>
-                    Node("LaunchPoint" + i, bayGo.transform.parent,
-                        floor + Vector3.up * 8f + Vector3.forward * dz - outDir * 4f,
-                        Quaternion.LookRotation(outDir, Vector3.up)).transform).ToArray();
-                return bay;
-            }).ToArray();
-
-            // ventral hangar
-            {
-                var h = hp.ventral_hangar;
-                var hg = Node("VentralHangar", root.transform, V3(h.opening_center), Quaternion.LookRotation(Vector3.down, Vector3.forward));
-                var bay = hg.AddComponent<LaunchBay>();
-                bay.mouth = hg.transform;
-                bay.launchSpeed = 25f;
-                bay.interval = 4f;
-                bay.launchPoints = h.launch_points.Select((lp, i) =>
-                    Node("LaunchPoint" + i, root.transform.Find("VentralHangar"), Vector3.zero).transform).ToArray();
-                for (int i = 0; i < bay.launchPoints.Length; i++)
-                {
-                    bay.launchPoints[i].position = root.transform.TransformPoint(V3(h.launch_points[i].pos));
-                    bay.launchPoints[i].rotation = Quaternion.LookRotation(Vector3.down, Vector3.forward);
-                }
-                var beam = Model("MC_Environment/SM_Hangar_beam_b");
-                Vector3 ceil = V3(h.ceiling_center);
-                var beams = Node("HangarBeams", root.transform).transform;
-                for (float z = -h.size[1] / 2f + 10f; z < h.size[1] / 2f; z += 20f)
-                {
-                    var bm = Place(beam, beams, "HangarBeam");
-                    var (ax, len) = AlignLongAxis(bm.transform, Vector3.right);
-                    Stretch(bm.transform, ax, len, h.size[0] - 2f, 4f);
-                    var bb = ParentBounds(bm.transform);
-                    CenterAt(bm.transform, ceil + new Vector3(0, -0.5f - bb.extents.y, z));
-                }
-                foreach (var z in new[] { -60f, -20f, 20f, 60f })
-                {
-                    var l = Node("HangarLight", hg.transform).AddComponent<Light>();
-                    l.transform.position = root.transform.TransformPoint(ceil + new Vector3(0, -8f, z));
-                    l.type = LightType.Point;
-                    l.range = 130f;
-                    l.intensity = 2500f;
-                    l.color = new Color(1f, 0.95f, 0.85f);
-                }
-                cc.ventralHangar = bay;
-            }
-
-            // missile launch block
-            {
-                var ml = Node("MissileLauncher", root.transform).AddComponent<MissileLauncher>();
-                ml.missilePrefab = p.missile;
-                ml.cells = hp.vls_cells.Select((c, i) =>
-                    Node("Cell" + i, ml.transform, V3(c.pos), Quaternion.LookRotation(Vector3.up, Vector3.forward)).transform).ToArray();
-                cc.missiles = ml;
-            }
-
-            // engines: kit exhaust plume + light
-            {
-                var engines = Node("Engines", root.transform).transform;
-                var plumeModel = Model("Spaceship_Kit/SM_reactor_FX");
-                cc.engines = hp.engines.Select((e, i) =>
-                {
-                    var eg = Node("Engine" + (i + 1), engines, V3(e.exit), Quaternion.LookRotation(V3(e.dir), Vector3.up));
-                    var wrap = Node("Plume", eg.transform).transform;
-                    var pm = Place(plumeModel, wrap, "PlumeMesh");
-                    var (ax, len) = AlignLongAxis(pm.transform, Vector3.forward);
-                    var pb = ParentBounds(pm.transform);
-                    float width = Mathf.Max(0.1f, Mathf.Max(pb.size.x, pb.size.y));
-                    Stretch(pm.transform, ax, len, 90f, e.radius * 1.7f / width);
-                    pb = ParentBounds(pm.transform);
-                    pm.transform.localPosition += new Vector3(-pb.center.x, -pb.center.y, -4f - pb.min.z);
-                    foreach (var r in pm.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = ShadowCastingMode.Off;
-                    var l = Node("Glow", eg.transform, new Vector3(0, 0, 25f)).AddComponent<Light>();
-                    l.type = LightType.Point;
-                    l.color = new Color(0.55f, 0.72f, 1f);
-                    l.range = 260f;
-                    var et = eg.AddComponent<EngineThrust>();
-                    et.plume = wrap;
-                    et.glow = l;
-                    et.maxIntensity = 2500f;
-                    return et;
-                }).ToArray();
-            }
-
-            // auxiliary thrusters (kit reactor nacelles) and antennas
-            {
-                var aux = Node("AuxThrusters", root.transform).transform;
-                foreach (var a in hp.aux_thrusters)
-                {
-                    var m = Place(Model(a.mirror ? "Spaceship_Kit/SM_reactor_right" : "Spaceship_Kit/SM_reactor_left"), aux, "AuxThruster");
-                    AlignLongAxis(m.transform, Vector3.forward);
-                    m.transform.localScale = Vector3.one * 1.8f;
-                    var b = ParentBounds(m.transform);
-                    // sit on top of the upper engine shield / under the lower one
-                    CenterAt(m.transform, V3(a.pos) + new Vector3(0, Mathf.Sign(a.pos[1]) * b.extents.y, 0));
-                }
-                var ants = Node("Antennas", root.transform).transform;
-                foreach (var a in hp.antennas)
-                {
-                    var m = Place(Model("Sci-Fi_Flying_Cargo_Ship/" + a.kind), ants, a.kind);
-                    AlignLongAxis(m.transform, Vector3.up);
-                    m.transform.localScale = Vector3.one * 1.3f;
-                    var b = ParentBounds(m.transform);
-                    CenterAt(m.transform, V3(a.pos) + new Vector3(0, b.extents.y, 0));
-                }
-            }
-
-            var saved = SavePrefab(root, "Carrier");
-            Log("carrier prefab saved");
-            return saved;
         }
 
         // ------------------------------------------------------------------ the frigate
@@ -1015,7 +837,7 @@ namespace Carrier.EditorTools
         }
 
         // ------------------------------------------------------------------ scene
-        static void BuildScene(Prefabs p, GameObject carrierPrefab)
+        static void BuildScene(Prefabs p, GameObject frigatePrefab)
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -1029,31 +851,33 @@ namespace Carrier.EditorTools
             // post-processing: bloom for the emissive lights, ACES tonemapping
             string profilePath = Root + "/Settings/CarrierVolume.asset";
             Directory.CreateDirectory(Root + "/Settings");
-            AssetDatabase.DeleteAsset(profilePath);
-            var profile = ScriptableObject.CreateInstance<VolumeProfile>();
-            AssetDatabase.CreateAsset(profile, profilePath);
-            var bloom = profile.Add<Bloom>(true);
+            var profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(profilePath);
+            if (profile == null)
+            {
+                profile = ScriptableObject.CreateInstance<VolumeProfile>();
+                AssetDatabase.CreateAsset(profile, profilePath);
+            }
+            T Effect<T>() where T : VolumeComponent
+            {
+                if (profile.TryGet<T>(out var c)) return c;
+                c = profile.Add<T>(true);
+                AssetDatabase.AddObjectToAsset(c, profile);
+                return c;
+            }
+            var bloom = Effect<Bloom>();
             bloom.threshold.Override(1.0f);
             bloom.intensity.Override(0.9f);
             bloom.scatter.Override(0.7f);
-            var tm = profile.Add<Tonemapping>(true);
-            tm.mode.Override(TonemappingMode.ACES);
-            var vig = profile.Add<Vignette>(true);
-            vig.intensity.Override(0.22f);
-            var ca = profile.Add<ColorAdjustments>(true);
-            ca.postExposure.Override(0.3f);
-            foreach (var comp in profile.components) AssetDatabase.AddObjectToAsset(comp, profile);
+            Effect<Tonemapping>().mode.Override(TonemappingMode.ACES);
+            Effect<Vignette>().intensity.Override(0.22f);
+            Effect<ColorAdjustments>().postExposure.Override(0.3f);
+            EditorUtility.SetDirty(profile);
+            foreach (var comp in profile.components) EditorUtility.SetDirty(comp);
             AssetDatabase.SaveAssets();
             SpaceLighting(Quaternion.Euler(28f, -35f, 0f), 2.2f, new Color(1f, 0.96f, 0.9f), new Color(0.04f, 0.04f, 0.05f));
 
-            var carrier = (GameObject)PrefabUtility.InstantiatePrefab(carrierPrefab);
+            var carrier = (GameObject)PrefabUtility.InstantiatePrefab(frigatePrefab);
             var cc = carrier.GetComponent<CarrierController>();
-            if (cc.flankBays != null && cc.flankBays.Length > 0)
-            {
-                cc.fighterPrefab = p.fighter;
-                cc.dronePrefab = p.drone;
-                cc.dropshipPrefab = p.dropship;
-            }
 
             var cruiser = (GameObject)PrefabUtility.InstantiatePrefab(p.enemyCruiser);
             var om = cruiser.GetComponent<OrbitMover>();
@@ -1109,48 +933,8 @@ namespace Carrier.EditorTools
             if (EditorSceneManager.GetActiveScene().path != ScenePath) EditorSceneManager.OpenScene(ScenePath);
             Directory.CreateDirectory(ShotDir);
             var ship = Object.FindAnyObjectByType<CarrierController>();
-            if (ship != null && ship.name.StartsWith("Frigate")) { FrigateShots(ship); return; }
-            var carrier = GameObject.Find("Carrier");
-            var go = new GameObject("ShotCamera");
-            var cam = go.AddComponent<Camera>();
-            cam.farClipPlane = 30000f;
-            cam.nearClipPlane = 0.3f;
-            cam.fieldOfView = 40f;
-            cam.allowHDR = true;
-            var data = cam.GetUniversalAdditionalCameraData();
-            data.renderPostProcessing = true;
-            data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
-            var c = carrier.transform;
-            Transform Find(string n) => c.GetComponentsInChildren<Transform>().FirstOrDefault(t => t.name == n);
-            var shots = new List<(string, Vector3, Vector3)>
-            {
-                ("front34", new Vector3(560, 300, 700), new Vector3(0, 0, 30)),
-                ("rear34", new Vector3(-520, 240, -760), new Vector3(0, 0, -60)),
-                ("side", new Vector3(980, 40, -30), new Vector3(0, 0, -30)),
-                ("below", new Vector3(420, -460, 320), new Vector3(0, -40, 0)),
-                ("top", new Vector3(0, 1100, 1), new Vector3(0, 0, 0)),
-            };
-            var bay = Find("Bay_S2");
-            if (bay) shots.Add(("bay", bay.position + bay.forward * 70f + Vector3.up * 8f + Vector3.forward * 30f, bay.position - bay.forward * 15f));
-            var t1 = Find("MainTurret_3");
-            if (t1) shots.Add(("turret", t1.position + new Vector3(-45, 22, 55), t1.position + Vector3.up * 5f));
-            var bridge = Find("Antennas");
-            shots.Add(("bridge", new Vector3(70, 175, -60), new Vector3(0, 125, -160)));
-            shots.Add(("engines", new Vector3(-150, 60, -560), new Vector3(0, 0, -340)));
-            var hangar = Find("VentralHangar");
-            if (hangar) shots.Add(("hangar", hangar.position + new Vector3(60, -140, 120), hangar.position + Vector3.up * 15f));
-            var pd = Find("PD_1");
-            if (pd) shots.Add(("pd", pd.position + new Vector3(-30, 20, 35) + pd.up * 10f, pd.position));
-
-            foreach (var (name, pos, look) in shots)
-            {
-                go.transform.position = c.TransformPoint(pos);
-                go.transform.LookAt(c.TransformPoint(look));
-                Render(cam, name);
-            }
-            Lineup(cam);
-            Object.DestroyImmediate(go);
-            Log("screenshots in " + ShotDir);
+            if (ship == null) { Log("no ship in " + ScenePath + ": no screenshots"); return; }
+            FrigateShots(ship);
         }
 
         static void FrigateShots(CarrierController ship)
@@ -1236,6 +1020,7 @@ namespace Carrier.EditorTools
 
         static void Render(Camera cam, string name, int w = 1600, int h = 900)
         {
+            if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null) return;     // -nographics: no pictures
             var rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32) { antiAliasing = 1 };
             cam.targetTexture = rt;
             cam.Render();
@@ -1248,46 +1033,6 @@ namespace Carrier.EditorTools
             cam.targetTexture = null;
             Object.DestroyImmediate(rt);
             Object.DestroyImmediate(tex);
-        }
-
-        /// <summary>Craft and parts in a row, each with a red marker at its forward (+Z) end and a
-        /// green marker on top (+Y), to check orientation.</summary>
-        static void Lineup(Camera cam)
-        {
-            var row = new GameObject("Lineup");
-            row.transform.position = new Vector3(0, 0, 9000);
-            var items = new[] { "Fighter", "Drone", "Dropship", "Missile", "PDTurret", "TripleTurret" };
-            float x = 0;
-            var red = Mats["Hull_Accent"];
-            var green = Mats["Light_Strip"];
-            foreach (var n in items)
-            {
-                var prefab = Load<GameObject>($"{PrefabDir}/{n}.prefab");
-                if (prefab == null) continue;
-                var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
-                go.transform.SetParent(row.transform, false);
-                var b = LocalBounds(go.transform);
-                go.transform.localPosition = new Vector3(x - b.min.x, 0, 0);
-                float m = Mathf.Max(1f, b.size.magnitude * 0.06f);
-                var f = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                f.transform.SetParent(go.transform, false);
-                f.transform.localPosition = new Vector3(b.center.x, b.center.y, b.max.z + m);
-                f.transform.localScale = Vector3.one * m;
-                f.GetComponent<Renderer>().sharedMaterial = red;
-                var u = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                u.transform.SetParent(go.transform, false);
-                u.transform.localPosition = new Vector3(b.center.x, b.max.y + m, b.center.z);
-                u.transform.localScale = Vector3.one * m;
-                u.GetComponent<Renderer>().sharedMaterial = green;
-                x += b.size.x + 25f;
-            }
-            cam.transform.position = row.transform.position + new Vector3(x * 0.5f, 60f, -x * 0.9f);
-            cam.transform.LookAt(row.transform.position + new Vector3(x * 0.5f, 0, 0));
-            Render(cam, "lineup");
-            cam.transform.position = row.transform.position + new Vector3(-80f, 40f, 30f);
-            cam.transform.LookAt(row.transform.position + new Vector3(x * 0.25f, 0, 0));
-            Render(cam, "lineup_side");
-            Object.DestroyImmediate(row);
         }
     }
 }

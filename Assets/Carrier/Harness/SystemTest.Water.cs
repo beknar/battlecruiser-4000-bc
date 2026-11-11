@@ -200,8 +200,12 @@ namespace CarrierGame.Demo
                 if (foe != null) demo.SelectTarget(foe.transform);
                 foreach (var t in cc.mainTurrets) if (t != null) t.autoFire = true;
                 var shots0 = cc.mainTurrets.Where(t => t != null).ToDictionary(t => t, t => t.ShotsFired);
+                int blasts0 = Explosion.UnderwaterBlasts, bubbled0 = Explosion.BubblesReleased;
                 yield return new WaitForSeconds(14f);
                 Shot("w_seabattle");
+                int blasts = Explosion.UnderwaterBlasts - blasts0;
+                Check(blasts > 0 && Explosion.FireUnderwater == 0 && Explosion.BubblesReleased - bubbled0 > 40,
+                      $"blasts under the water are bubbles, not fire ({blasts} blasts, {Explosion.BubblesReleased - bubbled0} bubbles, {Explosion.FireUnderwater} on fire)");
                 if (foe != null)
                     Log($"  at it: {Vector3.Distance(cc.transform.position, foe.transform.position):F0} m, ship {sf.Depth:F0} m down, " +
                         $"line {(Cover.Blocked(cc.transform.position, foe.transform.position) ? "blocked" : "clear")}; turrets fired " +

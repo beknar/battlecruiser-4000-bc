@@ -620,6 +620,8 @@ namespace Carrier.EditorTools
             e.startSize = start;
             e.endSize = end;
             e.duration = duration;
+            // (under the water it bubbles instead: the same soft particle as the torpedoes' trail)
+            e.bubbles = ParticleAlpha("FX_SurfaceDust", KenneyTex("light_01"), Color.white);
             return SavePrefab<Explosion>(go, name);
         }
 

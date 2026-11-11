@@ -10,10 +10,11 @@ namespace CarrierGame
     public static class WaterFx
     {
         public static ParticleSystem Make(string name, Material mat, int max, Color color, float lifeMin, float lifeMax,
-                                          float sizeMin, float sizeMax, float gravity, bool flat = false, float grow = 1f)
+                                          float sizeMin, float sizeMax, float gravity, bool flat = false, float grow = 1f, float drag = -1f)
         {
             var go = new GameObject(name);
             var ps = go.AddComponent<ParticleSystem>();
+            go.AddComponent<WaterFxShift>();   // (its particles move with the floating origin)
             ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             var m = ps.main;
             m.loop = true;
@@ -39,11 +40,13 @@ namespace CarrierGame
                 sz.enabled = true;
                 sz.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 1f, 1f, grow));
             }
-            // (foam spreading on the water slows as it goes)
+            // (foam spreading on the water slows as it goes, and so does a burst of bubbles;
+            // `drag` below 0 means the usual: foam drags, the rest doesn't)
+            if (drag < 0f) drag = flat ? 0.5f : 0f;
             var lim = ps.limitVelocityOverLifetime;
-            lim.enabled = flat;
+            lim.enabled = drag > 0f;
             lim.limit = 10000f;
-            lim.drag = 0.5f;
+            lim.drag = drag;
             lim.multiplyDragByParticleSize = false;
             lim.multiplyDragByParticleVelocity = false;
             var r = go.GetComponent<ParticleSystemRenderer>();

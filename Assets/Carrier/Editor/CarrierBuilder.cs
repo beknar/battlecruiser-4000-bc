@@ -596,6 +596,8 @@ namespace Carrier.EditorTools
             var r = vis.GetComponent<MeshRenderer>();
             r.sharedMaterial = Mats[mat];
             r.shadowCastingMode = ShadowCastingMode.Off;
+            // (under the water it trails bubbles instead of glowing)
+            p.bubbles = ParticleAlpha("FX_SurfaceDust", KenneyTex("light_01"), Color.white);
             return SavePrefab<Projectile>(go, name);
         }
 

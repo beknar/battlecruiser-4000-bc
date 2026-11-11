@@ -27,7 +27,8 @@ namespace CarrierGame
             speed = Mathf.MoveTowards(speed, firing ? maxSpeed : 0f, maxSpeed * 2.5f * Time.deltaTime);
             if (speed > 0f) transform.Rotate(0f, 0f, speed * Time.deltaTime, Space.Self);
 
-            bool lit = turret != null && Time.time - turret.LastFiredTime < 0.09f;
+            // (no muzzle flash under the water)
+            bool lit = turret != null && Time.time - turret.LastFiredTime < 0.09f && !Sea.Under(transform.position);
             if (flash)
             {
                 flash.enabled = lit;

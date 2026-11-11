@@ -84,6 +84,7 @@ namespace CarrierGame.Demo
                     carrier.HasHangar ? "Q wing attack   E escort   R return to carrier" : null,
                     "W/S throttle   A/D turn",
                     OnWeb ? "Up/Down arrows nose up/down   L level off" : "↑/↓ nose up/down   L level off",
+                    carrier.HasHangar ? null : "Q/E roll left/right",
                     "Space/Ctrl elevator thrusters up/down",
                     "T next target   click a ship to target",
                     "X stop targeting",
@@ -108,9 +109,9 @@ namespace CarrierGame.Demo
                 {
                     "<b>Gamepad</b>",
                     "Left stick  throttle / turn",
-                    carrier.HasHangar ? "Right stick  orbit camera   LT/RT zoom" : W("Right stick  orbit camera   D-pad ←/→ zoom", "Right stick  orbit camera   D-pad left/right zoom"),
+                    carrier.HasHangar ? "Right stick  orbit camera   LT/RT zoom" : W("Right stick  orbit camera   Back + D-pad ←/→ zoom", "Right stick  orbit camera   Back + D-pad left/right zoom"),
                     carrier.HasHangar ? W("D-pad  ↑ fighters  → drones  ↓ dropships  ← return", "D-pad  up fighters  right drones  down dropships  left return")
-                                      : W("D-pad ↑/↓ nose up/down   A level off", "D-pad up/down  nose up/down   A level off"),
+                                      : W("D-pad ↑/↓ nose up/down   ←/→ roll   A level off", "D-pad up/down nose, left/right roll   A level off"),
                     carrier.HasHangar ? null : "LT/RT elevator thrusters down/up",
                     carrier.HasHangar ? "A wing attack   X escort" : null,
                     "Y next target   B stop targeting",

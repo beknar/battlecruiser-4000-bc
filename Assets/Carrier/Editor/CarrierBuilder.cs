@@ -86,7 +86,7 @@ namespace Carrier.EditorTools
                 BuildMaterials();
                 RemapModelMaterials();
                 var p = BuildPrefabs();
-                var frigate = BuildFrigatePrefab(p);
+                var frigate = BuildFrigates(p);     // every frigate a player can fly; the starting one
                 BuildScene(p, frigate);
                 TakeScreenshots();
                 BuildAsteroidScene(p, frigate);     // the second level: the asteroid-field ambush
@@ -123,6 +123,7 @@ namespace Carrier.EditorTools
             hp = JsonUtility.FromJson<HP>(File.ReadAllText(Root + "/Data/carrier_hardpoints.json"));
             kit = JsonUtility.FromJson<KitData>(File.ReadAllText(Root + "/Data/kit_materials.json"));
             fhp = JsonUtility.FromJson<FHP>(File.ReadAllText(Root + "/Data/frigate_hardpoints.json"));
+            LoadFrigateSpecs();
             Log($"frigate: {fhp.length} m, {fhp.guns.Length} side guns, {fhp.engines.Length} engines");
             Log($"data: {hp.main_turrets.Length} main turrets, {hp.pd_turrets.Length} PD, {hp.flank_bays.Length} bays, " +
                 $"{hp.vls_cells.Length} VLS cells, {kit.models.Length} kit models");
@@ -154,6 +155,7 @@ namespace Carrier.EditorTools
             foreach (var m in kit.models) yield return m.path;
             foreach (var n in new[] { "Carrier_Hull", "TripleTurret", "Missile", "Drone", "Frigate_Hull", "BallTurret", "CIWS", "BeamEmitter", "ShieldHex" })
                 yield return $"{Root}/Models/{n}.fbx";
+            foreach (var path in FrigateModelPaths()) yield return path;
         }
 
         static void ConfigureModels()
@@ -735,41 +737,50 @@ namespace Carrier.EditorTools
         /// no missiles). The guns are part of the hull mesh, so each one is an invisible aiming
         /// joint at its pod that can only cover its own side: the ship has to turn to bring a
         /// broadside to bear. Quicker than the carrier, slower than fighters and drones.</summary>
+        /// <summary>The frigate `fs` (and, for one with turrets modelled on it, its hardpoints `mhp`).</summary>
         static GameObject BuildFrigatePrefab(Prefabs p)
         {
-            string texPath = $"{Root}/Models/Frigate_BaseColor.png";
+            string texPath = $"{Root}/Models/{fs.texture}";
             if (AssetImporter.GetAtPath(texPath) is TextureImporter ti && ti.maxTextureSize != 4096)
             {
                 ti.maxTextureSize = 4096;
                 ti.SaveAndReimport();
             }
             // two-sided, so the pieces show their inside where the hull breaks apart
-            var hullMat = Lit("Frigate_Hull", Color.white, Load<Texture2D>(texPath), null, 0.25f, 0.35f, twoSided: true);
+            var hullMat = Lit(mhp == null ? "Frigate_Hull" : fs.prefab + "_Hull", Color.white, Load<Texture2D>(texPath), null, 0.25f, 0.35f, twoSided: true);
 
-            var root = new GameObject("Frigate");
+            var root = new GameObject(fs.prefab);
             var cc = root.AddComponent<CarrierController>();
-            cc.shipName = "Frigate";
-            cc.shipClass = "Gun frigate";
-            cc.maxSpeed = 150f;        // carrier 80, drones cruise 170, fighters 200
-            cc.acceleration = 30f;     // carrier 6, craft 120 (m/s per second)
-            cc.turnRate = 20f;         // carrier 3, fighters 85, drones 120 (degrees per second)
-            cc.pitchRate = 12f;        // nose up/down, degrees per second
-            cc.maxPitch = 60f;
-            cc.elevatorSpeed = 40f;    // elevator thrusters, m/s straight up or down
-            cc.elevatorAcceleration = 15f;
+            cc.shipName = fs.shipName;
+            cc.shipClass = fs.shipClass;
+            cc.maxSpeed = fs.maxSpeed;               // the Sentinel: 150 (drones cruise 170, fighters 200)
+            cc.acceleration = fs.acceleration;       // m/s per second
+            cc.turnRate = fs.turnRate;               // degrees per second
+            cc.pitchRate = fs.pitchRate;             // nose up/down, degrees per second
+            cc.maxPitch = fs.maxPitch;
+            cc.elevatorSpeed = fs.elevatorSpeed;     // elevator thrusters, m/s straight up or down
+            cc.elevatorAcceleration = fs.elevatorAcceleration;
             cc.fighterStock = cc.droneStock = cc.dropshipStock = 0;
             cc.flankBays = new LaunchBay[0];
             cc.pointDefense = new CarrierTurret[0];
 
-            var hull = Place(OwnModel("Frigate_Hull"), root.transform, "Hull");
+            var hull = Place(OwnModel(fs.model), root.transform, "Hull");
+            var turretParts = TakeTurretParts(hull);
             Paint(hull, hullMat);
             // the hull's shape, so the guns can tell when their line of fire would cross it
             foreach (var mf in hull.GetComponentsInChildren<MeshFilter>())
                 mf.gameObject.AddComponent<MeshCollider>().sharedMesh = mf.sharedMesh;
             var hb = LocalBounds(hull.transform);
-            Log($"frigate hull bounds center {hb.center:F1} size {hb.size:F1} (expect ~53 x 63 x 180, bow at +Z)");
+            Log($"{fs.displayName} hull bounds center {hb.center:F1} size {hb.size:F1}" + (mhp == null ? " (expect ~53 x 63 x 180, bow at +Z)" : ""));
 
-            // side guns
+            // the guns: the Sentinel's ball mounts on its pods, or the turrets modelled on the others
+            if (mhp != null)
+            {
+                var bolt = MakeBolt("FrigateBolt_" + fs.id, "FX_BeamBolt", V3(fs.boltSize), fs.boltSpeed, fs.gunDamage, p.explosionSmall);
+                cc.mainTurrets = ModelledTurrets(root, turretParts, hullMat, bolt);
+            }
+            else
+            {
             var gunsNode = Node("SideGuns", root.transform).transform;
             cc.mainTurrets = fhp.guns.Select(g =>
             {
@@ -800,23 +811,24 @@ namespace Carrier.EditorTools
                 tu.muzzles = new[] { muzzle };
                 tu.projectilePrefab = p.frigateBolt;
                 tu.ballMount = true;
-                tu.yawSpeed = 70f;
+                tu.yawSpeed = fs.gunYawSpeed;
                 // reaches 30 degrees past the centreline in any direction, so both guns can share a
                 // target ahead, astern, above or below, wherever the line of fire clears the hull
                 tu.coneLimit = 120f;
                 tu.checkHullClearance = true;
-                tu.fireInterval = 0.5f;
-                tu.range = 4500f;
+                tu.fireInterval = fs.gunInterval;
+                tu.range = fs.gunRange;
                 tu.fireCone = 3f;
                 tu.leadTarget = true;
                 return tu;
             }).ToArray();
+            }
 
-            // engines: the kit exhaust plume in each of the four stern nozzles
+            // engines: the kit exhaust plume in each of the stern nozzles
             {
                 var engines = Node("Engines", root.transform).transform;
                 var plumeModel = Model("Spaceship_Kit/SM_reactor_FX");
-                cc.engines = fhp.engines.Select((e, i) =>
+                cc.engines = (mhp != null ? mhp.engines : fhp.engines).Select((e, i) =>
                 {
                     var eg = Node("Engine" + (i + 1), engines, V3(e.exit), Quaternion.LookRotation(V3(e.dir), Vector3.up));
                     return Exhaust(eg, plumeModel, e.radius, new Color(0.55f, 0.72f, 1f));
@@ -865,7 +877,7 @@ namespace Carrier.EditorTools
                     f.maxIntensity = 250f;
                     return f;
                 }
-                var spots = new[] { new Vector2(-15f, 58f), new Vector2(15f, 58f), new Vector2(-15f, -32f), new Vector2(15f, -32f) };
+                var spots = LiftSpots(hb);
                 cc.liftThrustersUp = spots.Select((s, i) =>
                     Make("Ventral" + (i + 1), new Vector3(s.x, Surface(s.x, s.y, false) - 0.3f, s.y), Vector3.down)).ToArray();
                 cc.liftThrustersDown = spots.Select((s, i) =>
@@ -875,11 +887,22 @@ namespace Carrier.EditorTools
             }
 
             AddFrigateSystems(root, cc, hull, p);
+            root.AddComponent<FrigateClass>().id = fs.id;
 
-            var saved = SavePrefab(root, "Frigate");
-            Log("frigate prefab saved");
+            var saved = SavePrefab(root, fs.prefab);
+            Log($"{fs.displayName} prefab saved: " + FrigateSummary(saved));
             return saved;
         }
+
+        static string FrigateSummary(GameObject prefab)
+        {
+            var s = FrigateStats.Of(prefab);
+            return $"{s.turrets} turrets ({s.barrels} barrels, {s.gunDps:F0} damage/s), {s.ciws} CIWS, {s.mainGuns} main gun, " +
+                   $"hull {s.hull:F0}, shield {s.shield:F0}, {s.speed:F0} m/s, {s.turnRate:F0} deg/s, hold {s.cargo:F0} t";
+        }
+
+        /// <summary>The object that puts the player's chosen frigate in as the level starts.</summary>
+        static void AddPlayerFrigate(CarrierController cc) => new GameObject("PlayerFrigate").AddComponent<PlayerFrigate>().ship = cc;
 
         // ------------------------------------------------------------------ scene
         static void BuildScene(Prefabs p, GameObject frigatePrefab)
@@ -923,6 +946,7 @@ namespace Carrier.EditorTools
 
             var carrier = (GameObject)PrefabUtility.InstantiatePrefab(frigatePrefab);
             var cc = carrier.GetComponent<CarrierController>();
+            AddPlayerFrigate(cc);
 
             var cruiser = (GameObject)PrefabUtility.InstantiatePrefab(p.enemyCruiser);
             var om = cruiser.GetComponent<OrbitMover>();

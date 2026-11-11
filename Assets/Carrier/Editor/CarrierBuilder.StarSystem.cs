@@ -400,6 +400,7 @@ namespace Carrier.EditorTools
             frigate.transform.SetPositionAndRotation(start, Quaternion.LookRotation(look));
             var cc = frigate.GetComponent<CarrierController>();
             cc.target = null;
+            AddPlayerFrigate(cc);
             var drive = frigate.AddComponent<WarpDrive>();
             drive.streakMaterial = streakMat;
             drive.hazeMaterial = hazeMat;

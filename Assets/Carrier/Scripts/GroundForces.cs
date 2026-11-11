@@ -22,7 +22,8 @@ namespace CarrierGame
             var g = area.gameObject.AddComponent<GroundGarrison>();
             g.surface = surface;
             int padShips = 0;
-            bool gunship = false;
+            bool gunship = false, seaBase = false;
+            float sea = surface.SeaLevel;
             foreach (var s in f.units) if (s.kind == UnitKind.PadGunship) gunship = true;
             foreach (var s in f.units)
             {
@@ -43,6 +44,16 @@ namespace CarrierGame
                         break;
                     case UnitKind.Tank:
                         go = Tank(kit, area, surface, ground, yaw);
+                        break;
+                    case UnitKind.SeaBase:
+                        // one to an area, on a sea floor deep enough to hide it
+                        if (seaBase || sea - ground.y < Stats.seaBase.minDepth) continue;
+                        go = SeaBase(kit, area, ground, yaw);
+                        seaBase = go != null;
+                        break;
+                    case UnitKind.Submarine:
+                        if (sea - ground.y < Stats.submarine.minDepth) continue;
+                        go = Submarine(kit, area, surface, ground, sea, yaw);
                         break;
                     case UnitKind.Patrol:
                         go = Flyer(kit.fighter, area, ground + Vector3.up * Stats.fighter.patrolHeight, yaw, "Patrol Fighter", false, 0f);
@@ -264,6 +275,87 @@ namespace CarrierGame
             v.turret = turret;
             Hull(go, kit, s);
             Identity(go, s, TargetInfo.Kind.Fighter);
+            go.SetActive(true);
+            return go;
+        }
+
+        /// <summary>A torpedo station on the sea floor: a dome on a footing, its tubes round it.</summary>
+        static GameObject SeaBase(SurfaceKit kit, Transform area, Vector3 ground, float yaw)
+        {
+            if (kit.torpedo == null) return null;
+            var s = Stats.seaBase;
+            var go = new GameObject("Sea Base");
+            go.SetActive(false);
+            go.transform.SetParent(area, false);
+            // (its middle is the dome's, what guns aim at: clear of the sea bed it stands on)
+            go.transform.SetPositionAndRotation(ground + Vector3.up * 12f, Quaternion.Euler(0f, yaw, 0f));
+            Part(PrimitiveType.Cylinder, go.transform, "Footing", new Vector3(0f, -9f, 0f), new Vector3(64f, 3f, 64f), kit.bunker);
+            Part(PrimitiveType.Sphere, go.transform, "Dome", new Vector3(0f, -5f, 0f), new Vector3(50f, 28f, 50f), kit.armor);
+            Part(PrimitiveType.Cylinder, go.transform, "Mast", new Vector3(0f, 10f, 0f), new Vector3(3f, 6f, 3f), kit.bunker);
+            for (int k = 0; k < 4; k++)
+            {
+                float a = k * 90f + 45f;
+                var dir = Quaternion.Euler(0f, a, 0f) * Vector3.forward;
+                Part(PrimitiveType.Cylinder, go.transform, "Torpedo tube", dir * 26f - Vector3.up * 5f, new Vector3(5f, 7f, 5f), kit.bunker,
+                     new Vector3(60f, a, 0f));
+            }
+            Light(go.transform, new Vector3(0f, 17f, 0f), kit.warning, 90f);
+            var col = go.AddComponent<BoxCollider>();
+            col.center = new Vector3(0f, -1f, 0f);
+            col.size = new Vector3(64f, 22f, 64f);
+            var w = go.AddComponent<EnemyWeapons>();
+            w.missilePrefab = kit.torpedo;
+            w.torpedoes = true;
+            w.missileRange = s.missileRange;
+            w.salvoInterval = s.salvoInterval;
+            w.salvoSize = s.salvoSize;
+            w.holdFire = 0f;
+            w.weaponsFree = false;
+            Hull(go, kit, s);
+            Identity(go, s, TargetInfo.Kind.Capital);
+            go.AddComponent<GroundUnit>().sonar = true;
+            go.SetActive(true);
+            return go;
+        }
+
+        /// <summary>An attack submarine, cruising between the sea floor and the surface.</summary>
+        static GameObject Submarine(SurfaceKit kit, Transform area, PlanetSurface surface, Vector3 ground, float sea, float yaw)
+        {
+            if (kit.torpedo == null) return null;
+            var s = Stats.submarine;
+            var go = new GameObject("Attack Submarine");
+            go.SetActive(false);
+            go.transform.SetParent(area, false);
+            float depth = Mathf.Max(s.keelClearance, (sea - ground.y) * 0.5f);
+            go.transform.SetPositionAndRotation(ground + Vector3.up * depth, Quaternion.Euler(0f, yaw, 0f));
+            Part(PrimitiveType.Capsule, go.transform, "Hull", Vector3.zero, new Vector3(9f, 30f, 9f), kit.bunker, new Vector3(90f, 0f, 0f));
+            Part(PrimitiveType.Cube, go.transform, "Sail", new Vector3(0f, 6.5f, 9f), new Vector3(3.6f, 7f, 11f), kit.bunker);
+            Part(PrimitiveType.Cube, go.transform, "Sail planes", new Vector3(0f, 7f, 10f), new Vector3(13f, 0.5f, 3f), kit.armor);
+            Part(PrimitiveType.Cube, go.transform, "Stern planes", new Vector3(0f, 0f, -25f), new Vector3(17f, 0.6f, 4f), kit.armor);
+            Part(PrimitiveType.Cube, go.transform, "Rudder", new Vector3(0f, 3.5f, -27f), new Vector3(0.6f, 7f, 4f), kit.armor);
+            Light(go.transform, new Vector3(0f, 10.5f, 10f), kit.warning, 40f);
+            var col = go.AddComponent<CapsuleCollider>();
+            col.direction = 2;
+            col.radius = 5f;
+            col.height = 60f;
+            var w = go.AddComponent<EnemyWeapons>();
+            w.missilePrefab = kit.torpedo;
+            w.torpedoes = true;
+            w.missileRange = s.missileRange;
+            w.salvoInterval = s.salvoInterval;
+            w.salvoSize = s.salvoSize;
+            w.holdFire = 0f;
+            w.weaponsFree = false;
+            var sub = go.AddComponent<Submarine>();
+            sub.surface = surface;
+            sub.cruiseSpeed = s.cruiseSpeed;
+            sub.attackSpeed = s.attackSpeed;
+            sub.turnRate = s.turnRate;
+            sub.standoff = s.standoff;
+            sub.keelClearance = s.keelClearance;
+            Hull(go, kit, s);
+            Identity(go, s, TargetInfo.Kind.Fighter);
+            go.AddComponent<GroundUnit>().sonar = true;
             go.SetActive(true);
             return go;
         }

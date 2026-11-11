@@ -51,6 +51,14 @@ namespace CarrierGame.Demo
                 offered = true;
                 return;
             }
+            // the start menu comes first, and offers this once it is done
+            if (StartMenu.WillOpen) return;
+            Offer();
+        }
+
+        /// <summary>Ask once a run whether to play with others (not in tests or reels).</summary>
+        public void Offer()
+        {
             if (!offered && !LaunchArgs.Automated && !Hud.ReelMode) Open();
             offered = true;
         }

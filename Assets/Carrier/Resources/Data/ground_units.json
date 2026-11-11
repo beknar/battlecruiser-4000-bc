@@ -21,6 +21,19 @@
         "breakOffDistance": 420, "extendDistance": 1300,
         "leashDistance": 11000, "loiterRadius": 700, "patrolHeight": 380, "climb": 240
     },
+    "seaBase": {
+        "name": "Sea Base", "shipClass": "Torpedo launch station", "weapons": "Torpedoes", "threat": "High",
+        "hull": 1600, "explosion": 1.4,
+        "missileRange": 3800, "salvoInterval": 9, "salvoSize": 3,
+        "minDepth": 50
+    },
+    "submarine": {
+        "name": "Attack Submarine", "shipClass": "Submarine", "weapons": "Torpedoes", "threat": "Medium",
+        "hull": 420, "explosion": 0.9,
+        "missileRange": 3000, "salvoInterval": 10, "salvoSize": 2,
+        "cruiseSpeed": 12, "attackSpeed": 26, "turnRate": 22, "standoff": 800,
+        "minDepth": 40, "keelClearance": 16
+    },
     "gunship": {
         "fireArc": 180,
         "cruiseSpeed": 100, "attackSpeed": 130, "turnRate": 18, "acceleration": 25,

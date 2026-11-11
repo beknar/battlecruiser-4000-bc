@@ -52,6 +52,10 @@ namespace CarrierGame
         public float elevatorAcceleration = 2f;
         [Tooltip("-1 nose down .. +1 nose up.")]
         [Range(-1f, 1f)] public float pitchInput = 0f;
+        [Tooltip("How fast the ship rolls about its length (degrees per second).")]
+        public float rollRate = 45f;
+        [Tooltip("-1 roll to the left .. +1 to the right.")]
+        [Range(-1f, 1f)] public float rollInput = 0f;
         [Tooltip("-1 thrust down .. +1 thrust up.")]
         [Range(-1f, 1f)] public float elevator = 0f;
         [Tooltip("Bring the nose back to level while there's no pitch input.")]

@@ -44,7 +44,22 @@ namespace CarrierGame
                         glow.intensity = 0.5f;
                         glow.shadows = LightShadows.None;
                     }
-                    else mat.SetColor("_BaseColor", w.waterColor);
+                    else
+                    {
+                        mat.SetColor("_BaseColor", w.waterColor);
+                        // its underside, for a ship (and camera) under the water: lighter, the
+                        // daylight coming through
+                        var under = new Material(m);
+                        owned.Add(under);
+                        under.SetColor("_BaseColor", Color.Lerp(w.waterColor, new Color(0.35f, 0.62f, 0.7f), 0.6f));
+                        var ugo = new GameObject("Sea (from below)", typeof(MeshFilter), typeof(MeshRenderer));
+                        ugo.transform.SetParent(sgo.transform, false);
+                        ugo.transform.localRotation = Quaternion.Euler(180f, 0f, 0f);
+                        ugo.GetComponent<MeshFilter>().sharedMesh = plane;
+                        var ur = ugo.GetComponent<MeshRenderer>();
+                        ur.sharedMaterial = under;
+                        ur.shadowCastingMode = ShadowCastingMode.Off;
+                    }
                 }
             }
             // the ground beyond the built areas, out to the horizon

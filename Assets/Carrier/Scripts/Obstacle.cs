@@ -52,7 +52,7 @@ namespace CarrierGame
 
         /// <summary>Is the straight line from a to b blocked by an asteroid or wreck?</summary>
         public static bool Blocked(Vector3 a, Vector3 b) =>
-            Active && Physics.Linecast(a, b, Mask, QueryTriggerInteraction.Ignore);
+            Sea.Across(a, b) || (Active && Physics.Linecast(a, b, Mask, QueryTriggerInteraction.Ignore));
 
         /// <summary>Can a see b (nothing solid in between)?</summary>
         public static bool Visible(Vector3 a, Vector3 b) => !Blocked(a, b);

@@ -32,17 +32,27 @@ namespace CarrierGame.Demo
                 dock = Docking.Docked,
                 surf = landing != null && landing.Current != PlanetLanding.State.InSpace && landing.Body != null ? landing.Body.displayName : "",
                 cap = Captain.Index,
+                fr = PlayerFrigate.Flying,
             });
         }
 
-        RemotePlayer Remote(int id)
+        /// <summary>The ship showing another player, made the first time they are heard from: their
+        /// frigate (from the roster, or a copy of mine if theirs is unknown, as from an older
+        /// game), with its controls and weapons taken out. Made again if they change frigates.</summary>
+        RemotePlayer Remote(int id, string frigate = null)
         {
-            if (remotes.TryGetValue(id, out var r) && r != null) return r;
+            if (remotes.TryGetValue(id, out var r) && r != null)
+            {
+                if (string.IsNullOrEmpty(frigate) || string.Equals(r.Frigate, frigate, StringComparison.OrdinalIgnoreCase)) return r;
+                RemoveRemote(id);
+            }
             if (me == null) return null;
-            // a copy of my own ship, with its controls and weapons taken out
+            var roster = FrigateRoster.Get();
+            var entry = roster != null ? roster.Find(frigate) : null;
+            var template = entry != null && entry.prefab != null ? entry.prefab : me.gameObject;
             var holder = new GameObject("co-op ship (being made)");
             holder.SetActive(false);
-            var go = Instantiate(me.gameObject, holder.transform);
+            var go = Instantiate(template, holder.transform);
             for (int pass = 0; pass < 4; pass++)
                 foreach (var b in go.GetComponentsInChildren<MonoBehaviour>(true))
                 {
@@ -55,11 +65,13 @@ namespace CarrierGame.Demo
             foreach (var l in go.GetComponentsInChildren<AudioListener>(true)) DestroyImmediate(l);
             foreach (var c in go.GetComponentsInChildren<Camera>(true)) DestroyImmediate(c.gameObject);
             string name = Client.NameOf(id);
-            go.name = $"{name}'s {me.shipName.ToLower()}";
+            var shipName = template.TryGetComponent(out CarrierController tcc) ? tcc.shipName : me.shipName;
+            go.name = $"{name}'s {shipName.ToLower()}";
             go.transform.SetParent(null, false);
             Destroy(holder);
             r = go.AddComponent<RemotePlayer>();
             r.Init(id, name);
+            r.Frigate = entry != null ? entry.id : PlayerFrigate.Flying;
             remotes[id] = r;
             remoteByRoot[go.transform] = r;
             PlayerShips.Add(go.transform);

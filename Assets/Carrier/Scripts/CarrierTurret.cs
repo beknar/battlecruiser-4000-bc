@@ -29,6 +29,19 @@ namespace CarrierGame
         public float maxPitch = 85f;
         [Tooltip("How far the turret may turn either side of its rest direction (180 = all round).")]
         public float yawLimit = 150f;
+        [Tooltip("Turn from yawMin to yawMax degrees from rest (negative: to its left) instead of yawLimit either way, and " +
+                 "only within that arc (never the short way round through the rest): a turret on a ship's flank, which mustn't " +
+                 "swing in across its own hull.")]
+        public bool unevenArc = false;
+        public float yawMin = -150f, yawMax = 150f;
+
+        float MinYaw => unevenArc ? yawMin : -yawLimit;
+        float MaxYaw => unevenArc ? yawMax : yawLimit;
+
+        /// <summary>From one traverse angle toward another: within an uneven arc it stays inside it;
+        /// otherwise the shorter way round.</summary>
+        float TurnToward(float from, float to, float step) =>
+            unevenArc ? Mathf.MoveTowards(from, to, step) : Mathf.MoveTowardsAngle(from, to, step);
 
         [Header("Ball mount")]
         [Tooltip("Aim freely within a cone around the rest direction instead of separate yaw and pitch joints.")]
@@ -142,7 +155,10 @@ namespace CarrierGame
                 Vector3 inParent = frame ? frame.InverseTransformPoint(worldPos) : worldPos;
                 Vector3 local = Quaternion.Inverse(yawRest) * (inParent - yaw.localPosition);
                 float yawA = Mathf.Atan2(local.x, local.z) * Mathf.Rad2Deg;
-                if (Mathf.Abs(yawA) > yawLimit) return false;
+                // (a turret at the end of an uneven arc still bears on a target just past it, within
+                // its fire cone: a flank turret that can't turn inboard can still hit a ship dead ahead)
+                float slack = unevenArc ? fireCone : 0f;
+                if (yawA < MinYaw - slack || yawA > MaxYaw + slack) return false;
                 if (pitch != null)
                 {
                     float pitchA = Mathf.Atan2(local.y, new Vector2(local.x, local.z).magnitude) * Mathf.Rad2Deg;
@@ -184,7 +200,7 @@ namespace CarrierGame
                 yaw.localRotation = Quaternion.RotateTowards(yaw.localRotation, yawRest, yawSpeed * Time.deltaTime);
                 return;
             }
-            yawAngle = Mathf.MoveTowardsAngle(yawAngle, 0f, yawSpeed * Time.deltaTime);
+            yawAngle = TurnToward(yawAngle, 0f, yawSpeed * Time.deltaTime);
             yaw.localRotation = yawRest * Quaternion.AngleAxis(yawAngle, Vector3.up);
             if (pitch == null) return;
             pitchAngle = Mathf.MoveTowards(pitchAngle, 0f, pitchSpeed * Time.deltaTime);
@@ -211,8 +227,8 @@ namespace CarrierGame
 
             Vector3 inParent = frame ? frame.InverseTransformPoint(worldPos) : worldPos;
             Vector3 local = Quaternion.Inverse(yawRest) * (inParent - yaw.localPosition);
-            float wantYaw = Mathf.Clamp(Mathf.Atan2(local.x, local.z) * Mathf.Rad2Deg, -yawLimit, yawLimit);
-            yawAngle = Mathf.MoveTowardsAngle(yawAngle, wantYaw, yawSpeed * Time.deltaTime);
+            float wantYaw = Mathf.Clamp(Mathf.Atan2(local.x, local.z) * Mathf.Rad2Deg, MinYaw, MaxYaw);
+            yawAngle = TurnToward(yawAngle, wantYaw, yawSpeed * Time.deltaTime);
             yaw.localRotation = yawRest * Quaternion.AngleAxis(yawAngle, Vector3.up);
 
             if (pitch != null)

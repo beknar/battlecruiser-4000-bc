@@ -30,13 +30,17 @@ namespace CarrierGame
         /// <summary>How far it chases from home, how wide it circles on patrol, how high it
         /// patrols, and how fast it climbs off its pad.</summary>
         public float leashDistance, loiterRadius, patrolHeight, climb;
+
+        // under the sea (sea bases and submarines): the least depth of water it is built in, and a
+        // submarine's speed and room under its keel
+        public float minDepth, keelClearance;
     }
 
     /// <summary>Every kind of ground unit's numbers (Resources/Data/ground_units.json).</summary>
     [Serializable]
     public class GroundUnitTable
     {
-        public GroundUnitStats battery, missileSite, tank, fighter, gunship;
+        public GroundUnitStats battery, missileSite, tank, fighter, gunship, seaBase, submarine;
 
         public const string Resource = "Data/ground_units";
         static GroundUnitTable loaded;

@@ -138,7 +138,24 @@ namespace CarrierGame.Demo
             }
         }
 
+        /// <summary>The console's size on screen against its full layout: 0.92 each way, 15% less
+        /// of the screen, leaving more of the view. It shrinks toward the bottom-left corner.</summary>
+        public const float Scale = 0.92f;
+        Rect drawn;
+
         void OnGUI()
+        {
+            var old = GUI.matrix;
+            drawn = UnityEngine.Rect.zero;
+            GUIUtility.ScaleAroundPivot(new Vector2(Scale, Scale), new Vector2(0f, Screen.height));
+            try { Draw(); }
+            finally { GUI.matrix = old; }
+            // where it is on screen, for the panels and messages that keep clear of it
+            if (drawn.width > 0f)
+                Rect = new Rect(drawn.x * Scale, Screen.height - (Screen.height - drawn.y) * Scale, drawn.width * Scale, drawn.height * Scale);
+        }
+
+        void Draw()
         {
             var cc = demo != null ? demo.carrier : null;
             if (cc == null) return;
@@ -179,7 +196,7 @@ namespace CarrierGame.Demo
             float h = Mathf.Max(portrait + 26f * s, colH) + pad * 2f + commsH;
             float w = pad * 3f + portrait + colW;
             var panel = new Rect(pad, Screen.height - h - pad, w, h);
-            Rect = panel;
+            drawn = panel;
             Hud.Panel(panel);
             Color edge = level == Red ? (flash ? Red : new Color(0.6f, 0.15f, 0.12f)) : level == Amber ? Amber : new Color(0.35f, 0.6f, 0.9f);
             Hud.Fill(new Rect(panel.x, panel.y, panel.width, Mathf.Max(1f, 2f * s)), edge);
@@ -341,8 +358,10 @@ namespace CarrierGame.Demo
             lines.Clear();
             string dim = dimHex ??= "#" + ColorUtility.ToHtmlStringRGB(Dim);
             // attitude: pitch, climb and the elevator thrusters
-            lines.Add($"Pitch {cc.Pitch:+0;-0;0}°   climb {cc.ClimbRate:+0;-0;0} m/s" +
+            lines.Add($"Pitch {cc.Pitch:+0;-0;0}°   " + (Mathf.Abs(cc.Roll) >= 0.5f ? $"roll {cc.Roll:+0;-0;0}°   " : "") + $"climb {cc.ClimbRate:+0;-0;0} m/s" +
                       (Mathf.Abs(cc.LiftSpeed) > 0.5f ? $"   <color=#9ad0ff>elevators {(cc.LiftSpeed > 0 ? "up" : "down")}</color>" : ""));
+            // afloat, or how deep under the water
+            if (Seafaring.Instance != null && Seafaring.Instance.Status != null) lines.Add(Seafaring.Instance.Status);
             // why the warp drive is locked
             if (warp != null && warp.Current == WarpDrive.State.Ready)
             {

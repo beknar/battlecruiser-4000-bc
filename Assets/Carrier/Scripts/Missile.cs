@@ -4,7 +4,9 @@ namespace CarrierGame
 {
     /// <summary>
     /// A guided missile: boosts straight out of its launch cell, then accelerates and steers
-    /// toward its target, exploding on contact or when it runs out of fuel.
+    /// toward its target, exploding on contact or when it runs out of fuel. A torpedo
+    /// (`underwater`) is a slow one that keeps under the sea's surface: it can reach a ship in the
+    /// water, or one afloat (it runs into the hull below the waterline), but nothing above.
     /// </summary>
     public class Missile : MonoBehaviour
     {
@@ -18,6 +20,8 @@ namespace CarrierGame
         public float proximity = 25f;
         public float damage = 250f;
         public Explosion explosion;
+        [Tooltip("A torpedo: it stays under the sea's surface (and goes off if there is no sea).")]
+        public bool underwater;
         [HideInInspector] public Vector3 inheritedVelocity;
         /// <summary>The ship that launched it (for co-op: whose hit it is).</summary>
         [System.NonSerialized] public Transform owner;
@@ -70,6 +74,13 @@ namespace CarrierGame
                 return;
             }
             transform.position += step;
+            if (underwater)
+            {
+                // a torpedo runs just under the surface at most
+                if (!Sea.Here) { Detonate(); return; }
+                float top = Sea.Level - 1.5f;
+                if (transform.position.y > top) transform.position = new Vector3(transform.position.x, top, transform.position.z);
+            }
             inheritedVelocity = Vector3.MoveTowards(inheritedVelocity, Vector3.zero, 50f * dt);
             if (age > lifetime) Detonate();
         }
@@ -83,6 +94,8 @@ namespace CarrierGame
                 Health.Source = null;
             }
             if (explosion != null) Pool.Take(explosion, transform.position, Quaternion.identity);
+            // (a torpedo's bubbles and wake stay behind, fading)
+            if (underwater && TryGetComponent(out TorpedoWake wake)) wake.Leave();
             Destroy(gameObject);
         }
 

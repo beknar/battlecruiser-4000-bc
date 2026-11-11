@@ -21,6 +21,9 @@ namespace CarrierGame
 
         [Header("Missiles")]
         public Missile missilePrefab;
+        [Tooltip("The missiles are torpedoes (launched under water): fired only at a ship in the sea or afloat on it, " +
+                 "which the surface doesn't hide from them.")]
+        public bool torpedoes;
         public float missileRange = 4500f;
         public float salvoInterval = 14f;
         public int salvoSize = 4;
@@ -111,8 +114,15 @@ namespace CarrierGame
             }
             float dist = Vector3.Distance(transform.position, target.position);
             float now = Time.time;
-            // nothing to shoot at behind a rock: hold every weapon until it comes back into view
-            HasLineOfSight = !Cover.Blocked(transform.position, target.position);
+            // nothing to shoot at behind a rock: hold every weapon until it comes back into view (a
+            // torpedo looks along the water to the target's keel; it can't reach a ship in the air)
+            if (torpedoes)
+            {
+                if (!Sea.Here || target.position.y > Sea.Level + 20f) return;
+                Vector3 keel = new Vector3(target.position.x, Mathf.Min(target.position.y, Sea.Level - 2f), target.position.z);
+                HasLineOfSight = !Cover.Blocked(transform.position, keel);
+            }
+            else HasLineOfSight = !Cover.Blocked(transform.position, target.position);
             if (!HasLineOfSight)
             {
                 if (now >= nextBurst && dist < gunRange) { HeldForCover++; nextBurst = now + 0.5f; }
@@ -189,7 +199,12 @@ namespace CarrierGame
             for (int i = 0; i < salvoSize; i++)
             {
                 if (target == null || (health != null && health.Dead) || !weaponsFree) yield break;
-                Vector3 up = (transform.up + Random.insideUnitSphere * 0.4f).normalized;
+                // a missile goes up out of its cell; a torpedo level, out toward the target
+                Vector3 toward = target.position - transform.position;
+                toward.y = 0f;
+                Vector3 up = torpedoes && toward.sqrMagnitude > 1f
+                    ? (toward.normalized + Random.insideUnitSphere * 0.15f - Vector3.up * 0.05f).normalized
+                    : (transform.up + Random.insideUnitSphere * 0.4f).normalized;
                 var m = Instantiate(missilePrefab, Muzzle(up), Quaternion.LookRotation(up));
                 m.owner = transform;
                 m.target = target;

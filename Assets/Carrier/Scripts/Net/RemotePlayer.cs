@@ -14,6 +14,8 @@ namespace CarrierGame.Demo
     {
         public int Id { get; private set; }
         public string Name { get; private set; } = "";
+        /// <summary>Which frigate they fly (FrigateRoster id).</summary>
+        public string Frigate { get; set; } = "";
         public float Shield { get; private set; } = 1f;
         public float Hull { get; private set; } = 1f;
         public bool Dead { get; private set; }

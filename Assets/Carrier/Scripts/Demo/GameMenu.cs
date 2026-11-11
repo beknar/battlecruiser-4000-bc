@@ -14,17 +14,17 @@ namespace CarrierGame.Demo
     /// </summary>
     public class GameMenu : MonoBehaviour
     {
-        /// <summary>The pause menu is up, or the co-op panel (which also takes the keys and
-        /// mouse): the game itself takes no input.</summary>
-        public static bool IsOpen => open || InputFocus.Has(InputFocus.Panel.CoopPanel);
+        /// <summary>The pause menu is up, or the co-op panel or the start menu (which also take
+        /// the keys and mouse): the game itself takes no input.</summary>
+        public static bool IsOpen => open || InputFocus.Has(InputFocus.Panel.CoopPanel) || InputFocus.Has(InputFocus.Panel.StartMenu);
         static bool open => InputFocus.Has(InputFocus.Panel.PauseMenu);
         bool paused;
         int openedFrame = -10;
         /// <summary>Closed this frame or the last (so the key that closed it isn't also read by the game).</summary>
-        public static bool JustClosed => InputFocus.JustReleased(InputFocus.Panel.PauseMenu);
+        public static bool JustClosed => InputFocus.JustReleased(InputFocus.Panel.PauseMenu) || InputFocus.JustReleased(InputFocus.Panel.StartMenu);
 
-        enum Item { Resume, Restart, Sound, Captain, Coop, Quit }
-        static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Captain, Item.Coop, Item.Quit };
+        enum Item { Resume, Restart, Sound, Captain, Coop, Ship, Quit }
+        static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Captain, Item.Coop, Item.Ship, Item.Quit };
 
         int selected;
         Item? confirming;
@@ -78,6 +78,7 @@ namespace CarrierGame.Demo
                 case Item.Sound: return SoundFX.Muted ? "Sound: off" : "Sound: on";
                 case Item.Captain: return $"Captain:  <   {Demo.Captain.Current.name}   >";
                 case Item.Coop: return CoopClient.Active ? $"Co-op: {CoopClient.Instance.Players.Count} playing" : "Co-op: join a game";
+                case Item.Ship: return $"Ship: {ShipName()}";
                 default: return sure ? "Quit: press again to confirm" : "Quit";
             }
         }
@@ -103,14 +104,30 @@ namespace CarrierGame.Demo
                     var coop = FindAnyObjectByType<CoopMenu>();
                     if (coop != null) coop.Open();
                     break;
+                case Item.Ship:
+                    Close();
+                    var start = FindAnyObjectByType<StartMenu>();
+                    if (start != null) start.Open();
+                    break;
                 case Item.Restart: Restart(); break;
                 case Item.Quit: Quit(); break;
             }
         }
 
-        public void Restart()
+        static string ShipName()
         {
-            Close();
+            var roster = FrigateRoster.Get();
+            var e = roster != null ? roster.Find(PlayerFrigate.Flying) : null;
+            return e != null ? e.displayName : "frigate";
+        }
+
+        public void Restart() => ReloadLevel();
+
+        /// <summary>Start the level again from the beginning.</summary>
+        public static void ReloadLevel()
+        {
+            var menu = FindAnyObjectByType<GameMenu>();
+            if (menu != null) menu.Close();   // (and the game unpaused)
             SoundFX.LevelRestart();
             SurfaceVeins.Forget();   // the rocks come back full with the scene; the veins too
             // free what this run left lying about before the level is opened again (the old

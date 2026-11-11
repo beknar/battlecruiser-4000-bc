@@ -96,8 +96,10 @@ namespace Carrier.EditorTools
             WarpPoint W(string name) => sys.GetComponentsInChildren<WarpPoint>(true).First(w => w.displayName == name);
             var orbits = new Dictionary<string, Orbit>();
 
-            // the planets round the star (each frame carries the planet, its bases and launchers)
-            foreach (var n in new[] { "Cinder", "Ochre", "Thalassa", "Jovara", "Glacis" })
+            // the planets round the star (each frame carries the planet, its bases and launchers),
+            // and the moons round their planets: all of them in Data/star_system.json
+            var data = StarSystemData.Load();
+            foreach (var n in data.planets.Select(p => p.name))
             {
                 var planet = T(n);
                 var w = planet.GetComponent<WarpPoint>();
@@ -105,8 +107,7 @@ namespace Carrier.EditorTools
                 o.lagrangeOnMap = n == "Thalassa" || n == "Jovara";
                 orbits[n] = o;
             }
-            // the moons round their planets
-            foreach (var (n, planet) in new[] { ("Selene", "Thalassa"), ("Mnemos", "Thalassa"), ("Brontes", "Jovara"), ("Arges", "Jovara"), ("Steropes", "Jovara"), ("Pyrois", "Jovara") })
+            foreach (var (n, planet) in data.moons.Select(m => (m.name, m.planet)))
             {
                 var moon = W(n).transform;
                 orbits[n] = Frame(n, sys, orbits[planet], moon.position, MassRatio[n], W(n).arrivalDistance * 1.4f, new[] { moon });

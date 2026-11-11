@@ -1,0 +1,63 @@
+{
+    "note": "What convert_frigates.py needs to know about each new frigate model (the recoloured copies in ai models/retextured, made by recolour_frigate.py). Positions are in the GLB's coordinates after Blender's import: bow at -X, +Z up, the hull on z = 0, 1 unit long; boxes are [x0, x1, y0, y1, z0, z1]. A turret is the parts of the model inside its boxes, cut out so they can turn: its barrels (loose parts whose middle is in the barrels box) elevate, the rest (the housing) traverses. A housing_mode of faces takes every face in the box (not whole loose parts): for a housing joined to its twin across the hull. Read off grid_glb.py, grid_end.py and islands_render.py renders.",
+    "frigates": [
+        {
+            "id": "Lancer",
+            "source": "retextured/frigate1.glb",
+            "recolour": "--method scheme --split 0.95,1.1",
+            "length": 170,
+            "turrets": [
+                { "name": "Port", "facing": "-X", "up": "+Z", "pivot": [-0.0875, -0.128, 0.12],
+                  "barrels": [-0.235, -0.115, -0.137, -0.108, 0.115, 0.158],
+                  "housing": [-0.125, -0.048, -0.150, -0.092, 0.088, 0.172], "housing_mode": "faces" },
+                { "name": "Starboard", "facing": "-X", "up": "+Z", "pivot": [-0.0875, 0.128, 0.12],
+                  "barrels": [-0.235, -0.115, 0.108, 0.137, 0.115, 0.158],
+                  "housing": [-0.125, -0.048, 0.092, 0.150, 0.088, 0.172], "housing_mode": "faces" }
+            ],
+            "engines": [
+                { "pos": [0.47, 0.0, 0.182], "r": 0.045 },
+                { "pos": [0.455, -0.142, 0.174], "r": 0.03 },
+                { "pos": [0.455, 0.142, 0.174], "r": 0.03 },
+                { "pos": [0.455, -0.142, 0.108], "r": 0.028 },
+                { "pos": [0.455, 0.142, 0.108], "r": 0.028 }
+            ],
+            "ciws": [[0.14, -0.086], [0.14, 0.086]]
+        },
+        {
+            "id": "Warden",
+            "source": "retextured/frigate 2.glb",
+            "recolour": "--method scheme --split 0.95,1.1",
+            "length": 200,
+            "turrets": [
+                { "name": "Forward", "facing": "-X", "up": "+Z",
+                  "housing": [-0.135, -0.060, -0.030, 0.030, 0.160, 0.200] },
+                { "name": "Keel", "facing": "-X", "up": "-Z",
+                  "housing": [-0.135, -0.060, -0.030, 0.030, 0.015, 0.055] },
+                { "name": "Aft", "facing": "+X", "up": "+Z",
+                  "housing": [0.135, 0.225, -0.050, 0.050, 0.178, 0.212] }
+            ],
+            "engines": [
+                { "pos": [0.50, 0.0, 0.105], "r": 0.026 }
+            ],
+            "ciws": [[0.30, -0.035], [0.30, 0.035], [-0.25, -0.03], [-0.25, 0.03]]
+        },
+        {
+            "id": "Talon",
+            "source": "retextured/frigate3.glb",
+            "recolour": "--method scheme-dark --split 0.85,1.05",
+            "length": 175,
+            "turrets": [
+                { "name": "Port", "facing": "-X", "up": "+Z", "pivot": [0.132, -0.106, 0.159],
+                  "barrels": [-0.035, 0.078, -0.170, -0.100, 0.155, 0.188],
+                  "housing": [0.060, 0.185, -0.180, -0.090, 0.145, 0.205] },
+                { "name": "Starboard", "facing": "-X", "up": "+Z", "pivot": [0.132, 0.106, 0.159],
+                  "barrels": [-0.035, 0.078, 0.100, 0.170, 0.155, 0.188],
+                  "housing": [0.060, 0.185, 0.090, 0.180, 0.145, 0.205] }
+            ],
+            "engines": [
+                { "pos": [0.46, 0.0, 0.158], "r": 0.04 }
+            ],
+            "ciws": [[0.27, 0.0]]
+        }
+    ]
+}

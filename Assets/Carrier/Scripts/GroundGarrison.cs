@@ -60,13 +60,8 @@ namespace CarrierGame
             {
                 if (!u.Alive) continue;
                 if (u.WasHit) return true;
-                Vector3 e = u.Eye;
                 foreach (var ship in PlayerShips.All)
-                {
-                    if (!PlayerShips.Present(ship)) continue;
-                    Vector3 pp = ship.position;
-                    if ((e - pp).sqrMagnitude < spotRange * spotRange && Cover.Visible(e, pp)) return true;
-                }
+                    if (PlayerShips.Present(ship) && u.Senses(ship.position, spotRange)) return true;
             }
             return false;
         }

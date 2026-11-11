@@ -56,6 +56,10 @@ namespace CarrierGame.Demo
             t.orbitOnly = LaunchArgs.Switch("orbittest");
             // -hudtest (or ?hudtest): only the ship's console and the captain
             t.hudOnly = LaunchArgs.Switch("hudtest");
+            // -shiptest (or ?shiptest), with -frigate <id> (?frigate=<id>): only the frigate
+            t.shipOnly = LaunchArgs.Switch("shiptest");
+            // -watertest (or ?watertest): only the sea (Pelagia: afloat, under, out, the sea forces)
+            t.waterOnly = LaunchArgs.Switch("watertest");
             // -cooptest (or ?cooptest), with -connect address:port (?server=...&connect): co-op with
             // the scripted second player (Tools/CoopTest/bot.py); -coopquick (?coopquick) skips the
             // part at Corsair Haven
@@ -146,6 +150,20 @@ namespace CarrierGame.Demo
             if (coopOnly)
             {
                 yield return CoopTest(kb, coopQuick);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
+            if (waterOnly)
+            {
+                yield return WaterTest(kb);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
+            if (shipOnly)
+            {
+                yield return ShipTest(kb);
                 Log("done");
                 if (!web) Application.Quit();
                 yield break;

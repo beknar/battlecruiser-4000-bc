@@ -24,6 +24,18 @@ namespace CarrierGame
         /// <summary>Where it looks out from (above its own hull, so the ground it stands on doesn't block the view).</summary>
         public Vector3 Eye => transform.position + Vector3.up * 12f;
 
+        [Tooltip("Under the sea: it hears any ship in the water or afloat on it (the surface hides them from sight).")]
+        public bool sonar;
+
+        /// <summary>Does it know a ship is there: in range and in sight, or (with sonar) in range in
+        /// the water or on it.</summary>
+        public bool Senses(Vector3 ship, float range)
+        {
+            if ((Eye - ship).sqrMagnitude >= range * range) return false;
+            if (sonar && Sea.Here && ship.y < Sea.Level + 25f) return true;
+            return Cover.Visible(Eye, ship);
+        }
+
         void Start()
         {
             health = GetComponent<Health>();

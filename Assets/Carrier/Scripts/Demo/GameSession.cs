@@ -4,7 +4,7 @@ namespace CarrierGame.Demo
 {
     /// <summary>
     /// What a level needs around the player's controls: the HUD, co-op (idle until connected)
-    /// and the panel to connect with, the pause menu, the frame rate, the window, and the
+    /// and the panel to connect with, the start menu (frigate and captain), the pause menu, the frame rate, the window, and the
     /// gamepad (set up, and its rumble stopped whenever the game loses focus).
     /// </summary>
     public class GameSession : MonoBehaviour
@@ -16,6 +16,7 @@ namespace CarrierGame.Demo
             var hud = ShipHud.Build(demo);
             go.AddComponent<CoopWorld>().demo = demo;
             go.AddComponent<CoopMenu>().demo = demo;
+            go.AddComponent<StartMenu>();
             go.AddComponent<GameSession>();
             return hud;
         }

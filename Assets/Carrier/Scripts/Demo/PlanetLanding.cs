@@ -233,7 +233,15 @@ namespace CarrierGame.Demo
                 terrain = Surface.TerrainAt(SiteCenter), seaLevel = Surface.SeaLevel, solidGround = w.solid,
                 floor = w.solid ? SiteCenter.y + SurfaceWorld.BaseLevel : Surface.CloudFloor,
                 description = w.DescribeAt(lat), look = w.look,
+                water = w.kind == SurfaceKind.Ocean && !float.IsNegativeInfinity(Surface.SeaLevel),
             };
+            if (Site.water)
+            {
+                var surface = Surface;
+                Sea.Set(() => surface != null ? surface.SeaLevel : float.NegativeInfinity);
+                if (!TryGetComponent(out Seafaring sf)) sf = gameObject.AddComponent<Seafaring>();
+                sf.Begin(carrier, kit);
+            }
             var outpost = pad != null ? Surface.NearestOutpost(SiteCenter, out float od) : null;
             Site.hasOutpost = outpost != null;
             Site.outpost = outpost;
@@ -289,6 +297,9 @@ namespace CarrierGame.Demo
         /// destroyed down there and has already come back at its respawn point).</summary>
         void BackToSpace(bool moveShip)
         {
+            // (the water's own look first, so the space look goes back over it)
+            if (TryGetComponent(out Seafaring sf)) sf.End();
+            Sea.Clear();
             RestoreLook();
             CombatPilot.FloorAt = null;
             bool hadSite = Site != null;
@@ -575,9 +586,12 @@ namespace CarrierGame.Demo
         float FloorUnder(Vector3 p, out bool pad, out bool liquid)
         {
             pad = false;
-            float best = Mathf.Max(Site.seaLevel, Site.floor);
+            // (on a water world the ship goes into the sea: its floor is the sea bed; Seafaring
+            // floats it on the surface)
+            float sea = Site.water ? float.NegativeInfinity : Site.seaLevel;
+            float best = Mathf.Max(sea, Site.floor);
             float ground = Site.solidGround ? Site.GroundAt(p) : float.NegativeInfinity;
-            liquid = Site.seaLevel > ground && Site.seaLevel >= Site.floor;
+            liquid = sea > ground && sea >= Site.floor;
             if (ground > best) best = ground;
             // from just above the hull, so a rock or ledge overhead isn't taken for the floor
             int n = Physics.RaycastNonAlloc(p + Vector3.up * 25f, Vector3.down, Hits, 1400f, Cover.Mask, QueryTriggerInteraction.Ignore);
@@ -665,6 +679,16 @@ namespace CarrierGame.Demo
             var cam = Camera.main;
             if (cam == null) return;
             Vector3 c = cam.transform.position;
+            if (Site != null && Site.water && Surface != null)
+            {
+                // with the ship under water the camera goes under with it (and stays under, clear
+                // of the sea bed); otherwise it stays above the waves
+                float sea = Surface.SeaLevel, bed = Site.GroundAt(c) + 8f;
+                bool under = Sea.Depth(carrier.transform.position) > 6f;
+                float y = under ? Mathf.Clamp(c.y, bed, Mathf.Max(bed, sea - 3f)) : Mathf.Max(c.y, Mathf.Max(sea + 6f, Site.GroundAt(c) + 12f));
+                if (y != c.y) cam.transform.position = new Vector3(c.x, y, c.z);
+                return;
+            }
             float floor = Surface != null ? Surface.FloorAt(c) : Mathf.Max(Site.seaLevel, Site.floor);
             if (c.y < floor + 12f) cam.transform.position = new Vector3(c.x, floor + 12f, c.z);
         }

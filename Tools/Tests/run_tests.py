@@ -13,6 +13,8 @@ Stages, in order (--quick runs the ones marked *):
   serverproc * the co-op server program, end to end (Tools/CoopTest/server_test.py)
   autotest *   CarrierDemo and AsteroidAmbush -autotest, compared with their baselines
   hud *        Star System -systemtest -hudtest (the ship's console and the captain)
+  ships        -shiptest -frigate <id> for each frigate (put in, its weapons fire, the start menu)
+  water        -watertest: Pelagia's sea (afloat, under, out again, roll, the sea forces)
   coop *       Star System -systemtest -cooptest against the scripted bot (Tools/CoopTest/bot.py)
   web          the web build's co-op test in headless Chrome (Tools/WebTest/cooptest.sh)
   system       the full Star System self-test (warps, landing, mining, a battle)
@@ -50,17 +52,20 @@ WINDOW = ["-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", 
 WINDOWS = os.name == "nt"
 EXE = ".exe" if WINDOWS else ""
 
-STAGES = ["tools", "server", "unity", "build", "serverproc", "autotest", "hud", "coop",
+STAGES = ["tools", "server", "unity", "build", "serverproc", "autotest", "hud", "ships", "water", "coop",
           "web", "system", "land", "orbit", "station"]
 QUICK = ["tools", "server", "unity", "serverproc", "autotest", "hud", "coop"]
 # Star System self-tests: stage -> (extra arguments, time limit in seconds)
 SELFTESTS = {
     "hud": (["-hudtest"], 900),
+    "water": (["-watertest"], 900),
     "system": ([], 1500),
     "land": (["-landtest"], 900),
     "orbit": (["-orbittest"], 1800),
     "station": (["-stationtest"], 1800),
 }
+# the frigates a player can fly (Assets/Carrier/Data/frigates.json), each tested by the ships stage
+FRIGATES = ["Sentinel", "Lancer", "Warden", "Talon"]
 BUILD_METHODS = {"CarrierDemo": "Build", "AsteroidAmbush": "BuildAsteroids", "StarSystem": "BuildStarSystem",
                  "StarSystemWeb": "BuildStarSystemWeb"}
 # files a Unity build or batch run rewrites without changing them (reverted if they were clean before)
@@ -389,6 +394,12 @@ class Runner:
         lines = report.read_text(encoding="utf-8", errors="replace").splitlines() if report.exists() else []
         self.selftest_result(st, f"selftest_{stage}.txt", lines)
 
+    def ships(self, st):
+        """Each frigate in turn in the Star System (-shiptest -frigate <id>): one report each."""
+        for fid in FRIGATES:
+            say(f"   {fid}")
+            self.selftest(st, f"ship_{fid.lower()}", ["-shiptest", "-frigate", fid], 600)
+
     def coop(self, st):
         if not self.need_websockets(st):
             return
@@ -472,7 +483,8 @@ class Runner:
                     self.selftest(st, name, *SELFTESTS[name])
                 else:
                     {"tools": self.tools, "server": self.server_tests, "unity": self.unity_tests, "build": self.build,
-                     "serverproc": self.serverproc, "autotest": self.autotest, "coop": self.coop, "web": self.web}[name](st)
+                     "serverproc": self.serverproc, "autotest": self.autotest, "coop": self.coop, "web": self.web,
+                     "ships": self.ships}[name](st)
             except Exception as e:  # a broken stage mustn't stop the others
                 st.fail(f"{type(e).__name__}: {e}")
             st.seconds = time.time() - st.started

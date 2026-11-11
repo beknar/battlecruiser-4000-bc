@@ -367,7 +367,7 @@ namespace Carrier.EditorTools
 
             // hull points: when they run out the frigate comes apart and explodes, then respawns
             var health = root.AddComponent<Health>();
-            health.maxHealth = 6000f;
+            health.maxHealth = fs.hull;
             health.cannotDie = false;
             health.respawnDelay = 8f;
             health.deathEffect = p.explosion;
@@ -379,7 +379,7 @@ namespace Carrier.EditorTools
             LogDeckMap(root, hullCol);
             AddCiws(root, hullCol, p);
             AddMainGun(root, hullCol);
-            AddShield(root);
+            AddShield(root, LocalBounds(hull.transform));
             var miningLaser = AddMiningGear(root, hullCol);
 
             // the hull's solid shape moves to its own object (the guns check their line of fire
@@ -392,7 +392,7 @@ namespace Carrier.EditorTools
             var gun = root.GetComponentInChildren<MainBeam>();
             if (gun != null) fittings.Add(gun.transform);
             fittings.Add(miningLaser);
-            MakeBreakable(root, hull, "Frigate", 14, true, fittings.ToArray());
+            MakeBreakable(root, hull, fs.prefab, 14, true, fittings.ToArray());
             var br = root.GetComponent<ShipBreakup>();
             if (br != null)
             {
@@ -435,8 +435,9 @@ namespace Carrier.EditorTools
         {
             Vector3 best = new Vector3(x, 0f, z);
             rough = float.MaxValue;
-            foreach (float dx in new[] { 0f, 1f, 2f, 3f, 4f, -1f })
-            foreach (float dz in new[] { 0f, 2f, -2f, 4f, -4f, 6f, -6f })
+            // (further out last: the nearest flat spot wins, and only a hull without one near looks far)
+            foreach (float dx in new[] { 0f, 1f, 2f, 3f, 4f, -1f, 5f, 6f, -2f, -3f })
+            foreach (float dz in new[] { 0f, 2f, -2f, 4f, -4f, 6f, -6f, 8f, -8f, 10f, -10f })
             {
                 float px = x + Mathf.Sign(x) * dx, pz = z + dz;
                 var hs = new[]
@@ -454,18 +455,17 @@ namespace Carrier.EditorTools
                 }
                 if (rough <= flat) return best;
             }
+            // no flat spot near: seat it part way down the slope, not on the highest corner, so
+            // its base doesn't stand clear of the hull on the low side
+            best.y -= rough * 0.6f;
             return best;
         }
 
         static void AddCiws(GameObject root, MeshCollider hullCol, Prefabs p)
         {
             var node = Node("CIWS", root.transform).transform;
-            // two clusters, port and starboard of the conning tower, two mounts each
-            var spots = new[]
-            {
-                ("P1", new Vector2(-11f, -12f)), ("P2", new Vector2(-11f, -23f)),
-                ("S1", new Vector2(11f, -12f)), ("S2", new Vector2(11f, -23f)),
-            };
+            // the Sentinel: two clusters, port and starboard of the conning tower, two mounts each
+            var spots = CiwsSpots();
             var mounts = new List<CarrierTurret>();
             foreach (var (name, s) in spots)
             {
@@ -560,9 +560,9 @@ namespace Carrier.EditorTools
             var beam = node.AddComponent<MainBeam>();
             beam.muzzle = muzzle;
             beam.lens = lens;
-            beam.chargeTime = 10f;
+            beam.chargeTime = fs.beamCharge;
             beam.fireDuration = 2.5f;
-            beam.damagePerSecond = 1400f;
+            beam.damagePerSecond = fs.beamDamage;
             beam.range = 6000f;
             beam.radius = 4f;
             beam.aimAssist = 6f;
@@ -710,13 +710,13 @@ namespace Carrier.EditorTools
             return new ParticleSystem.MinMaxGradient(g);
         }
 
-        static void AddShield(GameObject root)
+        static void AddShield(GameObject root, Bounds hullBounds)
         {
             var src = OwnModel("ShieldHex");
             var mesh = src != null ? src.GetComponentInChildren<MeshFilter>()?.sharedMesh : null;
             if (mesh == null) { Log("shield mesh missing (Models/ShieldHex.fbx)"); return; }
             var go = Node("Shield", root.transform);
-            go.transform.localScale = new Vector3(55f, 55f, 108f);   // round the hull, turrets, flares and bow gun
+            go.transform.localScale = ShieldScale(hullBounds);   // round the hull, turrets, flares and bow gun
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var mr = go.AddComponent<MeshRenderer>();
             mr.sharedMaterial = Mats["Shield_Bubble"];
@@ -725,6 +725,8 @@ namespace Carrier.EditorTools
             go.AddComponent<MeshCollider>().sharedMesh = mesh;
             var shield = go.AddComponent<Shield>();
             shield.bubble = mr;
+            shield.capacity = fs.shield;
+            shield.rechargeRate = fs.shieldRecharge;
             Log($"shield bubble: {mesh.vertexCount} vertices, scale {go.transform.localScale}");
         }
 

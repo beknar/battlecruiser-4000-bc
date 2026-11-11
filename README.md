@@ -100,7 +100,33 @@ scenes cut through black.
 
 ## Features
 
-### The frigate
+### The frigates and the start menu
+
+There are four frigates to choose from. As each game starts, the start menu offers them, with a
+turning picture of each, bars comparing them, and the five captains. The game waits while the
+menu is up. Launching with a different frigate starts the level again with it. The menu shows once
+a run; the pause menu's **Ship** item brings it back. The choice is remembered for next time.
+
+| Frigate | Kind | Guns | CIWS | Hull / shield | Speed, turn |
+|---|---|---|---|---|---|
+| Sentinel (the starting frigate) | Gun frigate: all-rounder | 2 ball-mounted guns on its pods | 4 | 6000 / 6000 | 150 m/s, 20°/s |
+| Lancer | Fast attack frigate | 2 twin turrets, one on each flank | 2 | 4500 / 5000 | 190 m/s, 28°/s |
+| Warden | Heavy escort frigate | 3 twin turrets: forward, under the keel, aft | 4 | 8500 / 8000 | 120 m/s, 15°/s |
+| Talon | Strike frigate | 2 heavy twin turrets on its flanks; the strongest bow beam | 1 | 5500 / 5500 | 165 m/s, 22°/s |
+
+Every frigate has a bow main gun, at least one CIWS mount, the shield and the mining gear. The
+Lancer, Warden and Talon fight with the turrets modelled on them: each traverses on its own
+mount and elevates its barrels (the Warden's barrels are part of their housings, so its turrets
+traverse as a whole), firing from the barrels' muzzles. Their numbers are in
+`Assets/Carrier/Data/frigates.json`.
+
+The three new frigates started as AI-made models in another paint scheme (`ai models/frigate1.glb`,
+`frigate 2.glb`, `frigate3.glb`). They were repainted in the starting frigate's naval grey, slate
+and red (`Tools/Blender/recolour_frigate.py`, kept in `ai models/retextured`), and converted for
+the game with their turrets cut out of the hull (`Tools/Blender/convert_frigates.py`, from
+`Tools/Blender/frigates_spec.json`).
+
+### The Sentinel
 
 - **Handling.** Faster than a carrier and slower than fighters and drones: top speed 150 m/s,
   acceleration 30 m/s², turn rate 20°/s.
@@ -152,7 +178,8 @@ Enemy guns lead their target and have some spread. The enemies fly orbits around
 
 ### Interface and presentation
 
-- **The ship's console.** A console in the bottom-left corner shows the ship's state:
+- **The ship's console.** A console in the bottom-left corner (drawn at 92% size, so it takes
+  about 15% less of the screen) shows the ship's state:
   - **The captain.** An animated portrait of the ship's captain (see below).
   - **Alerts.** A strip that turns red and flashes when the ship is under fire, a missile is
     inbound, the shield is down or the hull is critical. It turns amber when enemies are near,
@@ -258,8 +285,9 @@ A separate build (`StarSystem.exe`, and a web version) set in the Kestrel system
 system to travel around.
 
 - **The system.**
-  - It contains the star Kestrel and five planets: volcanic Cinder, desert Ochre, ocean
-    Thalassa, the gas giant Jovara and icy Glacis.
+  - It contains the star Kestrel and six planets: volcanic Cinder, desert Ochre, ocean
+    Thalassa, Pelagia (the pirates' water world), the gas giant Jovara and icy Glacis. The
+    planets and moons are in `Assets/Carrier/Data/star_system.json`.
   - Six moons circle Thalassa and Jovara.
   - There are three asteroid fields: the Inner Belt, the Jovara Trojans and the Outer Drift.
   - Two comets are on long orbits: bright Comet Iskra close to the star, and faint Comet
@@ -421,6 +449,25 @@ system to travel around.
 
   Each turret tracks and fires on its own and breaks off when the ship comes apart. Capital
   ships hold a stand-off range and circle, and their shots don't hit each other.
+- **The sea.** On the ocean worlds (Thalassa and Pelagia) the frigate can go into the water.
+  - **Splashdown.** Coming down on the sea, the descent eases near the water and the ship
+    splashes down: spray is thrown up along the hull and a ring of foam spreads out round it.
+  - **Afloat.** It sails on the surface like a surface ship, at 60% of its top speed, riding
+    the swell with its nose level. It leaves a wake: churned water astern and bow waves rolling
+    out to either side, with spray off the bow when it goes fast. The elevator thrusters
+    pushing up (Space, RT) lift it off the water.
+  - **Under water.** Held pushing down (Ctrl, LT) for a moment afloat, it dives, with a splash
+    and the water boiling round the hull as it goes under. Under water it is slower (45%),
+    trails bubbles, and flies as in the air down to the sea bed. The view goes blue and close,
+    with the light dimmed. The surface hides it from anything above: only torpedoes reach it.
+  - **Up again.** Coming up gently it surfaces and floats. With the elevator thrusters
+    pushing up it bursts straight out of the water and flies on.
+  - **The sea forces.** Pelagia's pirates have torpedo bases on the sea floor, which find a
+    ship by sonar, and attack submarines, which patrol until their garrison is alerted, then
+    hunt the nearest player ship, in the water or afloat. Their torpedoes keep under the
+    surface, so they can't reach a ship in the air. A torpedo has no rocket flame: it trails
+    bubbles, and draws a line of foam on the surface when it runs shallow. Their numbers are in
+    `Assets/Carrier/Resources/Data/ground_units.json` (`seaBase`, `submarine`).
 - **Landing.** In orbit of a planet, moon or asteroid field, and out of combat, K (LB on the
   pad) takes the frigate down to the surface under where it was. Where people live it comes in
   near the nearest landing pad.
@@ -430,6 +477,7 @@ system to travel around.
   | Cinder (volcanic) | Basalt plains, cinder cones and rivers of lava under a red haze; the lava burns the hull |
   | Ochre (desert) | Dune seas between flat-topped mesas and salt pans, with blowing dust |
   | Thalassa (ocean) | Islands with beaches, grass and rocky hills in a deep sea; land and sea follow the planet's own map, and near the poles there is snow |
+  | Pelagia (ocean, hostile) | An archipelago in a deep sea, held by pirates: island batteries and missile sites, torpedo bases on the sea floor and attack submarines |
   | Jovara (gas giant) | The cloud tops, with gas-mining platforms riding above them |
   | Glacis (ice giant) | An ice sheet of pressure ridges, crevasses and ice spires under methane haze |
   | Moons | Grey, cratered and airless, with the parent planet in the sky |
@@ -483,13 +531,14 @@ system to travel around.
 |---|---|---|
 | Throttle / turn | W/S, A/D | Left stick |
 | Nose up / down | ↑ / ↓ | D-pad ↑ / ↓ |
-| Level off | L | A |
+| Level off (nose and roll) | L | A |
+| Roll left / right | Q / E (frigates without a hangar) | D-pad ← / → |
 | Elevator thrusters up / down | Space / Ctrl | RT / LT |
 | Fire side guns | F | RB |
 | Auto-fire on/off | G | L3 |
 | Charge main gun (again to cancel) | B | X |
 | Next target / stop targeting | T / X (or click a ship) | Y / B |
-| Orbit camera / zoom | Right-drag / mouse wheel | Right stick / D-pad ← → |
+| Orbit camera / zoom | Right-drag / mouse wheel | Right stick / Back + D-pad ← → |
 | Help / text size | H / + − | Back / Back + D-pad ↑↓ |
 | Sound on/off | N | (pause menu) |
 | Pause menu: resume, restart, sound, captain, quit | Esc or P | Start |
@@ -595,8 +644,9 @@ the web version with `?server=<address>:<port>&name=<name>&connect`.
 
 ### What is shared
 
-- **Ships.** Each game shows the other players' ships, smoothed, with their names. A ship
-  disappears while its player is in warp, on a planet or destroyed.
+- **Ships.** Each game shows the other players' ships, smoothed, with their names, each as the
+  frigate its player flies. A ship disappears while its player is in warp, on a planet or
+  destroyed.
 - **Enemies.** Each level has a host: the first player there. The host's game runs the enemies,
   and every other game shows copies that follow them. A hit on a copy goes to the host's game,
   which applies it, so a kill counts for everyone. Enemies go for whichever player is nearest,
@@ -707,7 +757,8 @@ The games run one at a time, in a 1280x720 window.
 - **Unit tests.**
   - The game (`Assets/Carrier/Tests/EditMode`): the co-op enemy scaling, the co-op messages
     and the server address, minerals and the cargo hold, Kepler orbits and the Lagrange points,
-    comet tails, noise, and the captain's portraits and lines.
+    comet tails, noise, the captain's portraits and lines, the data files, and the frigates
+    (every one with its modelled turrets, a CIWS mount or more and one main gun).
   - The server (`Server/CoopServer.Tests`): the allow-list, and reading and reloading the
     settings.
   - The run's own regression checker (`Tools/Tests/test_regression.py`).
@@ -747,7 +798,7 @@ The games run one at a time, in a 1280x720 window.
 | `build` | the builds (with `--build`) |
 | `serverproc` | the server program, end to end |
 | `autotest` | the Carrier Demo and Asteroid Ambush autotests |
-| `hud`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
+| `hud`, `ships`, `water`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
 | `web` | the web build's co-op test |
 
 `--quick` runs `tools`, `server`, `unity`, `serverproc`, `autotest`, `hud` and `coop`.
@@ -764,6 +815,9 @@ Each part can also be run alone:
 
 ## Command-line modes
 
+- `-frigate <id>` (or `?frigate=<id>` on the web), with any game: fly that frigate (Sentinel,
+  Lancer, Warden or Talon) without the start menu. The tests fly the Sentinel unless told
+  otherwise.
 - `CarrierDemo.exe -autotest <dir>`: runs the scripted self-test and writes a report and screenshots
   to `<dir>`. The test covers:
   - handling, attitude and elevators;
@@ -784,6 +838,18 @@ Each part can also be run alone:
     east and over both poles, checking the ground comes back the same, then taking off;
   - mining an asteroid, a comet and a vein on a planet (see `-minetest` below);
   - a capital ship battle, checking that both sides land hits.
+
+  Add `-shiptest -frigate <id>` (`?shiptest&frigate=<id>` on the web) to test only the frigate:
+  that the level put it in and pointed everything at it, that it has its turrets, a CIWS mount
+  or more and one main gun, that its guns fire on a target ahead, to each side, above and astern
+  (never off target or through the hull), that its main gun hits, and the start menu; with
+  pictures of the ship and the menu.
+
+  Add `-watertest` (or `?watertest` on the web) to test only the sea, at Pelagia: rolling and
+  levelling off, splashing down (with spray and foam), sailing (with a wake), diving (the water
+  churning), the underwater view and speed, the surface hiding the ship, surfacing, lifting off
+  the water and launching from under it, the sea bases and submarines, their torpedoes (no
+  flame, bubbles) and the ship's guns hitting a base under the water.
 
   Add `-landtest` (or `?landtest` on the web) to test only the landings, with screenshots, on
   every kind of world. On the hostile ones it also checks that the ground forces are there,
@@ -829,7 +895,9 @@ Each part can also be run alone:
   (60 s, 76 s for the ambush or about 215 s for the star system) at 30 fps as JPG frames plus a WAV
   soundtrack, then quits. Add `-features` to `StarSystem.exe -reel <dir>` for the feature reel
   (about 310 s: mining, combat, landing and mini-warps), `-orbits` for the orbits and stations
-  reel (about 210 s), or `-all` for everything in one reel. That includes the ship's console and
+  reel (about 210 s), `-frigates` for the start menu and the four frigates, `-sea` for the sea
+  reel (about 200 s: each frigate comes down from orbit onto Pelagia's sea, sails in on an island
+  base, dives on a torpedo base and launches out of the water), or `-all` for everything in one reel. That includes the ship's console and
   the captain. Add `-reelcoop <address>:<port>` to `-all` for its co-op scene: two scripted
   wingmen (`Tools/CoopTest/wingman.py <server url> <name> <right,up,forward>`, started first,
   named `Kestrel 2` and `Kestrel 3`) wait on that server and fly in formation with the frigate.

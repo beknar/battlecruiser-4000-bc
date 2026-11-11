@@ -48,6 +48,27 @@ namespace CarrierGame.Tests
         }
 
         [Test]
+        public void TheSeaForcesFitInTheWater()
+        {
+            var t = GroundUnitTable.Get();
+            foreach (var (kind, s) in new[] { ("sea base", t.seaBase), ("submarine", t.submarine) })
+            {
+                Assert.That(s, Is.Not.Null, kind);
+                Assert.That(s.hull, Is.GreaterThan(0f), kind);
+                Assert.That(s.name, Is.Not.Empty, kind);
+                Assert.That(s.missileRange, Is.GreaterThan(0f), kind + ": it has torpedoes");
+                Assert.That(s.salvoSize, Is.GreaterThan(0), kind);
+                Assert.That(s.salvoInterval, Is.GreaterThan(0f), kind);
+                Assert.That(s.minDepth, Is.GreaterThan(0f), kind + ": built only in deep enough water");
+            }
+            var sub = t.submarine;
+            Assert.That(sub.attackSpeed, Is.GreaterThanOrEqualTo(sub.cruiseSpeed).And.GreaterThan(0f));
+            Assert.That(sub.turnRate, Is.GreaterThan(0f));
+            Assert.That(sub.standoff, Is.GreaterThan(0f).And.LessThan(sub.missileRange), "it fires from its stand-off");
+            Assert.That(sub.keelClearance, Is.GreaterThan(0f).And.LessThan(sub.minDepth), "room under its keel in the shallowest water it is built in");
+        }
+
+        [Test]
         public void AGroundUnitLeavesOutWhatItHasntGot()
         {
             var t = GroundUnitTable.Parse("{ \"tank\": { \"hull\": 380, \"gunRange\": 3200 } }");
@@ -64,7 +85,7 @@ namespace CarrierGame.Tests
             var names = d.planets.Select(p => p.name).Concat(d.moons.Select(m => m.name)).Concat(d.fields.Select(f => f.name)).ToArray();
             Assert.That(names.Distinct().Count(), Is.EqualTo(names.Length), "every name once");
             // what the builder builds the rest of the level round
-            foreach (var n in new[] { "Cinder", "Ochre", "Thalassa", "Jovara", "Glacis", "Selene", "Brontes", "Inner Belt", "Jovara Trojans", "Outer Drift" })
+            foreach (var n in new[] { "Cinder", "Ochre", "Thalassa", "Pelagia", "Jovara", "Glacis", "Selene", "Brontes", "Inner Belt", "Jovara Trojans", "Outer Drift" })
                 Assert.That(names, Does.Contain(n));
         }
 

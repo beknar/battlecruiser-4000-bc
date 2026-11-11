@@ -45,7 +45,7 @@ namespace CarrierGame
                         go = Tank(kit, area, surface, ground, yaw);
                         break;
                     case UnitKind.Patrol:
-                        go = Flyer(kit.fighter, area, ground + Vector3.up * 380f, yaw, "Patrol Fighter", false, 0f);
+                        go = Flyer(kit.fighter, area, ground + Vector3.up * Stats.fighter.patrolHeight, yaw, "Patrol Fighter", false, 0f);
                         break;
                     case UnitKind.PadFighter:
                     case UnitKind.PadGunship:
@@ -135,6 +135,13 @@ namespace CarrierGame
             ti.kind = kind;
         }
 
+        /// <summary>The units' numbers (Resources/Data/ground_units.json).</summary>
+        static GroundUnitTable Stats => GroundUnitTable.Get();
+
+        static void Identity(GameObject go, GroundUnitStats s, TargetInfo.Kind kind) => Identity(go, s.name, s.shipClass, s.weapons, s.threat, kind);
+
+        static Health Hull(GameObject go, SurfaceKit kit, GroundUnitStats s) => Hull(go, kit, s.hull, s.explosion);
+
         static Health Hull(GameObject go, SurfaceKit kit, float hp, float boom)
         {
             if (!go.TryGetComponent(out Health h)) h = go.AddComponent<Health>();   // its events come from Health.Awake
@@ -149,6 +156,7 @@ namespace CarrierGame
         static GameObject Battery(SurfaceKit kit, Transform area, Vector3 ground, float yaw)
         {
             if (kit.battery == null) return null;
+            var s = Stats.battery;
             var go = new GameObject("Ground Battery");
             go.SetActive(false);
             go.transform.SetParent(area, false);
@@ -165,23 +173,23 @@ namespace CarrierGame
             t.transform.localRotation = Quaternion.identity;
             t.transform.localScale = Vector3.one * 0.55f;
             t.projectilePrefab = kit.cannon;
-            t.range = 4500f;
-            t.fireInterval = 2.4f;
-            t.fireCone = 4f;
+            t.range = s.range;
+            t.fireInterval = s.fireInterval;
+            t.fireCone = s.fireCone;
             t.leadTarget = true;
-            t.yawLimit = 180f;
-            t.minPitch = -5f;
-            t.maxPitch = 80f;
-            t.yawSpeed = 35f;
-            t.pitchSpeed = 30f;
+            t.yawLimit = s.yawLimit;
+            t.minPitch = s.minPitch;
+            t.maxPitch = s.maxPitch;
+            t.yawSpeed = s.yawSpeed;
+            t.pitchSpeed = s.pitchSpeed;
             t.autoFire = true;
             t.target = null;
             var w = go.AddComponent<EnemyWeapons>();
             w.turrets = new[] { t };
             w.holdFire = 0f;
             w.weaponsFree = false;
-            Hull(go, kit, 900f, 1.3f);
-            Identity(go, "Ground Battery", "Heavy gun emplacement", "Triple cannon turret", "Medium", TargetInfo.Kind.Capital);
+            Hull(go, kit, s);
+            Identity(go, s, TargetInfo.Kind.Capital);
             go.SetActive(true);
             return go;
         }
@@ -190,6 +198,7 @@ namespace CarrierGame
         static GameObject MissileSite(SurfaceKit kit, Transform area, Vector3 ground, float yaw)
         {
             if (kit.missile == null) return null;
+            var s = Stats.missileSite;
             var go = new GameObject("Missile Site");
             go.SetActive(false);
             go.transform.SetParent(area, false);
@@ -205,13 +214,13 @@ namespace CarrierGame
             col.size = new Vector3(26f, 16f, 22f);
             var w = go.AddComponent<EnemyWeapons>();
             w.missilePrefab = kit.missile;
-            w.missileRange = 6500f;
-            w.salvoInterval = 11f;
-            w.salvoSize = 3;
+            w.missileRange = s.missileRange;
+            w.salvoInterval = s.salvoInterval;
+            w.salvoSize = s.salvoSize;
             w.holdFire = 0f;
             w.weaponsFree = false;
-            Hull(go, kit, 650f, 1.1f);
-            Identity(go, "Missile Site", "Surface-to-air missile battery", "Guided missiles", "High", TargetInfo.Kind.Capital);
+            Hull(go, kit, s);
+            Identity(go, s, TargetInfo.Kind.Capital);
             go.SetActive(true);
             return go;
         }
@@ -219,6 +228,7 @@ namespace CarrierGame
         /// <summary>A hover tank: a wedge hull on skirts with a turret and a long gun.</summary>
         static GameObject Tank(SurfaceKit kit, Transform area, PlanetSurface surface, Vector3 ground, float yaw)
         {
+            var s = Stats.tank;
             var go = new GameObject("Hover Tank");
             go.SetActive(false);
             go.transform.SetParent(area, false);
@@ -240,20 +250,20 @@ namespace CarrierGame
             col.size = new Vector3(13f, 6f, 21f);
             var w = go.AddComponent<EnemyWeapons>();
             w.gunPrefab = kit.cannon != null ? kit.cannon : kit.blaster;
-            w.gunRange = 3200f;
-            w.burstInterval = 3.5f;
-            w.burstShots = 2;
-            w.shotSpacing = 0.25f;
-            w.spread = 1.2f;
-            w.fireArc = 180f;
+            w.gunRange = s.gunRange;
+            w.burstInterval = s.burstInterval;
+            w.burstShots = s.burstShots;
+            w.shotSpacing = s.shotSpacing;
+            w.spread = s.spread;
+            w.fireArc = s.fireArc;
             w.holdFire = 0f;
             w.weaponsFree = false;
             var v = go.AddComponent<GroundVehicle>();
             v.surface = surface;
             v.body = body;
             v.turret = turret;
-            Hull(go, kit, 380f, 0.7f);
-            Identity(go, "Hover Tank", "Armoured hover tank", "Cannon", "Medium", TargetInfo.Kind.Fighter);
+            Hull(go, kit, s);
+            Identity(go, s, TargetInfo.Kind.Fighter);
             go.SetActive(true);
             return go;
         }
@@ -262,6 +272,7 @@ namespace CarrierGame
         static GameObject Flyer(GameObject prefab, Transform area, Vector3 pos, float yaw, string display, bool parked, float gunship)
         {
             if (prefab == null) return null;
+            var s = gunship > 0f ? Stats.gunship : Stats.fighter;
             var go = Object.Instantiate(prefab, pos, Quaternion.Euler(0f, yaw, 0f), area);
             go.name = display;
             var ti = go.GetComponent<TargetInfo>();
@@ -269,24 +280,30 @@ namespace CarrierGame
             var h = go.GetComponent<Health>();
             if (h != null) h.respawnDelay = 0f;
             var w = go.GetComponent<EnemyWeapons>();
-            if (w != null) { w.holdFire = 0f; w.weaponsFree = false; w.fireArc = gunship > 0f ? 180f : 20f; }
+            if (w != null) { w.holdFire = 0f; w.weaponsFree = false; w.fireArc = s.fireArc; }
             var pilot = go.AddComponent<CombatPilot>();
             pilot.concealed = false;
             pilot.startLurking = true;
-            pilot.leashDistance = 11000f;
+            pilot.leashDistance = s.leashDistance;
             pilot.hideBelow = 0f;
-            if (gunship > 0f) PilotPresets.GroundGunship(pilot);
+            pilot.cruiseSpeed = s.cruiseSpeed; pilot.attackSpeed = s.attackSpeed; pilot.turnRate = s.turnRate; pilot.acceleration = s.acceleration;
+            if (gunship > 0f)
+            {
+                pilot.style = CombatPilot.Style.Capital;
+                pilot.standoff = s.standoff; pilot.circleSpeed = s.circleSpeed;
+            }
             else
             {
-                PilotPresets.GroundFighter(pilot);
-                pilot.loiterRadius = parked ? 0f : 700f;
+                pilot.style = CombatPilot.Style.Fighter;
+                pilot.breakOffDistance = s.breakOffDistance; pilot.extendDistance = s.extendDistance;
+                pilot.loiterRadius = parked ? 0f : s.loiterRadius;
             }
             if (parked)
             {
                 pilot.enabled = false;
                 var launch = go.AddComponent<PadLaunch>();
                 launch.pilot = pilot;
-                launch.climb = gunship > 0f ? 320f : 240f;
+                launch.climb = s.climb;
             }
             return go;
         }

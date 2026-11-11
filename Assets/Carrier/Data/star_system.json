@@ -1,0 +1,186 @@
+{
+    "note": "The Kestrel system's planets, moons and asteroid fields, which the scene builder (CarrierBuilder.StarSystem) places. Positions are round the star: an angle (degrees), a distance and a height (km). Radii and arrival distances are in metres; mass is a fraction of what the body goes round. Rebuild the scenes (Tools > Carrier > Build All) after changing anything here.",
+    "planets": [
+        {
+            "name": "Cinder",
+            "angle": 20,
+            "distanceKm": 55,
+            "heightKm": 0.4,
+            "radius": 3200,
+            "surface": "Volcanic",
+            "atmosphereScale": 1.03,
+            "description": "A small volcanic world close to the star, its crust split by rivers of lava. A corsair patrol (a heavy cruiser and two destroyers) holds station here.",
+            "arrival": 9000,
+            "mapColor": [1, 0.45, 0.2],
+            "hostile": true,
+            "mass": 0.004,
+            "spin": 0.4
+        },
+        {
+            "name": "Ochre",
+            "angle": 135,
+            "distanceKm": 92,
+            "heightKm": -1,
+            "radius": 5000,
+            "surface": "Desert",
+            "atmosphereScale": 1.025,
+            "description": "A dry desert planet of dune seas and dust basins under a thin, hazy atmosphere.",
+            "arrival": 13000,
+            "mapColor": [0.9, 0.65, 0.4],
+            "hostile": false,
+            "mass": 0.01,
+            "spin": 0.3
+        },
+        {
+            "name": "Thalassa",
+            "angle": 250,
+            "distanceKm": 128,
+            "heightKm": 0.8,
+            "radius": 6500,
+            "surface": "Ocean",
+            "atmosphereScale": 1.04,
+            "description": "An ocean world with scattered continents, polar ice and a thick blue atmosphere. Two moons, and a space elevator.",
+            "arrival": 30000,
+            "mapColor": [0.35, 0.6, 1],
+            "hostile": false,
+            "mass": 0.03,
+            "spin": 0,
+            "spinMatchesElevator": true,
+            "yearSetsStarMass": true,
+            "note": "its year sets the star's mass; it turns at the speed that holds the elevator's top in geostationary orbit; arrivals 30 km out, clear of the moons"
+        },
+        {
+            "name": "Jovara",
+            "angle": 330,
+            "distanceKm": 178,
+            "heightKm": 2,
+            "radius": 16000,
+            "surface": "GasGiant",
+            "atmosphereScale": 1.03,
+            "description": "A banded gas giant with a great storm, circled by four moons.",
+            "arrival": 42000,
+            "mapColor": [0.95, 0.75, 0.55],
+            "hostile": false,
+            "mass": 0.036,
+            "spin": 0.15
+        },
+        {
+            "name": "Glacis",
+            "angle": 72,
+            "distanceKm": 232,
+            "heightKm": -2,
+            "radius": 11000,
+            "surface": "IceGiant",
+            "atmosphereScale": 1.035,
+            "description": "A pale ice giant at the cold edge of the system, wrapped in methane haze. A pirate dreadnought and its destroyer escort guard the approach.",
+            "arrival": 30000,
+            "mapColor": [0.6, 0.9, 0.95],
+            "hostile": true,
+            "mass": 0.03,
+            "spin": 0.2
+        }
+    ],
+    "moons": [
+        {
+            "name": "Selene",
+            "planet": "Thalassa",
+            "angle": 35,
+            "distanceKm": 16,
+            "radius": 1400,
+            "seed": 901,
+            "description": "Thalassa's larger moon: grey, airless and heavily cratered. A colony, Selene Base, stands on its sunlit side.",
+            "mass": 0.012
+        },
+        {
+            "name": "Mnemos",
+            "planet": "Thalassa",
+            "angle": 205,
+            "distanceKm": 24,
+            "radius": 900,
+            "seed": 902,
+            "description": "A small moon of Thalassa.",
+            "mass": 0.004
+        },
+        {
+            "name": "Brontes",
+            "planet": "Jovara",
+            "angle": 10,
+            "distanceKm": 34,
+            "radius": 2400,
+            "seed": 903,
+            "description": "Jovara's inner moon, scarred by ancient impacts. A shipyard orbits it.",
+            "mass": 0.01
+        },
+        {
+            "name": "Arges",
+            "planet": "Jovara",
+            "angle": 125,
+            "distanceKm": 46,
+            "radius": 1600,
+            "seed": 904,
+            "description": "A small moon of Jovara.",
+            "mass": 0.005
+        },
+        {
+            "name": "Steropes",
+            "planet": "Jovara",
+            "angle": 235,
+            "distanceKm": 60,
+            "radius": 2800,
+            "seed": 905,
+            "description": "Jovara's largest moon, with deep craters along its terminator.",
+            "mass": 0.015
+        },
+        {
+            "name": "Pyrois",
+            "planet": "Jovara",
+            "angle": 300,
+            "distanceKm": 75,
+            "radius": 1100,
+            "seed": 906,
+            "description": "A small moon of Jovara.",
+            "mass": 0.003
+        }
+    ],
+    "fields": [
+        {
+            "name": "Inner Belt",
+            "angle": 80,
+            "distanceKm": 76,
+            "heightKm": 0,
+            "radius": 4500,
+            "rocks": 110,
+            "seed": 3101,
+            "description": "A quiet cluster of rock between the inner planets. Good cover, no contacts.",
+            "arrival": 7000,
+            "mapColor": [0.7, 0.62, 0.52],
+            "hostile": false
+        },
+        {
+            "name": "Jovara Trojans",
+            "angle": 30,
+            "distanceKm": 178,
+            "heightKm": 1,
+            "radius": 5000,
+            "rocks": 120,
+            "seed": 3202,
+            "description": "Rocks gathered at Jovara's leading Lagrange point, L4, 60 degrees ahead of it in its orbit. Raider fighters have been seen hiding here.",
+            "arrival": 8000,
+            "mapColor": [0.85, 0.55, 0.45],
+            "hostile": true
+        },
+        {
+            "name": "Outer Drift",
+            "angle": 165,
+            "distanceKm": 262,
+            "heightKm": 3,
+            "radius": 6000,
+            "rocks": 120,
+            "seed": 3303,
+            "description": "A thin belt of rock at the system's edge, where a pirate cruiser is said to lie in wait.",
+            "arrival": 9000,
+            "mapColor": [0.8, 0.5, 0.5],
+            "hostile": true
+        }
+    ]
+}

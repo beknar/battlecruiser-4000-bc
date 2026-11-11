@@ -88,6 +88,27 @@ namespace CarrierGame
         /// <summary>Point every reference in the level to the old ship (or anything on it) at the
         /// same thing on the new one: the object at the same place in its hierarchy, or failing
         /// that the first of its kind.</summary>
+        static readonly Dictionary<Type, FieldInfo[]> fieldsOf = new Dictionary<Type, FieldInfo[]>();
+
+        /// <summary>The fields of a behaviour's type (and its bases) that can hold a reference to the
+        /// ship: an object, an interface (a missile's or a gun's note of how its target moves,
+        /// IVelocity) or an array of objects. Worked out once a type.</summary>
+        static FieldInfo[] ReferenceFields(Type t)
+        {
+            if (fieldsOf.TryGetValue(t, out var found)) return found;
+            var list = new List<FieldInfo>();
+            for (var type = t; type != null && type != typeof(MonoBehaviour); type = type.BaseType)
+                foreach (var f in type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+                {
+                    if (f.IsInitOnly) continue;
+                    var ft = f.FieldType;
+                    if (typeof(UnityEngine.Object).IsAssignableFrom(ft) || ft.IsInterface
+                        || (ft.IsArray && typeof(UnityEngine.Object).IsAssignableFrom(ft.GetElementType())))
+                        list.Add(f);
+                }
+            return fieldsOf[t] = list.ToArray();
+        }
+
         static void Repoint(GameObject oldRoot, GameObject newRoot)
         {
             var map = new Dictionary<UnityEngine.Object, UnityEngine.Object>();
@@ -112,31 +133,27 @@ namespace CarrierGame
             foreach (var b in FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             {
                 if (b == null || b.transform.IsChildOf(oldRoot.transform) || b.transform.IsChildOf(newRoot.transform)) continue;
-                for (var type = b.GetType(); type != null && type != typeof(MonoBehaviour); type = type.BaseType)
-                    foreach (var f in type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+                foreach (var f in ReferenceFields(b.GetType()))
+                {
+                    if (typeof(UnityEngine.Object).IsAssignableFrom(f.FieldType) || f.FieldType.IsInterface)
                     {
-                        if (f.IsInitOnly) continue;
-                        // (also a field of an interface type holding a component: a missile's or a
-                        // gun's note of how its target moves, IVelocity)
-                        if (typeof(UnityEngine.Object).IsAssignableFrom(f.FieldType) || f.FieldType.IsInterface)
+                        var v = f.GetValue(b) as UnityEngine.Object;
+                        if (v == null) continue;
+                        var n = Counterpart(v);
+                        if (n != null && f.FieldType.IsInstanceOfType(n)) f.SetValue(b, n);
+                    }
+                    else if (f.FieldType.IsArray && typeof(UnityEngine.Object).IsAssignableFrom(f.FieldType.GetElementType()))
+                    {
+                        if (!(f.GetValue(b) is Array arr)) continue;
+                        for (int i = 0; i < arr.Length; i++)
                         {
-                            var v = f.GetValue(b) as UnityEngine.Object;
+                            var v = arr.GetValue(i) as UnityEngine.Object;
                             if (v == null) continue;
                             var n = Counterpart(v);
-                            if (n != null && f.FieldType.IsInstanceOfType(n)) f.SetValue(b, n);
-                        }
-                        else if (f.FieldType.IsArray && typeof(UnityEngine.Object).IsAssignableFrom(f.FieldType.GetElementType()))
-                        {
-                            if (!(f.GetValue(b) is Array arr)) continue;
-                            for (int i = 0; i < arr.Length; i++)
-                            {
-                                var v = arr.GetValue(i) as UnityEngine.Object;
-                                if (v == null) continue;
-                                var n = Counterpart(v);
-                                if (n != null && f.FieldType.GetElementType().IsInstanceOfType(n)) arr.SetValue(n, i);
-                            }
+                            if (n != null && f.FieldType.GetElementType().IsInstanceOfType(n)) arr.SetValue(n, i);
                         }
                     }
+                }
             }
         }
 

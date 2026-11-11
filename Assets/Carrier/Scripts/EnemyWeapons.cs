@@ -118,7 +118,7 @@ namespace CarrierGame
             // torpedo looks along the water to the target's keel; it can't reach a ship in the air)
             if (torpedoes)
             {
-                if (!Sea.Here || target.position.y > Sea.Level + 20f) return;
+                if (!Sea.Here || target.position.y > Sea.Level + 20f) { HasLineOfSight = false; return; }
                 Vector3 keel = new Vector3(target.position.x, Mathf.Min(target.position.y, Sea.Level - 2f), target.position.z);
                 HasLineOfSight = !Cover.Blocked(transform.position, keel);
             }

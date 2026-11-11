@@ -15,8 +15,11 @@ namespace CarrierGame
         /// <summary>The player has been through the start menu this run (it isn't shown again).</summary>
         public static bool Chosen { get; set; }
 
+        /// <summary>Chosen on the start menu this run: it wins over one given at launch.</summary>
+        static string picked;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => Chosen = false;
+        static void ResetStatics() { Chosen = false; picked = null; }
 
         /// <summary>Given on the command line or the page address (null if not).</summary>
         public static string Given => LaunchArgs.ValueOf("-frigate") ?? LaunchArgs.PageOption("frigate");
@@ -26,6 +29,7 @@ namespace CarrierGame
         {
             get
             {
+                if (picked != null) return picked;
                 string given = Given;
                 if (!string.IsNullOrEmpty(given)) return given;
                 if (LaunchArgs.Automated) return "";
@@ -33,9 +37,11 @@ namespace CarrierGame
             }
         }
 
-        /// <summary>Remember the player's choice.</summary>
+        /// <summary>Remember the player's choice (and fly it from now on this run, whatever was
+        /// given at launch).</summary>
         public static void Set(string id)
         {
+            picked = id ?? "";
             try { PlayerPrefs.SetString(Pref, id ?? ""); PlayerPrefs.Save(); } catch { }
         }
     }

@@ -90,6 +90,7 @@ namespace CarrierGame.Demo
         {
             if (Instance == this) Instance = null;
             if (Site != null) CombatPilot.FloorAt = null;   // (the surface may already be gone in a scene change)
+            if (Site != null && Site.water) Sea.Clear();    // (a restart down on the sea: the next level has none)
             Site?.Destroy();
         }
 

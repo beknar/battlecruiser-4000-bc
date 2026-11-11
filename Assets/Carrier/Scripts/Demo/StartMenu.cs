@@ -86,7 +86,8 @@ namespace CarrierGame.Demo
                 best.beamDamage = Mathf.Max(best.beamDamage, s.beamDamage);
                 best.cargo = Mathf.Max(best.cargo, s.cargo);
             }
-            paused = !LiveSwap;
+            // (in co-op the game goes on, as with the pause menu: the others are still playing)
+            paused = !LiveSwap && !CoopClient.Active;
             if (paused)
             {
                 savedScale = Time.timeScale > 0f ? Time.timeScale : 1f;

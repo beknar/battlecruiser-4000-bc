@@ -71,7 +71,8 @@ namespace CarrierGame.Demo
             Destroy(holder);
             r = go.AddComponent<RemotePlayer>();
             r.Init(id, name);
-            r.Frigate = entry != null ? entry.id : PlayerFrigate.Flying;
+            // (the id they sent, even one this game doesn't know: so their next message matches)
+            r.Frigate = !string.IsNullOrEmpty(frigate) ? frigate : entry != null ? entry.id : "";
             remotes[id] = r;
             remoteByRoot[go.transform] = r;
             PlayerShips.Add(go.transform);

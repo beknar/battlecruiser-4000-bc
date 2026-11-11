@@ -211,7 +211,16 @@ namespace CarrierGame.Demo
                                                             : $"the ship's guns hit it under the water ({fh.TotalDamage - fd0:F0} damage)");
                 var sub = subs.FirstOrDefault(s => s != null && s.Alive);
                 var subPilot = sub != null ? sub.GetComponent<Submarine>() : null;
-                if (subPilot != null) Log($"  a submarine: {(subPilot.Hunting ? "hunting the ship" : "on patrol")}, {Vector3.Distance(sub.transform.position, cc.transform.position):F0} m off");
+                if (subPilot != null)
+                {
+                    Log($"  a submarine: {(subPilot.Hunting ? "hunting the ship" : "on patrol")}, {Vector3.Distance(sub.transform.position, cc.transform.position):F0} m off");
+                    // alerted, it goes for the ship (the only one: single-player)
+                    sub.Engage();
+                    yield return new WaitForSeconds(1.5f);
+                    Check(subPilot.Hunting && subPilot.Target != null && subPilot.Target.IsChildOf(cc.transform.root),
+                          $"an alerted submarine hunts the ship ({(subPilot.Hunting ? "hunting" : "not hunting")})");
+                    sub.StandDown();
+                }
                 foreach (var t in cc.mainTurrets) if (t != null) t.autoFire = false;
                 cc.SetTarget(null);
                 var oc = demo.orbitCamera;

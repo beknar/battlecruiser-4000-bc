@@ -48,7 +48,9 @@ namespace CarrierGame
             Hunting = weapons != null && weapons.weaponsFree;
             if (Hunting)
             {
+                // (Retarget only changes ship with two or more about: alone, the nearest is the one)
                 target = PlayerShips.Retarget(target, pos, ref nextLook);
+                if (target == null) target = PlayerShips.Nearest(pos);
                 if (target == null || target.position.y > Sea.Level + 40f) Hunting = false;
             }
 
@@ -64,7 +66,7 @@ namespace CarrierGame
                 goal = d > standoff * 1.3f ? target.position : pos + Vector3.Cross(Vector3.up, dir) * 250f + dir * (d - standoff);
                 goal.y = target.position.y;
                 speed = attackSpeed;
-                if (weapons != null) weapons.target = target;
+                if (weapons != null && weapons.target != target) weapons.SetTarget(target);
             }
             else
             {

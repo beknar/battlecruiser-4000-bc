@@ -86,7 +86,7 @@ namespace CarrierGame.Demo
         /// <summary>Back to space (or the ship is gone): everything as it was.</summary>
         public void End()
         {
-            if (carrier != null) { carrier.speedScale = 1f; carrier.liftScale = 1f; }
+            if (carrier != null) { carrier.speedScale = 1f; carrier.liftScale = 1f; carrier.holdLevel = false; }
             LookUnder(false);
             if (spray != null) Destroy(spray.gameObject);
             if (foam != null) Destroy(foam.gameObject);
@@ -109,6 +109,7 @@ namespace CarrierGame.Demo
             if (carrier.Destroyed || carrier.externalMotion)
             {
                 carrier.speedScale = carrier.liftScale = 1f;
+                carrier.holdLevel = false;
                 Current = State.Flying;
                 return;
             }
@@ -188,6 +189,8 @@ namespace CarrierGame.Demo
                 carrier.maxDescent = Mathf.Lerp(3f, 40f, Mathf.InverseLerp(8f, 70f, t.position.y - BedUnder()));
             carrier.speedScale = Current == State.Afloat ? AfloatSpeed : Current == State.Under ? UnderSpeed : 1f;
             carrier.liftScale = Current == State.Under ? UnderLift : 1f;
+            // afloat, it sails level: the nose and wings follow the swell, not the stick
+            carrier.holdLevel = Current == State.Afloat;
             UpdateEffects(sea, dt);
         }
 

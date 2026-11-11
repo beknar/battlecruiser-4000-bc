@@ -32,6 +32,9 @@ namespace CarrierGame
         /// thrusters' speed, are this much of what they are in the air.</summary>
         [System.NonSerialized] public float speedScale = 1f, liftScale = 1f;
 
+        /// <summary>Held level (afloat on the sea, Seafaring): the nose and wings take no input.</summary>
+        [System.NonSerialized] public bool holdLevel;
+
         /// <summary>Set the heading and nose angle directly (the warp drive lining up a jump, the
         /// landing assist): the wings come back to level as it goes on.</summary>
         public void SetAttitude(float newHeading, float newPitch)
@@ -68,7 +71,7 @@ namespace CarrierGame
             // attitude: heading turns about the world vertical, the nose pitches up or down, and
             // the ship rolls about its own length (all the way round, if the pilot keeps on)
             heading = Mathf.Repeat(heading + rudder * turnRate * dt, 360f);
-            bool pitching = Mathf.Abs(pitchInput) > 0.01f, rolling = Mathf.Abs(rollInput) > 0.01f;
+            bool pitching = !holdLevel && Mathf.Abs(pitchInput) > 0.01f, rolling = !holdLevel && Mathf.Abs(rollInput) > 0.01f;
             if (pitching || rolling) autoLevel = false;
             if (pitching) pitchAngle = Mathf.Clamp(pitchAngle + pitchInput * pitchRate * dt, -maxPitch, maxPitch);
             if (rolling) rollAngle = Mathf.Repeat(rollAngle + rollInput * rollRate * dt + 180f, 360f) - 180f;

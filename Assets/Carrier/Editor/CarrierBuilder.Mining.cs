@@ -88,7 +88,7 @@ namespace Carrier.EditorTools
         {
             MiningMaterials();
             var hold = root.AddComponent<CargoHold>();
-            hold.capacity = 600f;
+            hold.capacity = fs.cargo;
 
             var sensorGo = Node("MineralSensor", root.transform);
             var sensor = sensorGo.AddComponent<MineralSensor>();

@@ -38,6 +38,7 @@ namespace Carrier.EditorTools
             kit.cannon = p.enemyCannon;
             kit.blaster = p.enemyBlaster;
             kit.missile = p.missile;
+            kit.torpedo = TorpedoPrefab(p, kit.dust);
             kit.fighter = p.enemyFighter;
             kit.drone = p.enemyDrone;
             kit.gunship = p.enemyDestroyer;
@@ -54,6 +55,38 @@ namespace Carrier.EditorTools
         }
 
         /// <summary>URP particle material, alpha-blended, using the texture's alpha and the particle colour.</summary>
+        /// <summary>The sea bases' and submarines' torpedo: a slow missile that keeps under the water
+        /// (Missile.underwater). No rocket flame: its tail is dark metal, and it leaves bubbles,
+        /// and a wake on the surface running shallow (TorpedoWake).</summary>
+        static Missile TorpedoPrefab(Prefabs p, Material bubble)
+        {
+            var go = new GameObject("Torpedo");
+            var model = Place(OwnModel("Missile"), go.transform, "Model");
+            model.transform.localScale = new Vector3(1.5f, 1.5f, 1.2f);
+            foreach (var r in model.GetComponentsInChildren<Renderer>())
+            {
+                var mats = r.sharedMaterials;
+                for (int i = 0; i < mats.Length; i++)
+                    if (mats[i] != null && (mats[i] == Mats["Engine_Glow"] || mats[i].name.Contains("Engine_Glow"))) mats[i] = Mats["Barrel"];
+                r.sharedMaterials = mats;
+            }
+            var m = go.AddComponent<Missile>();
+            m.explosion = p.explosion;
+            m.underwater = true;
+            m.boostTime = 1.5f;
+            m.boostSpeed = 30f;
+            m.maxSpeed = 150f;
+            m.acceleration = 50f;
+            m.turnRate = 35f;
+            m.lifetime = 45f;
+            m.proximity = 18f;
+            m.damage = 150f;
+            var wake = go.AddComponent<TorpedoWake>();
+            wake.material = bubble;
+            wake.tail = Node("Tail", go.transform, new Vector3(0, 0, -5.5f)).transform;
+            return SavePrefab<Missile>(go, "Torpedo");
+        }
+
         static Material ParticleAlpha(string name, Texture2D tex, Color tint) =>
             Transparent(name, "Universal Render Pipeline/Particles/Unlit", 0f, BlendMode.SrcAlpha, BlendMode.OneMinusSrcAlpha, BlendMode.OneMinusSrcAlpha, tint, tex);
 

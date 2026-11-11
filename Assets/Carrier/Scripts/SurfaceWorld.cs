@@ -97,8 +97,9 @@ namespace CarrierGame
     /// <summary>What stands in one area of a planet: a friendly landing pad, or a hostile base.</summary>
     public enum SiteKind { None, Outpost, Base }
 
-    /// <summary>The ground forces of a hostile world.</summary>
-    public enum UnitKind { Battery, MissileSite, Tank, Patrol, PadFighter, PadGunship }
+    /// <summary>The ground forces of a hostile world (and, on a water world, its sea forces: a base
+    /// on the sea floor that launches torpedoes, and submarines).</summary>
+    public enum UnitKind { Battery, MissileSite, Tank, Patrol, PadFighter, PadGunship, SeaBase, Submarine }
 
     public struct UnitSpot
     {
@@ -154,6 +155,8 @@ namespace CarrierGame
         public readonly string name;
         public readonly int seed;
         public readonly bool hostile;
+        /// <summary>A water world's land lowered (negative: more sea) beyond its sites' islands.</summary>
+        readonly float landShift;
         /// <summary>Areas round the equator, and from pole to pole.</summary>
         public readonly int N, M;
         /// <summary>Circumference, half the pole-to-pole extent (v runs -V..V), radius (m).</summary>
@@ -268,6 +271,9 @@ namespace CarrierGame
                     edgeLevel = Sea - 60f; poleLevel = Sea + 30f;
                     waterColor = new Color(0.02f, 0.1f, 0.2f);
                     outposts = true; siteChance = 0.3f;
+                    // a hostile water world is an archipelago: open sea, with the pirates' bases on
+                    // their own islands (each site keeps the island raised under it)
+                    if (hostile) landShift = -0.45f;
                     boulders = 25; boulderSize = new Vector2(4f, 18f); rockTint = new Color(0.62f, 0.6f, 0.56f); boulderSlope = 0.35f;
                     description = "green islands in a deep blue sea";
                     L.skyTop = new Color(0.2f, 0.4f, 0.8f); L.skyBottom = new Color(0.28f, 0.36f, 0.44f); L.sunSize = 0.022f; L.sunGlow = 0.4f;
@@ -604,6 +610,16 @@ namespace CarrierGame
                     Add(UnitKind.Patrol, p.Item1, p.Item2, (float)(R01() * 360.0));
                     Add(UnitKind.Patrol, p.Item1 + 250.0, p.Item2 + 120.0, (float)(R01() * 360.0));
                 }
+                if (kind == SurfaceKind.Ocean)
+                {
+                    // the sea forces: a torpedo base on the sea floor (a few places tried: only one
+                    // in deep enough water is built, see GroundForces) and submarines patrolling
+                    // round it. (After the land's own draws, so the land is as it was.)
+                    if (R01() < 0.7)
+                        for (int k = 0; k < 3; k++) { var p = Anywhere(); Add(UnitKind.SeaBase, p.Item1, p.Item2, (float)(R01() * 360.0)); }
+                    int subs = rng.Next(1, 3);
+                    for (int k = 0; k < subs; k++) { var p = Anywhere(); Add(UnitKind.Submarine, p.Item1, p.Item2, (float)(R01() * 360.0)); }
+                }
             }
             return f;
         }
@@ -695,7 +711,7 @@ namespace CarrierGame
                 }
                 case SurfaceKind.Ocean:
                 {
-                    float c = n1.Fbm(u, v) + region;
+                    float c = n1.Fbm(u, v) + region + landShift;
                     // an island under each landing pad
                     foreach (var f in ctx)
                     {

@@ -476,6 +476,7 @@ namespace Carrier.EditorTools
             frigate.transform.SetPositionAndRotation(route[0], Quaternion.LookRotation(fwd));
             var cc = frigate.GetComponent<CarrierController>();
             cc.target = null;
+            AddPlayerFrigate(cc);
 
             // the ambushers
             GameObject Enemy(GameObject prefab, string name, string display, Vector3 pos, Vector3 face, Action<CombatPilot> setup, float fireArc)

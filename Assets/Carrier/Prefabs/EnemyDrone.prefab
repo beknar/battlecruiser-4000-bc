@@ -377,7 +377,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fed75f8bebab8a04abadc71b58870d0a, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CarrierGame.ShipBreakup
+  m_EditorClassIdentifier: Carrier.Game::CarrierGame.ShipBreakup
   chunks:
   - {fileID: 121710779806537515}
   - {fileID: 2062007257958407314}
@@ -403,7 +403,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8b55e659b672ded4cadadf6a142ab7c0, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CarrierGame.Health
+  m_EditorClassIdentifier: Carrier.Game::CarrierGame.Health
   maxHealth: 300
   cannotDie: 0
   deathEffect: {fileID: 4113072206201774761, guid: 877105c6c15df24438f3e07760b7e660, type: 3}
@@ -426,7 +426,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 02739541c5dc3004daa9b5cfaf594952, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CarrierGame.TargetInfo
+  m_EditorClassIdentifier: Carrier.Game::CarrierGame.TargetInfo
   displayName: Hostile Drone
   shipClass: Recon drone
   faction: Hostile
@@ -444,7 +444,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6cac95bd42825cb4388a2775eb76b6ab, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CarrierGame.Demo.OrbitMover
+  m_EditorClassIdentifier: Carrier.Game::CarrierGame.Demo.OrbitMover
   center: {x: 0, y: 0, z: 0}
   radius: 2500
   height: 300
@@ -461,7 +461,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bf0e4d1141e11ee48840e93ac21d460f, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CarrierGame.EnemyWeapons
+  m_EditorClassIdentifier: Carrier.Game::CarrierGame.EnemyWeapons
   gunPrefab: {fileID: 3592097275171203670, guid: 618274dccf7404f4aa3da5e567af8a9f, type: 3}
   gunRange: 1800
   burstInterval: 1.2
@@ -469,6 +469,7 @@ MonoBehaviour:
   shotSpacing: 0.12
   spread: 2.5
   missilePrefab: {fileID: 0}
+  torpedoes: 0
   missileRange: 4500
   salvoInterval: 14
   salvoSize: 4

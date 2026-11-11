@@ -39,6 +39,8 @@ namespace CarrierGame
         public CarrierTurret battery;
         public Projectile cannon, blaster;
         public Missile missile;
+        [Tooltip("What the sea bases and submarines fire (a Missile that keeps under the water).")]
+        public Missile torpedo;
         [Tooltip("Ships that patrol the sky and launch from the bases' pads.")]
         public GameObject fighter, drone, gunship;
         public Explosion explosion, explosionSmall;
@@ -59,6 +61,7 @@ namespace CarrierGame
         public bool hasOutpost;
         public Transform outpost;       // that pad (null if it came down somewhere without one)
         public float seaLevel = float.NegativeInfinity;   // world height of the sea / lava (or -inf)
+        public bool water;              // the sea is water (not lava): ships can sail it and go under
         public bool solidGround = true; // false for a gas giant's cloud deck
         public float floor;             // world height the ship can't go below (cloud deck)
         public string description;

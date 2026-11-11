@@ -20,8 +20,8 @@ namespace CarrierGame.Demo
 
         /// <summary>Rudder from the self-test or reel autopilot; used while the player isn't steering.</summary>
         [System.NonSerialized] public float? autoRudder;
-        /// <summary>Pitch and elevator input from the self-test; used while the player isn't flying.</summary>
-        [System.NonSerialized] public float? autoPitch, autoElevator;
+        /// <summary>Pitch, elevator and roll input from the self-test; used while the player isn't flying.</summary>
+        [System.NonSerialized] public float? autoPitch, autoElevator, autoRoll;
 
         WarpDrive warp;
         /// <summary>The landing controller, if this level has one.</summary>
@@ -79,6 +79,7 @@ namespace CarrierGame.Demo
                     carrier.rudder = autoRudder ?? 0f;
                     carrier.pitchInput = autoPitch ?? 0f;
                     carrier.elevator = autoElevator ?? 0f;
+                    carrier.rollInput = autoRoll ?? 0f;
                 }
                 if (warpFlying && !SystemMap.IsOpen && !SystemMap.JustClosed)
                 {
@@ -87,7 +88,7 @@ namespace CarrierGame.Demo
                 return;
             }
 
-            float turn = 0f, throttleRate = 0f, pitch = 0f, lift = 0f;
+            float turn = 0f, throttleRate = 0f, pitch = 0f, lift = 0f, roll = 0f;
             if (k != null)
             {
                 KeyboardControls(k);
@@ -99,6 +100,11 @@ namespace CarrierGame.Demo
                 if (k.downArrowKey.isPressed) pitch -= 1f;         // nose down
                 if (k.spaceKey.isPressed) lift += 1f;              // elevator thrusters up
                 if (k.leftCtrlKey.isPressed || k.rightCtrlKey.isPressed) lift -= 1f;
+                if (!carrier.HasHangar)                            // Q/E roll (a carrier's are its wing's orders)
+                {
+                    if (k.qKey.isPressed) roll -= 1f;
+                    if (k.eKey.isPressed) roll += 1f;
+                }
             }
             if (orbitCamera != null) orbitCamera.padTriggerZoom = !GunshipPad;
             if (pad != null)
@@ -113,6 +119,8 @@ namespace CarrierGame.Demo
                     {
                         if (pad.dpad.up.isPressed) pitch = 1f;
                         else if (pad.dpad.down.isPressed) pitch = -1f;
+                        if (pad.dpad.left.isPressed) roll = -1f;
+                        else if (pad.dpad.right.isPressed) roll = 1f;
                     }
                     float padLift = pad.rightTrigger.ReadValue() - pad.leftTrigger.ReadValue();
                     if (Mathf.Abs(padLift) > 0.05f && Mathf.Abs(padLift) > Mathf.Abs(lift)) lift = padLift;
@@ -124,6 +132,7 @@ namespace CarrierGame.Demo
             if (MainGun != null && mainGun.Current != MainBeam.State.Idle) mainGun.target = carrier.target;
             carrier.pitchInput = Mathf.Clamp(pitch != 0f || !autoPitch.HasValue ? pitch : autoPitch.Value, -1f, 1f);
             carrier.elevator = Mathf.Clamp(lift != 0f || !autoElevator.HasValue ? lift : autoElevator.Value, -1f, 1f);
+            carrier.rollInput = Mathf.Clamp(roll != 0f || !autoRoll.HasValue ? roll : autoRoll.Value, -1f, 1f);
             if (throttleRate != 0f) carrier.throttle = Mathf.Clamp01(carrier.throttle + throttleRate * Time.deltaTime * 0.3f);
         }
 
@@ -171,8 +180,8 @@ namespace CarrierGame.Demo
             if (k.mKey.wasPressedThisFrame && warp == null) FireMissiles();   // with a warp drive, M is the system map
             if (k.fKey.wasPressedThisFrame) FireGuns();
             if (k.gKey.wasPressedThisFrame) ToggleAutoFire();
-            if (k.qKey.wasPressedThisFrame) WingAttack();
-            if (k.eKey.wasPressedThisFrame) WingEscort();
+            if (k.qKey.wasPressedThisFrame && carrier.HasHangar) WingAttack();
+            if (k.eKey.wasPressedThisFrame && carrier.HasHangar) WingEscort();
             if (k.rKey.wasPressedThisFrame) WingReturn();
 
             // targeting: T cycles, a click picks a ship, X stops targeting
@@ -214,6 +223,15 @@ namespace CarrierGame.Demo
             miningLaser = carrier.GetComponentInChildren<MiningLaser>();
             sensor = carrier.GetComponentInChildren<MineralSensor>();
             cargo = carrier.GetComponent<CargoHold>();
+        }
+
+        /// <summary>The ship was swapped for another (PlayerFrigate.SwapTo): find its systems and
+        /// its size again.</summary>
+        public void ShipChanged()
+        {
+            systemsFound = false;
+            shipRadius = 0f;
+            warp = carrier != null ? carrier.GetComponent<WarpDrive>() : null;
         }
 
         public MainBeam MainGun { get { FindSystems(); return mainGun; } }
@@ -306,6 +324,17 @@ namespace CarrierGame.Demo
             {
                 if (p.dpad.up.wasPressedThisFrame) { Hud.ChangeTextSize(+1); backCombo = true; }
                 if (p.dpad.down.wasPressedThisFrame) { Hud.ChangeTextSize(-1); backCombo = true; }
+                // Back + D-pad left/right: zoom the camera (on a frigate's pad, left/right roll the ship)
+                if (GunshipPad && orbitCamera != null)
+                {
+                    float z = (p.dpad.left.isPressed ? 1f : 0f) - (p.dpad.right.isPressed ? 1f : 0f);
+                    if (z != 0f)
+                    {
+                        orbitCamera.distance = Mathf.Clamp(orbitCamera.distance * Mathf.Pow(3.3f, z * Time.unscaledDeltaTime),
+                                                           orbitCamera.minDistance, orbitCamera.maxDistance);
+                        backCombo = true;
+                    }
+                }
                 // Back + A/Y/X/B: mining laser, scan, cargo list, jettison
                 if (!carrier.Destroyed && Laser != null)
                 {
@@ -317,14 +346,7 @@ namespace CarrierGame.Demo
             }
             else if (GunshipPad)
             {
-                // D-pad up/down pitch the nose (read in Update); left/right zoom the camera
-                if (orbitCamera != null)
-                {
-                    float z = (p.dpad.left.isPressed ? 1f : 0f) - (p.dpad.right.isPressed ? 1f : 0f);
-                    if (z != 0f)
-                        orbitCamera.distance = Mathf.Clamp(orbitCamera.distance * Mathf.Pow(3.3f, z * Time.unscaledDeltaTime),
-                                                           orbitCamera.minDistance, orbitCamera.maxDistance);
-                }
+                // D-pad up/down pitch the nose and left/right roll the ship (read in Update)
             }
             else
             {

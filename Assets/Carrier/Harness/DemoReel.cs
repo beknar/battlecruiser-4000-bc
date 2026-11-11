@@ -43,10 +43,13 @@ namespace CarrierGame.Demo
             if (LaunchArgs.Has("-reel")) Hud.ReelMode = true;
             // -features: the Star System feature reel (mining, combat, landing, mini-warps);
             // -orbits: the orbits and stations reel (it runs on the feature reel's machinery)
-            // -all: everything in one reel
+            // -all: everything in one reel; -frigates: the start menu and the four frigates
             Orbits = Hud.ReelMode && LaunchArgs.Has("-orbits");
             All = Hud.ReelMode && LaunchArgs.Has("-all");
-            Features = Hud.ReelMode && (Orbits || All || LaunchArgs.Has("-features"));
+            Frigates = Hud.ReelMode && LaunchArgs.Has("-frigates");
+            // -sea: the four frigates down on Pelagia's sea
+            SeaReel = Hud.ReelMode && LaunchArgs.Has("-sea");
+            Features = Hud.ReelMode && (Orbits || All || Frigates || SeaReel || LaunchArgs.Has("-features"));
             Hud.ReelShowsMarks = Features;
         }
 
@@ -72,7 +75,7 @@ namespace CarrierGame.Demo
             if (Features && sysMap != null)
             {
                 seconds = 900f;                     // a cap: the shot list ends it
-                StartCoroutine(All ? AllReel() : Orbits ? OrbitReel() : FeatureReel());
+                StartCoroutine(All ? AllReel() : Orbits ? OrbitReel() : Frigates ? FrigateReel() : SeaReel ? SeaShowReel() : FeatureReel());
             }
             Log($"screen {Screen.width}x{Screen.height}, gfx {SystemInfo.graphicsDeviceType}, audio {AudioSettings.outputSampleRate} Hz {AudioSettings.speakerMode}, {seconds:F0} s");
 

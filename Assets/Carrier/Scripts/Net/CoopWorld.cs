@@ -178,7 +178,7 @@ namespace CarrierGame.Demo
             switch (m.t)
             {
                 case CoopWire.Ship:
-                    Remote(m.from)?.Push(m);
+                    Remote(m.from, m.fr)?.Push(m);
                     break;
                 case CoopWire.Enemies:
                     if (puppeting) ApplyEntities(m);

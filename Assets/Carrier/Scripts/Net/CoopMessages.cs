@@ -41,7 +41,7 @@ namespace CarrierGame.Demo
         public float x, y, z, qx, qy, qz, qw, vx, vy, vz, th, sh, hu;
         public bool su, dead, dock;
         public int warp, cap;
-        public string surf;
+        public string surf, fr;
         // enemies
         public CoopEntity[] e;
         // shots and beams
@@ -70,6 +70,8 @@ namespace CarrierGame.Demo
         public bool su, dead, dock;
         public int warp, cap;
         public string surf = "";
+        /// <summary>Which frigate (FrigateRoster id; older games leave it out).</summary>
+        public string fr = "";
     }
 
     /// <summary>The enemies, from the host to everyone else in the room.</summary>

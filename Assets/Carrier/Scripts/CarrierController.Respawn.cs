@@ -23,6 +23,7 @@ namespace CarrierGame
             transform.SetPositionAndRotation(spawnPosition, spawnRotation);
             heading = spawnRotation.eulerAngles.y;
             pitchAngle = 0f;
+            rollAngle = 0f;
             speed = liftSpeed = 0f;
             throttle = 0f;
             autoLevel = false;
@@ -74,36 +75,6 @@ namespace CarrierGame
             if (hum != null) hum.volume = on ? hum.volume : 0f;
         }
 
-        /// <summary>Start bringing the nose back to level (stops as soon as the pilot pitches).</summary>
-        public void LevelOff() => autoLevel = true;
-
-        /// <summary>Something else is flying the ship (the warp drive): no throttle, rudder or
-        /// collisions from this controller until it is cleared.</summary>
-        [System.NonSerialized] public bool externalMotion;
-
-        /// <summary>Fastest the elevator thrusters may take the ship down (m/s): the landing
-        /// assist slows the descent near the ground.</summary>
-        [System.NonSerialized] public float maxDescent = float.PositiveInfinity;
-
-        /// <summary>Hits slower than this (m/s, into the surface) do no damage: higher on a
-        /// planet, so a gentle touchdown isn't a crash.</summary>
-        [System.NonSerialized] public float safeImpact = 3f;
-
-        /// <summary>Set the heading and nose angle directly (the warp drive lining up a jump).</summary>
-        public void SetAttitude(float newHeading, float newPitch)
-        {
-            heading = Mathf.Repeat(newHeading, 360f);
-            pitchAngle = Mathf.Clamp(newPitch, -maxPitch, maxPitch);
-            transform.rotation = Quaternion.Euler(-pitchAngle, heading, 0f);
-        }
-
-        /// <summary>Set the forward speed directly (m/s); elevator movement stops.</summary>
-        public void SetMotion(float newSpeed)
-        {
-            speed = newSpeed;
-            liftSpeed = 0f;
-        }
-
         /// <summary>Where the ship comes back after being destroyed (the last place it warped to),
         /// kept relative to the reach it is in (a planet's, moon's or field's orbit, which doesn't
         /// spin, or a station turning with its planet), or else to `frame`.</summary>
@@ -118,54 +89,6 @@ namespace CarrierGame
             spawnRotation = rotation;
             spawnFrame = frame;
             spawnOffset = frame != null ? Quaternion.Inverse(frame.rotation) * (position - frame.position) : Vector3.zero;
-        }
-
-        void Update()
-        {
-            float dt = Time.deltaTime;
-            if (Destroyed)
-            {
-                // the wreckage flies on its own (ShipBreakup); the ship itself waits to respawn
-                if (hum != null) hum.volume = 0f;
-                return;
-            }
-            if (externalMotion)
-            {
-                UpdateLiftFlares(0f);
-                return;
-            }
-            speed = Mathf.MoveTowards(speed, throttle * maxSpeed, acceleration * dt);
-
-            // attitude: heading turns about the world vertical, the nose pitches up or down; no roll
-            heading = Mathf.Repeat(heading + rudder * turnRate * dt, 360f);
-            if (Mathf.Abs(pitchInput) > 0.01f)
-            {
-                autoLevel = false;
-                pitchAngle = Mathf.Clamp(pitchAngle + pitchInput * pitchRate * dt, -maxPitch, maxPitch);
-            }
-            else if (autoLevel)
-            {
-                pitchAngle = Mathf.MoveTowards(pitchAngle, 0f, pitchRate * dt);
-                if (Mathf.Abs(pitchAngle) < 0.01f) autoLevel = false;
-            }
-            transform.rotation = Quaternion.Euler(-pitchAngle, heading, 0f);
-
-            // elevator thrusters push straight up or down relative to the deck
-            float wantLift = elevator * elevatorSpeed;
-            float liftChange = wantLift - liftSpeed;
-            liftSpeed = Mathf.MoveTowards(liftSpeed, wantLift, elevatorAcceleration * dt);
-            liftSpeed = Mathf.Max(liftSpeed, -maxDescent);
-            transform.position += Collide((transform.forward * speed + transform.up * liftSpeed) * dt);
-            if (Cover.Active) transform.position = Depenetrate(transform.position);
-            UpdateLiftFlares(liftChange);
-            if (engines != null) foreach (var e in engines) if (e) e.throttle = Mathf.Max(0.15f, throttle);
-            wing.RemoveAll(c => c == null);
-            if (hum != null)
-            {
-                float f = Mathf.InverseLerp(0f, maxSpeed, speed);
-                hum.volume = 0.2f + 0.4f * Mathf.Max(throttle, f);
-                hum.pitch = 0.8f + 0.45f * f;
-            }
         }
     }
 }

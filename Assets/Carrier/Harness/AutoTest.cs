@@ -444,7 +444,10 @@ namespace CarrierGame.Demo
                 yield return Hold(new GamepadState { leftTrigger = 1f }, 2f);
                 PadNote($"pad LT 2s (elevators down: lift {cc.LiftSpeed:F0} m/s)");
                 yield return Hold(new GamepadState().WithButton(GamepadButton.DpadRight), 1f);
-                PadNote("pad D-pad right 1s (zoom in)");
+                PadNote($"pad D-pad right 1s (roll: {cc.Roll:F0} deg)");
+                yield return Press(GamepadButton.South);      // A: level off (the wings too)
+                yield return new WaitForSeconds(2.5f);
+                PadNote($"pad A (level off: roll {cc.Roll:F1} deg)");
             }
 
             cc.throttle = 0f;

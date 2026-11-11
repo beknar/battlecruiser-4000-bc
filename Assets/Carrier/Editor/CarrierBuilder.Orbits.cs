@@ -10,7 +10,8 @@ namespace Carrier.EditorTools
     /// 260 km across) and so is time: Thalassa goes round the star in 90 minutes, and every
     /// other orbit follows from Kepler's third law with the masses below. So in ten minutes of
     /// watching Cinder goes almost half way round, the moons and stations a good part of the way
-    /// round their planets, and the outer planets move visibly on the map.
+    /// round their planets, and the outer planets move visibly on the map. Where the bodies are and
+    /// their masses are in Data/star_system.json.
     ///
     /// Each planet, moon, field, comet, orbiting station and Lagrange point becomes a frame
     /// (an Orbit) with what belongs to it inside: a planet with its bases and its elevator, a
@@ -24,13 +25,8 @@ namespace Carrier.EditorTools
         const double ThalassaYear = 5400.0;
         static double starGM;
 
-        /// <summary>Each body's mass as a fraction of what it goes round.</summary>
-        static readonly Dictionary<string, float> MassRatio = new Dictionary<string, float>
-        {
-            { "Cinder", 0.004f }, { "Ochre", 0.01f }, { "Thalassa", 0.03f }, { "Jovara", 0.036f }, { "Glacis", 0.03f },
-            { "Selene", 0.012f }, { "Mnemos", 0.004f },
-            { "Brontes", 0.01f }, { "Arges", 0.005f }, { "Steropes", 0.015f }, { "Pyrois", 0.003f },
-        };
+        /// <summary>Each body's mass as a fraction of what it goes round (Data/star_system.json).</summary>
+        static Dictionary<string, float> MassRatio => StarSystemData.Load().Masses;
 
         /// <summary>Thalassa's geostationary orbit (m from its centre): the top of its space
         /// elevator, where the Highport is. The planet's spin is set to match.</summary>

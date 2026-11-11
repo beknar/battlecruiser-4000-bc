@@ -3,9 +3,9 @@ namespace CarrierGame
     /// <summary>
     /// How each kind of hostile flies: its speeds, how hard it turns and accelerates, how it
     /// attacks (fighters make passes, capital ships stand off and circle) and when it goes to
-    /// ground in the rocks. One place for these numbers, used by the level builders and by the
-    /// ground forces built at run time. A level may change a setting afterwards (how far a
-    /// pilot looks for cover, say).
+    /// ground in the rocks. One place for these numbers, used by the level builders. A level may
+    /// change a setting afterwards (how far a pilot looks for cover, say). The planets' own
+    /// fighters and gunships fly by Resources/Data/ground_units.json.
     /// </summary>
     public static class PilotPresets
     {
@@ -34,22 +34,6 @@ namespace CarrierGame
             p.cruiseSpeed = 75f; p.attackSpeed = 90f; p.turnRate = 12f; p.acceleration = 18f;
             p.standoff = 1800f; p.circleSpeed = 3f;
             p.hideBelow = 0.5f; p.hideTime = 8f; p.hideCooldown = 30f; p.hideSearch = 3000f;
-        }
-
-        /// <summary>A planet's gunship, off its landing pad.</summary>
-        public static void GroundGunship(CombatPilot p)
-        {
-            p.style = CombatPilot.Style.Capital;
-            p.cruiseSpeed = 100f; p.attackSpeed = 130f; p.turnRate = 18f; p.acceleration = 25f;
-            p.standoff = 1800f; p.circleSpeed = 4f;
-        }
-
-        /// <summary>A planet's fighter (on patrol or off a pad): a little slower than a raider.</summary>
-        public static void GroundFighter(CombatPilot p)
-        {
-            p.style = CombatPilot.Style.Fighter;
-            p.cruiseSpeed = 200f; p.attackSpeed = 290f; p.turnRate = 85f; p.acceleration = 140f;
-            p.breakOffDistance = 420f; p.extendDistance = 1300f;
         }
     }
 }

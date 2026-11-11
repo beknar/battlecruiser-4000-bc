@@ -332,34 +332,29 @@ namespace Carrier.EditorTools
                 "A yellow-white main-sequence star. A close pass gives a spectacular view, and nowhere to hide.",
                 3500f, 24000f, new Color(1f, 0.85f, 0.45f));
 
-            // the planets (the star's mass is set by Thalassa's 90-minute year; Thalassa turns
-            // fast enough for a geostationary orbit at 10 km, the top of its space elevator)
-            SetStarMass(Polar(250f, 128f, 0.8f));
-            var cinder = MakePlanet("Cinder", sys, Polar(20f, 55f, 0.4f), 3200f, matVolc, atmoVolc, 1.03f, layer, 0.4f);
-            var wCinder = MakeWarpPoint(cinder, "Cinder", WarpPoint.Kind.Planet,
-                "A small volcanic world close to the star, its crust split by rivers of lava. A corsair patrol (a heavy cruiser and two destroyers) holds station here.",
-                3200f, 9000f, new Color(1f, 0.45f, 0.2f), null, true);
-            wCinder.surface = SurfaceKind.Volcanic;
-            var ochre = MakePlanet("Ochre", sys, Polar(135f, 92f, -1f), 5000f, matDesert, atmoDesert, 1.025f, layer, 0.3f);
-            var wOchre = MakeWarpPoint(ochre, "Ochre", WarpPoint.Kind.Planet,
-                "A dry desert planet of dune seas and dust basins under a thin, hazy atmosphere.", 5000f, 13000f, new Color(0.9f, 0.65f, 0.4f));
-            wOchre.surface = SurfaceKind.Desert;
-            var thalassa = MakePlanet("Thalassa", sys, Polar(250f, 128f, 0.8f), 6500f, matOcean, atmoOcean, 1.04f, layer, ThalassaSpin());
-            // (arrivals 30 km out: clear of the moons' orbits, at 16 and 24 km)
-            var wThalassa = MakeWarpPoint(thalassa, "Thalassa", WarpPoint.Kind.Planet,
-                "An ocean world with scattered continents, polar ice and a thick blue atmosphere. Two moons, and a space elevator.", 6500f, 30000f, new Color(0.35f, 0.6f, 1f));
-            wThalassa.surface = SurfaceKind.Ocean;
-            var jovara = MakePlanet("Jovara", sys, Polar(330f, 178f, 2f), 16000f, matGas, atmoGas, 1.03f, layer, 0.15f);
-            var wJovara = MakeWarpPoint(jovara, "Jovara", WarpPoint.Kind.Planet,
-                "A banded gas giant with a great storm, circled by four moons.", 16000f, 42000f, new Color(0.95f, 0.75f, 0.55f));
-            wJovara.surface = SurfaceKind.GasGiant;
-            var glacis = MakePlanet("Glacis", sys, Polar(72f, 232f, -2f), 11000f, matIce, atmoIce, 1.035f, layer, 0.2f);
-            var wGlacis = MakeWarpPoint(glacis, "Glacis", WarpPoint.Kind.Planet,
-                "A pale ice giant at the cold edge of the system, wrapped in methane haze. A pirate dreadnought and its destroyer escort guard the approach.",
-                11000f, 30000f, new Color(0.6f, 0.9f, 0.95f), null, true);
-            wGlacis.surface = SurfaceKind.IceGiant;
+            // the planets, moons and asteroid fields: Data/star_system.json (the star's mass is set
+            // by one planet's year: Thalassa's 90 minutes; Thalassa turns fast enough for a
+            // geostationary orbit at 10 km, the top of its space elevator)
+            var data = StarSystemData.Load();
+            SetStarMass(data.YearPlanet.Position);
+            var planetLook = new Dictionary<SurfaceKind, (Material mat, Material atmo)>
+            {
+                { SurfaceKind.Volcanic, (matVolc, atmoVolc) }, { SurfaceKind.Desert, (matDesert, atmoDesert) },
+                { SurfaceKind.Ocean, (matOcean, atmoOcean) }, { SurfaceKind.GasGiant, (matGas, atmoGas) },
+                { SurfaceKind.IceGiant, (matIce, atmoIce) },
+            };
+            var bodies = new Dictionary<string, GameObject>();
+            var points = new Dictionary<string, WarpPoint>();
+            foreach (var pd in data.planets)
+            {
+                var (mat, atmo) = planetLook[pd.Surface];
+                var planet = MakePlanet(pd.name, sys, pd.Position, pd.radius, mat, atmo, pd.atmosphereScale, layer, pd.spinMatchesElevator ? ThalassaSpin() : pd.spin);
+                var wp = MakeWarpPoint(planet, pd.name, WarpPoint.Kind.Planet, pd.description, pd.radius, pd.arrival, pd.MapColor, null, pd.hostile);
+                wp.surface = pd.Surface;
+                bodies[pd.name] = planet;
+                points[pd.name] = wp;
+            }
 
-            // the moons: two round Thalassa, four round Jovara
             // every moon is a warp destination
             WarpPoint Moon(string name, GameObject planet, WarpPoint parentWp, float angle, float distKm, float radius, int seed, string desc)
             {
@@ -372,37 +367,28 @@ namespace Carrier.EditorTools
                 mw.surface = SurfaceKind.Moon;
                 return mw;
             }
-            var wSelene = Moon("Selene", thalassa, wThalassa, 35f, 16f, 1400f, 901, "Thalassa's larger moon: grey, airless and heavily cratered. A colony, Selene Base, stands on its sunlit side.");
-            Moon("Mnemos", thalassa, wThalassa, 205f, 24f, 900f, 902, "A small moon of Thalassa.");
-            var wBrontes = Moon("Brontes", jovara, wJovara, 10f, 34f, 2400f, 903, "Jovara's inner moon, scarred by ancient impacts. A shipyard orbits it.");
-            Moon("Arges", jovara, wJovara, 125f, 46f, 1600f, 904, "A small moon of Jovara.");
-            Moon("Steropes", jovara, wJovara, 235f, 60f, 2800f, 905, "Jovara's largest moon, with deep craters along its terminator.");
-            Moon("Pyrois", jovara, wJovara, 300f, 75f, 1100f, 906, "A small moon of Jovara.");
+            foreach (var md in data.moons)
+                points[md.name] = Moon(md.name, bodies[md.planet], points[md.planet], md.angle, md.distanceKm, md.radius, md.seed, md.description);
 
-            // the asteroid fields
-            var innerC = Polar(80f, 76f, 0f);
-            MakeField("Inner Belt", sys, innerC, 4500f, 110, 3101, rockMat, layer);
-            var fInner = new GameObject("Inner Belt (warp point)");
-            fInner.transform.SetParent(sys, false);
-            fInner.transform.position = innerC;
-            MakeWarpPoint(fInner, "Inner Belt", WarpPoint.Kind.AsteroidField,
-                "A quiet cluster of rock between the inner planets. Good cover, no contacts.", 4500f, 7000f, new Color(0.7f, 0.62f, 0.52f)).surface = SurfaceKind.Asteroid;
+            // the asteroid fields, each with a warp point at its middle
+            var fieldCentre = new Dictionary<string, Vector3>();
+            var fieldRocks = new Dictionary<string, List<Vector3>>();
+            foreach (var fd in data.fields)
+            {
+                Vector3 c = fd.Position;
+                fieldCentre[fd.name] = c;
+                fieldRocks[fd.name] = MakeField(fd.name, sys, c, fd.radius, fd.rocks, fd.seed, rockMat, layer);
+                var at = new GameObject(fd.name + " (warp point)");
+                at.transform.SetParent(sys, false);
+                at.transform.position = c;
+                MakeWarpPoint(at, fd.name, WarpPoint.Kind.AsteroidField, fd.description, fd.radius, fd.arrival, fd.MapColor, null, fd.hostile).surface = SurfaceKind.Asteroid;
+            }
 
-            var trojanC = Polar(30f, 178f, 1f);
-            var trojanBig = MakeField("Jovara Trojans", sys, trojanC, 5000f, 120, 3202, rockMat, layer);
-            var fTrojan = new GameObject("Jovara Trojans (warp point)");
-            fTrojan.transform.SetParent(sys, false);
-            fTrojan.transform.position = trojanC;
-            MakeWarpPoint(fTrojan, "Jovara Trojans", WarpPoint.Kind.AsteroidField,
-                "Rocks gathered at Jovara's leading Lagrange point, L4, 60 degrees ahead of it in its orbit. Raider fighters have been seen hiding here.", 5000f, 8000f, new Color(0.85f, 0.55f, 0.45f), null, true).surface = SurfaceKind.Asteroid;
-
-            var outerC = Polar(165f, 262f, 3f);
-            var outerBig = MakeField("Outer Drift", sys, outerC, 6000f, 120, 3303, rockMat, layer);
-            var fOuter = new GameObject("Outer Drift (warp point)");
-            fOuter.transform.SetParent(sys, false);
-            fOuter.transform.position = outerC;
-            MakeWarpPoint(fOuter, "Outer Drift", WarpPoint.Kind.AsteroidField,
-                "A thin belt of rock at the system's edge, where a pirate cruiser is said to lie in wait.", 6000f, 9000f, new Color(0.8f, 0.5f, 0.5f), null, true).surface = SurfaceKind.Asteroid;
+            // what the rest of the level is built round
+            GameObject cinder = bodies["Cinder"], ochre = bodies["Ochre"], thalassa = bodies["Thalassa"], jovara = bodies["Jovara"];
+            WarpPoint wCinder = points["Cinder"], wThalassa = points["Thalassa"], wGlacis = points["Glacis"], wSelene = points["Selene"], wBrontes = points["Brontes"];
+            Vector3 innerC = fieldCentre["Inner Belt"], trojanC = fieldCentre["Jovara Trojans"], outerC = fieldCentre["Outer Drift"];
+            List<Vector3> trojanBig = fieldRocks["Jovara Trojans"], outerBig = fieldRocks["Outer Drift"];
             Physics.SyncTransforms();
 
             // the frigate, in high orbit over Thalassa's day side

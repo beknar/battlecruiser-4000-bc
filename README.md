@@ -510,6 +510,11 @@ In the web version, use the page's Full screen button rather than F11.
   breakup, enemy weapons and sound synthesis. Shots and explosions are reused rather than made
   new each time (`Pool`); the warp drive's rules and its look are separate (`WarpDrive`,
   `WarpEffects`); how each kind of hostile flies is in one table (`PilotPresets`)
+- `Assets/Carrier/Resources/Data/ground_units.json`: the planets' ground forces' numbers (hull,
+  weapons, names, and how their fighters and gunships fly), read as the game runs
+- `Assets/Carrier/Data/star_system.json`: the star system's planets, moons and asteroid fields
+  (where they are, their size, look, mass, map colour and description), read by the scene
+  builder; rebuild the scenes after changing it
 - `Assets/Carrier/Scripts/Demo`: input and gamepad support (`CarrierDemoInput`), the HUD
   (`ShipHud`, the ship's console and the captain), the pause menu and system map, camera,
   autopilot, landing and docking. Gameplay code doesn't call the HUD: it posts messages to

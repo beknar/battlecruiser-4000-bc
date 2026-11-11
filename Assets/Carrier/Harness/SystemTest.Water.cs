@@ -201,8 +201,19 @@ namespace CarrierGame.Demo
                 foreach (var t in cc.mainTurrets) if (t != null) t.autoFire = true;
                 var shots0 = cc.mainTurrets.Where(t => t != null).ToDictionary(t => t, t => t.ShotsFired);
                 int blasts0 = Explosion.UnderwaterBlasts, bubbled0 = Explosion.BubblesReleased;
-                yield return new WaitForSeconds(14f);
+                int shells0 = Projectile.UnderwaterShots, trail0 = Projectile.BubblesLeft, glowing = 0;
+                float battleEnd = Time.time + 14f;
+                while (Time.time < battleEnd)
+                {
+                    // (no shot under the water shows its glow)
+                    foreach (var pr in FindObjectsByType<Projectile>(FindObjectsSortMode.None))
+                        if (Sea.Depth(pr.transform.position) > 0.5f && pr.GetComponentsInChildren<Renderer>().Any(r => r.enabled)) glowing++;
+                    yield return null;
+                }
                 Shot("w_seabattle");
+                int shells = Projectile.UnderwaterShots - shells0;
+                Check(shells > 0 && glowing == 0 && Projectile.BubblesLeft - trail0 > 100,
+                      $"shells under the water trail bubbles, not glow ({shells} shells, {Projectile.BubblesLeft - trail0} bubbles, {glowing} glowing)");
                 int blasts = Explosion.UnderwaterBlasts - blasts0;
                 Check(blasts > 0 && Explosion.FireUnderwater == 0 && Explosion.BubblesReleased - bubbled0 > 40,
                       $"blasts under the water are bubbles, not fire ({blasts} blasts, {Explosion.BubblesReleased - bubbled0} bubbles, {Explosion.FireUnderwater} on fire)");

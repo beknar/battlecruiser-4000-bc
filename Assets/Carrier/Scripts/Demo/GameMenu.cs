@@ -14,17 +14,14 @@ namespace CarrierGame.Demo
     /// </summary>
     public class GameMenu : MonoBehaviour
     {
-        /// <summary>The pause menu is up, or something else that takes the keys and mouse (the
-        /// co-op panel): the game itself takes no input.</summary>
-        public static bool IsOpen => open || Overlay;
-        static bool open;
-        /// <summary>Another panel is up that takes the input (the co-op panel).</summary>
-        public static bool Overlay;
+        /// <summary>The pause menu is up, or the co-op panel (which also takes the keys and
+        /// mouse): the game itself takes no input.</summary>
+        public static bool IsOpen => open || InputFocus.Has(InputFocus.Panel.CoopPanel);
+        static bool open => InputFocus.Has(InputFocus.Panel.PauseMenu);
         bool paused;
-        static int closedFrame = -10;
         int openedFrame = -10;
         /// <summary>Closed this frame or the last (so the key that closed it isn't also read by the game).</summary>
-        public static bool JustClosed => Time.frameCount - closedFrame <= 1;
+        public static bool JustClosed => InputFocus.JustReleased(InputFocus.Panel.PauseMenu);
 
         enum Item { Resume, Restart, Sound, Captain, Coop, Quit }
         static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Captain, Item.Coop, Item.Quit };
@@ -37,13 +34,9 @@ namespace CarrierGame.Demo
         readonly Rect[] captainRects = new Rect[Demo.Captain.Roster.Length];
         float savedTimeScale = 1f;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { open = false; Overlay = false; closedFrame = -10; }
-
         public void Open()
         {
-            if (IsOpen || SystemMap.IsOpen) return;
-            open = true;
+            if (IsOpen || !InputFocus.Take(InputFocus.Panel.PauseMenu)) return;
             openedFrame = Time.frameCount;
             selected = 0;
             confirming = null;
@@ -61,8 +54,7 @@ namespace CarrierGame.Demo
         public void Close()
         {
             if (!open) return;
-            open = false;
-            closedFrame = Time.frameCount;
+            InputFocus.Release(InputFocus.Panel.PauseMenu);
             if (paused) { Time.timeScale = savedTimeScale; AudioListener.pause = false; paused = false; }
         }
 
@@ -72,7 +64,7 @@ namespace CarrierGame.Demo
         {
             // leaving the scene with the menu up (restart): don't leave the game paused
             if (!open) return;
-            open = false;
+            InputFocus.Release(InputFocus.Panel.PauseMenu);
             if (paused) { Time.timeScale = savedTimeScale; AudioListener.pause = false; paused = false; }
         }
 

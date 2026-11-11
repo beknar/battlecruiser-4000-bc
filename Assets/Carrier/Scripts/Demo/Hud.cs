@@ -9,6 +9,15 @@ namespace CarrierGame.Demo
         /// <summary>The player's +/- text size setting.</summary>
         public static float UserScale = 1f;
 
+        /// <summary>A step bigger (+1) or smaller (-1).</summary>
+        public static void ChangeTextSize(int dir) => UserScale = Mathf.Clamp(UserScale + 0.15f * dir, 0.5f, 3f);
+
+        /// <summary>Recording a reel: the controls list is left off the screen, nothing asks the
+        /// player anything, and messages run on game time.</summary>
+        public static bool ReelMode;
+        /// <summary>The reel shows the mining marks too (the features reels).</summary>
+        public static bool ReelShowsMarks;
+
         /// <summary>1 at 900 px tall (never below 1), times the user setting.</summary>
         public static float S => Mathf.Max(1f, Screen.height / 900f) * UserScale;
 

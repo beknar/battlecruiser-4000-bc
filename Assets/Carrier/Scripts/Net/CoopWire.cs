@@ -2,7 +2,7 @@ namespace CarrierGame
 {
     /// <summary>
     /// The co-op protocol's version and message names, in one place for everyone who speaks it:
-    /// the game, the server (Server/CoopServer compiles this very file) and the test bots
+    /// the game, the server (Server/CoopServer.Core compiles this very file) and the test bots
     /// (Tools/CoopTest read the version from it). Plain C# with no Unity in it, so the server can
     /// build it too. Sample messages from the server are in Server/protocol; both sides' tests
     /// check them.

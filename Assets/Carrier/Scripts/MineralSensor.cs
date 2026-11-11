@@ -140,7 +140,7 @@ namespace CarrierGame
             Finds.Sort((a, b) => a.distance.CompareTo(b.distance));
             if (Finds.Count == 0)
             {
-                CarrierDemoInput.Toast($"Mineral scan: nothing within {ScanRange / 1000f:F0} km");
+                Notices.Post($"Mineral scan: nothing within {ScanRange / 1000f:F0} km");
                 return;
             }
             // the best find: the most valuable ore body
@@ -153,7 +153,7 @@ namespace CarrierGame
             }
             var near = Finds[0];
             string what = PlanetLanding.OnSurface ? "veins" : "deposits";
-            CarrierDemoInput.Toast($"Mineral scan: {Finds.Count} {what} within {ScanRange / 1000f:F0} km. Nearest {Mathf.Max(0f, near.distance) / 1000f:F1} km; " +
+            Notices.Post($"Mineral scan: {Finds.Count} {what} within {ScanRange / 1000f:F0} km. Nearest {Mathf.Max(0f, near.distance) / 1000f:F1} km; " +
                                    $"richest {Minerals.Name(Minerals.Prize(rich.Mix))} ({rich.Label})");
         }
 

@@ -58,7 +58,7 @@ namespace CarrierGame.Demo
             // it blew up: an explosion where it was
             if (Dead && !wasDead && health != null && health.deathEffect != null && shown)
             {
-                var e = Instantiate(health.deathEffect, transform.position, Quaternion.identity);
+                var e = Pool.Take(health.deathEffect, transform.position, Quaternion.identity);
                 e.transform.localScale *= health.deathEffectScale;
             }
             var s = new Sample { ts = m.ts, p = new Vector3(m.x, m.y, m.z), q = new Quaternion(m.qx, m.qy, m.qz, m.qw), v = new Vector3(m.vx, m.vy, m.vz) };

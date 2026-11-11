@@ -2,7 +2,8 @@ using UnityEngine;
 
 namespace CarrierGame
 {
-    /// <summary>A flash that grows and fades: an emissive sphere plus a point light.</summary>
+    /// <summary>A flash that grows and fades: an emissive sphere plus a point light. Explosions
+    /// come from the Pool and go back to it, so each one starts over as it is switched on.</summary>
     public class Explosion : MonoBehaviour
     {
         public float duration = 1.2f;
@@ -12,16 +13,29 @@ namespace CarrierGame
         public Light glow;
 
         float age;
+        bool begun;
         Color baseColor;
         float baseIntensity;
         MaterialPropertyBlock block;
         static readonly int ColorId = Shader.PropertyToID("_BaseColor");
 
-        void Start()
+        void Awake()
         {
             block = new MaterialPropertyBlock();
             if (flash != null) baseColor = flash.sharedMaterial.GetColor(ColorId);
             if (glow != null) baseIntensity = glow.intensity;
+        }
+
+        void OnEnable()
+        {
+            age = 0f;
+            begun = false;
+        }
+
+        /// <summary>Its first frame (as Start would be: whoever set it off has scaled it by now).</summary>
+        void Begin()
+        {
+            begun = true;
             Apply(0f);
             // big blasts rumble, small ones pop; scaled-up blasts (a cruiser dying) sound deeper
             float scale = transform.localScale.x;
@@ -32,10 +46,11 @@ namespace CarrierGame
 
         void Update()
         {
+            if (!begun) Begin();
             age += Time.deltaTime;
             float t = Mathf.Clamp01(age / duration);
             Apply(t);
-            if (age >= duration) Destroy(gameObject);
+            if (age >= duration) Pool.Give(gameObject);
         }
 
         void Apply(float t)

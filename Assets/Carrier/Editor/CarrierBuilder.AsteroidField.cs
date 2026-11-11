@@ -495,24 +495,14 @@ namespace Carrier.EditorTools
             var faceAmbush = route[rounding + 1];
             var fighters = fighterLurks.Select((lp, i) => Enemy(p.enemyFighter, $"EnemyFighter {(char)('A' + i)}", $"Hostile Fighter {(char)('A' + i)}", lp, faceAmbush, pl =>
             {
-                pl.style = CombatPilot.Style.Fighter;
-                pl.cruiseSpeed = 230f; pl.attackSpeed = 320f; pl.turnRate = 90f; pl.acceleration = 150f;
-                pl.breakOffDistance = 420f; pl.extendDistance = 1400f;
-                pl.hideBelow = 0.3f; pl.hideTime = 5f; pl.hideSearch = 2000f;
+                PilotPresets.Fighter(pl);
+                pl.hideSearch = 2000f;
             }, 18f)).ToArray();
-            var cruiser = Enemy(p.enemyCruiser, "EnemyCruiser", "Hostile Cruiser", cruiserLurk, route[rounding + 3], pl =>
-            {
-                pl.style = CombatPilot.Style.Capital;
-                pl.cruiseSpeed = 75f; pl.attackSpeed = 90f; pl.turnRate = 12f; pl.acceleration = 18f;
-                pl.standoff = 1800f; pl.circleSpeed = 3f;
-                pl.hideBelow = 0.5f; pl.hideTime = 8f; pl.hideCooldown = 30f; pl.hideSearch = 3000f;
-            }, 180f);
+            var cruiser = Enemy(p.enemyCruiser, "EnemyCruiser", "Hostile Cruiser", cruiserLurk, route[rounding + 3], PilotPresets.Cruiser, 180f);
             var drones = droneLurks.Select((lp, i) => Enemy(p.enemyDrone, $"EnemyDrone {(char)('A' + i)}", $"Hostile Drone {(char)('A' + i)}", lp, route[rounding + 3], pl =>
             {
-                pl.style = CombatPilot.Style.Fighter;
-                pl.cruiseSpeed = 190f; pl.attackSpeed = 250f; pl.turnRate = 110f; pl.acceleration = 130f;
-                pl.breakOffDistance = 350f; pl.extendDistance = 1000f;
-                pl.hideBelow = 0.35f; pl.hideTime = 5f; pl.hideSearch = 2000f;
+                PilotPresets.Drone(pl);
+                pl.hideSearch = 2000f;
             }, 35f)).ToArray();
 
             // camera, controls and the ambush itself

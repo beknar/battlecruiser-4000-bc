@@ -27,10 +27,9 @@ namespace CarrierGame.Demo
         public WarpDrive drive;
         public string systemName = "Kestrel System";
 
-        public static bool IsOpen { get; private set; }
-        static int closedFrame = -10;
+        public static bool IsOpen => InputFocus.Has(InputFocus.Panel.SystemMap);
         /// <summary>The map closed this frame (so Esc doesn't also quit the game).</summary>
-        public static bool JustClosed => Time.frameCount - closedFrame <= 1;
+        public static bool JustClosed => InputFocus.JustReleased(InputFocus.Panel.SystemMap);
 
         public WarpPoint Selected { get; private set; }
         public WarpPoint Hover { get; private set; }
@@ -42,9 +41,6 @@ namespace CarrierGame.Demo
         float extent = 1f, lastClick = -1f, stickRepeat;
         WarpPoint lastClicked;
         List<WarpPoint> order = new List<WarpPoint>();
-
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { IsOpen = false; closedFrame = -10; }
 
         void Start()
         {
@@ -59,8 +55,7 @@ namespace CarrierGame.Demo
 
         public void Open()
         {
-            if (drive == null) return;
-            IsOpen = true;
+            if (drive == null || !InputFocus.Take(InputFocus.Panel.SystemMap)) return;
             RefreshOrder();
             if (Selected == null || IsHere(Selected))
                 Selected = order.Where(p => !IsHere(p)).OrderBy(p => Vector3.Distance(p.Position, carrier.transform.position)).FirstOrDefault();
@@ -70,8 +65,7 @@ namespace CarrierGame.Demo
         public void Close()
         {
             if (!IsOpen) return;
-            IsOpen = false;
-            closedFrame = Time.frameCount;
+            InputFocus.Release(InputFocus.Panel.SystemMap);
             SoundFX.Ui(Sfx.UiClear);
         }
 
@@ -91,17 +85,17 @@ namespace CarrierGame.Demo
             if (IsHere(Selected))
             {
                 SoundFX.Ui(Sfx.UiError);
-                CarrierDemoInput.Toast($"Already at {Selected.displayName}");
+                Notices.Post($"Already at {Selected.displayName}");
                 return false;
             }
             if (drive.Engage(Selected, out string why))
             {
-                CarrierDemoInput.Toast($"Warping to {Selected.displayName}: {drive.chargeTime + drive.TravelTime:F1} s");
+                Notices.Post($"Warping to {Selected.displayName}: {drive.chargeTime + drive.TravelTime:F1} s");
                 Close();
                 return true;
             }
             SoundFX.Ui(Sfx.UiError);
-            CarrierDemoInput.Toast("Can't warp: " + why);
+            Notices.Post("Can't warp: " + why);
             return false;
         }
 
@@ -165,7 +159,7 @@ namespace CarrierGame.Demo
                 bool want = (k != null && k.mKey.wasPressedThisFrame) || (pad != null && pad.rightStickButton.wasPressedThisFrame && !carrier.HasHangar);
                 if (!want) return;
                 // no warping from the surface (or on the way down or up)
-                if (PlanetLanding.Busy) { if (PlanetLanding.OnSurface) CarrierDemoInput.Toast("Take off before using the system map"); return; }
+                if (PlanetLanding.Busy) { if (PlanetLanding.OnSurface) Notices.Post("Take off before using the system map"); return; }
                 Open();
                 return;
             }

@@ -77,7 +77,7 @@ namespace CarrierGame
                 SecondWaveIn = true;
                 foreach (var e in secondWave) if (e) e.Engage();
                 SoundFX.Ui(Sfx.UiAlert);
-                Demo.CarrierDemoInput.Toast("Heavy cruiser and drones closing from behind the rocks!");
+                Notices.Post("Heavy cruiser and drones closing from behind the rocks!");
             }
         }
 
@@ -106,7 +106,7 @@ namespace CarrierGame
             foreach (var e in firstWave) if (e) e.Engage();
             MusicDirector.EnterCombat(secondWaveDelay + 20f);
             SoundFX.Ui(Sfx.UiAlert);
-            Demo.CarrierDemoInput.Toast("AMBUSH! Fighters inbound");
+            Notices.Post("AMBUSH! Fighters inbound");
             // give the guns something to shoot at if the pilot hasn't picked a target
             var demo = FindAnyObjectByType<Demo.CarrierDemoInput>();
             var nearest = CombatPilot.Nearest(firstWave, player.transform.position);

@@ -1,4 +1,5 @@
 using UnityEngine;
+using Ev = CarrierGame.Demo.CaptainEvents;
 
 namespace CarrierGame.Demo
 {
@@ -33,21 +34,22 @@ namespace CarrierGame.Demo
         /// <summary>The picture on screen this moment (a blink or a word included).</summary>
         public Mood Shown { get; private set; } = Mood.Neutral;
         /// <summary>What she is reacting to, in a few words.</summary>
-        public string Reason { get; private set; } = "ALL QUIET";
+        public string Reason { get; private set; } = Ev.AllQuiet;
         /// <summary>Every mood she has shown, with its reason, latest last (for the self-test).</summary>
         public readonly System.Collections.Generic.List<(Mood mood, string reason, float at)> History =
             new System.Collections.Generic.List<(Mood, string, float)>();
 
         // a reaction: a face held for a while, unless something more serious comes along
         Mood reaction;
-        string reactionWhy;
+        string reactionEv, reactionWhy;
         int reactionPrio = -1;
         float reactionUntil;
 
         // what was seen last frame, to notice changes
         float hullHitSeen = -100f, shieldHitSeen = -100f;
         bool shieldWasUp = true, wasDestroyed, gunWasFiring, wasDocked, wasLanded, laserWasFull;
-        int shotsSeen, ciwsSeen, cellsSeen = -1, wingSeen, minedOutSeen, killsSeen, missilesSeen, hostilesSeen, toastsSeen;
+        int shotsSeen, ciwsSeen, cellsSeen = -1, wingSeen, minedOutSeen, killsSeen, missilesSeen, hostilesSeen;
+        bool started;
         WarpDrive.State warpWas = WarpDrive.State.Ready;
         float lastShotTime = -100f;
 
@@ -74,11 +76,6 @@ namespace CarrierGame.Demo
         bool greeted;
         float nextIdle;
         readonly System.Collections.Generic.Dictionary<string, float> lastSaid = new System.Collections.Generic.Dictionary<string, float>();
-        static readonly System.Collections.Generic.HashSet<string> Urgent = new System.Collections.Generic.HashSet<string>
-        {
-            "HULL HIT", "SHIELDS DOWN", "HULL CRITICAL", "MISSILE INBOUND", "SHIP LOST", "CONTACT", "TARGET DESTROYED",
-            "MAIN GUN FIRING", "BACK IN ACTION", "REPORTING FOR DUTY", "ARRIVED",
-        };
 
         static Texture2D scan;
 
@@ -108,19 +105,26 @@ namespace CarrierGame.Demo
                 cellsSeen = missiles != null ? missiles.ReadyCells : -1;
                 wingSeen = cc.Wing.Count;
             }
-            toastsSeen = CarrierDemoInput.Toasts;
+            started = true;
             nextBlink = Time.time + Random.Range(1.5f, 4f);
             swayPhase = Random.Range(0f, 10f);
             nextIdle = Time.time + Random.Range(25f, 45f);
         }
 
-        void OnEnable() => Captain.Changed += OnCaptainChanged;
-        void OnDisable() => Captain.Changed -= OnCaptainChanged;
+        void OnEnable() { Captain.Changed += OnCaptainChanged; Notices.Posted += OnNotice; }
+        void OnDisable() { Captain.Changed -= OnCaptainChanged; Notices.Posted -= OnNotice; }
+
+        /// <summary>A new message on the HUD: she says it, the mouth opening and closing through its steps.</summary>
+        void OnNotice(string message)
+        {
+            var cc = demo != null ? demo.carrier : null;
+            if (started && cc != null && !cc.Destroyed) talkUntil = Mathf.Max(talkUntil, Time.time + 1.2f);
+        }
 
         void OnCaptainChanged()
         {
             // the new captain says hello
-            React(Mood.Smile, 9, 1.8f, "REPORTING FOR DUTY");
+            React(Mood.Smile, 9, 1.8f, Ev.ReportingForDuty);
             talkUntil = Time.time + 1.2f;
         }
 
@@ -132,12 +136,14 @@ namespace CarrierGame.Demo
         }
 
         /// <summary>Hold a face for `seconds`, unless something more pressing (a higher
-        /// priority) is already showing.</summary>
-        public void React(Mood m, int priority, float seconds, string why)
+        /// priority) is already showing: a reaction to `ev` (CaptainEvents), shown on the console
+        /// as `why` (the event itself unless that gives more detail).</summary>
+        public void React(Mood m, int priority, float seconds, string ev, string why = null)
         {
             if (Time.time < reactionUntil && priority < reactionPrio) return;
             reaction = m;
-            reactionWhy = why;
+            reactionEv = ev;
+            reactionWhy = why ?? ev;
             reactionPrio = priority;
             reactionUntil = Time.time + seconds;
         }
@@ -150,36 +156,35 @@ namespace CarrierGame.Demo
 
             // what to show: a reaction while it lasts, else what the ship is doing
             Mood m;
-            string why;
-            if (cc.Destroyed) { m = Mood.Sad; why = "SHIP LOST"; }
-            else if (Time.time < reactionUntil) { m = reaction; why = reactionWhy; }
-            else { reactionPrio = -1; Steady(cc, out m, out why); }
-            Set(m, why);
+            string ev, why;
+            if (cc.Destroyed) { m = Mood.Sad; ev = why = Ev.ShipLost; }
+            else if (Time.time < reactionUntil) { m = reaction; ev = reactionEv; why = reactionWhy; }
+            else { reactionPrio = -1; Steady(cc, out m, out ev, out why); }
+            Set(m, ev, why);
 
             // taking command as the level starts
-            if (!greeted && Time.timeSinceLevelLoad > 2f && !cc.Destroyed) { greeted = true; Speak("REPORTING FOR DUTY", true); }
+            if (!greeted && Time.timeSinceLevelLoad > 2f && !cc.Destroyed) { greeted = true; Speak(Ev.ReportingForDuty, true); }
             // all quiet for a while: a remark now and then
-            if ((lastEvent == "ALL QUIET" || lastEvent == "ON THE SURFACE") && Time.time >= nextIdle)
+            if (Ev.Idle(lastEvent) && Time.time >= nextIdle)
             {
                 Speak(lastEvent, true);
                 nextIdle = Time.time + Random.Range(35f, 65f);
             }
-            else if (lastEvent != "ALL QUIET" && lastEvent != "ON THE SURFACE") nextIdle = Mathf.Max(nextIdle, Time.time + 20f);
+            else if (!Ev.Idle(lastEvent)) nextIdle = Mathf.Max(nextIdle, Time.time + 20f);
             Animate(cc);
 
             hitFlash = Mathf.Max(0f, hitFlash - Time.deltaTime * 2.6f);
             shake = Mathf.Max(0f, shake - Time.deltaTime * 3f);
         }
 
-        void Set(Mood m, string why)
+        void Set(Mood m, string ev, string why)
         {
             Reason = why;
             // something new to talk about
-            string ev = CaptainLines.EventOf(why);
             if (ev != lastEvent)
             {
                 lastEvent = ev;
-                if (ev != "ALL QUIET" && ev != "ON THE SURFACE") Speak(ev, false);
+                if (!Ev.Idle(ev)) Speak(ev, false);
             }
             if (m == Mood) return;
             Mood = m;
@@ -188,7 +193,7 @@ namespace CarrierGame.Demo
         }
 
         /// <summary>What the ship is doing, when nothing has just happened.</summary>
-        void Steady(CarrierController cc, out Mood m, out string why)
+        void Steady(CarrierController cc, out Mood m, out string ev, out string why)
         {
             var gun = demo.MainGun;
             var landing = PlanetLanding.Instance;
@@ -196,21 +201,21 @@ namespace CarrierGame.Demo
             var laser = demo.Laser;
             var sensor = demo.Sensor;
             m = Mood.Neutral;
-            why = PlanetLanding.OnSurface ? "ON THE SURFACE" : "ALL QUIET";
-            if (gun != null && gun.Current == MainBeam.State.Firing) { m = Mood.Determined; why = "MAIN GUN FIRING"; return; }
-            if (warp != null && warp.Current == WarpDrive.State.Warping) { m = Mood.Awe; why = "IN WARP"; return; }
-            if (warp != null && warp.Current == WarpDrive.State.Charging) { m = Mood.Focused; why = "WARP DRIVE CHARGING"; return; }
-            if (landing != null && landing.Current == PlanetLanding.State.Descending) { m = Mood.Focused; why = "GOING DOWN"; return; }
-            if (landing != null && landing.Current == PlanetLanding.State.Ascending) { m = Mood.Focused; why = "TAKING OFF"; return; }
-            if (dock != null && (dock.Current == Docking.State.Docking || dock.Current == Docking.State.Undocking)) { m = Mood.Focused; why = "DOCKING"; return; }
-            if (dock != null && dock.Current == Docking.State.Docked) { m = Mood.Smile; why = "DOCKED"; return; }
-            if (hull != null && hull.Current < hull.maxHealth * 0.25f) { m = Mood.Alarmed; why = "HULL CRITICAL"; return; }
-            if (gun != null && gun.Current == MainBeam.State.Charging) { m = Mood.Focused; why = "MAIN GUN CHARGING"; return; }
-            if (Time.time - lastShotTime < 1.5f) { m = Mood.Determined; why = "GUNS FIRING"; return; }
-            if (ShipConsole.HostilesNear > 0) { m = Mood.Focused; why = ShipConsole.HostilesNear == 1 ? "HOSTILE NEARBY" : $"{ShipConsole.HostilesNear} HOSTILES NEARBY"; return; }
-            if (laser != null && laser.Cutting) { m = Mood.Focused; why = "MINING"; return; }
-            if (sensor != null && sensor.Sweeping) { m = Mood.Focused; why = "SCANNING"; return; }
-            if (cc.target != null && warp == null) { m = Mood.Focused; why = "TARGET LOCKED"; return; }
+            ev = why = PlanetLanding.OnSurface ? Ev.OnTheSurface : Ev.AllQuiet;
+            if (gun != null && gun.Current == MainBeam.State.Firing) { m = Mood.Determined; ev = why = Ev.MainGunFiring; return; }
+            if (warp != null && warp.Current == WarpDrive.State.Warping) { m = Mood.Awe; ev = why = Ev.InWarp; return; }
+            if (warp != null && warp.Current == WarpDrive.State.Charging) { m = Mood.Focused; ev = why = Ev.WarpDriveCharging; return; }
+            if (landing != null && landing.Current == PlanetLanding.State.Descending) { m = Mood.Focused; ev = why = Ev.GoingDown; return; }
+            if (landing != null && landing.Current == PlanetLanding.State.Ascending) { m = Mood.Focused; ev = why = Ev.TakingOff; return; }
+            if (dock != null && (dock.Current == Docking.State.Docking || dock.Current == Docking.State.Undocking)) { m = Mood.Focused; ev = why = Ev.Docking; return; }
+            if (dock != null && dock.Current == Docking.State.Docked) { m = Mood.Smile; ev = why = Ev.Docked; return; }
+            if (hull != null && hull.Current < hull.maxHealth * 0.25f) { m = Mood.Alarmed; ev = why = Ev.HullCritical; return; }
+            if (gun != null && gun.Current == MainBeam.State.Charging) { m = Mood.Focused; ev = why = Ev.MainGunCharging; return; }
+            if (Time.time - lastShotTime < 1.5f) { m = Mood.Determined; ev = why = Ev.GunsFiring; return; }
+            if (ShipConsole.HostilesNear > 0) { m = Mood.Focused; ev = Ev.HostilesNearby; why = ShipConsole.HostilesNear == 1 ? "HOSTILE NEARBY" : $"{ShipConsole.HostilesNear} HOSTILES NEARBY"; return; }
+            if (laser != null && laser.Cutting) { m = Mood.Focused; ev = why = Ev.Mining; return; }
+            if (sensor != null && sensor.Sweeping) { m = Mood.Focused; ev = why = Ev.Scanning; return; }
+            if (cc.target != null && warp == null) { m = Mood.Focused; ev = why = Ev.TargetLocked; return; }
         }
 
         /// <summary>Notice what has just happened to the ship, and react.</summary>
@@ -220,7 +225,7 @@ namespace CarrierGame.Demo
             if (cc.Destroyed != wasDestroyed)
             {
                 wasDestroyed = cc.Destroyed;
-                if (!cc.Destroyed) React(Mood.Determined, 8, 2.5f, "BACK IN ACTION");
+                if (!cc.Destroyed) React(Mood.Determined, 8, 2.5f, Ev.BackInAction);
                 else { hitFlash = 1f; shake = 1f; }
             }
             if (cc.Destroyed)
@@ -238,7 +243,7 @@ namespace CarrierGame.Demo
                 if (hull.LastHitAmount >= 5f)
                 {
                     bool hard = hull.LastHitAmount >= hull.maxHealth * 0.04f || hull.Current < hull.maxHealth * 0.35f;
-                    React(Mood.Pain, hard ? 7 : 6, hard ? 1.6f : 1.1f, "HULL HIT");
+                    React(Mood.Pain, hard ? 7 : 6, hard ? 1.6f : 1.1f, Ev.HullHit);
                     hitFlash = hard ? 1f : 0.7f;
                     shake = hard ? 1f : 0.6f;
                 }
@@ -248,72 +253,72 @@ namespace CarrierGame.Demo
                 if (shield.LastHitTime > shieldHitSeen)
                 {
                     shieldHitSeen = shield.LastHitTime;
-                    if (Time.time - lastShotTime < 1.5f) React(Mood.Determined, 5, 1f, "RETURNING FIRE");
-                    else React(Mood.Alarmed, 5, 1.1f, "SHIELDS TAKING FIRE");
+                    if (Time.time - lastShotTime < 1.5f) React(Mood.Determined, 5, 1f, Ev.ReturningFire);
+                    else React(Mood.Alarmed, 5, 1.1f, Ev.ShieldsTakingFire);
                     hitFlash = Mathf.Max(hitFlash, 0.35f);
                     shake = Mathf.Max(shake, 0.25f);
                 }
-                if (shieldWasUp && !shield.Up) React(Mood.Alarmed, 8, 2.4f, "SHIELDS DOWN");
+                if (shieldWasUp && !shield.Up) React(Mood.Alarmed, 8, 2.4f, Ev.ShieldsDown);
                 shieldWasUp = shield.Up;
             }
 
             // threats
-            if (ShipConsole.MissilesInbound > missilesSeen) React(Mood.Alarmed, 6, 1.5f, "MISSILE INBOUND");
+            if (ShipConsole.MissilesInbound > missilesSeen) React(Mood.Alarmed, 6, 1.5f, Ev.MissileInbound);
             missilesSeen = ShipConsole.MissilesInbound;
-            if (hostilesSeen == 0 && ShipConsole.HostilesNear > 0) React(Mood.Alarmed, 4, 1.6f, "CONTACT");
+            if (hostilesSeen == 0 && ShipConsole.HostilesNear > 0) React(Mood.Alarmed, 4, 1.6f, Ev.Contact);
             hostilesSeen = ShipConsole.HostilesNear;
-            if (ShipConsole.Kills > killsSeen) React(Mood.Smile, 5, 2.4f, "TARGET DESTROYED");
+            if (ShipConsole.Kills > killsSeen) React(Mood.Smile, 5, 2.4f, Ev.TargetDestroyed);
             killsSeen = ShipConsole.Kills;
 
             // our own fire
             int shots = Shots(cc.mainTurrets);
-            if (shots > shotsSeen) { lastShotTime = Time.time; React(Mood.Determined, 3, 1.2f, "GUNS FIRING"); }
+            if (shots > shotsSeen) { lastShotTime = Time.time; React(Mood.Determined, 3, 1.2f, Ev.GunsFiring); }
             shotsSeen = shots;
             if (ciws != null)
             {
                 int c = Shots(ciws.mounts);
-                if (c > ciwsSeen) React(Mood.Determined, 2, 0.8f, "POINT DEFENCE FIRING");
+                if (c > ciwsSeen) React(Mood.Determined, 2, 0.8f, Ev.PointDefenceFiring);
                 ciwsSeen = c;
             }
             if (missiles != null)
             {
                 int cells = missiles.ReadyCells;
-                if (cellsSeen >= 0 && cells < cellsSeen) React(Mood.Determined, 4, 1.5f, "MISSILES AWAY");
+                if (cellsSeen >= 0 && cells < cellsSeen) React(Mood.Determined, 4, 1.5f, Ev.MissilesAway);
                 cellsSeen = cells;
             }
-            if (cc.Wing.Count > wingSeen) React(Mood.Determined, 3, 1.5f, "LAUNCHING THE WING");
+            if (cc.Wing.Count > wingSeen) React(Mood.Determined, 3, 1.5f, Ev.LaunchingTheWing);
             wingSeen = cc.Wing.Count;
             var gun = demo.MainGun;
             bool firing = gun != null && gun.Current == MainBeam.State.Firing;
-            if (firing && !gunWasFiring) { React(Mood.Determined, 6, 2f, "MAIN GUN FIRING"); shake = Mathf.Max(shake, 0.3f); }
+            if (firing && !gunWasFiring) { React(Mood.Determined, 6, 2f, Ev.MainGunFiring); shake = Mathf.Max(shake, 0.3f); }
             gunWasFiring = firing;
 
             // travel
             if (warp != null)
             {
                 if (warp.Current == WarpDrive.State.Ready && warpWas == WarpDrive.State.Arriving)
-                    React(Mood.Smile, 3, 2f, "ARRIVED");
+                    React(Mood.Smile, 3, 2f, Ev.Arrived);
                 warpWas = warp.Current;
             }
             var landing = PlanetLanding.Instance;
             bool landed = landing != null && landing.Current == PlanetLanding.State.OnSurface;
-            if (landed && !wasLanded) React(Mood.Smile, 3, 2f, "TOUCHDOWN");
+            if (landed && !wasLanded) React(Mood.Smile, 3, 2f, Ev.Touchdown);
             wasLanded = landed;
             var dock = Docking.Instance;
             bool docked = dock != null && dock.Current == Docking.State.Docked;
-            if (docked && !wasDocked) React(Mood.Smile, 4, 3f, "DOCKED: REPAIRED");
+            if (docked && !wasDocked) React(Mood.Smile, 4, 3f, Ev.Docked, "DOCKED: REPAIRED");
             wasDocked = docked;
 
             // mining
             var laser = demo.Laser;
             if (laser != null)
             {
-                if (laser.DepositsMinedOut > minedOutSeen) React(Mood.Smile, 3, 2f, "ROCK MINED OUT");
+                if (laser.DepositsMinedOut > minedOutSeen) React(Mood.Smile, 3, 2f, Ev.RockMinedOut);
                 minedOutSeen = laser.DepositsMinedOut;
             }
             var cargo = demo.Cargo;
             bool full = cargo != null && cargo.Fraction > 0.999f;
-            if (full && !laserWasFull) React(Mood.Smile, 3, 2.5f, "HOLD FULL");
+            if (full && !laserWasFull) React(Mood.Smile, 3, 2.5f, Ev.HoldFull);
             laserWasFull = full;
         }
 
@@ -324,7 +329,7 @@ namespace CarrierGame.Demo
         {
             var cc = demo != null ? demo.carrier : null;
             if (cc == null || CaptainLines.CountFor(ev) == 0) return;
-            bool urgent = Urgent.Contains(ev);
+            bool urgent = Ev.Urgent.Contains(ev);
             float sinceLine = Time.time - QuoteAt;
             float sinceSame = lastSaid.TryGetValue(ev, out float t) ? Time.time - t : 999f;
             // still saying the last line (unless this can't wait), or said this kind of thing just now
@@ -400,12 +405,6 @@ namespace CarrierGame.Demo
             blink = b < 0f || b > 1f ? 0f : 2f * (1f - Mathf.Abs(b * 2f - 1f));
             blink = Mathf.Min(2f, blink * 1.25f);
 
-            // a new message on the HUD: she says it, the mouth opening and closing through its steps
-            if (CarrierDemoInput.Toasts != toastsSeen)
-            {
-                toastsSeen = CarrierDemoInput.Toasts;
-                if (!cc.Destroyed) talkUntil = Mathf.Max(talkUntil, Time.time + 1.2f);
-            }
             bool mouthBusy = level > 1.2f && (face == Mood.Alarmed || face == Mood.Pain || face == Mood.Awe);
             if (Time.time < talkUntil && !mouthBusy)
             {

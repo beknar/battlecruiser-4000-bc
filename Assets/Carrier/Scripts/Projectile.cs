@@ -2,7 +2,8 @@ using UnityEngine;
 
 namespace CarrierGame
 {
-    /// <summary>A bolt that flies straight, hits the first collider in its path and deals damage.</summary>
+    /// <summary>A bolt that flies straight, hits the first collider in its path and deals damage.
+    /// Bolts come from the Pool and go back to it, so each one starts over as it is switched on.</summary>
     public class Projectile : MonoBehaviour
     {
         public float speed = 1500f;
@@ -13,8 +14,22 @@ namespace CarrierGame
         public HitKind kind = HitKind.Projectile;
         [HideInInspector] public Transform owner;
 
-        float age;
+        float age, prefabDamage;
         int ownerSide = -1;   // 1: fired by a hostile ship, 0: not (worked out on first use)
+        bool announced;
+
+        // the damage as the prefab has it: whoever fires one may change it (co-op scaling, or none
+        // for a shot shown from another player's game)
+        void Awake() => prefabDamage = damage;
+
+        void OnEnable()
+        {
+            age = 0f;
+            ownerSide = -1;
+            announced = false;
+            damage = prefabDamage;
+            owner = null;
+        }
 
         /// <summary>A hostile ship's shot doesn't hurt the other hostiles (a battle group firing
         /// past its own flagship). The player's side is unchanged.</summary>
@@ -34,10 +49,10 @@ namespace CarrierGame
         /// <summary>Co-op: a shot has been fired (announced to the other players' games).</summary>
         public static event System.Action<Projectile> Spawned;
 
-        void Start() => Spawned?.Invoke(this);
-
         void Update()
         {
+            // announced once its owner and damage are set (as Start would, before its first move)
+            if (!announced) { announced = true; Spawned?.Invoke(this); }
             float step = speed * Time.deltaTime;
             if (Physics.Raycast(transform.position, transform.forward, out var hit, step, ~0, QueryTriggerInteraction.Ignore)
                 && (owner == null || !hit.transform.IsChildOf(owner)) && !Friendly(hit.transform))
@@ -51,14 +66,14 @@ namespace CarrierGame
                 if (!onShield)
                 {
                     if (h != null && hitEffect == null) SoundFX.Play(Sfx.Impact, hit.point, 0.6f);
-                    if (hitEffect != null) Instantiate(hitEffect, hit.point, Quaternion.identity);
+                    if (hitEffect != null) Pool.Take(hitEffect, hit.point, Quaternion.identity);
                 }
-                Destroy(gameObject);
+                Pool.Give(gameObject);
                 return;
             }
             transform.position += transform.forward * step;
             age += Time.deltaTime;
-            if (age > lifetime) Destroy(gameObject);
+            if (age > lifetime) Pool.Give(gameObject);
         }
     }
 }

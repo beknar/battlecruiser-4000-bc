@@ -132,7 +132,7 @@ namespace CarrierGame
             if (breakup != null) breakup.Break(deathEffect, deathEffectScale);
             else if (deathEffect != null)
             {
-                var e = Instantiate(deathEffect, transform.position, Quaternion.identity);
+                var e = Pool.Take(deathEffect, transform.position, Quaternion.identity);
                 e.transform.localScale *= deathEffectScale;
             }
             onDestroyed?.Invoke();

@@ -275,17 +275,10 @@ namespace CarrierGame
             pilot.startLurking = true;
             pilot.leashDistance = 11000f;
             pilot.hideBelow = 0f;
-            if (gunship > 0f)
-            {
-                pilot.style = CombatPilot.Style.Capital;
-                pilot.cruiseSpeed = 100f; pilot.attackSpeed = 130f; pilot.turnRate = 18f; pilot.acceleration = 25f;
-                pilot.standoff = 1800f; pilot.circleSpeed = 4f;
-            }
+            if (gunship > 0f) PilotPresets.GroundGunship(pilot);
             else
             {
-                pilot.style = CombatPilot.Style.Fighter;
-                pilot.cruiseSpeed = 200f; pilot.attackSpeed = 290f; pilot.turnRate = 85f; pilot.acceleration = 140f;
-                pilot.breakOffDistance = 420f; pilot.extendDistance = 1300f;
+                PilotPresets.GroundFighter(pilot);
                 pilot.loiterRadius = parked ? 0f : 700f;
             }
             if (parked)

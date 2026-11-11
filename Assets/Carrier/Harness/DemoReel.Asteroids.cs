@@ -37,7 +37,7 @@ namespace CarrierGame.Demo
         {
             float d = demo.ShipViewDistance;
             Vector3 me = cc.transform.position;
-            var cruiser = demo.targets != null && demo.targets.Length > 0 ? demo.targets[0] : null;
+            var cruiser = Targets.All.Count > 0 ? Targets.All[0] : null;
             if (cruiserGuns == null && cruiser) cruiserGuns = cruiser.GetComponent<EnemyWeapons>();
             if (frame % 15 == 0 && !amb.Sprung) minClearance = Mathf.Min(minClearance, cc.ObstacleClearance(800f));
 

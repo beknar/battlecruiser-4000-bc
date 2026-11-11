@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The co-op server's rooms and settings, without the web server around them: the hub and the
+       config. CoopServer runs them; CoopServer.Tests drives them directly, over WebSocket pairs on
+       loopback TCP, so the tests need no web server. Nothing here uses ASP.NET Core. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>CoopServer.Core</AssemblyName>
+    <RootNamespace>CoopServer</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- the protocol's version and message names: the game's own file, so both sides build the same one -->
+    <Compile Include="..\..\Assets\Carrier\Scripts\Net\CoopWire.cs" Link="Shared\CoopWire.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- the tests check the hub's JSON helpers (Hub.Str, Int, Num), which are internal -->
+    <InternalsVisibleTo Include="CoopServer.Tests" />
+  </ItemGroup>
+
+</Project>

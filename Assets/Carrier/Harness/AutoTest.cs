@@ -71,9 +71,9 @@ namespace CarrierGame.Demo
 
         void Update()
         {
-            if (!breakupSeen && demo != null && demo.targets != null && demo.targets.Length > 0 && demo.targets[0] != null)
+            if (!breakupSeen && demo != null && Targets.All.Count > 0 && Targets.All[0] != null)
             {
-                var br = demo.targets[0].GetComponent<ShipBreakup>();
+                var br = Targets.All[0].GetComponent<ShipBreakup>();
                 if (br != null && br.State == ShipBreakup.Phase.Breaking) { breakupSeen = true; StartCoroutine(WatchBreakup(br)); }
             }
             if (broadsideSide != 0 && cc != null && cc.target != null)
@@ -254,7 +254,7 @@ namespace CarrierGame.Demo
         IEnumerator MainGunSteps()
         {
             var gun = demo.MainGun;
-            demo.SelectTarget(demo.targets[0]);
+            demo.SelectTarget(Targets.All[0]);
             var h = cc.target.GetComponent<Health>();
             for (float w = 0f; h != null && h.Dead && w < 8f; w += 0.25f) yield return new WaitForSeconds(0.25f);
             broadsideSide = 0;
@@ -291,7 +291,7 @@ namespace CarrierGame.Demo
         IEnumerator EnemyBeamStep()
         {
             var shield = cc.GetComponentInChildren<Shield>(true);
-            var cruiser = demo.targets[0];
+            var cruiser = Targets.All[0];
             var beam = cruiser ? cruiser.GetComponentInChildren<MainBeam>() : null;
             if (shield == null || beam == null) yield break;
             foreach (var g in cc.mainTurrets) if (g) g.autoFire = false;
@@ -388,7 +388,7 @@ namespace CarrierGame.Demo
                     kinds.Add($"{n} ({(ti ? ti.kind.ToString() : "?")})");
                 }
                 log.AppendLine($"CIWS: {ciws.mounts.Length} mounts, {shots} shots, fired at: {(kinds.Count == 0 ? "nothing" : string.Join(", ", kinds))}");
-                foreach (var t in demo.targets)
+                foreach (var t in Targets.All)
                 {
                     var th = t ? t.GetComponent<Health>() : null;
                     if (th) log.AppendLine($"  {t.name}: destroyed {th.TimesDestroyed}x, hits taken {th.Hits}");

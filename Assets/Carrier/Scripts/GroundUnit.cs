@@ -36,10 +36,10 @@ namespace CarrierGame
                 hitsSeen = health.Hits;
                 health.onDestroyed.AddListener(() => { if (surface != null) surface.Destroyed.Add(key); });
             }
-            Demo.CarrierDemoInput.AddTarget(transform);
+            Targets.Add(transform);
         }
 
-        void OnDestroy() => Demo.CarrierDemoInput.RemoveTarget(transform);
+        void OnDestroy() => Targets.Remove(transform);
 
         public void Engage()
         {

@@ -135,7 +135,7 @@ namespace CarrierGame.Demo
         {
             if (!CanLand(out var body, out string why))
             {
-                CarrierDemoInput.Toast(body != null ? $"Can't land on {body.displayName}: {why}" : $"Can't land: {why}");
+                Notices.Post(body != null ? $"Can't land on {body.displayName}: {why}" : $"Can't land: {why}");
                 SoundFX.Ui(Sfx.UiError);
                 return false;
             }
@@ -180,7 +180,7 @@ namespace CarrierGame.Demo
             bool air = body.surface != SurfaceKind.Moon && body.surface != SurfaceKind.Asteroid;
             fadeColor = air ? Color.Lerp(body.mapColor, new Color(1f, 0.75f, 0.5f), 0.5f) : new Color(0.02f, 0.02f, 0.03f);
             SoundFX.Play(Sfx.WarpCharge, carrier.transform.position, 0.7f, 0.6f);
-            CarrierDemoInput.Toast($"Descending to {body.displayName}");
+            Notices.Post($"Descending to {body.displayName}");
             PadSupport.Rumble(0.4f, 0.2f, fadeTime);
             Vector3 toBody = (body.Position - carrier.transform.position).normalized;
             for (float t = 0f; t < fadeTime; t += Time.deltaTime)
@@ -250,7 +250,7 @@ namespace CarrierGame.Demo
             yield return null;
             if (Site == null) yield break;   // destroyed straight away, and back in space
             SoundFX.Play(Sfx.WarpExit, carrier.transform.position, 0.5f, 0.7f);
-            CarrierDemoInput.Toast($"{body.displayName}, {LatLonText(lat, lon)}: {Site.description}{(w.hostile ? " (hostile)" : "")}");
+            Notices.Post($"{body.displayName}, {LatLonText(lat, lon)}: {Site.description}{(w.hostile ? " (hostile)" : "")}");
             for (float t = 0f; t < fadeTime; t += Time.deltaTime)
             {
                 fade = 1f - t / fadeTime;
@@ -264,7 +264,7 @@ namespace CarrierGame.Demo
             Current = State.Ascending;
             carrier.externalMotion = true;
             SoundFX.Play(Sfx.WarpCharge, carrier.transform.position, 0.7f, 0.75f);
-            CarrierDemoInput.Toast($"Climbing back to orbit of {Body.displayName}");
+            Notices.Post($"Climbing back to orbit of {Body.displayName}");
             PadSupport.Rumble(0.35f, 0.2f, fadeTime);
             for (float t = 0f; t < fadeTime; t += Time.deltaTime)
             {
@@ -522,7 +522,7 @@ namespace CarrierGame.Demo
                 }
             }
             if (Current == State.InSpace) candidate = Candidate(out candidateWhy);
-            if (GameMenu.IsOpen || GameMenu.JustClosed || SystemMap.IsOpen || SystemMap.JustClosed) return;
+            if (InputFocus.PanelUp) return;   // a panel has the keys
             if (Current == State.InSpace && Docking.WantsKey) return;   // K docks (or undocks) here
             var k = Keyboard.current;
             var pad = Gamepad.current;
@@ -635,7 +635,7 @@ namespace CarrierGame.Demo
             if (Landed && !wasLanded && Time.time - touchedAt > 3f)
             {
                 Touchdowns++;
-                CarrierDemoInput.Toast(OnPad ? "Touchdown on the landing pad" : $"Touchdown on {Body.displayName}");
+                Notices.Post(OnPad ? "Touchdown on the landing pad" : $"Touchdown on {Body.displayName}");
                 PadSupport.Rumble(0.5f, 0.3f, 0.3f);
                 SoundFX.PlayPeaceful(Sfx.Impact, tr.position, 0.5f, 0.5f);
             }
@@ -651,7 +651,7 @@ namespace CarrierGame.Demo
                     lavaHealth.Damage(75f, tr.position + Vector3.down * 10f, HitKind.Beam);
                     lavaHitAt = Time.time;
                 }
-                if (Time.time - lavaWarnedAt > 4f) { lavaWarnedAt = Time.time; CarrierDemoInput.Toast("The lava is burning the hull: climb!"); }
+                if (Time.time - lavaWarnedAt > 4f) { lavaWarnedAt = Time.time; Notices.Post("The lava is burning the hull: climb!"); }
             }
         }
 

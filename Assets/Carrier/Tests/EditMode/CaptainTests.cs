@@ -47,14 +47,15 @@ namespace CarrierGame.Tests
             Assert.That(CaptainLines.Events.Distinct().Count(), Is.EqualTo(CaptainLines.Events.Length));
         }
 
-        [TestCase("6 HOSTILES NEARBY", "HOSTILES NEARBY")]
-        [TestCase("HOSTILE NEARBY", "HOSTILES NEARBY")]
-        [TestCase("DOCKED: REPAIRED", "DOCKED")]
-        [TestCase("  ARRIVED ", "ARRIVED")]
-        [TestCase("", "")]
-        [TestCase(null, "")]
-        public void AReasonBelongsToItsEvent(string reason, string ev) =>
-            Assert.That(CaptainLines.EventOf(reason), Is.EqualTo(ev));
+        [Test]
+        public void EveryEventIsListed()
+        {
+            // each constant in CaptainEvents is in its list (so the line checks above cover it)
+            var fields = typeof(CaptainEvents).GetFields().Where(f => f.IsLiteral).Select(f => (string)f.GetRawConstantValue()).ToArray();
+            Assert.That(fields.Length, Is.EqualTo(CaptainEvents.All.Length));
+            Assert.That(CaptainEvents.All, Is.EquivalentTo(fields));
+            Assert.That(CaptainEvents.Urgent.All(e => CaptainEvents.All.Contains(e)), Is.True);
+        }
 
         [Test]
         public void EveryLineHasItsBlanksFilled()

@@ -17,7 +17,7 @@ namespace CarrierGame.Demo
     {
         public CarrierDemoInput demo;
 
-        public static bool IsOpen { get; private set; }
+        public static bool IsOpen => InputFocus.Has(InputFocus.Panel.CoopPanel);
         static bool offered;
 
         string playerName, address, port;
@@ -34,7 +34,7 @@ namespace CarrierGame.Demo
             address = Pref(PrefAddress, "");
             port = Pref(PrefPort, "7777");
             // a web page: its own server by default, or ?server=address:port
-            if (CarrierDemoInput.OnWeb)
+            if (LaunchArgs.OnWeb)
             {
                 string q = LaunchArgs.PageOption("server");
                 if (q != null) SplitAddress(q, ref address, ref port);
@@ -51,7 +51,7 @@ namespace CarrierGame.Demo
                 offered = true;
                 return;
             }
-            if (!offered && !LaunchArgs.Automated && !CarrierDemoInput.ReelMode) Open();
+            if (!offered && !LaunchArgs.Automated && !Hud.ReelMode) Open();
             offered = true;
         }
 
@@ -93,9 +93,7 @@ namespace CarrierGame.Demo
 
         public void Open()
         {
-            if (IsOpen) return;
-            IsOpen = true;
-            GameMenu.Overlay = true;
+            if (IsOpen || !InputFocus.Take(InputFocus.Panel.CoopPanel)) return;
             openedAt = Time.unscaledTime;
             // alone, the game waits while you choose; with others, it can't
             if (!CoopClient.Active)
@@ -109,12 +107,11 @@ namespace CarrierGame.Demo
         public void Close()
         {
             if (!IsOpen) return;
-            IsOpen = false;
-            GameMenu.Overlay = false;
+            InputFocus.Release(InputFocus.Panel.CoopPanel);
             if (paused) { Time.timeScale = savedScale; paused = false; }
         }
 
-        void OnDestroy() { if (IsOpen) { GameMenu.Overlay = false; if (paused) Time.timeScale = savedScale; IsOpen = false; } }
+        void OnDestroy() { if (IsOpen) { InputFocus.Release(InputFocus.Panel.CoopPanel); if (paused) Time.timeScale = savedScale; } }
 
         void Connect()
         {

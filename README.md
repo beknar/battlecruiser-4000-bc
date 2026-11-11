@@ -507,9 +507,15 @@ In the web version, use the page's Full screen button rather than F11.
 ## Project layout
 
 - `Assets/Carrier/Scripts`: game code: ship control, turrets, CIWS, main beam, shield, health,
-  breakup, enemy weapons and sound synthesis
-- `Assets/Carrier/Scripts/Demo`: input and gamepad support, HUD (the ship's console and the
-  captain), camera, autopilot, the self-test and the demo reel recorder
+  breakup, enemy weapons and sound synthesis. Shots and explosions are reused rather than made
+  new each time (`Pool`); the warp drive's rules and its look are separate (`WarpDrive`,
+  `WarpEffects`); how each kind of hostile flies is in one table (`PilotPresets`)
+- `Assets/Carrier/Scripts/Demo`: input and gamepad support (`CarrierDemoInput`), the HUD
+  (`ShipHud`, the ship's console and the captain), the pause menu and system map, camera,
+  autopilot, landing and docking. Gameplay code doesn't call the HUD: it posts messages to
+  `Notices` and adds what can be targeted to `Targets`, and the HUD reads those
+- `Assets/Carrier/Harness`: the self-tests, the autotest and the demo reel recorder, in their own
+  assembly (`Carrier.Harness`) so the game can't come to depend on them
 - `Assets/Carrier/Resources/Captains`: the five captains' portraits, 26 each
   (`<captain>_neutral.jpg` and `<captain>_<expression>_<step>.jpg`), generated as described
   under The captain
@@ -525,8 +531,9 @@ In the web version, use the page's Full screen button rather than F11.
 - `Assets/Carrier/Scripts/Net`: co-op: the connection (`CoopClient`, over a WebSocket in both
   the Windows and web versions), the shared world (`CoopWorld`), other players' ships
   (`RemotePlayer`) and the co-op panel (`CoopMenu`)
-- `Server/CoopServer`: the co-op server (.NET 8, Windows and Linux); `Server/CoopServer.Tests`
-  its unit and integration tests
+- `Server/CoopServer`: the co-op server (.NET 8, Windows and Linux), the program around
+  `Server/CoopServer.Core`, which holds the rooms and the settings; `Server/CoopServer.Tests` its
+  unit and integration tests, which use Core directly
 - `Assets/Carrier/Tests`: the game's unit and integration tests (Unity Test Framework). The game's
   code is its own assembly, `Carrier.Game` (`Assets/Carrier/Scripts`), and the editor tools are
   `Carrier.Editor`, so the tests can reference them
@@ -644,11 +651,11 @@ Each build is a single self-contained file (about 47 MB) plus `coopserver.json`.
 ### Testing co-op
 
 The protocol's version and message names are in one file,
-`Assets/Carrier/Scripts/Net/CoopWire.cs`. The game builds it, the server builds the same file,
-and the test bots read the version from it. `Server/protocol` holds a sample of each message the
-server sends. The server's tests check that it sends nothing that isn't in the samples, and the
-game's tests check that it reads every field in them. A field added on one side but not the other
-fails a test. Adding fields or messages keeps the protocol version; renaming one never happens,
+`Assets/Carrier/Scripts/Net/CoopWire.cs`. The game builds it, the server builds the same file
+(in `Server/CoopServer.Core`), and the test bots read the version from it. `Server/protocol` holds
+a sample of each message the server sends. The server's tests check that it sends nothing that
+isn't in the samples, and the game's tests check that it reads every field in them. A field added
+on one side but not the other fails a test. Adding fields or messages keeps the protocol version; renaming one never happens,
 because released games and servers must keep understanding each other.
 
 - `Tools/CoopTest/server_test.py <host> <port> [--allowtest <settings file>]` tests a running

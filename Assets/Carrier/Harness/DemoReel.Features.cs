@@ -111,7 +111,7 @@ namespace CarrierGame.Demo
             perFrame = null;
             demo.autoRudder = null; demo.autoPitch = null; demo.autoElevator = null;
             if (demo.Laser != null && demo.Laser.On) demo.Laser.TurnOff();
-            if (CarrierDemoInput.ManifestOpen) demo.ToggleManifest();
+            if (MiningDisplay.ManifestOpen) demo.ToggleManifest();
             if (SystemMap.IsOpen) sysMap.Close();
         }
 

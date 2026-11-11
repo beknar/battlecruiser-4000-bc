@@ -11,7 +11,6 @@ namespace CarrierGame.Demo
     public class TargetDisplay : MonoBehaviour
     {
         public CarrierController carrier;
-        public Transform[] targets;
 
         /// <summary>Screen area the panel covers (GUI coordinates), so clicks there don't pick ships.</summary>
         public Rect PanelRect { get; private set; }
@@ -34,7 +33,7 @@ namespace CarrierGame.Demo
 
         /// <summary>Pointers toward an off-screen target: right, left, up, down. The browser has no
         /// system fonts to fall back on, and the built-in font has no triangles.</summary>
-        static readonly string[] Arrows = CarrierDemoInput.OnWeb
+        static readonly string[] Arrows = LaunchArgs.OnWeb
             ? new[] { ">", "<", "^", "v" }
             : new[] { "▶", "◀", "▲", "▼" };
 
@@ -76,7 +75,7 @@ namespace CarrierGame.Demo
             {
                 SoundFX.Ui(Sfx.UiKill);
                 PadSupport.Rumble(0.8f, 0.6f, 0.45f);
-                CarrierDemoInput.Toast($"{ShownName} destroyed");
+                Notices.Post($"{ShownName} destroyed");
             }
             wasDead = health.Dead;
             if (health.LastHitTime > lastSeenHit)
@@ -122,8 +121,8 @@ namespace CarrierGame.Demo
             if (carrier == null) return;
             float s = Hud.S;
             var cam = Camera.main;
-            if (cam != null && targets != null)
-                foreach (var t in targets)
+            if (cam != null)
+                foreach (var t in Targets.All)
                     if (t != null && t != carrier.target) Marker(cam, t, s);
             if (cam != null && carrier.target != null && carrier.target == shown) Brackets(cam, s);
             Panel(s);
@@ -146,7 +145,7 @@ namespace CarrierGame.Demo
             Vector3 sp = cam.WorldToScreenPoint(t.position);
             if (sp.z <= 0f || sp.x < 0 || sp.x > Screen.width || sp.y < 0 || sp.y > Screen.height) return;
             var gp = new Vector2(sp.x, Screen.height - sp.y);
-            if (CarrierDemoInput.HelpRect.Contains(gp) || ShipConsole.Rect.Contains(gp) || PanelRect.Contains(gp)) return;
+            if (ShipHud.HelpRect.Contains(gp) || ShipConsole.Rect.Contains(gp) || PanelRect.Contains(gp)) return;
             var ti = t.GetComponent<TargetInfo>();
             float half = 11f * s;
             var r = new Rect(sp.x - half, Screen.height - sp.y - half, half * 2f, half * 2f);
@@ -179,7 +178,7 @@ namespace CarrierGame.Demo
                 var lr = new Rect(r.x, r.yMax + 4f * s, lsz.x, lsz.y);
                 // keep the label readable: never under the (see-through) panels
                 if (lr.Overlaps(PanelRect)) lr.x = PanelRect.x - lsz.x - 8f * s;
-                if (lr.Overlaps(CarrierDemoInput.HelpRect)) lr.x = CarrierDemoInput.HelpRect.xMax + 8f * s;
+                if (lr.Overlaps(ShipHud.HelpRect)) lr.x = ShipHud.HelpRect.xMax + 8f * s;
                 if (lr.Overlaps(ShipConsole.Rect)) lr.x = ShipConsole.Rect.xMax + 8f * s;
                 GUI.Label(lr, lc, ls);
                 return;
@@ -204,7 +203,7 @@ namespace CarrierGame.Demo
             // the panels sit at the top corners: slide the pointer down below them rather than under them
             var padded = new Rect(box.x - 6f * s, box.y - 3f * s, box.width + 12f * s, box.height + 6f * s);
             if (padded.Overlaps(PanelRect)) box.y = PanelRect.yMax + 10f * s;
-            else if (padded.Overlaps(CarrierDemoInput.HelpRect)) box.y = CarrierDemoInput.HelpRect.yMax + 10f * s;
+            else if (padded.Overlaps(ShipHud.HelpRect)) box.y = ShipHud.HelpRect.yMax + 10f * s;
             // and the console sits at the bottom left: lift the pointer above it
             if (new Rect(box.x - 6f * s, box.y - 3f * s, box.width + 12f * s, box.height + 6f * s).Overlaps(ShipConsole.Rect))
                 box.y = ShipConsole.Rect.yMin - box.height - 10f * s;

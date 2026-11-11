@@ -18,6 +18,8 @@ namespace CarrierGame.Demo
 
         /// <summary>Screen area of the cargo list (GUI coordinates), while it is open.</summary>
         public static Rect ManifestRect { get; private set; }
+        /// <summary>The cargo list (I) is open.</summary>
+        public static bool ManifestOpen { get; set; }
 
         void Find()
         {
@@ -35,10 +37,10 @@ namespace CarrierGame.Demo
             var cam = Camera.main;
             if (cam == null) return;
             float s = Hud.S;
-            if ((!CarrierDemoInput.ReelMode || DemoReel.Features) && sensor != null && sensor.Showing && !carrier.Destroyed) Markers(cam, s);
+            if ((!Hud.ReelMode || Hud.ReelShowsMarks) && sensor != null && sensor.Showing && !carrier.Destroyed) Markers(cam, s);
             if (laser != null && laser.Cutting && laser.Source != null) Cutting(cam, s);
             ManifestRect = Rect.zero;
-            if (CarrierDemoInput.ManifestOpen && hold != null) Manifest(s);
+            if (ManifestOpen && hold != null) Manifest(s);
         }
 
         void Markers(Camera cam, float s)

@@ -40,13 +40,14 @@ namespace CarrierGame.Demo
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Flag()
         {
-            if (LaunchArgs.Has("-reel")) CarrierDemoInput.ReelMode = true;
+            if (LaunchArgs.Has("-reel")) Hud.ReelMode = true;
             // -features: the Star System feature reel (mining, combat, landing, mini-warps);
             // -orbits: the orbits and stations reel (it runs on the feature reel's machinery)
             // -all: everything in one reel
-            Orbits = CarrierDemoInput.ReelMode && LaunchArgs.Has("-orbits");
-            All = CarrierDemoInput.ReelMode && LaunchArgs.Has("-all");
-            Features = CarrierDemoInput.ReelMode && (Orbits || All || LaunchArgs.Has("-features"));
+            Orbits = Hud.ReelMode && LaunchArgs.Has("-orbits");
+            All = Hud.ReelMode && LaunchArgs.Has("-all");
+            Features = Hud.ReelMode && (Orbits || All || LaunchArgs.Has("-features"));
+            Hud.ReelShowsMarks = Features;
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -131,7 +132,7 @@ namespace CarrierGame.Demo
             if (shot == 1) Chase();
 
             // the cruiser under fire, through its first kill
-            if (Cue(9.5f)) Shot(2, demo.targets[0], Vector3.zero, 800f, 60f, 10f, 9f);
+            if (Cue(9.5f)) Shot(2, Targets.All[0], Vector3.zero, 800f, 60f, 10f, 9f);
             if (shot == 2) cam.distance = Mathf.Lerp(800f, 650f, Smooth((t - 9.5f) / 6.5f));
 
             // main guns close up, swinging onto a drone
@@ -148,7 +149,7 @@ namespace CarrierGame.Demo
             {
                 demo.WingAttack();
                 demo.FireMissiles();
-                Shot(4, demo.targets[1], Vector3.zero, 150f, 0f, 8f, 16f);
+                Shot(4, Targets.All[1], Vector3.zero, 150f, 0f, 8f, 16f);
             }
             if (Cue(26f)) demo.LaunchDropships();
             if (Cue(31f))
@@ -156,7 +157,7 @@ namespace CarrierGame.Demo
                 Pick(2);
                 demo.WingAttack();
                 demo.FireMissiles();
-                Shot(5, demo.targets[2], Vector3.zero, 180f, 120f, -6f, -14f);
+                Shot(5, Targets.All[2], Vector3.zero, 180f, 120f, -6f, -14f);
             }
 
             // back to the cruiser: everything at once, first from behind a fighter...
@@ -172,7 +173,7 @@ namespace CarrierGame.Demo
             if (Cue(40f)) demo.FireMissiles();
             if (shot == 6) Chase();
             // ...then on the cruiser for the kill
-            if (Cue(41f)) Shot(7, demo.targets[0], Vector3.zero, 700f, -40f, 6f, -10f);
+            if (Cue(41f)) Shot(7, Targets.All[0], Vector3.zero, 700f, -40f, 6f, -10f);
 
             // the carrier's guns working over the respawned cruiser
             if (Cue(48f))
@@ -272,8 +273,7 @@ namespace CarrierGame.Demo
 
         void LogKills()
         {
-            if (demo.targets == null) return;
-            foreach (var tr in demo.targets)
+                        foreach (var tr in Targets.All)
             {
                 var h = tr != null ? tr.GetComponent<Health>() : null;
                 if (h == null) continue;
@@ -325,7 +325,7 @@ namespace CarrierGame.Demo
 
         void Pick(int index)
         {
-            if (demo.targets != null && index < demo.targets.Length) demo.SelectTarget(demo.targets[index]);
+            if (index < Targets.All.Count) demo.SelectTarget(Targets.All[index]);
         }
 
         static float Smooth(float x) => Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(x));

@@ -184,7 +184,7 @@ namespace CarrierGame
 
         static void Spawn(Explosion e, Vector3 at, float scale)
         {
-            var x = Instantiate(e, at, Quaternion.identity);
+            var x = Pool.Take(e, at, Quaternion.identity);
             x.transform.localScale *= scale;
         }
     }

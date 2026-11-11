@@ -12,15 +12,8 @@ namespace CarrierGame.Demo
     /// </summary>
     public static class CaptainLines
     {
-        /// <summary>Every event the captain can speak about (her reasons, without numbers).</summary>
-        public static readonly string[] Events =
-        {
-            "REPORTING FOR DUTY", "ALL QUIET", "ON THE SURFACE", "CONTACT", "HOSTILES NEARBY", "SHIELDS TAKING FIRE",
-            "RETURNING FIRE", "SHIELDS DOWN", "HULL HIT", "HULL CRITICAL", "MISSILE INBOUND", "POINT DEFENCE FIRING",
-            "GUNS FIRING", "MISSILES AWAY", "LAUNCHING THE WING", "TARGET LOCKED", "MAIN GUN CHARGING", "MAIN GUN FIRING",
-            "TARGET DESTROYED", "WARP DRIVE CHARGING", "IN WARP", "ARRIVED", "GOING DOWN", "TOUCHDOWN", "TAKING OFF",
-            "DOCKING", "DOCKED", "MINING", "ROCK MINED OUT", "HOLD FULL", "SCANNING", "SHIP LOST", "BACK IN ACTION",
-        };
+        /// <summary>Every event the captain can speak about (CaptainEvents).</summary>
+        public static string[] Events => CaptainEvents.All;
 
         static Dictionary<string, List<string>> lines;
         static readonly Dictionary<string, List<int>> bags = new Dictionary<string, List<int>>();
@@ -51,21 +44,6 @@ namespace CarrierGame.Demo
                 }
                 current?.Add(line);
             }
-        }
-
-        /// <summary>The event a reason belongs to: "6 HOSTILES NEARBY" and "HOSTILE NEARBY" are
-        /// both HOSTILES NEARBY, "DOCKED: REPAIRED" is DOCKED.</summary>
-        public static string EventOf(string reason)
-        {
-            if (string.IsNullOrEmpty(reason)) return "";
-            string r = reason.Trim();
-            int i = 0;
-            while (i < r.Length && char.IsDigit(r[i])) i++;
-            r = r.Substring(i).Trim();
-            if (r == "HOSTILE NEARBY") r = "HOSTILES NEARBY";
-            int colon = r.IndexOf(':');
-            if (colon > 0) r = r.Substring(0, colon).Trim();
-            return r;
         }
 
         /// <summary>A line for an event, with its blanks filled by `fill` (which returns null for

@@ -50,7 +50,7 @@ namespace CarrierGame.Tests
         public void TheGameSpeaksTheServersProtocol()
         {
             // the server builds the game's own CoopWire.cs, and takes its version from it
-            string project = Server("CoopServer", "CoopServer.csproj"), hub = Server("CoopServer", "Hub.cs");
+            string project = Server("CoopServer.Core", "CoopServer.Core.csproj"), hub = Server("CoopServer.Core", "Hub.cs");
             if (!File.Exists(project)) Assert.Ignore($"no server source at {project}");
             StringAssert.Contains(@"Assets\Carrier\Scripts\Net\CoopWire.cs", File.ReadAllText(project));
             StringAssert.Contains("public const int Protocol = CoopWire.Protocol;", File.ReadAllText(hub));

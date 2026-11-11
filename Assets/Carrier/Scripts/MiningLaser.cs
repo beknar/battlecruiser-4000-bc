@@ -117,7 +117,7 @@ namespace CarrierGame
         void Stop(string message)
         {
             TurnOff();
-            CarrierDemoInput.Toast(message);
+            Notices.Post(message);
         }
 
         void Update()
@@ -184,7 +184,7 @@ namespace CarrierGame
                     impact.transform.position = Source.Position;
                     impact.Emit(400);
                 }
-                CarrierDemoInput.Toast(broke ? $"Mined out: the {Source.Label} broke up" : $"Mined out: {Source.Label}");
+                Notices.Post(broke ? $"Mined out: the {Source.Label} broke up" : $"Mined out: {Source.Label}");
                 Source = null;
                 searchAt = 0f;
             }

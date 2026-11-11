@@ -186,7 +186,7 @@ namespace CarrierGame.Demo
             yield return Key(kb, UnityEngine.InputSystem.Key.I);
             yield return new WaitForSeconds(0.3f);
             Shot("n4_cargo");
-            listed = CarrierDemoInput.ManifestOpen;
+            listed = MiningDisplay.ManifestOpen;
             yield return Key(kb, UnityEngine.InputSystem.Key.I);
             // room for what comes next
             while (hold.Free < 200f && hold.Cheapest() is Mineral m) hold.Jettison(m);

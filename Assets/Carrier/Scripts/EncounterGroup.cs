@@ -29,7 +29,7 @@ namespace CarrierGame
             TimesSprung++;
             foreach (var p in pilots) if (p) p.Engage();
             SoundFX.Ui(Sfx.UiAlert);
-            Demo.CarrierDemoInput.Toast($"{groupName} attacking!");
+            Notices.Post($"{groupName} attacking!");
         }
 
         void Update()

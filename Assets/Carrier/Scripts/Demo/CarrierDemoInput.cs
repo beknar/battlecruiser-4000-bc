@@ -1,121 +1,63 @@
-using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 namespace CarrierGame.Demo
 {
-    /// <summary>Keyboard, mouse and gamepad (Xbox 360 / XInput) controls for trying the carrier out,
-    /// with an on-screen help box that shows whichever set the player is using.</summary>
+    /// <summary>Keyboard, mouse and gamepad (Xbox 360 / XInput) controls for the player's ship,
+    /// and the actions they trigger (also driven by the self-tests and reels). It sets the level
+    /// up around itself as it wakes (GameSession: the HUD, co-op, the pause menu).</summary>
     public class CarrierDemoInput : MonoBehaviour
     {
         public CarrierController carrier;
         public OrbitCamera orbitCamera;
+        [Tooltip("The level's hostiles, as the scene has them (Targets keeps the live list).")]
         public Transform[] targets;
         [Tooltip("Lock onto the first target when the game starts (off for an ambush: the enemies start hidden).")]
         public bool targetOnStart = true;
 
         int targetIndex, followIndex = -1;
-        TargetDisplay display;
-        static Rect helpRect;
-
-        /// <summary>Recording the demo reel: the controls list is left off the screen.</summary>
-        public static bool ReelMode;
+        ShipHud hud;
 
         /// <summary>Rudder from the self-test or reel autopilot; used while the player isn't steering.</summary>
         [System.NonSerialized] public float? autoRudder;
         /// <summary>Pitch and elevator input from the self-test; used while the player isn't flying.</summary>
         [System.NonSerialized] public float? autoPitch, autoElevator;
 
-        /// <summary>Screen area of the help box (GUI coordinates).</summary>
-        public static Rect HelpRect => helpRect;
-
         WarpDrive warp;
         /// <summary>The landing controller, if this level has one.</summary>
         static PlanetLanding Landing => PlanetLanding.Instance;
 
-        static CarrierDemoInput instance;
-
-        /// <summary>Something new to target (ground forces, built as the ship reaches them).</summary>
-        public static void AddTarget(Transform t)
-        {
-            var d = instance;
-            if (d == null || t == null) return;
-            if (d.targets == null) d.targets = new Transform[0];
-            if (System.Array.IndexOf(d.targets, t) >= 0) return;
-            System.Array.Resize(ref d.targets, d.targets.Length + 1);
-            d.targets[d.targets.Length - 1] = t;
-            if (d.display != null) d.display.targets = d.targets;
-        }
-
-        /// <summary>Something gone for good (destroyed, or its area of a planet thrown away).</summary>
-        public static void RemoveTarget(Transform t)
-        {
-            var d = instance;
-            if (d == null || d.targets == null) return;
-            int i = System.Array.IndexOf(d.targets, t);
-            if (i < 0) return;
-            var list = new System.Collections.Generic.List<Transform>(d.targets);
-            list.RemoveAt(i);
-            d.targets = list.ToArray();
-            if (i < d.targetIndex) d.targetIndex--;
-            if (d.targetIndex >= d.targets.Length) d.targetIndex = 0;
-            if (d.display != null) d.display.targets = d.targets;
-            if (d.carrier != null && d.carrier.target == t) d.carrier.SetTarget(null);
-        }
-
         void Awake()
         {
-            instance = this;
             if (carrier != null) warp = carrier.GetComponent<WarpDrive>();
-            display = gameObject.AddComponent<TargetDisplay>();
-            display.carrier = carrier;
-            display.targets = targets;
-            var md = gameObject.AddComponent<MiningDisplay>();
-            md.carrier = carrier;
-            // the console in the bottom-left corner, and the captain on it
-            var portrait = gameObject.AddComponent<CaptainPortrait>();
-            portrait.demo = this;
-            var console = gameObject.AddComponent<ShipConsole>();
-            console.demo = this;
-            // co-op: playing with others (idle until connected), and the panel to connect with
-            var world = gameObject.AddComponent<CoopWorld>();
-            world.demo = this;
-            var coopMenu = gameObject.AddComponent<CoopMenu>();
-            coopMenu.demo = this;
+            Targets.Reset(targets);
+            Targets.Removed += TargetRemoved;
+            hud = GameSession.Begin(this);
         }
 
         void Start()
         {
-            if (carrier != null && targets != null && targets.Length > 0 && targetOnStart) carrier.SetTarget(targets[0]);
+            if (carrier != null && Targets.All.Count > 0 && targetOnStart) carrier.SetTarget(Targets.All[0]);
             if (carrier != null && orbitCamera != null && orbitCamera.target == carrier.transform)
             {
                 orbitCamera.distance = ShipViewDistance;
                 orbitCamera.offset = ShipViewOffset;
             }
-            // no point rendering faster than the screen refreshes; keeps the laptop GPU cool
-            QualitySettings.vSyncCount = 1;
-            Application.targetFrameRate = 120;
-            StartCoroutine(FixDisplayWhenReady());
-            PadSupport.Init();
-            if (!TryGetComponent(out menu)) menu = gameObject.AddComponent<GameMenu>();
-#if UNITY_WEBGL && !UNITY_EDITOR
-            // tell the page which graphics API it got: WebGPU, or the WebGL 2 fallback
-            CarrierPageGraphics(SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.WebGPU ? "WebGPU" : "WebGL 2");
-#endif
         }
 
-#if UNITY_WEBGL && !UNITY_EDITOR
-        [System.Runtime.InteropServices.DllImport("__Internal")]
-        static extern void CarrierPageGraphics(string name);   // Plugins/WebGL/CarrierPage.jslib
-#endif
+        void OnDestroy() => Targets.Removed -= TargetRemoved;
 
-        void OnDestroy()
+        /// <summary>Something left the list: keep our place in it, and stop aiming at it.</summary>
+        void TargetRemoved(Transform t, int i)
         {
-            if (instance == this) instance = null;
-            PadSupport.Shutdown();
+            if (i < targetIndex) targetIndex--;
+            if (targetIndex >= Targets.All.Count) targetIndex = 0;
+            if (carrier != null && carrier.target == t) carrier.SetTarget(null);
         }
-        void OnApplicationFocus(bool focus) { if (!focus) PadSupport.StopRumble(); }
-        void OnApplicationPause(bool paused) { if (paused) PadSupport.StopRumble(); }
+
+        GameMenu menu;
+        /// <summary>The pause menu (GameSession puts it up as the level starts).</summary>
+        GameMenu Menu => menu != null ? menu : (menu = GetComponent<GameMenu>());
 
         void Update()
         {
@@ -140,7 +82,7 @@ namespace CarrierGame.Demo
                 }
                 if (warpFlying && !SystemMap.IsOpen && !SystemMap.JustClosed)
                 {
-                    if ((k != null && (k.escapeKey.wasPressedThisFrame || k.pKey.wasPressedThisFrame)) || (pad != null && pad.startButton.wasPressedThisFrame)) menu.Open();
+                    if ((k != null && (k.escapeKey.wasPressedThisFrame || k.pKey.wasPressedThisFrame)) || (pad != null && pad.startButton.wasPressedThisFrame)) Menu.Open();
                 }
                 return;
             }
@@ -192,12 +134,12 @@ namespace CarrierGame.Demo
             bool dead = carrier.Destroyed;
             if (dead && !wasDestroyed)
             {
-                Toast($"{carrier.shipName} destroyed!");
+                Notices.Post($"{carrier.shipName} destroyed!");
                 PadSupport.Rumble(1f, 0.8f, 1.2f);
             }
             else if (!dead && wasDestroyed)
             {
-                Toast($"{carrier.shipName} back in action: shield and hull restored");
+                Notices.Post($"{carrier.shipName} back in action: shield and hull restored");
                 if (orbitCamera != null && orbitCamera.target == carrier.transform) orbitCamera.distance = ShipViewDistance;
             }
             wasDestroyed = dead;
@@ -209,17 +151,17 @@ namespace CarrierGame.Demo
         public void LevelOff()
         {
             carrier.LevelOff();
-            Toast("Levelling off");
+            Notices.Post("Levelling off");
         }
 
         void KeyboardControls(Keyboard k)
         {
             // P too: in a browser at full screen, the first Esc only leaves full screen
-            if (k.escapeKey.wasPressedThisFrame || k.pKey.wasPressedThisFrame) { menu.Open(); return; }
-            if (k.hKey.wasPressedThisFrame) showHelp = !showHelp;
-            if (k.equalsKey.wasPressedThisFrame || k.numpadPlusKey.wasPressedThisFrame) TextSize(+1);
-            if (k.minusKey.wasPressedThisFrame || k.numpadMinusKey.wasPressedThisFrame) TextSize(-1);
-            if (k.f11Key.wasPressedThisFrame && !OnWeb) ToggleFullScreen();   // in a browser, F11 is the browser's
+            if (k.escapeKey.wasPressedThisFrame || k.pKey.wasPressedThisFrame) { Menu.Open(); return; }
+            if (k.hKey.wasPressedThisFrame) hud.ToggleHelp();
+            if (k.equalsKey.wasPressedThisFrame || k.numpadPlusKey.wasPressedThisFrame) Hud.ChangeTextSize(+1);
+            if (k.minusKey.wasPressedThisFrame || k.numpadMinusKey.wasPressedThisFrame) Hud.ChangeTextSize(-1);
+            if (k.f11Key.wasPressedThisFrame && !LaunchArgs.OnWeb) GameSession.ToggleFullScreen();   // in a browser, F11 is the browser's
             if (k.nKey.wasPressedThisFrame) ToggleMute();
             if (carrier.Destroyed) return;   // nothing to fly or fight with until it respawns
 
@@ -283,9 +225,6 @@ namespace CarrierGame.Demo
         public CiwsDirector Ciws { get { FindSystems(); return ciws; } }
         public WarpDrive Warp => warp;
 
-        /// <summary>The cargo list (I) is open.</summary>
-        public static bool ManifestOpen { get; private set; }
-
         // ------------------------------------------------------------ mining
 
         /// <summary>Switch the mining laser on (it cuts the nearest deposit in range) or off.</summary>
@@ -296,12 +235,12 @@ namespace CarrierGame.Demo
             {
                 miningLaser.TurnOff();
                 SoundFX.Ui(Sfx.UiClear);
-                Toast("Mining laser off");
+                Notices.Post("Mining laser off");
                 return;
             }
             if (!miningLaser.TurnOn(out string why)) { NotFitted("Mining laser: " + why); return; }
             SoundFX.Ui(Sfx.UiLock);
-            Toast($"Mining laser on: cutting the nearest deposit within {miningLaser.range / 1000f:F1} km");
+            Notices.Post($"Mining laser on: cutting the nearest deposit within {miningLaser.range / 1000f:F1} km");
             PadSupport.Rumble(0.15f, 0.1f, 0.2f);
         }
 
@@ -310,13 +249,13 @@ namespace CarrierGame.Demo
         {
             if (Sensor == null) { NotFitted($"The {carrier.shipName.ToLower()} has no mineral sensor"); return; }
             if (!sensor.Scan(out string why)) { NotFitted("Mineral scan: " + why); return; }
-            Toast($"Mineral scan: sweeping out to {sensor.ScanRange / 1000f:F0} km");
+            Notices.Post($"Mineral scan: sweeping out to {sensor.ScanRange / 1000f:F0} km");
         }
 
         public void ToggleManifest()
         {
             if (Cargo == null) { NotFitted($"The {carrier.shipName.ToLower()} has no cargo hold"); return; }
-            ManifestOpen = !ManifestOpen;
+            MiningDisplay.ManifestOpen = !MiningDisplay.ManifestOpen;
         }
 
         /// <summary>Dump the cheapest mineral in the hold, to make room for better.</summary>
@@ -327,7 +266,7 @@ namespace CarrierGame.Demo
             if (m == null) { NotFitted("The cargo hold is empty"); return; }
             float t = cargo.Jettison(m.Value);
             SoundFX.Ui(Sfx.UiClear);
-            Toast($"Jettisoned {t:F1} t of {Minerals.Name(m.Value).ToLower()}: {cargo.Used:F0} of {cargo.capacity:F0} t aboard");
+            Notices.Post($"Jettisoned {t:F1} t of {Minerals.Name(m.Value).ToLower()}: {cargo.Used:F0} of {cargo.capacity:F0} t aboard");
         }
 
         /// <summary>Start charging the bow beam (it fires by itself after 10 s, straight ahead,
@@ -342,12 +281,12 @@ namespace CarrierGame.Demo
                 case MainBeam.State.Idle:
                     mainGun.target = carrier.target;
                     mainGun.StartCharge();
-                    Toast($"Main gun charging: {mainGun.chargeTime:F0} s, keep the bow on the target");
+                    Notices.Post($"Main gun charging: {mainGun.chargeTime:F0} s, keep the bow on the target");
                     PadSupport.Rumble(0.2f, 0.1f, 0.3f);
                     break;
                 case MainBeam.State.Charging:
                     mainGun.Cancel();
-                    Toast("Main gun charge cancelled");
+                    Notices.Post("Main gun charge cancelled");
                     break;
             }
         }
@@ -361,12 +300,12 @@ namespace CarrierGame.Demo
         void PadControls(Gamepad p)
         {
             bool back = p.selectButton.isPressed;
-            if (p.startButton.wasPressedThisFrame) { menu.Open(); return; }
+            if (p.startButton.wasPressedThisFrame) { Menu.Open(); return; }
 
             if (back)
             {
-                if (p.dpad.up.wasPressedThisFrame) { TextSize(+1); backCombo = true; }
-                if (p.dpad.down.wasPressedThisFrame) { TextSize(-1); backCombo = true; }
+                if (p.dpad.up.wasPressedThisFrame) { Hud.ChangeTextSize(+1); backCombo = true; }
+                if (p.dpad.down.wasPressedThisFrame) { Hud.ChangeTextSize(-1); backCombo = true; }
                 // Back + A/Y/X/B: mining laser, scan, cargo list, jettison
                 if (!carrier.Destroyed && Laser != null)
                 {
@@ -394,7 +333,7 @@ namespace CarrierGame.Demo
                 if (p.dpad.down.wasPressedThisFrame) LaunchDropships();
                 if (p.dpad.left.wasPressedThisFrame) WingReturn();
             }
-            if (p.selectButton.wasReleasedThisFrame) { if (!backCombo) showHelp = !showHelp; backCombo = false; }
+            if (p.selectButton.wasReleasedThisFrame) { if (!backCombo) hud.ToggleHelp(); backCombo = false; }
             if (carrier.Destroyed || (back && Laser != null)) return;   // with Back held, the face buttons are the mining controls
 
             if (p.buttonSouth.wasPressedThisFrame) { if (GunshipPad) LevelOff(); else WingAttack(); }   // A
@@ -427,7 +366,7 @@ namespace CarrierGame.Demo
         void NotFitted(string message)
         {
             SoundFX.Ui(Sfx.UiError);
-            Toast(message);
+            Notices.Post(message);
         }
 
         /// <summary>With a target, each gun that can bear on it fires as soon as it is lined up
@@ -454,7 +393,7 @@ namespace CarrierGame.Demo
         {
             bool on = false;
             foreach (var t in carrier.mainTurrets) if (t) on = t.autoFire = !t.autoFire;
-            Toast(on ? "Main guns: auto-fire ON" : "Main guns: auto-fire OFF");
+            Notices.Post(on ? "Main guns: auto-fire ON" : "Main guns: auto-fire OFF");
         }
 
         public void FireMissiles()
@@ -474,11 +413,12 @@ namespace CarrierGame.Demo
 
         public void NextTarget()
         {
-            if (targets == null || targets.Length == 0) return;
+            var targets = Targets.All;
+            if (targets.Count == 0) return;
             // the next target in the list that isn't still hiding in an ambush, and is within range
-            for (int tries = 0; tries < targets.Length; tries++)
+            for (int tries = 0; tries < targets.Count; tries++)
             {
-                targetIndex = carrier.target == null && tries == 0 ? targetIndex % targets.Length : (targetIndex + 1) % targets.Length;
+                targetIndex = carrier.target == null && tries == 0 ? targetIndex % targets.Count : (targetIndex + 1) % targets.Count;
                 var t = targets[targetIndex];
                 if (t == null || CombatPilot.IsHidden(t)) continue;
                 if (!TargetDisplay.InRange(t, carrier.transform.position)) continue;
@@ -494,7 +434,7 @@ namespace CarrierGame.Demo
             if (carrier.target == null) return;
             carrier.SetTarget(null);
             SoundFX.Ui(Sfx.UiClear);
-            Toast("Target cleared: guns stowed, attacking craft back to escort");
+            Notices.Post("Target cleared: guns stowed, attacking craft back to escort");
         }
 
         public void CycleCamera()
@@ -534,40 +474,40 @@ namespace CarrierGame.Demo
         public static void ToggleMute()
         {
             SoundFX.Muted = !SoundFX.Muted;
-            Toast(SoundFX.Muted ? "Sound off" : "Sound on");
+            Notices.Post(SoundFX.Muted ? "Sound off" : "Sound on");
         }
-
-        static void TextSize(int dir) =>
-            Hud.UserScale = Mathf.Clamp(Hud.UserScale + 0.15f * dir, 0.5f, 3f);
-
-        /// <summary>Running in a web browser (the page owns the window: no resizing; quitting goes
-        /// through the page).</summary>
-        public static bool OnWeb => LaunchArgs.OnWeb;
 
         public void SelectTarget(Transform t) => Select(t);
 
         void Select(Transform t)
         {
             if (t == null) return;
-            int i = System.Array.IndexOf(targets, t);
+            int i = IndexOf(t);
             if (i >= 0) targetIndex = i;
             carrier.SetTarget(t);
             SoundFX.Ui(Sfx.UiLock);
         }
 
+        static int IndexOf(Transform t)
+        {
+            var targets = Targets.All;
+            for (int i = 0; i < targets.Count; i++) if (targets[i] == t) return i;
+            return -1;
+        }
+
         void NoTarget()
         {
             SoundFX.Ui(Sfx.UiError);
-            Toast(PadSupport.UsingPad ? "No target: press Y to pick one" : "No target: press T or click a ship");
+            Notices.Post(PadSupport.UsingPad ? "No target: press Y to pick one" : "No target: press T or click a ship");
         }
 
         /// <summary>Target the hostile under (or nearest to) the mouse click.</summary>
         void PickAt(Vector2 screen)
         {
             var cam = Camera.main;
-            if (cam == null || targets == null) return;
-            var gui = new Vector2(screen.x, Screen.height - screen.y);
-            if (helpRect.Contains(gui) || ShipConsole.Rect.Contains(gui) || (display != null && display.PanelRect.Contains(gui)) || MiningDisplay.ManifestRect.Contains(gui)) return;
+            if (cam == null) return;
+            if (hud.Covers(new Vector2(screen.x, Screen.height - screen.y))) return;
+            var targets = Targets.All;
 
             Transform best = null;
             // the nearest thing under the cursor that isn't our own ship or its shield
@@ -596,141 +536,6 @@ namespace CarrierGame.Demo
                 }
             }
             if (best != null && best != carrier.target) Select(best);
-        }
-
-        // ------------------------------------------------------------ messages
-
-        static string toast;
-        // a reel runs on game time (locked to its frame rate), so its toasts last as long on film as in play
-        static float ToastClock => ReelMode ? Time.time : Time.unscaledTime;
-        static float toastUntil;
-
-        /// <summary>How many messages have been shown (the captain says each one).</summary>
-        public static int Toasts { get; private set; }
-
-        /// <summary>Show a short message at the bottom of the screen.</summary>
-        public static void Toast(string message)
-        {
-            toast = message;
-            toastUntil = ToastClock + 2.5f;
-            Toasts++;
-        }
-
-        // ------------------------------------------------------------ display + HUD
-
-        /// <summary>Standalone builds run borderless full screen at the monitor's native resolution.
-        /// If an earlier run left a different size in the registry, fix it once the game is up and
-        /// running (never during startup), and only when it actually differs. A size given on the
-        /// command line (-screen-fullscreen / -screen-width) is left alone.</summary>
-        System.Collections.IEnumerator FixDisplayWhenReady()
-        {
-            if (Application.isEditor || OnWeb || LaunchArgs.Has("-screen-fullscreen") || LaunchArgs.Has("-screen-width") || LaunchArgs.Has("-autotest")) yield break;
-            yield return new WaitForSecondsRealtime(1f);
-            int w = Display.main.systemWidth, h = Display.main.systemHeight;
-            if (Screen.fullScreenMode == FullScreenMode.FullScreenWindow && Screen.width == w && Screen.height == h) yield break;
-            Screen.SetResolution(w, h, FullScreenMode.FullScreenWindow);
-        }
-
-        static void ToggleFullScreen()
-        {
-            int w = Display.main.systemWidth, h = Display.main.systemHeight;
-            if (Screen.fullScreenMode == FullScreenMode.Windowed)
-                Screen.SetResolution(w, h, FullScreenMode.FullScreenWindow);
-            else
-                Screen.SetResolution(Mathf.RoundToInt(w * 0.8f), Mathf.RoundToInt(h * 0.8f), FullScreenMode.Windowed);
-        }
-
-        string keyHelp, padHelp;
-        GameMenu menu;
-
-        /// <summary>The text for here, or for a browser: it has no system fonts to fall back on,
-        /// and the built-in font has no arrows.</summary>
-        static string W(string native, string web) => OnWeb ? web : native;
-
-        /// <summary>The controls list, leaving out systems this ship doesn't have.</summary>
-        string KeyHelp => keyHelp ??= string.Join("\n", new[]
-        {
-            carrier.HasHangar ? "1 fighters   2 drones   3 dropships" : null,
-            (carrier.HasMissiles ? "M missile salvo   " : "") + "F fire guns   G auto-fire on/off",
-            MainGun != null ? "B main gun: charge (fires after 10 s)" : null,
-            carrier.HasHangar ? "Q wing attack   E escort   R return to carrier" : null,
-            "W/S throttle   A/D turn",
-            OnWeb ? "Up/Down arrows nose up/down   L level off" : "↑/↓ nose up/down   L level off",
-            "Space/Ctrl elevator thrusters up/down",
-            "T next target   click a ship to target",
-            "X stop targeting",
-            carrier.HasHangar ? "C camera: carrier / craft" : null,
-            "Right-drag orbit   mouse wheel zoom",
-            warp != null ? "M system map: mini-warp" : null,
-            Landing != null ? (Docking.Instance != null ? "K land / take off, dock / undock" : "K land / take off (in orbit)") : null,
-            Laser != null ? "Z mining laser   V mineral scan" : null,
-            Laser != null ? "I cargo hold   J jettison cheapest ore" : null,
-            "H hide help   +/- text size   N sound",
-            OnWeb ? "F11 full screen   Esc or P menu" : "F11 window   Esc or P menu",
-        }.Where(l => l != null));
-
-        string PadHelp => padHelp ??= string.Join("\n", new[]
-        {
-            "<b>Gamepad</b>",
-            "Left stick  throttle / turn",
-            carrier.HasHangar ? "Right stick  orbit camera   LT/RT zoom" : W("Right stick  orbit camera   D-pad ←/→ zoom", "Right stick  orbit camera   D-pad left/right zoom"),
-            carrier.HasHangar ? W("D-pad  ↑ fighters  → drones  ↓ dropships  ← return", "D-pad  up fighters  right drones  down dropships  left return")
-                              : W("D-pad ↑/↓ nose up/down   A level off", "D-pad up/down  nose up/down   A level off"),
-            carrier.HasHangar ? null : "LT/RT elevator thrusters down/up",
-            carrier.HasHangar ? "A wing attack   X escort" : null,
-            "Y next target   B stop targeting",
-            "RB fire guns" + (carrier.HasMissiles ? "   LB missile salvo" : "") + (MainGun != null && !carrier.HasHangar ? "   X main gun" : ""),
-            "L3 auto-fire on/off" + (carrier.HasHangar ? "   R3 camera: carrier / craft" : ""),
-            warp != null ? "R3 system map: mini-warp" : null,
-            Landing != null && !carrier.HasMissiles ? (Docking.Instance != null ? "LB land / take off, dock / undock" : "LB land / take off (in orbit)") : null,
-            Laser != null ? "Back+A mining laser   Back+Y mineral scan" : null,
-            Laser != null ? "Back+X cargo hold   Back+B jettison" : null,
-            "Back hide help   Start menu",
-            W("Back + D-pad ↑↓ text size", "Back + D-pad up/down text size"),
-        }.Where(l => l != null));
-
-        bool showHelp = true;
-
-        void OnGUI()
-        {
-            if (carrier == null) return;
-            float s = Hud.S;
-            bool pad = PadSupport.UsingPad && Gamepad.current != null;
-            float pad2 = 12f * s;
-            helpRect = Rect.zero;
-            if (!ReelMode)
-            {
-                // the controls (the ship's state is on the console, bottom left)
-                var style = Hud.Text(showHelp ? 18 : 16);
-                string text = showHelp ? (pad ? PadHelp : KeyHelp) : (pad ? "<i>Back: show controls</i>" : "<i>H show controls</i>");
-                var content = new GUIContent(text);
-                Vector2 sz = style.CalcSize(content);
-                helpRect = new Rect(pad2, pad2, sz.x + pad2 * 2f, sz.y + pad2 * 2f);
-                Hud.Panel(helpRect);
-                GUI.Label(new Rect(helpRect.x + pad2, helpRect.y + pad2, sz.x, sz.y), content, style);
-            }
-
-            if (carrier.Destroyed)
-            {
-                var big = Hud.Text(40, true, TextAnchor.MiddleCenter);
-                var msg = new GUIContent($"<color=#ff6050>{carrier.shipName.ToUpper()} DESTROYED</color>\n" +
-                                         $"<size={Mathf.RoundToInt(22 * s)}>respawning in {Mathf.CeilToInt(carrier.RespawnIn)} s</size>");
-                Vector2 bsz = big.CalcSize(msg);
-                var br = new Rect((Screen.width - bsz.x) * 0.5f - pad2 * 2f, Screen.height * 0.28f, bsz.x + pad2 * 4f, bsz.y + pad2 * 2f);
-                Hud.Panel(br);
-                GUI.Label(br, msg, big);
-            }
-
-            if (toast != null && ToastClock < toastUntil)
-            {
-                var ts = Hud.Text(20, true, TextAnchor.MiddleCenter);
-                var tc = new GUIContent(toast);
-                Vector2 tsz = ts.CalcSize(tc);
-                var r = new Rect((Screen.width - tsz.x) * 0.5f - pad2, Screen.height - tsz.y - pad2 * 6f, tsz.x + pad2 * 2f, tsz.y + pad2);
-                if (r.Overlaps(ShipConsole.Rect)) r.y = ShipConsole.Rect.yMin - r.height - pad2;
-                Hud.Panel(r);
-                GUI.Label(r, tc, ts);
-            }
         }
     }
 }

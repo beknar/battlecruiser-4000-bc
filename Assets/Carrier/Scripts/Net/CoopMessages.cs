@@ -90,5 +90,5 @@ namespace CarrierGame.Demo
 
     /// <summary>For the self-test's bot: what this game can see (enemy ids and such).</summary>
     [Serializable]
-    class TestMsg { public string t = CoopWire.Test; public string note; public string[] ids; }
+    public class TestMsg { public string t = CoopWire.Test; public string note; public string[] ids; }
 }

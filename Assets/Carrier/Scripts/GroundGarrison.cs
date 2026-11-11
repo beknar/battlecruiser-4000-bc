@@ -88,7 +88,7 @@ namespace CarrierGame
             {
                 lastToast = Time.time;
                 SoundFX.Ui(Sfx.UiAlert);
-                Demo.CarrierDemoInput.Toast("Ground defences have spotted us!");
+                Notices.Post("Ground defences have spotted us!");
             }
         }
     }

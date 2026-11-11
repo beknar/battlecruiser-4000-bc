@@ -133,7 +133,7 @@ namespace CarrierGame
 
         void Spawn(Vector3 p, Quaternion r)
         {
-            var b = Instantiate(gunPrefab, p, r);
+            var b = Pool.Take(gunPrefab, p, r);
             b.owner = transform;
         }
 

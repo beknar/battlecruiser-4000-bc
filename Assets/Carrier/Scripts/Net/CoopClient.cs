@@ -136,7 +136,7 @@ namespace CarrierGame.Demo
                 Send(new HelloMsg
                 {
                     v = Protocol, name = MyName, level = SceneManager.GetActiveScene().name,
-                    client = CarrierDemoInput.OnWeb ? (SystemInfo.graphicsDeviceType.ToString().Contains("WebGPU") ? "web (WebGPU)" : "web (WebGL)") : Application.platform.ToString(),
+                    client = LaunchArgs.OnWeb ? (SystemInfo.graphicsDeviceType.ToString().Contains("WebGPU") ? "web (WebGPU)" : "web (WebGL)") : Application.platform.ToString(),
                     captain = Captain.Index, clock = LocalOrbitClock(),
                 });
                 Status = "saying hello...";
@@ -192,12 +192,12 @@ namespace CarrierGame.Demo
                     clock.Pong(m.c, m.s, Time.realtimeSinceStartupAsDouble);
                     return;
                 case CoopWire.Join:
-                    if (m.p != null) CarrierDemoInput.Toast($"{m.p.name} joined the game");
+                    if (m.p != null) Notices.Post($"{m.p.name} joined the game");
                     break;
                 case CoopWire.Leave:
                 {
                     var who = Players.Find(x => x.id == m.id);
-                    CarrierDemoInput.Toast($"{(who != null ? who.name : "A player")} left the game");
+                    Notices.Post($"{(who != null ? who.name : "A player")} left the game");
                     break;
                 }
             }

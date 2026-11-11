@@ -13,12 +13,15 @@
     <SelfContained>true</SelfContained>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DebugType>none</DebugType>
+    <!-- and no CoopServer.Core.pdb beside it: Core keeps its symbols for the tests -->
+    <AllowedReferenceRelatedFileExtensions>.none</AllowedReferenceRelatedFileExtensions>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- the protocol's version and message names, shared with the game -->
-    <Compile Include="..\..\Assets\Carrier\Scripts\Net\CoopWire.cs" Link="Shared\CoopWire.cs" />
+    <!-- the rooms and settings (and the protocol file shared with the game) are in CoopServer.Core;
+         this is just the web server around them. Publishing bundles Core into the one file. -->
+    <ProjectReference Include="..\CoopServer.Core\CoopServer.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

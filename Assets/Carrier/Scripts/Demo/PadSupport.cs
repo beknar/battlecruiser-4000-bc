@@ -23,7 +23,7 @@ namespace CarrierGame.Demo
             hooked = true;
             InputSystem.onDeviceChange += OnDeviceChange;
             UsingPad = Gamepad.current != null;
-            if (Gamepad.current != null && !CarrierDemoInput.ReelMode) CarrierDemoInput.Toast("Gamepad ready: press Back for its controls");
+            if (Gamepad.current != null && !Hud.ReelMode) Notices.Post("Gamepad ready: press Back for its controls");
         }
 
         public static void Shutdown()
@@ -40,13 +40,13 @@ namespace CarrierGame.Demo
             if (change == InputDeviceChange.Added || change == InputDeviceChange.Reconnected)
             {
                 UsingPad = true;
-                CarrierDemoInput.Toast("Gamepad connected");
+                Notices.Post("Gamepad connected");
             }
             else if (change == InputDeviceChange.Removed || change == InputDeviceChange.Disconnected)
             {
                 StopRumble();
                 if (Gamepad.all.Count == 0) UsingPad = false;
-                CarrierDemoInput.Toast("Gamepad disconnected");
+                Notices.Post("Gamepad disconnected");
             }
         }
 

@@ -273,7 +273,7 @@ namespace CarrierGame
             foreach (var m in muzzles)
             {
                 if (m == null) continue;
-                var p = Instantiate(projectilePrefab, m.position, m.rotation);
+                var p = Pool.Take(projectilePrefab, m.position, m.rotation);
                 p.owner = owner;
             }
         }

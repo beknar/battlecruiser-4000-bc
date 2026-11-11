@@ -176,7 +176,7 @@ namespace CarrierGame
                 // a fighter's guns point along its nose: a shot well off the nose is not taken
                 if (fireArc < 180f && Vector3.Angle(transform.forward, dir) > fireArc * 1.5f) yield break;
                 dir = Quaternion.Euler(Random.Range(-spread, spread), Random.Range(-spread, spread), 0f) * dir;
-                var p = Instantiate(gunPrefab, Muzzle(dir), Quaternion.LookRotation(dir));
+                var p = Pool.Take(gunPrefab, Muzzle(dir), Quaternion.LookRotation(dir));
                 p.owner = transform;
                 SoundFX.Play(gunPrefab.kind == HitKind.Cannon ? Sfx.Cannon : Sfx.Blaster, p.transform.position, 0.7f,
                              gunPrefab.kind == HitKind.Cannon ? 0.85f : 1.3f);

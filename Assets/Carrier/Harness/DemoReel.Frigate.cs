@@ -31,7 +31,7 @@ namespace CarrierGame.Demo
         void FrigateShots(float t)
         {
             float d = demo.ShipViewDistance;
-            var cruiser = demo.targets[0];
+            var cruiser = Targets.All[0];
             if (cruiserGuns == null && cruiser) cruiserGuns = cruiser.GetComponent<EnemyWeapons>();
             Vector3 me = cc.transform.position;
 

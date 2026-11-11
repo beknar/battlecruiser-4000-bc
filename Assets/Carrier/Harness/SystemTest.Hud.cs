@@ -34,7 +34,7 @@ namespace CarrierGame.Demo
             // ---- the console
             var r = ShipConsole.Rect;
             bool corner = r.width > 200f && r.xMin < 40f && Screen.height - r.yMax < 40f && r.yMin > Screen.height * 0.3f;
-            var help = CarrierDemoInput.HelpRect;
+            var help = ShipHud.HelpRect;
             Log($"console at ({r.xMin:F0}, {r.yMin:F0}) {r.width:F0} x {r.height:F0} on a {Screen.width} x {Screen.height} screen; " +
                 $"top-left panel {help.width:F0} x {help.height:F0} (the controls only); alerts '{ShipConsole.Alerts}'");
             Shot("h0_console");
@@ -165,7 +165,7 @@ namespace CarrierGame.Demo
 
             // a message: she says it
             int talks = 0;
-            CarrierDemoInput.Toast("Captain on the bridge");
+            Notices.Post("Captain on the bridge");
             float stop = Time.time + 1f;
             while (Time.time < stop) { if (cap.Shown == Mood.Talk) talks++; yield return null; }
             // and blinks, now and then

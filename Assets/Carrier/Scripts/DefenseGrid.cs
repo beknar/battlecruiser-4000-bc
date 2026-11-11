@@ -103,7 +103,7 @@ namespace CarrierGame
                 weapons[i].OpenFireSoon(1f + i * 0.3f);
             }
             SoundFX.Ui(Sfx.UiAlert);
-            Demo.CarrierDemoInput.Toast($"{gridName}: weapons locked on!");
+            Notices.Post($"{gridName}: weapons locked on!");
         }
 
         void Disengage()

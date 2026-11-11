@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- The co-op server's unit and integration tests: `dotnet test Server/CoopServer.Tests`.
-       They compile the server's own Config.cs and Hub.cs (not the program around them), so the
+       They reference CoopServer.Core (the hub and config, not the program around them), so the
        hub can be driven over WebSocket pairs on loopback TCP without starting a web server. -->
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -13,9 +13,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\CoopServer\Config.cs" Link="Server\Config.cs" />
-    <Compile Include="..\CoopServer\Hub.cs" Link="Server\Hub.cs" />
-    <Compile Include="..\..\Assets\Carrier\Scripts\Net\CoopWire.cs" Link="Server\CoopWire.cs" />
+    <ProjectReference Include="..\CoopServer.Core\CoopServer.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -441,20 +441,8 @@ namespace Carrier.EditorTools
                 all.Add(go);
                 return go;
             }
-            void FighterPilot(CombatPilot pl)
-            {
-                pl.style = CombatPilot.Style.Fighter;
-                pl.cruiseSpeed = 230f; pl.attackSpeed = 320f; pl.turnRate = 90f; pl.acceleration = 150f;
-                pl.breakOffDistance = 420f; pl.extendDistance = 1400f;
-                pl.hideBelow = 0.3f; pl.hideTime = 5f; pl.hideSearch = 2500f;
-            }
-            void DronePilot(CombatPilot pl)
-            {
-                pl.style = CombatPilot.Style.Fighter;
-                pl.cruiseSpeed = 190f; pl.attackSpeed = 250f; pl.turnRate = 110f; pl.acceleration = 130f;
-                pl.breakOffDistance = 350f; pl.extendDistance = 1000f;
-                pl.hideBelow = 0.35f; pl.hideTime = 5f; pl.hideSearch = 2500f;
-            }
+            void FighterPilot(CombatPilot pl) { PilotPresets.Fighter(pl); pl.hideSearch = 2500f; }
+            void DronePilot(CombatPilot pl) { PilotPresets.Drone(pl); pl.hideSearch = 2500f; }
             Vector3 Hide(List<Vector3> rocks, int i, Vector3 c) => rocks.Count > 0 ? rocks[i % rocks.Count] + (rocks[i % rocks.Count] - c).normalized * 900f + Vector3.up * (i % 2 == 0 ? 150f : -150f) : c;
             var raiders = new List<CombatPilot>();
             for (int i = 0; i < 4; i++)
@@ -462,13 +450,7 @@ namespace Carrier.EditorTools
             for (int i = 0; i < 2; i++)
                 raiders.Add(Enemy(p.enemyDrone, $"Raider Drone {(char)('A' + i)}", $"Raider Drone {(char)('A' + i)}", Hide(trojanBig, i + 4, trojanC), trojanC, DronePilot, 35f).GetComponent<CombatPilot>());
             var pirates = new List<CombatPilot>();
-            var cruiser = Enemy(p.enemyCruiser, "Pirate Cruiser", "Pirate Cruiser", Hide(outerBig, 0, outerC), outerC, pl =>
-            {
-                pl.style = CombatPilot.Style.Capital;
-                pl.cruiseSpeed = 75f; pl.attackSpeed = 90f; pl.turnRate = 12f; pl.acceleration = 18f;
-                pl.standoff = 1800f; pl.circleSpeed = 3f;
-                pl.hideBelow = 0.5f; pl.hideTime = 8f; pl.hideCooldown = 30f; pl.hideSearch = 3000f;
-            }, 180f);
+            var cruiser = Enemy(p.enemyCruiser, "Pirate Cruiser", "Pirate Cruiser", Hide(outerBig, 0, outerC), outerC, PilotPresets.Cruiser, 180f);
             pirates.Add(cruiser.GetComponent<CombatPilot>());
             for (int i = 0; i < 2; i++)
                 pirates.Add(Enemy(p.enemyDrone, $"Pirate Drone {(char)('A' + i)}", $"Pirate Drone {(char)('A' + i)}", Hide(outerBig, i + 1, outerC), outerC, DronePilot, 35f).GetComponent<CombatPilot>());

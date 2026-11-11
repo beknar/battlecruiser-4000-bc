@@ -71,7 +71,7 @@ namespace CarrierGame.Demo
             var s = Candidate(out string why);
             if (s == null || why != "")
             {
-                CarrierDemoInput.Toast(s != null ? $"Can't dock at {s.displayName}: {why}" : "Nowhere to dock in range");
+                Notices.Post(s != null ? $"Can't dock at {s.displayName}: {why}" : "Nowhere to dock in range");
                 SoundFX.Ui(Sfx.UiError);
                 return false;
             }
@@ -94,7 +94,7 @@ namespace CarrierGame.Demo
             carrier.SetTarget(null);
             carrier.externalMotion = true;
             SoundFX.Ui(Sfx.UiLock);
-            CarrierDemoInput.Toast($"Docking at {s.displayName}");
+            Notices.Post($"Docking at {s.displayName}");
             for (float t = 0f; t < fadeTime; t += Time.deltaTime)
             {
                 if (carrier.Destroyed) { Release(); yield break; }
@@ -127,7 +127,7 @@ namespace CarrierGame.Demo
             Current = State.Docked;
             SoundFX.Play(Sfx.Impact, carrier.transform.position, 0.35f, 0.5f);
             PadSupport.Rumble(0.3f, 0.2f, 0.25f);
-            CarrierDemoInput.Toast($"Docked at {s.displayName}: {Services()}");
+            Notices.Post($"Docked at {s.displayName}: {Services()}");
             for (float t = 0f; t < fadeTime; t += Time.deltaTime)
             {
                 fade = 1f - t / fadeTime;
@@ -160,7 +160,7 @@ namespace CarrierGame.Demo
         IEnumerator Leave()
         {
             Current = State.Undocking;
-            CarrierDemoInput.Toast($"Undocking from {At.displayName}");
+            Notices.Post($"Undocking from {At.displayName}");
             SoundFX.Ui(Sfx.UiClear);
             Park();
             carrier.externalMotion = false;
@@ -191,7 +191,7 @@ namespace CarrierGame.Demo
                 if (carrier.Destroyed) { StopAllCoroutines(); Release(); return; }
                 Park();
             }
-            if (GameMenu.IsOpen || GameMenu.JustClosed || SystemMap.IsOpen || SystemMap.JustClosed) return;
+            if (InputFocus.PanelUp) return;   // a panel has the keys
             var k = Keyboard.current;
             var pad = Gamepad.current;
             bool press = (k != null && k.kKey.wasPressedThisFrame) || (pad != null && !carrier.HasMissiles && pad.leftShoulder.wasPressedThisFrame);

@@ -82,7 +82,7 @@ namespace CarrierGame
                 target.GetComponentInParent<Health>()?.Damage(damage, transform.position, HitKind.Missile);
                 Health.Source = null;
             }
-            if (explosion != null) Instantiate(explosion, transform.position, Quaternion.identity);
+            if (explosion != null) Pool.Take(explosion, transform.position, Quaternion.identity);
             Destroy(gameObject);
         }
 

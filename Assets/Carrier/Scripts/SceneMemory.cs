@@ -30,6 +30,35 @@ namespace CarrierGame
 
         static void OnUnloaded(Scene s) => Collect($"closed {s.name}");
 
+        static float soonAt = -1f;
+        static string soonReason;
+        static int soonAfter;
+        static SoonRunner runner;
+
+        /// <summary>Collect in `seconds` (many asks in a row make one collection; none if one is
+        /// done meanwhile anyway).</summary>
+        public static void CollectSoon(string reason, float seconds)
+        {
+            if (!Application.isPlaying) return;
+            if (soonAt < 0f) { soonAt = Time.unscaledTime + seconds; soonReason = reason; soonAfter = Collections; }
+            if (runner == null)
+            {
+                var go = new GameObject("SceneMemory") { hideFlags = HideFlags.HideAndDontSave };
+                UnityEngine.Object.DontDestroyOnLoad(go);
+                runner = go.AddComponent<SoonRunner>();
+            }
+        }
+
+        class SoonRunner : MonoBehaviour
+        {
+            void Update()
+            {
+                if (soonAt < 0f || Time.unscaledTime < soonAt) return;
+                soonAt = -1f;
+                if (Collections == soonAfter) Collect(soonReason);
+            }
+        }
+
         /// <summary>Collect the garbage and unload unused assets now.</summary>
         public static AsyncOperation Collect(string reason)
         {

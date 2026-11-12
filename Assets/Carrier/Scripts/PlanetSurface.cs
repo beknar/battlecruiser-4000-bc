@@ -42,6 +42,17 @@ namespace CarrierGame
 
         public SurfaceWorld World { get; private set; }
         public SurfaceKit Kit { get; private set; }
+
+        // the settlements' layouts, loaded once and held while this surface is here (so a
+        // clear-out of unused assets doesn't take one away between its areas being built)
+        readonly Dictionary<string, GameObject> layouts = new Dictionary<string, GameObject>();
+
+        /// <summary>A named base's layout (Kit.Settlement), loaded the first time it is wanted.</summary>
+        GameObject Layout(string baseName)
+        {
+            if (!layouts.TryGetValue(baseName, out var l)) layouts[baseName] = l = Kit.Settlement(baseName);
+            return l;
+        }
         public Transform Ship { get; private set; }
         /// <summary>The middle of the world down here (fixed).</summary>
         public Vector3 Center { get; private set; }
@@ -56,8 +67,8 @@ namespace CarrierGame
 
         /// <summary>Areas of the planet built at full detail at least once (by index), out of World.AreaCount.</summary>
         public HashSet<int> Explored { get; private set; }
-        /// <summary>Ground forces destroyed on this planet (they stay destroyed).</summary>
-        public HashSet<long> Destroyed { get; private set; }
+        /// <summary>Ground forces destroyed on this planet, each till it is rebuilt (WorldState).</summary>
+        public DestroyedSet Destroyed { get; private set; }
 
         public int TilesLoaded => tiles.Count;
         public int TilesBuilt { get; private set; }
@@ -111,7 +122,7 @@ namespace CarrierGame
         // ------------------------------------------------------------------ making one
 
         public static PlanetSurface Create(SurfaceWorld world, SurfaceKit kit, Transform ship, Vector3 center, double u, double v,
-                                           HashSet<int> explored, HashSet<long> destroyed, Material skyPlanet)
+                                           HashSet<int> explored, DestroyedSet destroyed, Material skyPlanet)
         {
             var go = new GameObject($"Surface of {world.name}");
             go.transform.position = center;
@@ -123,7 +134,7 @@ namespace CarrierGame
             s.OriginU = u;
             s.OriginV = v;
             s.Explored = explored ?? new HashSet<int>();
-            s.Destroyed = destroyed ?? new HashSet<long>();
+            s.Destroyed = destroyed ?? new DestroyedSet();
             s.layer = LayerMask.NameToLayer(Cover.LayerName);
             if (s.layer < 0) s.layer = 0;
             s.maxJobs = Threads ? Mathf.Clamp(SystemInfo.processorCount - 2, 1, 4) : 1;

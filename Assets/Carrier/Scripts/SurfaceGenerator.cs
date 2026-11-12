@@ -43,15 +43,14 @@ namespace CarrierGame
         public float industryPadRadius = 140f, industryDeck = 6f;
 
         [Header("Settlements (cities, military and industrial bases on the ground)")]
-        [Tooltip("Each named base's layout, named as the base is: a landing pad ('Outpost') at the middle and its buildings round it, each set on the ground where it falls.")]
-        public GameObject[] settlements;
+        [Tooltip("The named bases with a layout (Resources/Settlements/<name>: a landing pad ('Outpost') at the middle and its buildings round it, each set on the ground where it falls). Loaded only to build a surface, and let go with it.")]
+        public string[] settlements;
 
-        /// <summary>The layout for a named base, or null.</summary>
+        /// <summary>The layout for a named base (loaded now), or null.</summary>
         public GameObject Settlement(string baseName)
         {
-            if (settlements == null || baseName == null) return null;
-            foreach (var s in settlements) if (s != null && s.name == baseName) return s;
-            return null;
+            if (settlements == null || baseName == null || System.Array.IndexOf(settlements, baseName) < 0) return null;
+            return Resources.Load<GameObject>("Settlements/" + baseName);
         }
 
         [Header("Ground forces (hostile worlds)")]

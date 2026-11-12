@@ -9,6 +9,8 @@ namespace CarrierGame
     public class GroundUnit : MonoBehaviour
     {
         public long key;
+        /// <summary>Minutes till it is rebuilt once destroyed (0: never), whether or not anyone is there.</summary>
+        public float rebuildMinutes;
         public GroundGarrison garrison;
         public PlanetSurface surface;
 
@@ -46,7 +48,7 @@ namespace CarrierGame
             if (health != null)
             {
                 hitsSeen = health.Hits;
-                health.onDestroyed.AddListener(() => { if (surface != null) surface.Destroyed.Add(key); });
+                health.onDestroyed.AddListener(() => { if (surface != null) surface.Destroyed.Add(key, rebuildMinutes); });
             }
             Targets.Add(transform);
         }

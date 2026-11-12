@@ -114,7 +114,7 @@ namespace CarrierGame
             var root = t.go.transform;
             stage = "pad";
             // a settlement (a city, a military or industrial base): its own layout round its pad
-            var layout = f != null && f.baseName != null && f.site != SiteKind.Base ? Kit.Settlement(f.baseName) : null;
+            var layout = f != null && f.baseName != null && f.site != SiteKind.Base ? Layout(f.baseName) : null;
             // an industrial site: its own pad, with a refinery and a factory beside it
             var industry = f != null && f.baseName != null ? IndustryTable.Get().Site(f.baseName) : null;
             if (industry != null && (!industry.OnGround || Kit.industryPad == null)) industry = null;

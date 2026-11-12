@@ -141,6 +141,8 @@ namespace CarrierGame.Demo
             string r = LastRepair > 0.5f ? $"hull repaired (+{LastRepair:F0})" : "hull sound";
             if (At != null && At.market)
                 r += LastSoldTonnes > 0.5f ? $", sold {LastSoldTonnes:F0} t of ore for {LastSoldCredits:N0} cr" : ", nothing to sell";
+            var site = IndustrySite.At(At);
+            if (site != null) r += $", {IndustrySite.Services(site.Spec)} (U)";
             return r;
         }
 

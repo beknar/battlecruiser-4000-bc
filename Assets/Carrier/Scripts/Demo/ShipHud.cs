@@ -94,6 +94,7 @@ namespace CarrierGame.Demo
                     PlanetLanding.Instance != null ? (Docking.Instance != null ? "K land / take off, dock / undock" : "K land / take off (in orbit)") : null,
                     demo.Laser != null ? "Z mining laser   V mineral scan" : null,
                     demo.Laser != null ? "I cargo hold   J jettison cheapest ore" : null,
+                    IndustryPanel.Instance != null ? "U refinery / factory (docked or on its pad)" : null,
                     "H hide help   +/- text size   N sound",
                     OnWeb ? "F11 full screen   Esc or P menu" : "F11 window   Esc or P menu",
                 }.Where(l => l != null));
@@ -121,6 +122,7 @@ namespace CarrierGame.Demo
                     PlanetLanding.Instance != null && !carrier.HasMissiles ? (Docking.Instance != null ? "LB land / take off, dock / undock" : "LB land / take off (in orbit)") : null,
                     demo.Laser != null ? "Back+A mining laser   Back+Y mineral scan" : null,
                     demo.Laser != null ? "Back+X cargo hold   Back+B jettison" : null,
+                    IndustryPanel.Instance != null ? "Back+RB refinery / factory screen" : null,
                     "Back hide help   Start menu",
                     W("Back + D-pad ↑↓ text size", "Back + D-pad up/down text size"),
                 }.Where(l => l != null));

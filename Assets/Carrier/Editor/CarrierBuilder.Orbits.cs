@@ -125,9 +125,14 @@ namespace Carrier.EditorTools
             }
             // the fields round the star, with their bases
             orbits["Inner Belt"] = Frame("Inner Belt", sys, null, T("Inner Belt (warp point)").position, 0f, 10500f,
-                new[] { T("Inner Belt"), T("Inner Belt (warp point)"), T("Installations/Deepcut Station") });
+                new[] { T("Inner Belt"), T("Inner Belt (warp point)"), T("Installations/Deepcut Station"), T("Installations/Belt Smelter") });
             orbits["Outer Drift"] = Frame("Outer Drift", sys, null, T("Outer Drift (warp point)").position, 0f, 13500f,
                 new[] { T("Outer Drift"), T("Outer Drift (warp point)"), T("Installations/Corsair Haven") });
+            // the industrial sites in space: the gas works round Jovara, the deep yard round the star
+            if (T("Installations/Jovara Gas Works") is Transform gas)
+                Frame("Jovara Gas Works", sys, orbits["Jovara"], gas.position, 0f, 5000f, new[] { gas }, face: true);
+            if (T("Installations/Kestrel Deep Yard") is Transform yard)
+                Frame("Kestrel Deep Yard", sys, null, yard.position, 0f, 5000f, new[] { yard }, face: true);
 
             // the Lagrange points: L4 (the Trojans) and L5 (the depot) of Jovara, L1 of Thalassa (the observatory)
             Orbit Lagrange(string name, Orbit planet, int n, float reach, IEnumerable<Transform> contents)

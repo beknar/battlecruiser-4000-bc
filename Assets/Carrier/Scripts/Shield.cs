@@ -67,6 +67,14 @@ namespace CarrierGame
             if (Strength > 0f) Strength = fraction * capacity;
         }
 
+        /// <summary>A new full strength (parts fitted: ShipFittings), keeping how charged it is.</summary>
+        public void SetCapacity(float c)
+        {
+            float fraction = Fraction;
+            capacity = Mathf.Max(0f, c);
+            if (Strength > 0f) Strength = fraction * capacity;
+        }
+
         /// <summary>Take a hit: returns the damage the shield couldn't stop (0 while it holds).</summary>
         public float Absorb(float damage, Vector3 point, HitKind kind)
         {

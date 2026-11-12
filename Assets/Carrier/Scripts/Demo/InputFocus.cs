@@ -4,13 +4,13 @@ namespace CarrierGame.Demo
 {
     /// <summary>
     /// Who has the keys, mouse and pad: the game, or one panel over it (the start menu, the pause
-    /// menu, the co-op panel or the system map). Only one panel holds them at a time. A panel that has just
+    /// menu, the co-op panel, the system map or an industrial site's screen). Only one panel holds them at a time. A panel that has just
     /// let go still counts for that frame and the next, so the key that closed it isn't also read
     /// by the game.
     /// </summary>
     public static class InputFocus
     {
-        public enum Panel { None, PauseMenu, CoopPanel, SystemMap, StartMenu }
+        public enum Panel { None, PauseMenu, CoopPanel, SystemMap, StartMenu, Industry }
 
         /// <summary>The panel that has the input (None: the game has it).</summary>
         public static Panel Holder { get; private set; }

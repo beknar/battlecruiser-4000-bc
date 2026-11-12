@@ -112,8 +112,12 @@ namespace CarrierGame
             var f = t.features;
             var root = t.go.transform;
             stage = "pad";
+            // an industrial site: its own pad, with a refinery and a factory beside it
+            var industry = f != null && f.baseName != null ? IndustryTable.Get().Site(f.baseName) : null;
+            if (industry != null && (!industry.OnGround || Kit.industryPad == null)) industry = null;
+            if (industry != null) BuildIndustry(t, f, industry);
             // the landing pad (a base's launch pad on a hostile world)
-            if (f != null && f.site != SiteKind.None && Kit.outpost != null)
+            else if (f != null && f.site != SiteKind.None && Kit.outpost != null)
             {
                 Vector3 p = Place(t, f.su, f.sv, out float turn);
                 p.y = Center.y + f.siteHeight;
@@ -129,7 +133,7 @@ namespace CarrierGame
                 t.outpost = o.transform;
             }
             stage = "base";
-            if (f != null && f.site != SiteKind.None) BuildBase(t, f);
+            if (f != null && f.site != SiteKind.None && industry == null) BuildBase(t, f);
 
             stage = "boulders";
             // boulders
@@ -145,7 +149,7 @@ namespace CarrierGame
                 {
                     double cu = t.ci * (double)T + Rn(60f, T - 60f), cv = t.cj * (double)T - w.V + Rn(60f, T - 60f);
                     if (Mathf.Abs((float)cv) > w.V - w.polarBand) continue;
-                    if (f != null && f.site != SiteKind.None && Dist(cu, cv, f.su, f.sv) < SurfaceWorld.PadRadius + 140f) continue;
+                    if (f != null && f.site != SiteKind.None && Dist(cu, cv, f.su, f.sv) < (industry != null ? 760f : SurfaceWorld.PadRadius + 140f)) continue;
                     bool nearUnit = false;
                     if (f != null) foreach (var us in f.units) if (Dist(cu, cv, us.u, us.v) < 60f) { nearUnit = true; break; }
                     float size = Mathf.Lerp(w.boulderSize.x, w.boulderSize.y, Mathf.Pow(Rn(0f, 1f), 2.2f));
@@ -175,6 +179,50 @@ namespace CarrierGame
             stage = "ground forces";
             // ground forces
             Garrison(t);
+        }
+
+        /// <summary>An industrial site (IndustryTable): its landing pad, and its refinery and factory
+        /// (as it has them) on either side, facing the pad. The pad carries the IndustrySite, so a
+        /// frigate landed on it can use the site.</summary>
+        void BuildIndustry(Tile t, TileFeatures f, SiteSpec spec)
+        {
+            var root = t.go.transform;
+            Vector3 p = Place(t, f.su, f.sv, out float turn);
+            p.y = Center.y + f.siteHeight;
+            float yaw = f.siteYaw + turn;
+            var o = Instantiate(Kit.industryPad, root);
+            o.name = "Outpost (industry)";
+            o.transform.SetPositionAndRotation(p + Vector3.up * SurfaceWorld.PadLift, Quaternion.Euler(0f, yaw, 0f));
+            foreach (var c in o.GetComponentsInChildren<Collider>(true)) c.gameObject.layer = layer;
+            if (o.GetComponent<Obstacle>() == null) { var ob = o.AddComponent<Obstacle>(); ob.cover = false; ob.radius = 0f; ob.coreRadius = 0f; }
+            t.outpost = o.transform;
+            var site = o.AddComponent<IndustrySite>();
+            site.siteName = f.baseName;
+            site.padRadius = Kit.industryPadRadius;
+            site.pad = new GameObject("Pad centre").transform;
+            site.pad.SetParent(o.transform, false);
+            site.pad.localPosition = Vector3.up * Kit.industryDeck;
+            if (!World.solid) return;
+            int built = 0;
+            void Beside(GameObject prefab, float side)
+            {
+                if (prefab == null) return;
+                // to one side of the pad, square to its heading
+                float a = (f.siteYaw + side) * Mathf.Deg2Rad;
+                float r = SurfaceWorld.PadRadius + 230f;
+                double cu = f.su + Mathf.Cos(a) * r, cv = f.sv + Mathf.Sin(a) * r;
+                Vector3 q = Place(t, cu, cv, out _);
+                if (q.y < SeaLevel + 3f) return;
+                var b = Instantiate(prefab, root);
+                b.name = prefab.name;
+                Vector3 toPad = p - q; toPad.y = 0f;
+                b.transform.SetPositionAndRotation(q + Vector3.down * 2f, Quaternion.LookRotation(toPad.sqrMagnitude > 1f ? toPad.normalized : Vector3.forward, Vector3.up));
+                foreach (var c in b.GetComponentsInChildren<Collider>(true)) c.gameObject.layer = layer;
+                built++;
+            }
+            if (spec.CanRefine) Beside(Kit.industryRefinery, 90f);
+            if (spec.CanBuild) Beside(Kit.industryFactory, -90f);
+            BuildingsBuilt += built;
         }
 
         /// <summary>Buildings put up round landing pads so far (for the self-test).</summary>

@@ -51,6 +51,8 @@ namespace Carrier.EditorTools
             kit.colony = ColonyBuildings();
             kit.fort = FortBuildings(kit);
             Log($"base buildings: {kit.colony.Length} for colonies, {kit.fort.Length} for fortresses");
+            // the industrial sites' pad, refinery and factory
+            IndustryKit(kit);
             return kit;
         }
 

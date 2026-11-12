@@ -89,6 +89,8 @@ namespace Carrier.EditorTools
             MiningMaterials();
             var hold = root.AddComponent<CargoHold>();
             hold.capacity = fs.cargo;
+            // and the slots for the parts made at the factories
+            root.AddComponent<ShipFittings>().slots = fs.slots > 0 ? fs.slots : 4;
 
             var sensorGo = Node("MineralSensor", root.transform);
             var sensor = sensorGo.AddComponent<MineralSensor>();

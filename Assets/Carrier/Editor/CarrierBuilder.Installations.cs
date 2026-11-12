@@ -73,6 +73,7 @@ namespace Carrier.EditorTools
             Relay(s, root, b);
             Observatory(s, root, b);
             Depot(s, root, b);
+            IndustrySites(s, root, b);
             SurfaceBaseInSpace(s, "Selene Base", s.wSelene, false, 8f, b,
                 "A colony on Selene: pressure domes, habitats, a control tower and tanks round a landing pad. " +
                 "From orbit over it, land (K) to come down beside it.");

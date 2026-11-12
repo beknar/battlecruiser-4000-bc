@@ -292,8 +292,9 @@ system to travel around.
   - There are three asteroid fields: the Inner Belt, the Jovara Trojans and the Outer Drift.
   - Two comets are on long orbits: bright Comet Iskra close to the star, and faint Comet
     Mirren far out.
-  - Ten stations, bases and installations have been built (see below), and six launch
-    structures on the planets and moons.
+  - Ten stations, bases and installations have been built (see below), five industrial sites
+    (refineries and factories: see Industry), and six launch structures on the planets and
+    moons.
   - The frigate starts near Thalassa.
 - **Orbits.** Everything moves on its orbit, fast enough to see within ten minutes.
   - **Kepler orbits.** The planets go round the star, and the moons and the orbiting stations
@@ -525,6 +526,102 @@ system to travel around.
 
   K again, or climbing high above the ground, takes it back to orbit where it left.
 
+### Industry: refineries, factories and ship parts
+
+Mined ore can be refined into materials, the materials built into ship parts, and the parts
+fitted to the frigate to make it better. All of it is in
+`Assets/Carrier/Resources/Data/industry.json`.
+
+- **Five industrial sites**, one in each kind of place, each a destination on the system map:
+  - **Ochre Foundry**, on the desert world Ochre, and **Mnemos Works**, on Thalassa's moon
+    Mnemos: a refinery and a factory either side of a landing pad. Land from orbit over one (K),
+    fly onto the pad and set down on it.
+  - **Jovara Gas Works**, a gas refinery in orbit round Jovara, and **Kestrel Deep Yard**, a
+    factory alone in deep space between the planets: dock at them (K).
+  - **Belt Smelter**, a metal smelter on a rock at the edge of the Inner Belt (across the belt
+    from Deepcut Station), with a landing pad on the rock: docking there sets the frigate down
+    on the pad.
+- **The site's screen** opens by itself on arriving (docked, or landed on the pad), and U
+  (Back + RB on the pad) opens and closes it. It has four pages:
+  - **Storage**: move ore, refined materials and parts between the hold and the site's
+    storage. Each site keeps its own storage, with no limit; the frigate's hold is what is
+    limited, so materials have to be carried from a refinery to a factory.
+  - **Refine**: queue refining jobs. A job takes its minerals from the site's storage and puts
+    the refined material back into it.
+  - **Build**: queue factory jobs, refined materials into parts.
+  - **Fit**: fit parts from storage (or the hold) to the frigate, or take them off again (they
+    go back into storage). Each part can be fitted once, and each frigate has so many slots.
+- **Jobs take time** (20 to 45 s a batch to refine, 80 to 180 s a part), one at a time on each
+  line, the refinery's and the factory's. They go on while the frigate is away.
+- **The frigates differ in what they carry and fit:**
+
+  | Frigate | Hold | Part slots |
+  |---|---|---|
+  | Sentinel | 600 t | 4 |
+  | Lancer | 450 t | 3 |
+  | Warden | 800 t | 5 |
+  | Talon | 550 t | 4 |
+
+  Ore, refined materials and parts all count against the hold (a part weighs what it says
+  below). Markets still buy only the ore.
+- **Saved.** The sites' storage and queues, the hold and credits, and each frigate's fitted
+  parts are saved to `industry_save.json` in the player's data folder (a few seconds after
+  anything changes, every minute and on quitting), and read again when the game starts.
+
+The models are the project's own: built in Blender by `Tools/Blender/build_industry.py`
+(`Assets/Carrier/Models/Ind_*.fbx`, their lights and berths in
+`Assets/Carrier/Data/industry_hardpoints.json`), textured with panel, paint, hazard, grating,
+tank, pipe, window and pad textures made by `Tools/Textures/make_industry_textures.py`
+(`Assets/Carrier/Art/Industry`). The pictures of the materials and parts are rendered by
+`Tools/Blender/build_goods.py`.
+
+**Refined materials** (refined from mined minerals; a batch makes the tonnes shown):
+
+| | Material | Form | Refined from | Makes | Time | Value | Refined at |
+|---|---|---|---|---|---|---|---|
+| <img src="Assets/Carrier/Resources/Industry/Icons/SteelPlate.png" width="64"> | Steel plate | Rolled plates, stacked and strapped | 5 t iron, 0.5 t carbon | 5 t | 20 s | 40 cr/t | Ochre Foundry, Mnemos Works, Belt Smelter |
+| <img src="Assets/Carrier/Resources/Industry/Icons/TitaniumBillet.png" width="64"> | Titanium billets | Square-section billets | 4 t titanium, 1 t magnesium | 4 t | 30 s | 140 cr/t | Ochre Foundry, Mnemos Works, Belt Smelter |
+| <img src="Assets/Carrier/Resources/Industry/Icons/AluminiumSheet.png" width="64"> | Aluminium sheet | Coils of sheet | 5 t aluminium | 4.5 t | 20 s | 45 cr/t | Ochre Foundry, Mnemos Works, Belt Smelter |
+| <img src="Assets/Carrier/Resources/Industry/Icons/CopperWire.png" width="64"> | Copper wire | Spools of drawn wire | 4 t copper | 4 t | 25 s | 85 cr/t | Ochre Foundry, Mnemos Works, Belt Smelter |
+| <img src="Assets/Carrier/Resources/Industry/Icons/Superalloy.png" width="64"> | Superalloy ingots | Nickel-cobalt ingots | 3 t nickel, 1 t cobalt, 1 t iron | 4 t | 35 s | 160 cr/t | Ochre Foundry, Mnemos Works, Belt Smelter |
+| <img src="Assets/Carrier/Resources/Industry/Icons/Magnets.png" width="64"> | Rare-earth magnets | Sintered magnet blocks | 1 t rare earths, 1 t iron, 0.2 t cobalt | 1.5 t | 40 s | 700 cr/t | Ochre Foundry, Mnemos Works, Belt Smelter |
+| <img src="Assets/Carrier/Resources/Industry/Icons/Conductors.png" width="64"> | Precious conductors | Gold, silver and platinum foil and bar | 0.1 t gold, 0.3 t silver, 0.05 t platinum | 0.4 t | 40 s | 4,500 cr/t | Ochre Foundry, Mnemos Works, Belt Smelter |
+| <img src="Assets/Carrier/Resources/Industry/Icons/FuelRods.png" width="64"> | Reactor fuel rods | Bundles of clad fuel rods | 1 t uranium, 0.2 t lithium | 0.9 t | 45 s | 700 cr/t | Ochre Foundry, Mnemos Works, Belt Smelter |
+| <img src="Assets/Carrier/Resources/Industry/Icons/SiliconWafer.png" width="64"> | Silicon wafers | Polished wafers in cassettes | 10 t silicates, 1 t hydrogen | 1 t | 35 s | 300 cr/t | Ochre Foundry, Mnemos Works, Jovara Gas Works |
+| <img src="Assets/Carrier/Resources/Industry/Icons/ArmourGlass.png" width="64"> | Armour glass | Thick laminated panes | 6 t silicates, 1 t aluminium | 4 t | 25 s | 25 cr/t | Ochre Foundry, Mnemos Works, Belt Smelter |
+| <img src="Assets/Carrier/Resources/Industry/Icons/DiamondOptics.png" width="64"> | Diamond optics | Cut lenses and prisms | 0.1 t diamonds | 0.08 t | 45 s | 30,000 cr/t | Ochre Foundry, Mnemos Works, Belt Smelter |
+| <img src="Assets/Carrier/Resources/Industry/Icons/CarbonFibre.png" width="64"> | Carbon-fibre rolls | Rolls of woven carbon fibre | 4 t carbon, 2 t methane | 3 t | 30 s | 90 cr/t | Ochre Foundry, Mnemos Works, Jovara Gas Works |
+| <img src="Assets/Carrier/Resources/Industry/Icons/Coolant.png" width="64"> | Coolant | Pressurised coolant drums | 2 t ammonia, 2 t water | 3.5 t | 20 s | 30 cr/t | Ochre Foundry, Mnemos Works, Jovara Gas Works |
+| <img src="Assets/Carrier/Resources/Industry/Icons/FusionPellets.png" width="64"> | Fusion fuel pellets | Cryogenic pellet canisters | 1 t deuterium, 0.1 t helium-3 | 1 t | 40 s | 1,500 cr/t | Ochre Foundry, Mnemos Works, Jovara Gas Works |
+
+**Ship parts** (built at a factory from refined materials; each can be fitted once):
+
+| | Part | Looks like | Built from | Weighs | Time | Fitted | Value |
+|---|---|---|---|---|---|---|---|
+| <img src="Assets/Carrier/Resources/Industry/Icons/ArmourPlating.png" width="64"> | Armour plating | A curved section of thick steel-and-titanium hull armour, bolted ribs behind | 30 t steel plate, 8 t titanium billets | 40 t | 90 s | hull +15% | 2,800 cr |
+| <img src="Assets/Carrier/Resources/Industry/Icons/CompositeArmour.png" width="64"> | Composite armour | Layered titanium, carbon-fibre and glass armour tiles in a frame | 12 t titanium billets, 10 t carbon-fibre rolls, 6 t armour glass | 25 t | 150 s | hull +20% | 4,200 cr |
+| <img src="Assets/Carrier/Resources/Industry/Icons/ShieldEmitter.png" width="64"> | Shield emitter | A ringed emitter dish on a coil-wound base | 6 t superalloy ingots, 3 t rare-earth magnets, 8 t copper wire, 1 t silicon wafers | 15 t | 120 s | shield +20% | 6,500 cr |
+| <img src="Assets/Carrier/Resources/Industry/Icons/CapacitorBank.png" width="64"> | Capacitor bank | A rack of cylindrical capacitors with heavy bus bars | 10 t copper wire, 0.5 t precious conductors, 6 t coolant | 18 t | 100 s | shield recharge +35% | 4,300 cr |
+| <img src="Assets/Carrier/Resources/Industry/Icons/FusionThruster.png" width="64"> | Fusion thruster | A bell-nozzled fusion drive with a magnetic throat and fuel lines | 12 t superalloy ingots, 3 t fusion fuel pellets, 5 t coolant | 30 t | 150 s | top speed +12%, acceleration +15% | 7,000 cr |
+| <img src="Assets/Carrier/Resources/Industry/Icons/VectoringJets.png" width="64"> | Vectoring jets | A cluster of four gimballed manoeuvring nozzles on a mount | 6 t titanium billets, 4 t superalloy ingots, 3 t copper wire | 12 t | 90 s | turn rate +20% | 2,200 cr |
+| <img src="Assets/Carrier/Resources/Industry/Icons/CargoPod.png" width="64"> | Cargo pod | A ribbed aluminium cargo container with clamp points and a hatch | 25 t aluminium sheet, 10 t steel plate | 20 t | 80 s | hold +30% | 1,700 cr |
+| <img src="Assets/Carrier/Resources/Industry/Icons/RailBarrels.png" width="64"> | Rail barrels | A pair of long magnetic rail barrels with cooling jackets | 8 t superalloy ingots, 4 t rare-earth magnets, 3 t coolant | 14 t | 120 s | gun damage +15% | 4,300 cr |
+| <img src="Assets/Carrier/Resources/Industry/Icons/FireControl.png" width="64"> | Fire-control computer | An armoured computer case with a sensor eye and cable ports | 2 t silicon wafers, 0.3 t precious conductors, 0.05 t diamond optics, 2 t copper wire | 3 t | 140 s | gun range +15% | 5,000 cr |
+| <img src="Assets/Carrier/Resources/Industry/Icons/AutoLoader.png" width="64"> | Autoloader | A belt-fed loading mechanism with a shell carousel | 8 t steel plate, 4 t superalloy ingots, 2 t copper wire | 10 t | 100 s | rate of fire +15% | 1,400 cr |
+| <img src="Assets/Carrier/Resources/Industry/Icons/BeamLens.png" width="64"> | Beam focusing lens | A diamond lens stack in a cooled, finned housing | 0.08 t diamond optics, 2 t armour glass, 4 t coolant | 5 t | 160 s | beam damage +20% | 3,000 cr |
+| <img src="Assets/Carrier/Resources/Industry/Icons/ReactorCore.png" width="64"> | Reactor core | A shielded reactor vessel with a glowing core window and coolant pipes | 2 t reactor fuel rods, 8 t superalloy ingots, 8 t coolant | 25 t | 180 s | beam charge time −20% | 3,200 cr |
+| <img src="Assets/Carrier/Resources/Industry/Icons/MiningHead.png" width="64"> | Mining laser head | A laser emitter head with a diamond aperture and heat fins | 0.04 t diamond optics, 3 t copper wire, 2 t coolant, 4 t steel plate | 6 t | 90 s | mining rate +50% | 2,000 cr |
+
+**The sites:**
+
+| Site | Where | Refines | Builds and fits |
+|---|---|---|---|
+| Ochre Foundry | on a planet (pad): Ochre | everything | everything |
+| Mnemos Works | on a moon (pad): Mnemos | everything | everything |
+| Jovara Gas Works | in orbit (docked): Jovara | carbon-fibre rolls, coolant, fusion fuel pellets, silicon wafers | - |
+| Kestrel Deep Yard | in deep space (docked) | - | everything |
+| Belt Smelter | on an asteroid (pad): Inner Belt | steel plate, titanium billets, aluminium sheet, copper wire, superalloy ingots, rare-earth magnets, precious conductors, reactor fuel rods, armour glass, diamond optics | - |
+
 ## Controls
 
 | Action | Keyboard / mouse | Xbox 360 pad |
@@ -549,6 +646,8 @@ system to travel around.
 | Mining laser on/off | Z | Back + A |
 | Mineral scan | V | Back + Y |
 | Cargo hold list / jettison the cheapest ore | I / J | Back + X / Back + B |
+| Industrial site's screen (docked, or on its pad) | U | Back + RB |
+| In the site's screen: pages / choose / load, store / act / cancel a job / close | Tab or Q E / ↑↓ / ← → (Shift for all) / Enter / Backspace / U or Esc | LB RB / D-pad ↑↓ / D-pad ← →, X, Y / A / Y / B |
 | On the map: choose a place / warp / close | Click, arrows or Tab / WARP, double-click or Enter / M or Esc | Left stick, D-pad or LB/RB / A / B |
 
 In the web version, use the page's Full screen button rather than F11.
@@ -595,7 +694,11 @@ In the web version, use the page's Full screen button rather than F11.
 - `Tools/CoopTest`: the co-op server test, the scripted second player and the reel's wingmen
 - `Tools/WebTest`: the headless Chrome gamepad test and its stand-in controller
 - `Tools/Blender`: the scripts that make those models (frigate conversion from GLB, ball turret,
-  CIWS, beam emitter, carrier parts) and preview renders
+  CIWS, beam emitter, carrier parts, the refineries, factories and landing pad) and preview
+  renders, and the pictures of the refined materials and ship parts (`build_goods.py`)
+- `Tools/Textures`: the script that makes the industrial sites' textures
+- `Assets/Carrier/Scripts/Industry`: the industry: its data, the sites' storage and production
+  lines (`IndustryLedger`), the parts fitted to a frigate (`ShipFittings`) and the save
 
 ## Building
 
@@ -798,7 +901,7 @@ The games run one at a time, in a 1280x720 window.
 | `build` | the builds (with `--build`) |
 | `serverproc` | the server program, end to end |
 | `autotest` | the Carrier Demo and Asteroid Ambush autotests |
-| `hud`, `ships`, `water`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
+| `hud`, `ships`, `water`, `industry`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
 | `web` | the web build's co-op test |
 
 `--quick` runs `tools`, `server`, `unity`, `serverproc`, `autotest`, `hud` and `coop`.
@@ -818,6 +921,9 @@ Each part can also be run alone:
 - `-frigate <id>` (or `?frigate=<id>` on the web), with any game: fly that frigate (Sentinel,
   Lancer, Warden or Talon) without the start menu. The tests fly the Sentinel unless told
   otherwise.
+- `-industrysave <file>`: save the game there instead of the player's data folder. Automated
+  runs (tests, reels) save only where they are told to, so they never touch the player's save.
+  `-newgame` starts without reading the save.
 - `CarrierDemo.exe -autotest <dir>`: runs the scripted self-test and writes a report and screenshots
   to `<dir>`. The test covers:
   - handling, attitude and elevators;
@@ -850,6 +956,12 @@ Each part can also be run alone:
   churning), the underwater view and speed, the surface hiding the ship, surfacing, lifting off
   the water and launching from under it, the sea bases and submarines, their torpedoes (no
   flame, bubbles) and the ship's guns hitting a base under the water.
+
+  Add `-industrytest` (or `?industrytest` on the web) to test only the industry, with the jobs
+  sped up: ore stored and refined at the Belt Smelter (docked on its pad), the steel and
+  aluminium carried to the Kestrel Deep Yard, a cargo pod built there and fitted (the hold
+  grows) and taken off, the gas works refining only, landing on the pads of Ochre Foundry and
+  Mnemos Works (their refinery and factory beside the pad), and the save written and read back.
 
   Add `-landtest` (or `?landtest` on the web) to test only the landings, with screenshots, on
   every kind of world. On the hostile ones it also checks that the ground forces are there,

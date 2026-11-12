@@ -53,6 +53,9 @@ namespace CarrierGame
 
         [Header("Weapon")]
         public Projectile projectilePrefab;
+        /// <summary>Its shots hit this many times as hard as the projectile's own damage (parts
+        /// fitted: ShipFittings).</summary>
+        [System.NonSerialized] public float damageScale = 1f;
         public float fireInterval = 2f;
         public float range = 5000f;
         [Tooltip("Fire when the guns point within this many degrees of the target.")]
@@ -291,6 +294,7 @@ namespace CarrierGame
                 if (m == null) continue;
                 var p = Pool.Take(projectilePrefab, m.position, m.rotation);
                 p.owner = owner;
+                if (damageScale != 1f) p.damage *= damageScale;
             }
         }
     }

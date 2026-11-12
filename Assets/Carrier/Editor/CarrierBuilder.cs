@@ -156,6 +156,7 @@ namespace Carrier.EditorTools
             foreach (var n in new[] { "Carrier_Hull", "TripleTurret", "Missile", "Drone", "Frigate_Hull", "BallTurret", "CIWS", "BeamEmitter", "ShieldHex" })
                 yield return $"{Root}/Models/{n}.fbx";
             foreach (var path in FrigateModelPaths()) yield return path;
+            foreach (var path in IndustryModelPaths()) yield return path;
         }
 
         static void ConfigureModels()
@@ -430,6 +431,7 @@ namespace Carrier.EditorTools
                 }
                 Lit(key, Color.white, d, n, 0.4f, 0.45f, e != null ? Color.white * 2f : (Color?)null, e);
             }
+            IndustryMaterials();
             AssetDatabase.SaveAssets();
         }
 

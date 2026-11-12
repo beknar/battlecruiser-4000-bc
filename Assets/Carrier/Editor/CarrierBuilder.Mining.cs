@@ -137,7 +137,7 @@ namespace Carrier.EditorTools
 
             var laser = node.AddComponent<MiningLaser>();
             laser.range = 1500f;
-            laser.rate = 8f;
+            laser.rate = fs.miningRate > 0f ? fs.miningRate : 8f;   // tonnes a second
             laser.head = head.transform;
             laser.muzzle = muzzle;
             laser.beamGlow = Line("BeamGlow", node.transform, Mats["FX_MiningGlow"], 2, false);

@@ -192,14 +192,16 @@ namespace CarrierGame
             why = "";
             if (p == null || !p.Recruits) { why = "nobody recruits here"; return 0; }
             if (crew == null) { why = "no crew to join"; return 0; }
+            if (hold == null) { why = "no hold to pay from"; return 0; }
             int n = Mathf.Min(want, Mathf.Min(crew.Missing, Mathf.FloorToInt(Pool(place) + 1e-4f)));
-            if (hold != null && table.recruitCost > 0f) n = Mathf.Min(n, Mathf.FloorToInt(hold.Credits / table.recruitCost + 1e-4f));
+            // (as many as the credits cover, by the same reckoning Spend pays by)
+            if (table.recruitCost > 0f) n = Mathf.Min(n, Mathf.FloorToInt((hold.Credits + 1e-3f) / table.recruitCost));
             if (n <= 0)
             {
                 why = crew.Missing == 0 ? "the crew is complete" : Pool(place) < 1f ? "nobody is waiting to sign on" : "not enough credits";
                 return 0;
             }
-            if (hold != null && !hold.Spend(n * table.recruitCost)) { why = "not enough credits"; return 0; }
+            if (!hold.Spend(n * table.recruitCost)) { why = "not enough credits"; return 0; }
             n = crew.Add(n);
             pools[place] = Pool(place) - n;
             Changed?.Invoke();
@@ -234,7 +236,10 @@ namespace CarrierGame
         {
             var fs = new List<IndustrySave.Fitting>();
             foreach (var kv in fittings) fs.Add(new IndustrySave.Fitting { frigate = kv.Key, parts = new List<string>(kv.Value) });
-            return (new List<SiteState>(sites.Values), fs);
+            // (a site with nothing stored and nothing queued needn't be saved)
+            var kept = new List<SiteState>();
+            foreach (var s in sites.Values) if (s.stock.items.Count > 0 || s.refining.Count > 0 || s.building.Count > 0) kept.Add(s);
+            return (kept, fs);
         }
 
         /// <summary>The recruit pools and the frigates' crews, to save.</summary>

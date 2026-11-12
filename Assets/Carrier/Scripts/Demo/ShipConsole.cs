@@ -46,6 +46,7 @@ namespace CarrierGame.Demo
         readonly System.Collections.Generic.List<string> alerts = new System.Collections.Generic.List<string>();
         readonly System.Collections.Generic.List<string> lines = new System.Collections.Generic.List<string>();
 
+        Crew crewOf;   // (the ship's crew, looked up once a ship)
         static readonly Color Cyan = new Color(0.35f, 0.78f, 1f), Green = new Color(0.45f, 0.9f, 0.55f),
             Amber = new Color(1f, 0.72f, 0.3f), Red = new Color(1f, 0.32f, 0.25f), Dim = new Color(0.55f, 0.62f, 0.7f),
             Track = new Color(1f, 1f, 1f, 0.08f);
@@ -185,7 +186,8 @@ namespace CarrierGame.Demo
 
             var gun = demo.MainGun;
             var cargo = demo.Cargo;
-            var crew = cc.GetComponent<Crew>();
+            if (crewOf == null || crewOf.gameObject != cc.gameObject) crewOf = cc.GetComponent<Crew>();
+            var crew = crewOf;
             int bars = 3 + (gun != null ? 1 : 0) + (warp != null ? 1 : 0) + (cargo != null ? 1 : 0) + (crew != null ? 1 : 0);
             var info = InfoLines(cc);
             var small = Hud.Text(13);

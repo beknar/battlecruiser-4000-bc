@@ -62,7 +62,12 @@ namespace CarrierGame.Demo
 
         CargoHold hold;
         ShipFittings fittings;
+        Crew crew;
         float rowsDue;
+        Crew CrewAboard
+        {
+            get { if (crew == null && carrier != null) crew = carrier.GetComponent<Crew>(); return crew; }
+        }
         CargoHold Hold
         {
             get { if (hold == null && carrier != null) hold = carrier.GetComponent<CargoHold>(); return hold; }
@@ -129,7 +134,8 @@ namespace CarrierGame.Demo
             rows.Clear();
             if (Site == null) return;
             var spec = Site.Spec;
-            var stock = Site.State.stock;
+            // (a place that only recruits has no storage: it isn't made one by looking)
+            var stock = spec != null ? Site.State.stock : null;
             var hold = Hold;
             switch (Current)
             {
@@ -189,7 +195,7 @@ namespace CarrierGame.Demo
             {
                 case Recruit:
                     {
-                        var crew = carrier != null ? carrier.GetComponent<Crew>() : null;
+                        var crew = CrewAboard;
                         int want = id == RecruitOne ? 1 : id == RecruitTen ? 10 : crew != null ? crew.Missing : 0;
                         int n = IndustryLedger.Recruit(Site.siteName, crew, hold, want, out string why);
                         if (n > 0) { Say($"{n} recruit{(n == 1 ? "" : "s")} signed on, for {n * CrewTable.Get().recruitCost:N0} cr"); SoundFX.Ui(Sfx.UiLock); }
@@ -326,7 +332,7 @@ namespace CarrierGame.Demo
                 bool ask = (k != null && k.uKey.wasPressedThisFrame) || (pad != null && pad.selectButton.isPressed && pad.rightShoulder.wasPressedThisFrame);
                 // (by itself only where there's work: an industrial site, or a place that recruits
                 // when the crew is short)
-                bool worth = here.Spec != null || (here.Recruits && carrier.GetComponent<Crew>() is Crew c && c.Missing > 0);
+                bool worth = here.Spec != null || (here.Recruits && CrewAboard is Crew c && c.Missing > 0);
                 if (offeredAt != here && !worth) offeredAt = here;
                 if (ask || offeredAt != here) Open();
                 return;
@@ -569,7 +575,7 @@ namespace CarrierGame.Demo
             float x = r.x + 6f * s;
             if (id == RecruitOne || id == RecruitTen || id == RecruitAll)
             {
-                var crew = carrier != null ? carrier.GetComponent<Crew>() : null;
+                var crew = CrewAboard;
                 int missing = crew != null ? crew.Missing : 0;
                 string label = id == RecruitOne ? "Recruit one" : id == RecruitTen ? "Recruit ten" : $"Recruit to a full crew ({missing} short)";
                 GUI.Label(new Rect(x + 4f * s, r.y, r.width - 200f * s, r.height), label, Hud.Text(15, sel, TextAnchor.MiddleLeft));
@@ -761,7 +767,7 @@ namespace CarrierGame.Demo
         /// recruits waiting here, and what they cost.</summary>
         void DrawCrew(Rect area, float s)
         {
-            var crew = carrier != null ? carrier.GetComponent<Crew>() : null;
+            var crew = CrewAboard;
             var table = CrewTable.Get();
             float pad = 12f * s;
             var sb = new System.Text.StringBuilder();

@@ -102,7 +102,7 @@ scenes cut through black.
 
 ### The frigates and the start menu
 
-There are four frigates to choose from. As each game starts, the start menu offers them, with a
+There are five frigates to choose from. As each game starts, the start menu offers them, with a
 turning picture of each, bars comparing them, and the five captains. The game waits while the
 menu is up. Launching with a different frigate starts the level again with it. The menu shows once
 a run, and the frigate is kept for the game: its crew, parts and hold go with it, so the pause menu
@@ -113,16 +113,17 @@ doesn't change it. The choice is remembered for next time.
 | Sentinel (the starting frigate) | Gun frigate: all-rounder | 2 ball-mounted guns on its pods | 4 | 6000 / 6000 | 150 m/s, 20°/s |
 | Lancer | Fast attack frigate | 2 twin turrets, one on each flank | 2 | 4500 / 5000 | 190 m/s, 28°/s |
 | Warden | Heavy escort frigate | 3 twin turrets: forward, under the keel, aft | 4 | 8500 / 8000 | 120 m/s, 15°/s |
-| Talon | Strike frigate | 2 heavy twin turrets on its flanks; the strongest bow beam | 1 | 5500 / 5500 | 165 m/s, 22°/s |
+| Talon | Strike frigate | 2 heavy twin turrets on its flanks | 1 | 5500 / 5500 | 165 m/s, 22°/s |
+| Vanguard | Line cruiser | 6 turrets bearing forward: two twins on the foredeck, four ball domes on the flanks; the strongest bow beam | 4 | 9000 / 7000 | 115 m/s, 13°/s |
 
 Every frigate has a bow main gun, at least one CIWS mount, the shield and the mining gear. The
-Lancer, Warden and Talon fight with the turrets modelled on them: each traverses on its own
+Lancer, Warden, Talon and Vanguard fight with the turrets modelled on them: each traverses on its own
 mount and elevates its barrels (the Warden's barrels are part of their housings, so its turrets
 traverse as a whole), firing from the barrels' muzzles. Their numbers are in
 `Assets/Carrier/Data/frigates.json`.
 
-The three new frigates started as AI-made models in another paint scheme (`ai models/frigate1.glb`,
-`frigate 2.glb`, `frigate3.glb`). They were repainted in the starting frigate's naval grey, slate
+The four newer frigates started as AI-made models in another paint scheme (`ai models/frigate1.glb`,
+`frigate 2.glb`, `frigate3.glb`, `frigate5.glb`). They were repainted in the starting frigate's naval grey, slate
 and red (`Tools/Blender/recolour_frigate.py`, kept in `ai models/retextured`), and converted for
 the game with their turrets cut out of the hull (`Tools/Blender/convert_frigates.py`, from
 `Tools/Blender/frigates_spec.json`).
@@ -563,6 +564,7 @@ fitted to the frigate to make it better. All of it is in
   | Lancer | 450 t | 3 |
   | Warden | 800 t | 5 |
   | Talon | 550 t | 4 |
+  | Vanguard | 500 t | 3 |
 
   Ore, refined materials and parts all count against the hold (a part weighs what it says
   below). Markets still buy only the ore.
@@ -637,6 +639,7 @@ Thalassa L1 Observatory). The rules and every place's people are in
 | Lancer | 90 |
 | Warden | 220 |
 | Talon | 110 |
+| Vanguard | 300 |
 
 - **Losses.** Hull damage kills crew: a full hull's worth of damage kills half of them. Some
   always survive (15%), so a frigate is never left with nobody. Shield hits cost nobody.
@@ -1069,7 +1072,7 @@ Each part can also be run alone:
   (60 s, 76 s for the ambush or about 215 s for the star system) at 30 fps as JPG frames plus a WAV
   soundtrack, then quits. Add `-features` to `StarSystem.exe -reel <dir>` for the feature reel
   (about 310 s: mining, combat, landing and mini-warps), `-orbits` for the orbits and stations
-  reel (about 210 s), `-frigates` for the start menu and the four frigates, `-sea` for the sea
+  reel (about 210 s), `-frigates` for the start menu and the five frigates, `-sea` for the sea
   reel (about 200 s: each frigate comes down from orbit onto Pelagia's sea, sails in on an island
   base, dives on a torpedo base and launches out of the water), or `-all` for everything in one reel. That includes the ship's console and
   the captain, refining, building and fitting a part on the sites' screen, the crew (losses,

@@ -1,5 +1,5 @@
 {
-    "note": "What convert_frigates.py needs to know about each new frigate model (the recoloured copies in ai models/retextured, made by recolour_frigate.py). Positions are in the GLB's coordinates after Blender's import: bow at -X, +Z up, the hull on z = 0, 1 unit long; boxes are [x0, x1, y0, y1, z0, z1]. A turret is the parts of the model inside its boxes, cut out so they can turn: its barrels (loose parts whose middle is in the barrels box) elevate, the rest (the housing) traverses. A housing_mode of faces takes every face in the box (not whole loose parts): for a housing joined to its twin across the hull. Read off grid_glb.py, grid_end.py and islands_render.py renders.",
+    "note": "What convert_frigates.py needs to know about each new frigate model (the recoloured copies in ai models/retextured, made by recolour_frigate.py). Positions are in the GLB's coordinates after Blender's import: bow at -X, +Z up, the hull on z = 0, 1 unit long; boxes are [x0, x1, y0, y1, z0, z1]. A turret is the parts of the model inside its boxes, cut out so they can turn: its barrels (loose parts whose middle is in the barrels box) elevate, the rest (the housing) traverses. A housing_mode of faces takes every face in the box (not whole loose parts): for a housing joined to its twin across the hull. A barrel_faces box (or list of boxes) adds barrels modelled joined to their housing: the pieces (between UV seams) of the housing's parts lying wholly in it elevate with the barrels. Read off grid_glb.py, grid_end.py and islands_render.py renders.",
     "frigates": [
         {
             "id": "Lancer",
@@ -58,6 +58,41 @@
                 { "pos": [0.46, 0.0, 0.158], "r": 0.04 }
             ],
             "ciws": [[0.27, 0.0]]
+        },
+        {
+            "id": "Vanguard",
+            "source": "retextured/frigate5.glb",
+            "recolour": "--method scheme --split 0.75,0.95 --accent-hue 330,70,0.2",
+            "length": 190,
+            "turrets": [
+                { "name": "Forward", "facing": "-X", "up": "+Z",
+                  "barrels": [-0.040, 0.050, -0.025, 0.025, 0.185, 0.203],
+                  "housing": [0.030, 0.110, -0.025, 0.025, 0.170, 0.205] },
+                { "name": "Superfiring", "facing": "-X", "up": "+Z",
+                  "barrels": [0.045, 0.120, -0.022, 0.022, 0.204, 0.218],
+                  "housing": [0.100, 0.180, -0.025, 0.025, 0.185, 0.220] },
+                { "name": "PortUpper", "facing": "-X", "up": "-Y",
+                  "barrels": [-0.045, 0.005, -0.060, -0.046, 0.125, 0.152],
+                  "barrel_faces": [-0.045, 0.026, -0.0465, -0.0395, 0.1470, 0.1565],
+                  "housing": [-0.010, 0.065, -0.065, -0.025, 0.110, 0.160] },
+                { "name": "StarboardUpper", "facing": "-X", "up": "+Y",
+                  "barrels": [-0.045, 0.005, 0.046, 0.060, 0.125, 0.152],
+                  "barrel_faces": [-0.045, 0.026, 0.0395, 0.0465, 0.1470, 0.1565],
+                  "housing": [-0.010, 0.065, 0.025, 0.065, 0.110, 0.160] },
+                { "name": "PortLower", "facing": "-X", "up": "-Y",
+                  "barrels": [-0.050, 0.003, -0.060, -0.035, 0.045, 0.085],
+                  "barrel_faces": [-0.045, 0.019, -0.0600, -0.0520, 0.0660, 0.0745],
+                  "housing": [-0.012, 0.055, -0.065, -0.025, 0.045, 0.100] },
+                { "name": "StarboardLower", "facing": "-X", "up": "+Y",
+                  "barrels": [-0.050, 0.003, 0.035, 0.060, 0.045, 0.085],
+                  "barrel_faces": [[-0.045, 0.019, 0.0520, 0.0600, 0.0660, 0.0745],
+                                   [-0.045, 0.038, 0.0355, 0.0475, 0.0480, 0.0605]],
+                  "housing": [-0.012, 0.055, 0.025, 0.065, 0.045, 0.100] }
+            ],
+            "engines": [
+                { "pos": [0.50, 0.0, 0.098], "r": 0.026 }
+            ],
+            "ciws": [[-0.21, -0.02], [-0.21, 0.02], [0.215, -0.06], [0.215, 0.06]]
         }
     ]
 }

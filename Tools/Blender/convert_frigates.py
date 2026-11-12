@@ -2,7 +2,7 @@
 colour texture and the hardpoints the scene builder needs: the turrets cut out of the hull so they
 can turn, the engine exits, and where the CIWS mounts go.
 
-Run:  blender -b --python convert_frigates.py -- <spec.json> <ai_models_dir> <models_dir> <data_dir> [id ...]
+Run:  blender -b --python convert_frigates.py -- <spec.json> <ai_models_dir> <models_dir> <data_dir> [id ...] [--preview <dir>]
 
 Each model is one textured Tripo mesh, 1 unit long. As in convert_frigate.py (the starting frigate),
 it is turned so the bow points +Y, centred, scaled to its length in metres, and exported so that in
@@ -11,8 +11,10 @@ Unity the bow points +Z and up is +Y: Unity position = (x, z, y) of the exported
 The turrets are modelled into the hull. Each is cut out by the boxes in the spec: its barrels (the
 loose parts whose middle is in the barrels box) and its housing (the loose parts whose middle is in
 the housing box, or with housing_mode "faces", every face whose middle is in it apart from the
-hull's own). The mesh is split along its UV seams, so loose parts are found by joining vertices
-that share a position. Every part is exported at the origin with its vertices relative to its own
+hull's own). A barrel_faces box (or list of boxes) adds barrels modelled joined to their housing:
+the pieces (between UV seams) of the housing's parts that lie wholly in it go with the barrels.
+The mesh is split along its UV seams, so loose parts are found by joining vertices that share a
+position. Every part is exported at the origin with its vertices relative to its own
 pivot (the housing turns about its foot, the barrels about their breech), and the hardpoints give
 where each pivot is, which way the turret faces at rest and which way is up for it, and the barrels'
 muzzles. A turret without separate barrels gets muzzles at the front of the housing.
@@ -92,6 +94,40 @@ def select_faces(obj, box, mode):
         sizes[p] = sizes.get(p, 0) + 1
     chosen.discard(max(sizes, key=sizes.get))
     return [i for i in range(len(me.polygons)) if part[i] in chosen]
+
+
+def joined_barrel_faces(obj, housing_box, boxes):
+    """For barrels modelled joined to their housing: of the housing's loose parts (those whose
+    middle is in the housing box, not the hull's own), the pieces between UV seams that lie wholly
+    in this box (or one of a list of boxes). A barrel is many small pieces; the housing's own
+    pieces are bigger than a box drawn tight round the barrel."""
+    me = obj.data
+    part = islands(obj)
+    housing = {part[i] for i in select_faces(obj, housing_box, "islands")}
+    if not isinstance(boxes[0], list):
+        boxes = [boxes]
+    parent = list(range(len(me.vertices)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    for e in me.edges:
+        a, b = find(e.vertices[0]), find(e.vertices[1])
+        if a != b:
+            parent[a] = b
+    pieces = {}
+    for i, poly in enumerate(me.polygons):
+        if part[i] in housing:
+            pieces.setdefault(find(poly.vertices[0]), []).append(i)
+    out = []
+    for faces in pieces.values():
+        pts = [me.vertices[v].co for i in faces for v in me.polygons[i].vertices]
+        if any(all(in_box(p, b) for p in pts) for b in boxes):
+            out += faces
+    return out
 
 
 def cut(hull, faces, name):
@@ -234,7 +270,12 @@ def convert(f):
     turrets, parts, turret_parts = [], [], []
     for t in f["turrets"]:
         facing, up = AXES[t["facing"]], AXES[t["up"]]
-        pitch = cut(hull, select_faces(hull, t["barrels"], "islands"), t["name"] + "_Pitch") if "barrels" in t else None
+        pitch = None
+        if "barrels" in t:
+            faces = select_faces(hull, t["barrels"], "islands")
+            if "barrel_faces" in t:
+                faces = sorted(set(faces) | set(joined_barrel_faces(hull, t["housing"], t["barrel_faces"])))
+            pitch = cut(hull, faces, t["name"] + "_Pitch")
         yaw = cut(hull, select_faces(hull, t["housing"], t.get("housing_mode", "islands")), t["name"] + "_Yaw")
         assert yaw is not None, f"{f['id']} {t['name']}: nothing in the housing box"
         ylo, yhi = bounds(yaw)

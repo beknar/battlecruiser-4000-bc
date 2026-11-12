@@ -132,7 +132,9 @@ namespace Carrier.EditorTools
 
         /// <summary>The layouts of the settlements on the ground (made once a build): the landing
         /// pad ("Outpost") at the middle, the buildings round it; each child is put on the ground
-        /// where it falls when the surface is built.</summary>
+        /// where it falls when the surface is built. Everything within about 850 m of the pad: a
+        /// named base can be as near as 900 m to its area's edge, and what falls off the area
+        /// isn't built.</summary>
         static Dictionary<string, GameObject> SettlementLayouts()
         {
             if (layouts != null) return layouts;
@@ -162,8 +164,8 @@ namespace Carrier.EditorTools
                 Piece(MegaTwinDome, t, new Vector3(-660f, 0f, 520f), -40f, 0.4f);
                 Piece(MegaSpire, t, new Vector3(220f, 0f, -820f), 10f, 0.45f);
                 Piece(MegaMain, t, new Vector3(-520f, 0f, -650f), 45f, 0.6f);
-                Piece(MegaSlabTower, t, new Vector3(920f, 0f, -360f), -20f, 0.5f);
-                Piece(MegaNeedle, t, new Vector3(-980f, 0f, -80f), 0f, 0.7f);
+                Piece(MegaSlabTower, t, new Vector3(760f, 0f, -300f), -20f, 0.5f);
+                Piece(MegaNeedle, t, new Vector3(-800f, 0f, -60f), 0f, 0.7f);
                 for (int i = 0; i < 5; i++)
                 {
                     float a = (20f + i * 72f) * Mathf.Deg2Rad;
@@ -180,7 +182,7 @@ namespace Carrier.EditorTools
                 for (int i = 0; i < flats.Length; i++)
                 {
                     float a = (5f + i * 71f) * Mathf.Deg2Rad;
-                    var at = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * 1150f;
+                    var at = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * 820f;
                     Piece(flats[i], t, at, Yaw(at), 0.9f);
                 }
                 Piece(MegaAntenna, t, new Vector3(190f, 0f, 190f), 0f, 3f);
@@ -203,7 +205,7 @@ namespace Carrier.EditorTools
                     var at = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * 330f;
                     Piece(ColonyBlock, t, at, Yaw(at), 4f, mat: "Ind_Panel");
                 }
-                Piece(MegaDrum, t, new Vector3(0f, 0f, 860f), 0f, 0.8f);
+                Piece(MegaDrum, t, new Vector3(0f, 0f, 780f), 0f, 0.8f);
                 Piece(ColonyAntenna, t, new Vector3(260f, 0f, -260f), 0f, 5f, mat: "Ind_Panel");
                 Piece(ColonyAntenna, t, new Vector3(-260f, 0f, 260f), 90f, 5f, mat: "Ind_Panel");
             });

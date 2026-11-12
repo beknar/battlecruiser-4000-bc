@@ -18,8 +18,9 @@ namespace CarrierGame
         /// <summary>The hold (tonnes), and how many ship parts it can have fitted.</summary>
         public float cargo;
         public int slots;
-        /// <summary>The people who work it.</summary>
+        /// <summary>The people who work it, and how fast its mining laser cuts (tonnes a second).</summary>
         public int crew;
+        public float mining;
 
         public static FrigateStats Of(GameObject ship)
         {
@@ -62,6 +63,8 @@ namespace CarrierGame
             if (fit != null) s.slots = fit.slots;
             var people = ship.GetComponent<Crew>();
             if (people != null) s.crew = people.complement;
+            var laser = ship.GetComponentInChildren<MiningLaser>(true);
+            if (laser != null) s.mining = laser.rate;
             return s;
         }
     }

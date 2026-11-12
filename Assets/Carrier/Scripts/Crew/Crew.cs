@@ -34,20 +34,16 @@ namespace CarrierGame
 
         public event Action Changed;
 
-        readonly List<(Health h, Action<float> handler)> hulls = new List<(Health, Action<float>)>();
+        readonly List<Health> hulls = new List<Health>();
         EnemyWeapons[] weapons;
-        float totalHull;
 
         void Start()
         {
             if (current < 0f) current = complement;
             foreach (var h in GetComponentsInChildren<Health>(true))
             {
-                var hull = h;
-                Action<float> handler = applied => OnHull(applied);
-                h.HullDamaged += handler;
-                hulls.Add((h, handler));
-                totalHull += Mathf.Max(1f, hull.BuiltMaxHealth);
+                h.HullDamaged += OnHull;
+                hulls.Add(h);
             }
             weapons = GetComponentsInChildren<EnemyWeapons>(true);
             ApplyToWeapons();
@@ -55,14 +51,17 @@ namespace CarrierGame
 
         void OnDestroy()
         {
-            foreach (var (h, handler) in hulls) if (h != null) h.HullDamaged -= handler;
+            foreach (var h in hulls) if (h != null) h.HullDamaged -= OnHull;
             hulls.Clear();
         }
 
         void OnHull(float applied)
         {
             if (complement <= 0 || applied <= 0f) return;
-            Lose(complement * CrewTable.Get().casualties * applied / Mathf.Max(1f, totalHull));
+            // (against the hulls as they are now: co-op scaling and armour make them stronger)
+            float total = 0f;
+            foreach (var h in hulls) if (h != null) total += h.maxHealth;
+            Lose(complement * CrewTable.Get().casualties * applied / Mathf.Max(1f, total));
         }
 
         /// <summary>Lose `n` crew (never below the survivors).</summary>

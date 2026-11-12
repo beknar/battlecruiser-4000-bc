@@ -1,5 +1,5 @@
 {
-    "note": "The frigates a player can fly, first the starting one. The scene builder (CarrierBuilder.Frigates) makes a prefab of each and the start menu's roster from them. The starting frigate's guns are ball mounts on its gun pods (frigate_hardpoints.json); the others' are the turrets modelled on them, cut out by Tools/Blender/convert_frigates.py (frigate_<id>_hardpoints.json), which also gives where their CIWS mounts go. Every frigate has its turrets, at least one CIWS mount and one main gun (the bow beam). Speeds in m/s, turns in degrees a second; gunDamage is each shot's; beamDamage is a second's of the beam; cargo is the hold in tonnes (ore, refined materials and parts all count), slots how many ship parts (industry.json) it can have fitted, and crew how many people work it (crew.json: short of 90% of them it works less well). Rebuild (Tools > Carrier > Build Everything) after changing anything here.",
+    "note": "The frigates a player can fly, first the starting one. The scene builder (CarrierBuilder.Frigates) makes a prefab of each and the start menu's roster from them. The starting frigate's guns are ball mounts on its gun pods (frigate_hardpoints.json); the others' are the turrets modelled on them, cut out by Tools/Blender/convert_frigates.py (frigate_<id>_hardpoints.json), which also gives where their CIWS mounts go. Every frigate has its turrets, at least one CIWS mount and one main gun (the bow beam). Speeds in m/s, turns in degrees a second; gunDamage is each shot's; beamDamage is a second's of the beam; cargo is the hold in tonnes (ore, refined materials and parts all count), slots how many ship parts (industry.json) it can have fitted, miningRate the mining laser's tonnes a second (8 if left out), and crew how many people work it (crew.json: short of 90% of them it works less well). Rebuild (Tools > Carrier > Build Everything) after changing anything here.",
     "frigates": [
         {
             "id": "Sentinel",
@@ -34,7 +34,7 @@
             "id": "Warden",
             "displayName": "Warden",
             "role": "Heavy escort frigate",
-            "description": "Long, slow and very hard to kill: the thickest hull and shield of the four, three twin turrets above, below and astern, four CIWS mounts and the biggest hold.",
+            "description": "Long, slow and very hard to kill: the thickest shield of the five, three twin turrets above, below and astern, four CIWS mounts and the biggest hold.",
             "prefab": "Frigate_Warden", "model": "Frigate_Warden", "texture": "Frigate_Warden_BaseColor.png", "hardpoints": "frigate_warden_hardpoints.json",
             "shipName": "Warden", "shipClass": "Heavy escort frigate",
             "maxSpeed": 120, "acceleration": 22, "turnRate": 15, "pitchRate": 10, "maxPitch": 60, "elevatorSpeed": 32, "elevatorAcceleration": 12,
@@ -47,7 +47,7 @@
             "id": "Talon",
             "displayName": "Talon",
             "role": "Strike frigate",
-            "description": "Built round two heavy twin-gun turrets and the hardest-hitting, quickest-charging bow beam of the four. It leaves its defence to its guns: one CIWS mount.",
+            "description": "Built round two heavy twin-gun turrets and the quickest-charging bow beam of the five, and one of the hardest-hitting. It leaves its defence to its guns: one CIWS mount.",
             "prefab": "Frigate_Talon", "model": "Frigate_Talon", "texture": "Frigate_Talon_BaseColor.png", "hardpoints": "frigate_talon_hardpoints.json",
             "shipName": "Talon", "shipClass": "Strike frigate",
             "maxSpeed": 165, "acceleration": 34, "turnRate": 22, "pitchRate": 13, "maxPitch": 60, "elevatorSpeed": 42, "elevatorAcceleration": 16,
@@ -55,6 +55,19 @@
             "gunInterval": 1.0, "gunRange": 5200, "gunYawSpeed": 60, "gunDamage": 130,
             "boltSize": [1.4, 1.4, 18], "boltSpeed": 2400,
             "beamCharge": 7, "beamDamage": 1800, "cargo": 550, "slots": 4, "crew": 110
+        },
+        {
+            "id": "Vanguard",
+            "displayName": "Vanguard",
+            "role": "Line cruiser",
+            "description": "A long, battleship-like line cruiser: six turrets all bearing forward, the toughest hull of the five and the hardest-hitting bow beam, worked by the biggest crew. It is the slowest to get anywhere and turns like it, and carries little.",
+            "prefab": "Frigate_Vanguard", "model": "Frigate_Vanguard", "texture": "Frigate_Vanguard_BaseColor.png", "hardpoints": "frigate_vanguard_hardpoints.json",
+            "shipName": "Vanguard", "shipClass": "Line cruiser",
+            "maxSpeed": 115, "acceleration": 18, "turnRate": 13, "pitchRate": 9, "maxPitch": 60, "elevatorSpeed": 30, "elevatorAcceleration": 11,
+            "hull": 9000, "shield": 7000, "shieldRecharge": 200,
+            "gunInterval": 0.7, "gunRange": 5200, "gunYawSpeed": 50, "gunDamage": 75,
+            "boltSize": [1.2, 1.2, 16], "boltSpeed": 2600,
+            "beamCharge": 14, "beamDamage": 2400, "cargo": 500, "slots": 3, "crew": 300
         }
     ]
 }

@@ -72,7 +72,7 @@ namespace CarrierGame
         void CrewChanged()
         {
             float e = crew != null ? crew.Efficiency : 1f;
-            if (Mathf.Abs(e - crewEff) > 0.001f) Apply();
+            if (Mathf.Abs(e - crewEff) > 0.001f) Apply(true);
         }
 
         /// <summary>What a short crew does to a stat (1 at full strength): top speed,
@@ -186,12 +186,14 @@ namespace CarrierGame
         }
 
         /// <summary>Set the ship's numbers from what it was built with and the parts fitted.</summary>
-        void Apply()
+        /// <summary>`crewOnly`: just what the crew's efficiency changes (a hit, mid-fight): the hull,
+        /// the hold and the fitted parts are left as they are, and nobody is told the parts changed.</summary>
+        void Apply(bool crewOnly = false)
         {
             Capture();
             crewEff = crew != null ? crew.Efficiency : 1f;
             float F(string stat) => Factor(stat) * CrewFactor(stat);
-            if (health != null) health.SetMax(hull * F("hull"));
+            if (health != null && !crewOnly) health.SetMax(hull * F("hull"));
             if (shieldC != null)
             {
                 shieldC.SetCapacity(shield * F("shield"));
@@ -203,7 +205,7 @@ namespace CarrierGame
                 cc.acceleration = acceleration * F("acceleration");
                 cc.turnRate = turn * F("turn");
             }
-            if (hold != null) hold.capacity = cargo * Factor("cargo");
+            if (hold != null && !crewOnly) hold.capacity = cargo * Factor("cargo");
             float dmg = F("gunDamage"), rng = F("gunRange"), rate = F("gunRate");
             foreach (var (gun, range, interval) in guns)
             {
@@ -218,7 +220,7 @@ namespace CarrierGame
                 beam.chargeTime = beamCharge * F("beamCharge");
             }
             if (laser != null) laser.rate = miningRate * F("miningRate");
-            Changed?.Invoke();
+            if (!crewOnly) Changed?.Invoke();
         }
     }
 }

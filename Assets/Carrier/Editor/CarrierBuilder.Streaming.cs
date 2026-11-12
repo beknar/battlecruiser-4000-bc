@@ -45,11 +45,14 @@ namespace Carrier.EditorTools
             return sv;
         }
 
-        /// <summary>A berth of the place's own (in the level), where one inside its looks is.</summary>
+        /// <summary>A berth of the place's own (in the level), where one inside its looks is, turned
+        /// as it is (its tilt and roll too).</summary>
         static Transform OwnBerth(Transform root, Transform inside)
         {
             if (inside == null) return null;
-            return Berth(root, root.InverseTransformPoint(inside.position), root.InverseTransformDirection(inside.forward));
+            var t = Berth(root, root.InverseTransformPoint(inside.position), root.InverseTransformDirection(inside.forward));
+            t.rotation = inside.rotation;
+            return t;
         }
     }
 }

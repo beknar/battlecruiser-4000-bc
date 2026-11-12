@@ -42,6 +42,17 @@ namespace CarrierGame
 
         public SurfaceWorld World { get; private set; }
         public SurfaceKit Kit { get; private set; }
+
+        // the settlements' layouts, loaded once and held while this surface is here (so a
+        // clear-out of unused assets doesn't take one away between its areas being built)
+        readonly Dictionary<string, GameObject> layouts = new Dictionary<string, GameObject>();
+
+        /// <summary>A named base's layout (Kit.Settlement), loaded the first time it is wanted.</summary>
+        GameObject Layout(string baseName)
+        {
+            if (!layouts.TryGetValue(baseName, out var l)) layouts[baseName] = l = Kit.Settlement(baseName);
+            return l;
+        }
         public Transform Ship { get; private set; }
         /// <summary>The middle of the world down here (fixed).</summary>
         public Vector3 Center { get; private set; }

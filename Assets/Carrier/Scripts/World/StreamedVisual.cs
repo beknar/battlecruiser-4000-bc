@@ -35,25 +35,36 @@ namespace CarrierGame
         float nextLook;
 
         public static readonly List<StreamedVisual> All = new List<StreamedVisual>();
-        /// <summary>Loads and unloads so far (for the self-test).</summary>
-        public static int Loads, Unloads;
-        static float unloadDue = -1f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { All.Clear(); Loads = Unloads = 0; unloadDue = -1f; }
+        static void ResetStatics() { All.Clear(); viewerFrame = -1; viewer = null; }
 
         void OnEnable() { if (!All.Contains(this)) All.Add(this); nextLook = Time.unscaledTime + UnityEngine.Random.value * 0.5f; }
         void OnDisable() => All.Remove(this);
         void OnDestroy() => Drop();
 
+        // the viewer, looked up once a frame for all of them (the ship found again only when it has gone)
+        static int viewerFrame = -1;
+        static Transform viewer;
+        static bool hasViewer;
+        static Vector3 viewerAt;
+
         /// <summary>Where the ship (the camera, failing that) is, for the distances.</summary>
         static bool Viewer(out Vector3 p)
         {
-            var ship = PlayerShips.Primary;
-            if (ship != null) { p = ship.position; return true; }
-            var cam = Camera.main;
-            p = cam != null ? cam.transform.position : Vector3.zero;
-            return cam != null;
+            if (viewerFrame != Time.frameCount)
+            {
+                viewerFrame = Time.frameCount;
+                if (viewer == null || !viewer.gameObject.activeInHierarchy)
+                {
+                    var ship = PlayerShips.Primary;
+                    viewer = ship != null ? ship : (Camera.main != null ? Camera.main.transform : null);
+                }
+                hasViewer = viewer != null;
+                viewerAt = hasViewer ? viewer.position : Vector3.zero;
+            }
+            p = viewerAt;
+            return hasViewer;
         }
 
         /// <summary>Whether it should be loaded with the viewer `d` away (and loaded now or not).</summary>
@@ -61,18 +72,17 @@ namespace CarrierGame
 
         void Update()
         {
-            if (Time.unscaledTime < nextLook && !(loading == false && Loaded == false && CloseNow())) return;
-            nextLook = Time.unscaledTime + 0.5f;
             if (!Viewer(out var p)) return;
             float d = Vector3.Distance(p, transform.position);
-            if (!Want(d, Loaded || loading, loadDistance, unloadDistance)) { if (Loaded) Drop(); return; }
+            // suddenly close (a warp's arrival, a jump): there now, not in a moment, even if it was
+            // already coming in the background
+            if (!Loaded && d < loadDistance * 0.25f) { LoadNow(); return; }
+            if (Time.unscaledTime < nextLook) return;
+            nextLook = Time.unscaledTime + 0.5f;
+            if (!Want(d, Loaded || loading, loadDistance, unloadDistance)) { if (Loaded || loading) Drop(); return; }
             if (Loaded || loading) return;
-            // suddenly close (a warp's arrival, a jump): there now, not in a moment
-            if (d < loadDistance * 0.25f) LoadNow();
-            else StartCoroutine(LoadInBackground());
+            StartCoroutine(LoadInBackground());
         }
-
-        bool CloseNow() => Viewer(out var p) && Vector3.Distance(p, transform.position) < loadDistance * 0.25f;
 
         public void LoadNow()
         {
@@ -112,11 +122,11 @@ namespace CarrierGame
         void Done()
         {
             Loaded = true;
-            Loads++;
             Physics.SyncTransforms();
         }
 
-        /// <summary>Throw its looks away (and, a little later, what they took of memory).</summary>
+        /// <summary>Throw its looks away (and, a little later, what they took of memory: one
+        /// clear-out for many places let go together, none if one is done meanwhile).</summary>
         public void Drop()
         {
             StopAllCoroutines();
@@ -125,18 +135,7 @@ namespace CarrierGame
             foreach (var go in made) if (go != null) Destroy(go);
             made.Clear();
             Loaded = false;
-            Unloads++;
-            if (unloadDue < 0f) unloadDue = Time.unscaledTime + 4f;
-        }
-
-        void LateUpdate()
-        {
-            // one clear-out for many unloads together (it walks every asset)
-            if (unloadDue >= 0f && Time.unscaledTime >= unloadDue && All.Count > 0 && All[0] == this)
-            {
-                unloadDue = -1f;
-                Resources.UnloadUnusedAssets();
-            }
+            SceneMemory.CollectSoon("let go of the places left behind", 4f);
         }
     }
 }

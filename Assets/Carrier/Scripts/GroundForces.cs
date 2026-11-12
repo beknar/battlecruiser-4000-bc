@@ -164,7 +164,6 @@ namespace CarrierGame
             return h;
         }
 
-        /// <summary>A heavy triple turret on a bunker.</summary>
         /// <summary>How long a kind of unit takes to be rebuilt once destroyed (ground_units.json; 0: never).</summary>
         static float RebuildMinutes(UnitKind k)
         {
@@ -182,6 +181,7 @@ namespace CarrierGame
             return 0f;
         }
 
+        /// <summary>A heavy triple turret on a bunker.</summary>
         static GameObject Battery(SurfaceKit kit, Transform area, Vector3 ground, float yaw)
         {
             if (kit.battery == null) return null;

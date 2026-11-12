@@ -13,17 +13,17 @@ namespace CarrierGame
     /// </summary>
     public static class WorldState
     {
-        /// <summary>Game seconds since the game began (saved: it goes on from where it was).</summary>
+        /// <summary>Game seconds since the game began (saved: it goes on from where it was). It
+        /// runs as fast as the industry's clock (IndustryLedger.SpeedUp), so a sped-up test speeds
+        /// up both.</summary>
         public static double Clock { get; private set; }
-        /// <summary>How much faster than game time the clock runs (the self-test speeds it up).</summary>
-        public static float SpeedUp = 1f;
 
         static readonly Dictionary<string, BodyMemory> bodies = new Dictionary<string, BodyMemory>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { Clock = 0; SpeedUp = 1f; bodies.Clear(); }
+        static void ResetStatics() { Clock = 0; bodies.Clear(); }
 
-        public static void Advance(float dt) { if (dt > 0f) Clock += dt * SpeedUp; }
+        public static void Advance(float dt) { if (dt > 0f) Clock += dt * IndustryLedger.SpeedUp; }
 
         /// <summary>A body's memory (made empty the first time).</summary>
         public static BodyMemory Body(string name)
@@ -125,11 +125,23 @@ namespace CarrierGame
         public double RebuiltAt(long key) =>
             units.TryGetValue(key, out var u) ? (u.minutes <= 0f ? double.PositiveInfinity : u.at + u.minutes * 60.0) : double.NaN;
 
-        public int Count => units.Count;
+        /// <summary>How many are destroyed now (those whose time has come are rebuilt).</summary>
+        public int Count { get { Prune(); return units.Count; } }
 
+        /// <summary>Those destroyed now (to save).</summary>
         public IEnumerable<(long key, double at, float minutes)> Entries()
         {
+            Prune();
             foreach (var kv in units) yield return (kv.Key, kv.Value.at, kv.Value.minutes);
+        }
+
+        readonly List<long> rebuilt = new List<long>();
+        void Prune()
+        {
+            rebuilt.Clear();
+            foreach (var kv in units)
+                if (kv.Value.minutes > 0f && WorldState.Clock >= kv.Value.at + kv.Value.minutes * 60.0) rebuilt.Add(kv.Key);
+            foreach (var k in rebuilt) units.Remove(k);
         }
     }
 }

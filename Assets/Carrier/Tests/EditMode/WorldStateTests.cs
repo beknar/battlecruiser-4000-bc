@@ -8,10 +8,10 @@ namespace CarrierGame.Tests
     public class WorldStateTests
     {
         [SetUp]
-        public void SetUp() { WorldState.Clear(); WorldState.SpeedUp = 1f; }
+        public void SetUp() { WorldState.Clear(); IndustryLedger.SpeedUp = 1f; }
 
         [TearDown]
-        public void TearDown() { WorldState.Clear(); WorldState.SpeedUp = 1f; }
+        public void TearDown() { WorldState.Clear(); IndustryLedger.SpeedUp = 1f; }
 
         [Test]
         public void ADestroyedUnitIsRebuiltInItsTimeWhetherOrNotAnyoneIsThere()
@@ -26,12 +26,13 @@ namespace CarrierGame.Tests
             Assert.That(d.Contains(7L), Is.False, "twenty minutes on: rebuilt");
             Assert.That(d.Contains(8L), Is.True, "one that's never rebuilt stays destroyed");
             Assert.That(d.Contains(9L), Is.False);
+            Assert.That(d.Count, Is.EqualTo(1), "the rebuilt one no longer counts (nor is saved)");
         }
 
         [Test]
-        public void TheClockCanBeSpedUp()
+        public void TheClockRunsAsFastAsTheIndustrys()
         {
-            WorldState.SpeedUp = 60f;
+            IndustryLedger.SpeedUp = 60f;
             WorldState.Advance(1f);
             Assert.That(WorldState.Clock, Is.EqualTo(60.0).Within(1e-6));
         }

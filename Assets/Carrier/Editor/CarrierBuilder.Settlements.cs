@@ -28,7 +28,7 @@ namespace Carrier.EditorTools
     /// Built from the licensed kit packs (Tools/stage_carrier_assets.py stages them into the
     /// ignored Assets/Carrier/Kit: a clone without them gets the places without those pieces)
     /// and the project's own models (Tools/Blender/build_settlements.py, build_industry.py). The
-    /// surface ones are a layout (Prefabs/Settlements) put down when the frigate lands there
+    /// surface ones are a layout (Resources/Settlements, loaded only while its surface is built) put down when the frigate lands there
     /// (PlanetSurface.BuildSettlement), and the same layout, smaller, seen from orbit.
     /// </summary>
     public static partial class CarrierBuilder

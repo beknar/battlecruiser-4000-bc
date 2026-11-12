@@ -24,6 +24,10 @@ namespace CarrierGame
             var list = new List<TileJob>();
             foreach (var (i, j) in want)
             {
+                // a settlement's layout, loaded now while the screen is dark rather than mid-flight
+                World.CanonicalTile(i, j, out int ci, out int cj);
+                var f = World.Features(ci, cj);
+                if (f != null && f.baseName != null && f.site != SiteKind.Base) Layout(f.baseName);
                 var job = new TileJob(World, i, j, 0);
                 list.Add(job);
                 if (Threads) System.Threading.ThreadPool.QueueUserWorkItem(_ => job.RunAll());

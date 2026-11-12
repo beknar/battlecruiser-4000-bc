@@ -33,7 +33,8 @@ namespace Carrier.EditorTools
     /// </summary>
     public static partial class CarrierBuilder
     {
-        const string SettlementDir = PrefabDir + "/Settlements";
+        // (in Resources: a layout is loaded only to build its surface, and let go with it)
+        const string SettlementDir = Root + "/Resources/Settlements";
         static readonly string[] SettlementModels = { "Hab_Ring", "Mil_RadarDome", "Mil_WallSegment", "Mil_WallTower", "Mil_Gate" };
         static readonly List<string> missingPieces = new List<string>();
         static Dictionary<string, GameObject> layouts;
@@ -281,7 +282,7 @@ namespace Carrier.EditorTools
         /// <summary>The surface kit's settlements (for PlanetSurface.BuildSettlement).</summary>
         static void SettlementKit(SurfaceKit kit)
         {
-            kit.settlements = SettlementLayouts().Values.ToArray();
+            kit.settlements = SettlementLayouts().Keys.ToArray();
         }
 
         // ------------------------------------------------------------------ in the star system
@@ -320,6 +321,7 @@ namespace Carrier.EditorTools
             Destination(go, name, kind, desc + how, radius, Mathf.Max(3200f, radius * 3.5f), FriendlyStation, orbitOf, false, label);
             Vector3 view = berth != null ? berth.position + (berth.position - pos).normalized * radius * 2f + Vector3.up * radius * 0.8f : pos + new Vector3(radius * 2f, radius, radius * 2f);
             b.shots.Add(($"set_{name.ToLower().Replace(' ', '_')}", view, pos));
+            StreamOut(go.transform, name, radius, null, "Berth");
             return go;
         }
 
@@ -418,6 +420,7 @@ namespace Carrier.EditorTools
                 "A city on a big rock of the Inner Belt: towers and domes round a landing pad. Dock (K) to set down on its pad, then U to recruit crew.",
                 900f, 3600f, FriendlyStation, null, false, "Asteroid city");
             b.shots.Add(("set_hollow_rock", padSpot.position + Vector3.up * 1200f - side * 1500f, padSpot.position));
+            StreamOut(go.transform, name, 900f, body, rock.name, "Pad site");
         }
 
         static void LanternArcology(SystemRefs s, Transform parent, Built b)
@@ -488,7 +491,7 @@ namespace Carrier.EditorTools
             Piece(Crane, t, new Vector3(-330f, 160f, 120f), Vector3.zero, Vector3.one * 4f, false);
             Piece(Crane, t, new Vector3(-330f, 160f, -160f), Vector3.zero, Vector3.one * 4f, false);
             Piece(Reactor, t, new Vector3(-360f, -40f, 0f), new Vector3(-90f, 0f, 0f), Vector3.one * 3f, false);
-            var berth = factory.transform.Find("Berth");
+            var berth = OwnBerth(t, factory.transform.Find("Berth"));
             t.gameObject.AddComponent<IndustrySite>().siteName = name;
             SpaceSettlement(parent, name, pos, t.rotation, WarpPoint.Kind.Installation, "Industrial base",
                 IndDescription(name), 800f, berth, b, s.ochre.GetComponent<WarpPoint>());
@@ -538,6 +541,7 @@ namespace Carrier.EditorTools
             Vector3 tangent = Vector3.Cross(dir, Vector3.up).normalized;
             if (tangent.sqrMagnitude < 0.5f) tangent = Vector3.right;
             b.shots.Add(($"set_{name.ToLower().Replace(' ', '_')}", go.transform.position + dir * 900f + tangent * 700f, go.transform.position));
+            StreamOut(go.transform, name, 800f, bt);
         }
     }
 }

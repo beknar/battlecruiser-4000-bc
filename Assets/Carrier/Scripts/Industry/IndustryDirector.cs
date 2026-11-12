@@ -60,6 +60,7 @@ namespace CarrierGame
                 {
                     IndustryLedger.Restore(d.sites, d.fittings);
                     IndustryLedger.RestorePeople(d.pools, d.crews);
+                    WorldState.Restore(d.world);
                     heldContents = d.hold;
                     heldCredits = d.credits;
                     haveHeld = true;
@@ -184,6 +185,7 @@ namespace CarrierGame
             if (!ReferenceEquals(carrier, attachedShip)) Attach(carrier);
             if (holdDirty) Remember();
             IndustryLedger.Advance(Time.deltaTime);
+            WorldState.Advance(Time.deltaTime);
             float now = Time.unscaledTime;
             if ((saveDue >= 0f && now >= saveDue) || now >= nextRegular) Save();
         }
@@ -202,6 +204,7 @@ namespace CarrierGame
                 fittings = fitted,
                 pools = pools,
                 crews = crews,
+                world = WorldState.Snapshot(),
                 hold = heldContents ?? new List<Stock.Entry>(),
                 credits = heldCredits,
             };

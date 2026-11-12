@@ -306,7 +306,8 @@ namespace Carrier.EditorTools
             go.transform.SetPositionAndRotation(pos, rot);
             var model = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
             model.transform.SetParent(go.transform, false);
-            var berth = model.transform.Find("Berth");
+            // (its berth in the level: the model is loaded only when the frigate is near)
+            var berth = OwnBerth(go.transform, model.transform.Find("Berth"));
             Facility(go, name, WarpPoint.Kind.Installation, false, berth, false);
             go.AddComponent<IndustrySite>().siteName = name;
             var hp = IndPointsFor(prefab.name);
@@ -317,6 +318,7 @@ namespace Carrier.EditorTools
             Vector3 view = berth != null ? berth.position + (berth.position - pos).normalized * r * 2.2f + Vector3.up * r * 0.9f
                                          : pos + rot * new Vector3(r * 2f, r, r * 2f);
             b.shots.Add(($"ind_{name.ToLower().Replace(' ', '_')}", view, pos));
+            StreamOut(go.transform, name, r, null, "Berth");
             return go;
         }
 
@@ -370,6 +372,7 @@ namespace Carrier.EditorTools
             Destination(go, name, WarpPoint.Kind.AsteroidBase, IndDescription(name) + " Dock (K) to set down on its pad, then U for the site's screen.",
                         700f, 3200f, FriendlyWorks, null, false, IndLabel(name));
             b.shots.Add(("ind_belt_smelter", padSpot.position + Vector3.up * 900f + outward * 1400f, padSpot.position));
+            StreamOut(go.transform, name, 700f, body, rock.name, "Pad site");
         }
 
         /// <summary>How far the frigate's origin is above the bottom of its hull (for a berth on a deck).</summary>
@@ -431,6 +434,7 @@ namespace Carrier.EditorTools
             Vector3 tangent = Vector3.Cross(dir, Vector3.up).normalized;
             if (tangent.sqrMagnitude < 0.5f) tangent = Vector3.right;
             b.shots.Add(($"ind_{name.ToLower().Replace(' ', '_')}", go.transform.position + dir * 900f + tangent * 700f, go.transform.position));
+            StreamOut(go.transform, name, 600f, bt);
         }
     }
 }

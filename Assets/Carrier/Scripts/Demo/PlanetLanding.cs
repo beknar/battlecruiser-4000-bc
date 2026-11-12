@@ -221,8 +221,9 @@ namespace CarrierGame.Demo
             // free what the last surface (or anything else) left behind before building this one
             SceneMemory.Collect($"before building {body.displayName}'s surface");
             float t0 = Time.realtimeSinceStartup;
-            if (!memory.TryGetValue(body.displayName, out var mem)) memory[body.displayName] = mem = (new HashSet<int>(), new HashSet<long>());
-            Surface = PlanetSurface.Create(w, kit, carrier.transform, SiteCenter, u, v, mem.Item1, mem.Item2, skyPlanet);
+            // (what has been explored and destroyed on it: the world's memory, saved with the game)
+            var mem = WorldState.Body(body.displayName);
+            Surface = PlanetSurface.Create(w, kit, carrier.transform, SiteCenter, u, v, mem.explored, mem.destroyed, skyPlanet);
             CombatPilot.FloorAt = Surface.FloorAt;
             bool web = Application.platform == RuntimePlatform.WebGLPlayer;
             yield return Surface.Preload(SiteCenter, web ? 2600f : 5500f, web ? 20f : 10f);
@@ -360,8 +361,6 @@ namespace CarrierGame.Demo
         // ------------------------------------------------------------ the planets' surfaces
 
         readonly Dictionary<WarpPoint, SurfaceWorld> worlds = new Dictionary<WarpPoint, SurfaceWorld>();
-        /// <summary>What has been explored and destroyed on each body (kept between landings).</summary>
-        readonly Dictionary<string, (HashSet<int>, HashSet<long>)> memory = new Dictionary<string, (HashSet<int>, HashSet<long>)>();
 
         /// <summary>The surface of a body: its size is the body's (an asteroid field's: one of
         /// its big rocks), times surfaceScale.</summary>

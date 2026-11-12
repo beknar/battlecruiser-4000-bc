@@ -43,6 +43,8 @@ namespace CarrierGame
             public List<Fitting> fittings = new List<Fitting>();
             public List<Named> pools = new List<Named>();
             public List<Named> crews = new List<Named>();
+            /// <summary>The world's clock and memory (WorldState).</summary>
+            public WorldState.Saved world = new WorldState.Saved();
         }
 
         /// <summary>A file a self-test saves to instead (its own folder).</summary>
@@ -82,6 +84,7 @@ namespace CarrierGame
             d.fittings ??= new List<Fitting>();
             d.pools ??= new List<Named>();
             d.crews ??= new List<Named>();
+            d.world ??= new WorldState.Saved();
             return d;
         }
 

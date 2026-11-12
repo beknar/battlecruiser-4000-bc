@@ -64,6 +64,8 @@ namespace CarrierGame.Demo
             t.industryOnly = LaunchArgs.Switch("industrytest");
             // -crewtest (or ?crewtest): only the crew and the settlements
             t.crewOnly = LaunchArgs.Switch("crewtest");
+            // -streamtest (or ?streamtest): only the streaming and the world's memory
+            t.streamOnly = LaunchArgs.Switch("streamtest");
             // -cooptest (or ?cooptest), with -connect address:port (?server=...&connect): co-op with
             // the scripted second player (Tools/CoopTest/bot.py); -coopquick (?coopquick) skips the
             // part at Corsair Haven
@@ -158,6 +160,13 @@ namespace CarrierGame.Demo
             if (coopOnly)
             {
                 yield return CoopTest(kb, coopQuick);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
+            if (streamOnly)
+            {
+                yield return StreamTest(kb);
                 Log("done");
                 if (!web) Application.Quit();
                 yield break;

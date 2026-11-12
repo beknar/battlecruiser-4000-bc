@@ -1,35 +1,35 @@
 {
     "battery": {
         "name": "Ground Battery", "shipClass": "Heavy gun emplacement", "weapons": "Triple cannon turret", "threat": "Medium",
-        "hull": 900, "explosion": 1.3,
+        "hull": 900, "explosion": 1.3, "rebuildMinutes": 20,
         "range": 4500, "fireInterval": 2.4, "fireCone": 4,
         "yawLimit": 180, "minPitch": -5, "maxPitch": 80, "yawSpeed": 35, "pitchSpeed": 30
     },
     "missileSite": {
         "name": "Missile Site", "shipClass": "Surface-to-air missile battery", "weapons": "Guided missiles", "threat": "High",
-        "hull": 650, "explosion": 1.1,
+        "hull": 650, "explosion": 1.1, "rebuildMinutes": 20,
         "missileRange": 6500, "salvoInterval": 11, "salvoSize": 3
     },
     "tank": {
         "name": "Hover Tank", "shipClass": "Armoured hover tank", "weapons": "Cannon", "threat": "Medium",
-        "hull": 380, "explosion": 0.7,
+        "hull": 380, "explosion": 0.7, "rebuildMinutes": 10,
         "gunRange": 3200, "burstInterval": 3.5, "burstShots": 2, "shotSpacing": 0.25, "spread": 1.2, "fireArc": 180
     },
     "fighter": {
         "fireArc": 20,
         "cruiseSpeed": 200, "attackSpeed": 290, "turnRate": 85, "acceleration": 140,
         "breakOffDistance": 420, "extendDistance": 1300,
-        "leashDistance": 11000, "loiterRadius": 700, "patrolHeight": 380, "climb": 240
+        "leashDistance": 11000, "loiterRadius": 700, "patrolHeight": 380, "climb": 240, "rebuildMinutes": 8
     },
     "seaBase": {
         "name": "Sea Base", "shipClass": "Torpedo launch station", "weapons": "Torpedoes", "threat": "High",
-        "hull": 1600, "explosion": 1.4,
+        "hull": 1600, "explosion": 1.4, "rebuildMinutes": 30,
         "missileRange": 3800, "salvoInterval": 9, "salvoSize": 3,
         "minDepth": 50
     },
     "submarine": {
         "name": "Attack Submarine", "shipClass": "Submarine", "weapons": "Torpedoes", "threat": "Medium",
-        "hull": 420, "explosion": 0.9,
+        "hull": 420, "explosion": 0.9, "rebuildMinutes": 15,
         "missileRange": 3000, "salvoInterval": 10, "salvoSize": 2,
         "cruiseSpeed": 12, "attackSpeed": 26, "turnRate": 22, "standoff": 800,
         "minDepth": 40, "keelClearance": 16
@@ -38,6 +38,6 @@
         "fireArc": 180,
         "cruiseSpeed": 100, "attackSpeed": 130, "turnRate": 18, "acceleration": 25,
         "standoff": 1800, "circleSpeed": 4,
-        "leashDistance": 11000, "climb": 320
+        "leashDistance": 11000, "climb": 320, "rebuildMinutes": 15
     }
 }

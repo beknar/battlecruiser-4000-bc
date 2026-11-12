@@ -516,7 +516,10 @@ system to travel around.
 
   An area's forces all go to action stations when one of them sees the frigate within
   5.5 km (hills hide it) or is hit. They stand down when it has gone. Each one can be
-  targeted, and what is destroyed stays destroyed.
+  targeted. What is destroyed stays destroyed until it is rebuilt, whether or not anyone is
+  there: a tank or a fighter in about 10 minutes of game time, a battery or missile site in 20,
+  a submarine in 15, a sea base in 30 (`rebuildMinutes` in `ground_units.json`). Landing again
+  after that finds it back.
 
   Each world has its own sky, fog and light. Where people live (Ochre, Thalassa, Jovara and
   the moons) there are landing pads with parked craft and beacons, and a colony round each pad
@@ -570,7 +573,19 @@ fitted to the frigate to make it better. All of it is in
   below). Markets still buy only the ore.
 - **Saved.** The sites' storage and queues, the hold and credits, and each frigate's fitted
   parts are saved to `industry_save.json` in the player's data folder (a few seconds after
-  anything changes, every minute and on quitting), and read again when the game starts.
+  anything changes, every minute and on quitting), and read again when the game starts. The
+  save also holds the world's clock and what it remembers of each planet: which areas have
+  been explored, and which ground forces were destroyed and when (`WorldState`).
+
+**The world goes on when it isn't drawn.** The sites keep refining and building, the recruits
+come back and the destroyed ground forces are rebuilt on the game's clock, with nothing of
+them loaded. The heavy places (the ten settlements and the industrial sites, built from big kit
+meshes and their 4K textures) are loaded only when the frigate comes near: each keeps its warp
+point, berth, crew and industry in the level, and its looks are a prefab in
+`Resources/Streamed` (`StreamedVisual`), loaded within about 25-40 km and let go, with their
+textures, beyond about a third further. Arriving suddenly (a warp) loads it at once; flying in
+loads it in the background. The settlements' surface layouts are loaded only to build their
+surface, and let go with it.
 
 The models are the project's own: built in Blender by `Tools/Blender/build_industry.py`
 (`Assets/Carrier/Models/Ind_*.fbx`, their lights and berths in
@@ -757,6 +772,8 @@ In the web version, use the page's Full screen button rather than F11.
 - `Tools/Textures`: the script that makes the industrial sites' textures
 - `Assets/Carrier/Scripts/Industry`: the industry: its data, the sites' storage and production
   lines (`IndustryLedger`), the parts fitted to a frigate (`ShipFittings`) and the save
+- `Assets/Carrier/Scripts/World`: the world's clock and memory (`WorldState`) and the places
+  loaded only when near (`StreamedVisual`)
 
 ## Building
 
@@ -1021,6 +1038,12 @@ Each part can also be run alone:
   every installation has its crew but the automated ones and a hostile base's guns slow as it
   loses them, and at each of the ten settlements: arriving, docking or landing on its pad, and
   recruiting ten crew for credits, with pictures of each.
+
+  Add `-streamtest` (or `?streamtest` on the web) to test only the streaming and the world's
+  memory: that the heavy places start unloaded, that the Lantern Arcology's looks are loaded on
+  arriving and let go (and the texture memory with them) after warping far away, that a ground
+  unit destroyed on Cinder is still gone on landing again, that the save holds the world, and
+  that once its rebuild time has passed, with nobody there, landing again finds it rebuilt.
 
   Add `-industrytest` (or `?industrytest` on the web) to test only the industry, with the jobs
   sped up: ore stored and refined at the Belt Smelter (docked on its pad), the steel and

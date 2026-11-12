@@ -34,6 +34,10 @@ namespace CarrierGame
         // under the sea (sea bases and submarines): the least depth of water it is built in, and a
         // submarine's speed and room under its keel
         public float minDepth, keelClearance;
+
+        /// <summary>How long it takes to be rebuilt once destroyed, in minutes of game time (0:
+        /// never). It goes on off-screen: an area built again has back whatever has had its time.</summary>
+        public float rebuildMinutes;
     }
 
     /// <summary>Every kind of ground unit's numbers (Resources/Data/ground_units.json).</summary>

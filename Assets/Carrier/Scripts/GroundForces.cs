@@ -77,6 +77,7 @@ namespace CarrierGame
                 if (go == null) continue;
                 if (!go.TryGetComponent(out GroundUnit unit)) unit = go.AddComponent<GroundUnit>();
                 unit.key = key;
+                unit.rebuildMinutes = RebuildMinutes(s.kind);
                 unit.garrison = g;
                 unit.surface = surface;
                 g.units.Add(unit);
@@ -164,6 +165,23 @@ namespace CarrierGame
         }
 
         /// <summary>A heavy triple turret on a bunker.</summary>
+        /// <summary>How long a kind of unit takes to be rebuilt once destroyed (ground_units.json; 0: never).</summary>
+        static float RebuildMinutes(UnitKind k)
+        {
+            var t = Stats;
+            switch (k)
+            {
+                case UnitKind.Battery: return t.battery?.rebuildMinutes ?? 0f;
+                case UnitKind.MissileSite: return t.missileSite?.rebuildMinutes ?? 0f;
+                case UnitKind.Tank: return t.tank?.rebuildMinutes ?? 0f;
+                case UnitKind.Patrol: case UnitKind.PadFighter: return t.fighter?.rebuildMinutes ?? 0f;
+                case UnitKind.PadGunship: return t.gunship?.rebuildMinutes ?? 0f;
+                case UnitKind.SeaBase: return t.seaBase?.rebuildMinutes ?? 0f;
+                case UnitKind.Submarine: return t.submarine?.rebuildMinutes ?? 0f;
+            }
+            return 0f;
+        }
+
         static GameObject Battery(SurfaceKit kit, Transform area, Vector3 ground, float yaw)
         {
             if (kit.battery == null) return null;

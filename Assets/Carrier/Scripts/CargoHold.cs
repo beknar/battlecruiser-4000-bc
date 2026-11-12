@@ -213,6 +213,15 @@ namespace CarrierGame
             return t;
         }
 
+        /// <summary>Pay `credits` (recruits, for one): false, and nothing paid, if there isn't enough.</summary>
+        public bool Spend(float credits)
+        {
+            if (credits < 0f || credits > Credits + 1e-3f) return false;
+            Credits = Mathf.Max(0f, Credits - credits);
+            Changed?.Invoke();
+            return true;
+        }
+
         /// <summary>Sell all the ore aboard at its worth: returns the credits it fetched (and the
         /// tonnes sold). Refined goods and parts stay aboard.</summary>
         public float SellAll(out float tonnesSold)

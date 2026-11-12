@@ -39,6 +39,9 @@ namespace CarrierGame
 
         static readonly Dictionary<string, SiteState> sites = new Dictionary<string, SiteState>();
         static readonly Dictionary<string, List<string>> fittings = new Dictionary<string, List<string>>();
+        // the recruits waiting at each place that recruits, and each frigate class's crew aboard
+        static readonly Dictionary<string, float> pools = new Dictionary<string, float>();
+        static readonly Dictionary<string, float> crews = new Dictionary<string, float>();
 
         /// <summary>How much faster than game time the lines run (the self-test speeds them up).</summary>
         public static float SpeedUp = 1f;
@@ -53,6 +56,8 @@ namespace CarrierGame
         {
             sites.Clear();
             fittings.Clear();
+            pools.Clear();
+            crews.Clear();
             SpeedUp = 1f;
             Finished = null;
             Changed = null;
@@ -136,6 +141,15 @@ namespace CarrierGame
                 any |= Run(s, s.refining, false, dt);
                 any |= Run(s, s.building, true, dt);
             }
+            // (the recruiting places' pools refill, whole people at a time as far as anyone sees)
+            foreach (var p in CrewTable.Get().places)
+            {
+                if (!p.Recruits || p.refillPerMinute <= 0f) continue;
+                float was = Pool(p.name);
+                float now = Mathf.Min(p.recruits, was + p.refillPerMinute * dt / 60f);
+                pools[p.name] = now;
+                if (Mathf.FloorToInt(now) != Mathf.FloorToInt(was)) any = true;
+            }
             if (any) Changed?.Invoke();
         }
 
@@ -159,6 +173,50 @@ namespace CarrierGame
             return done;
         }
 
+        // ------------------------------------------------------------ crew
+
+        /// <summary>Recruits waiting at a place (its whole pool the first time; 0 where none recruit).</summary>
+        public static float Pool(string place)
+        {
+            if (pools.TryGetValue(place ?? "", out float n)) return n;
+            var p = CrewTable.Get().Place(place);
+            return p != null && p.Recruits ? p.recruits : 0f;
+        }
+
+        /// <summary>Recruit up to `want` at a place into a crew, paid from the hold's credits: as
+        /// many as there are recruits, room aboard and credits for. Returns how many signed on.</summary>
+        public static int Recruit(string place, Crew crew, CargoHold hold, int want, out string why)
+        {
+            var table = CrewTable.Get();
+            var p = table.Place(place);
+            why = "";
+            if (p == null || !p.Recruits) { why = "nobody recruits here"; return 0; }
+            if (crew == null) { why = "no crew to join"; return 0; }
+            if (hold == null) { why = "no hold to pay from"; return 0; }
+            int n = Mathf.Min(want, Mathf.Min(crew.Missing, Mathf.FloorToInt(Pool(place) + 1e-4f)));
+            // (as many as the credits cover, by the same reckoning Spend pays by)
+            if (table.recruitCost > 0f) n = Mathf.Min(n, Mathf.FloorToInt((hold.Credits + 1e-3f) / table.recruitCost));
+            if (n <= 0)
+            {
+                why = crew.Missing == 0 ? "the crew is complete" : Pool(place) < 1f ? "nobody is waiting to sign on" : "not enough credits";
+                return 0;
+            }
+            if (!hold.Spend(n * table.recruitCost)) { why = "not enough credits"; return 0; }
+            n = crew.Add(n);
+            pools[place] = Pool(place) - n;
+            Changed?.Invoke();
+            return n;
+        }
+
+        /// <summary>The crew a frigate class had aboard (what was saved), or null.</summary>
+        public static float? CrewOf(string frigate) => crews.TryGetValue(frigate ?? "", out float n) ? n : (float?)null;
+
+        public static void SetCrew(string frigate, float aboard)
+        {
+            crews[frigate ?? ""] = aboard;
+            Changed?.Invoke();
+        }
+
         // ------------------------------------------------------------ fittings
 
         /// <summary>The parts fitted to a frigate class (empty if none).</summary>
@@ -178,7 +236,28 @@ namespace CarrierGame
         {
             var fs = new List<IndustrySave.Fitting>();
             foreach (var kv in fittings) fs.Add(new IndustrySave.Fitting { frigate = kv.Key, parts = new List<string>(kv.Value) });
-            return (new List<SiteState>(sites.Values), fs);
+            // (a site with nothing stored and nothing queued needn't be saved)
+            var kept = new List<SiteState>();
+            foreach (var s in sites.Values) if (s.stock.items.Count > 0 || s.refining.Count > 0 || s.building.Count > 0) kept.Add(s);
+            return (kept, fs);
+        }
+
+        /// <summary>The recruit pools and the frigates' crews, to save.</summary>
+        public static (List<IndustrySave.Named> pools, List<IndustrySave.Named> crews) PeopleSnapshot()
+        {
+            var p = new List<IndustrySave.Named>();
+            foreach (var kv in pools) p.Add(new IndustrySave.Named { name = kv.Key, value = kv.Value });
+            var c = new List<IndustrySave.Named>();
+            foreach (var kv in crews) c.Add(new IndustrySave.Named { name = kv.Key, value = kv.Value });
+            return (p, c);
+        }
+
+        public static void RestorePeople(List<IndustrySave.Named> savedPools, List<IndustrySave.Named> savedCrews)
+        {
+            pools.Clear();
+            crews.Clear();
+            if (savedPools != null) foreach (var n in savedPools) if (n != null && n.name != null) pools[n.name] = n.value;
+            if (savedCrews != null) foreach (var n in savedCrews) if (n != null && n.name != null) crews[n.name] = n.value;
         }
 
         /// <summary>Put back what was saved (replacing everything).</summary>
@@ -206,6 +285,8 @@ namespace CarrierGame
         {
             sites.Clear();
             fittings.Clear();
+            pools.Clear();
+            crews.Clear();
             Changed?.Invoke();
         }
     }

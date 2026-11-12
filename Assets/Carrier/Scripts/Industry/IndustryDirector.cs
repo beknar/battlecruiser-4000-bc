@@ -40,6 +40,7 @@ namespace CarrierGame
         object attachedShip;
         CargoHold hold;
         ShipFittings fittings;
+        Crew crew;
         float saveDue = -1f, nextRegular;
         bool holdDirty;
 
@@ -58,6 +59,7 @@ namespace CarrierGame
                 if (d != null)
                 {
                     IndustryLedger.Restore(d.sites, d.fittings);
+                    IndustryLedger.RestorePeople(d.pools, d.crews);
                     heldContents = d.hold;
                     heldCredits = d.credits;
                     haveHeld = true;
@@ -109,6 +111,15 @@ namespace CarrierGame
                 Dirty();
             }
             fittings.Changed += FittingsChanged;
+            // its crew as they were (a frigate class keeps the crew it had: repairs don't bring
+            // the dead back)
+            crew = cc.GetComponent<Crew>();
+            if (crew != null)
+            {
+                var had = IndustryLedger.CrewOf(FrigateClass.Of(cc));
+                if (had != null) crew.SetAboard(had.Value);
+                crew.Changed += CrewChanged;
+            }
             if (hold != null)
             {
                 if (haveHeld) hold.Restore(heldContents, heldCredits);
@@ -122,10 +133,18 @@ namespace CarrierGame
             if (remember) Remember();
             if (hold != null) hold.Changed -= HoldChanged;
             if (fittings != null) fittings.Changed -= FittingsChanged;
+            if (crew != null) crew.Changed -= CrewChanged;
+            crew = null;
             attached = null;
             attachedShip = null;
             hold = null;
             fittings = null;
+        }
+
+        void CrewChanged()
+        {
+            if (crew == null || attached == null) return;
+            IndustryLedger.SetCrew(FrigateClass.Of(attached), crew.Current);
         }
 
         void HoldChanged()
@@ -176,10 +195,13 @@ namespace CarrierGame
             nextRegular = Time.unscaledTime + 60f;
             Remember();
             var (sites, fitted) = IndustryLedger.Snapshot();
+            var (pools, crews) = IndustryLedger.PeopleSnapshot();
             var d = new IndustrySave.Data
             {
                 sites = sites,
                 fittings = fitted,
+                pools = pools,
+                crews = crews,
                 hold = heldContents ?? new List<Stock.Entry>(),
                 credits = heldCredits,
             };

@@ -53,6 +53,8 @@ namespace Carrier.EditorTools
             Log($"base buildings: {kit.colony.Length} for colonies, {kit.fort.Length} for fortresses");
             // the industrial sites' pad, refinery and factory
             IndustryKit(kit);
+            // and the settlements' layouts
+            SettlementKit(kit);
             return kit;
         }
 

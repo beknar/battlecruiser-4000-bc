@@ -1,7 +1,8 @@
 """Recolour an AI-made frigate's texture into the starting frigate's paint scheme, and write a copy
 of the GLB with the new texture.
 
-Run:  python recolour_frigate.py <reference.glb> <model.glb> <out.glb> [--method luma|lab] [--png out.png]
+Run:  python recolour_frigate.py <reference.glb> <model.glb> <out.glb> [--method luma|lab|scheme|scheme-dark]
+      [--split a,b] [--accent-hue lo,hi[,min_sat]] [--png out.png]
 (needs Pillow and numpy)
 
 The Tripo frigates are one mesh with one 4096 x 4096 colour atlas. The new frigates came out
@@ -16,7 +17,9 @@ and yellow trim. The panel detail and shading of each model are kept; only the c
 
 - scheme (and scheme-dark): the starting frigate's paint applied part by part (see
   recolour_scheme); --split a,b sets where the hull goes from slate (darker than a times the hull's
-  middle brightness) to light grey (brighter than b times it).
+  middle brightness) to light grey (brighter than b times it). --accent-hue lo,hi[,min_sat] picks
+  the accent by hue (degrees; lo > hi wraps past red) instead of the green trim, for a model
+  painted with other accents (frigate5's tan and red parts).
 
 With luma and lab, strongly coloured trim (the green lights and stripes) becomes the starting frigate's
 red trim, at the brightness the remap gave it. The empty parts of the atlas are left alone.
@@ -204,18 +207,31 @@ def smoothstep(a, b, x):
     return t * t * (3 - 2 * t)
 
 
-def recolour_scheme(img, ref, accent="red", split=(0.55, 1.0)):
+def accent_mask(h, s, l, accent_hue):
+    """The accent texels: the green trim (is_trim), or with accent_hue (lo, hi[, min_sat]) those
+    of that hue range (degrees, wrapping past 360 when lo > hi) and at least that saturated."""
+    if accent_hue is None:
+        return is_trim(h, s, l)
+    lo, hi = accent_hue[0], accent_hue[1]
+    min_sat = accent_hue[2] if len(accent_hue) > 2 else 0.45
+    in_hue = ((h >= lo) & (h <= hi)) if lo <= hi else ((h >= lo) | (h <= hi))
+    return in_hue & (s > min_sat) & (l > 0.12)
+
+
+def recolour_scheme(img, ref, accent="red", split=(0.55, 1.0), accent_hue=None):
     """The starting frigate's paint, part by part: the model's main colour (its blue hull) becomes
     the light hull grey, darkening to the slate panels where the model is darker; its accent colour
-    (green) becomes the red trim, or with accent="dark" the slate panels; greys stay grey, brought
-    to the starting frigate's cooler tone. The model's own shading and panel lines are kept as
-    brightness relative to each colour's middle."""
+    (green, or the hues given by accent_hue) becomes the red trim, or with accent="dark" the slate
+    panels; greys stay grey, brought to the starting frigate's cooler tone. The model's own shading
+    and panel lines are kept as brightness relative to each colour's middle."""
     light, dark, trim = ref_tones(ref)
     m = used(img)
     l = luma(img)
     h, s = hsv(img)
     body = m & (s > 0.25) & (h >= 175) & (h <= 270)
-    acc = m & is_trim(h, s, l)
+    acc = m & accent_mask(h, s, l, accent_hue)
+    if accent_hue is not None:
+        acc &= ~body
     grey = m & ~body & ~acc
     out = img.copy()
     # the hull: brightness relative to the hull's middle sets light grey or slate, and shades it
@@ -239,6 +255,9 @@ def main():
     method = "luma"
     png = None
     split = (0.55, 1.0)
+    accent_hue = None
+    if "--accent-hue" in args:
+        i = args.index("--accent-hue"); accent_hue = tuple(float(x) for x in args[i + 1].split(",")); del args[i:i + 2]
     if "--split" in args:
         i = args.index("--split"); split = tuple(float(x) for x in args[i + 1].split(",")); del args[i:i + 2]
     if "--method" in args:
@@ -251,7 +270,7 @@ def main():
     ref = np.asarray(image_of(rjs, rbin).resize((1024, 1024), Image.BILINEAR), dtype=np.float32) / 255
     img = np.asarray(image_of(js, binc), dtype=np.float32) / 255
     if method.startswith("scheme"):
-        new = recolour_scheme(img, ref, "dark" if method == "scheme-dark" else "red", split)
+        new = recolour_scheme(img, ref, "dark" if method == "scheme-dark" else "red", split, accent_hue)
     else:
         new = (recolour_luma if method == "luma" else recolour_lab)(img, ref)
     im = Image.fromarray((np.clip(new, 0, 1) * 255 + 0.5).astype(np.uint8))

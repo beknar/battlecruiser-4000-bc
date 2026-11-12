@@ -22,8 +22,8 @@ namespace CarrierGame.Demo
     {
         public CarrierController carrier;
 
-        public enum Page { Storage, Refine, Build, Fit }
-        static readonly Page[] Pages = { Page.Storage, Page.Refine, Page.Build, Page.Fit };
+        public enum Page { Storage, Refine, Build, Fit, Crew }
+        static readonly Page[] Pages = { Page.Storage, Page.Refine, Page.Build, Page.Fit, Page.Crew };
 
         public static IndustryPanel Instance { get; private set; }
         public static bool IsOpen => InputFocus.Has(InputFocus.Panel.Industry);
@@ -49,6 +49,9 @@ namespace CarrierGame.Demo
         // a row's actions (for the mouse's buttons too)
         const int LoadOne = 1, LoadAll = 2, StoreOne = 3, StoreAll = 4, QueueOne = 5, QueueFive = 6, FitToggle = 7, CancelLast = 8;
         const string AllOre = "*ore", Everything = "*all";
+        // the crew page's rows: recruit one, ten, or as many as the complement is short
+        const string RecruitOne = "*r1", RecruitTen = "*r10", RecruitAll = "*rall";
+        const int Recruit = 9;
 
         void Awake() => Instance = this;
         void OnDestroy()
@@ -59,7 +62,12 @@ namespace CarrierGame.Demo
 
         CargoHold hold;
         ShipFittings fittings;
+        Crew crew;
         float rowsDue;
+        Crew CrewAboard
+        {
+            get { if (crew == null && carrier != null) crew = carrier.GetComponent<Crew>(); return crew; }
+        }
         CargoHold Hold
         {
             get { if (hold == null && carrier != null) hold = carrier.GetComponent<CargoHold>(); return hold; }
@@ -84,11 +92,13 @@ namespace CarrierGame.Demo
         public bool Open(Page page = Page.Storage)
         {
             var site = Here();
-            if (site == null || site.Spec == null) return false;
+            if (site == null || (site.Spec == null && !site.Recruits)) return false;
             if (!IsOpen && !InputFocus.Take(InputFocus.Panel.Industry)) return false;
             Site = site;
             offeredAt = site;
             openedFrame = Time.frameCount;
+            // (a place that only recruits opens on its crew page)
+            if (!PageAvailable(page)) page = System.Array.Find(Pages, PageAvailable);
             Show(page);
             SoundFX.Ui(Sfx.UiLock);
             return true;
@@ -124,7 +134,8 @@ namespace CarrierGame.Demo
             rows.Clear();
             if (Site == null) return;
             var spec = Site.Spec;
-            var stock = Site.State.stock;
+            // (a place that only recruits has no storage: it isn't made one by looking)
+            var stock = spec != null ? Site.State.stock : null;
             var hold = Hold;
             switch (Current)
             {
@@ -141,8 +152,13 @@ namespace CarrierGame.Demo
                 case Page.Build:
                     foreach (var p in Table.parts) if (spec.Builds(p.id)) rows.Add(p.id);
                     break;
+                case Page.Crew:
+                    rows.Add(RecruitOne);
+                    rows.Add(RecruitTen);
+                    rows.Add(RecruitAll);
+                    break;
                 case Page.Fit:
-                    if (!spec.CanFit) break;
+                    if (spec == null || !spec.CanFit) break;
                     var fit = Fittings;
                     foreach (var p in Table.parts)
                         if ((fit != null && fit.IsFitted(p.id)) || stock.Amount(p.id) >= 1f || (hold != null && hold.Amount(p.id) >= 1f)) rows.Add(p.id);
@@ -155,6 +171,7 @@ namespace CarrierGame.Demo
 
         bool PageAvailable(Page p)
         {
+            if (p == Page.Crew) return Site != null && Site.Recruits;
             var spec = Site != null ? Site.Spec : null;
             if (spec == null) return false;
             switch (p)
@@ -176,6 +193,15 @@ namespace CarrierGame.Demo
             var stock = Site.State.stock;
             switch (action)
             {
+                case Recruit:
+                    {
+                        var crew = CrewAboard;
+                        int want = id == RecruitOne ? 1 : id == RecruitTen ? 10 : crew != null ? crew.Missing : 0;
+                        int n = IndustryLedger.Recruit(Site.siteName, crew, hold, want, out string why);
+                        if (n > 0) { Say($"{n} recruit{(n == 1 ? "" : "s")} signed on, for {n * CrewTable.Get().recruitCost:N0} cr"); SoundFX.Ui(Sfx.UiLock); }
+                        else Say($"No one signed on: {why}", true);
+                    }
+                    break;
                 case StoreOne:
                 case StoreAll:
                     if (hold == null) return;
@@ -285,6 +311,7 @@ namespace CarrierGame.Demo
                 case "queue5": return QueueFive;
                 case "fit": return FitToggle;
                 case "cancel": return CancelLast;
+                case "recruit": return Recruit;
             }
             return 0;
         }
@@ -303,6 +330,10 @@ namespace CarrierGame.Demo
                 // it opens by itself once on arriving; after that U (Back + RB)
                 if (here == null || InputFocus.PanelUp) return;
                 bool ask = (k != null && k.uKey.wasPressedThisFrame) || (pad != null && pad.selectButton.isPressed && pad.rightShoulder.wasPressedThisFrame);
+                // (by itself only where there's work: an industrial site, or a place that recruits
+                // when the crew is short)
+                bool worth = here.Spec != null || (here.Recruits && CrewAboard is Crew c && c.Missing > 0);
+                if (offeredAt != here && !worth) offeredAt = here;
                 if (ask || offeredAt != here) Open();
                 return;
             }
@@ -315,6 +346,8 @@ namespace CarrierGame.Demo
             if (k != null)
             {
                 if (k.escapeKey.wasPressedThisFrame || k.uKey.wasPressedThisFrame) { Close(); return; }
+                // K leaves as it would with the screen closed: undock, or take off
+                if (k.kKey.wasPressedThisFrame) { Close(); Leave(); return; }
                 if (k.tabKey.wasPressedThisFrame) NextPage(shift ? -1 : 1);
                 if (k.qKey.wasPressedThisFrame) NextPage(-1);
                 if (k.eKey.wasPressedThisFrame) NextPage(1);
@@ -379,6 +412,13 @@ namespace CarrierGame.Demo
             }
         }
 
+        /// <summary>Undock, or take off from the pad (K pressed with the screen up).</summary>
+        void Leave()
+        {
+            if (Docking.Docked && Docking.Instance != null) Docking.Instance.Undock();
+            else if (PlanetLanding.OnSurface && PlanetLanding.Instance != null) PlanetLanding.Instance.TakeOff();
+        }
+
         /// <summary>Enter / A: the row's main action.</summary>
         void Primary(string id, bool more)
         {
@@ -395,6 +435,9 @@ namespace CarrierGame.Demo
                     break;
                 case Page.Fit:
                     Act(id, FitToggle);
+                    break;
+                case Page.Crew:
+                    Act(id, Recruit);
                     break;
             }
         }
@@ -437,8 +480,11 @@ namespace CarrierGame.Demo
 
             // the heading: where, what it does, the credits and the hold
             GUI.Label(new Rect(panel.x + pad, panel.y + pad * 0.6f, W * 0.6f, 34f * s), Site.siteName.ToUpper(), Hud.Text(24, true, TextAnchor.MiddleLeft));
+            var place = CrewTable.Get().Place(Site.siteName);
+            string what = spec != null ? $"{IndustrySite.Services(spec)}  ·  {spec.description}" : place != null ? place.kind : "";
+            if (Site.Recruits) what += "  ·  recruits crew";
             GUI.Label(new Rect(panel.x + pad, panel.y + pad * 0.6f + 30f * s, W * 0.6f, 22f * s),
-                      $"<color=#9aa4b0>{IndustrySite.Services(spec)}  ·  {spec.description}</color>", Hud.Text(13, false, TextAnchor.MiddleLeft));
+                      $"<color=#9aa4b0>{what}</color>", Hud.Text(13, false, TextAnchor.MiddleLeft));
             if (hold != null)
             {
                 var hr = new Rect(panel.xMax - pad - 360f * s, panel.y + pad * 0.6f, 360f * s, 24f * s);
@@ -462,7 +508,7 @@ namespace CarrierGame.Demo
                 GUI.Label(r, can ? name : $"<color=#5a6470>{name}</color>", Hud.Text(15, on, TextAnchor.MiddleCenter));
             }
             string tabsHint = Gamepad.current != null && PadSupport.UsingPad ? "LB / RB" : "Tab or Q / E";
-            GUI.Label(new Rect(panel.x + pad + 4 * (tw + 6f * s), ty, 200f * s, 34f * s), $"<color=#7a8490>{tabsHint}</color>", Hud.Text(12, false, TextAnchor.MiddleLeft));
+            GUI.Label(new Rect(panel.x + pad + Pages.Length * (tw + 6f * s), ty, 200f * s, 34f * s), $"<color=#7a8490>{tabsHint}</color>", Hud.Text(12, false, TextAnchor.MiddleLeft));
 
             // the list on the left, the selected row's details on the right
             float top = ty + 46f * s, bottom = panel.yMax - pad - 28f * s;
@@ -488,6 +534,7 @@ namespace CarrierGame.Demo
                 case Page.Storage: return padUsed ? "D-pad ← load  → store   X store all   Y load all   B close" : "← load  → store   Shift for all   Enter all   U / Esc close";
                 case Page.Refine:
                 case Page.Build: return padUsed ? "A queue one   X queue five   Y cancel last   B close" : "Enter queue one   Shift+Enter five   Backspace cancel   U / Esc close";
+                case Page.Crew: return padUsed ? "A recruit   B close" : "Enter recruit   U / Esc close   K leave";
                 default: return padUsed ? "A fit / take off   B close" : "Enter fit / take off   U / Esc close";
             }
         }
@@ -526,6 +573,17 @@ namespace CarrierGame.Demo
             var hold = Hold;
             var stock = Site.State.stock;
             float x = r.x + 6f * s;
+            if (id == RecruitOne || id == RecruitTen || id == RecruitAll)
+            {
+                var crew = CrewAboard;
+                int missing = crew != null ? crew.Missing : 0;
+                string label = id == RecruitOne ? "Recruit one" : id == RecruitTen ? "Recruit ten" : $"Recruit to a full crew ({missing} short)";
+                GUI.Label(new Rect(x + 4f * s, r.y, r.width - 200f * s, r.height), label, Hud.Text(15, sel, TextAnchor.MiddleLeft));
+                int n = id == RecruitOne ? 1 : id == RecruitTen ? 10 : missing;
+                GUI.Label(new Rect(r.xMax - 300f * s, r.y, 190f * s, r.height), $"<color=#9aa4b0>{n * CrewTable.Get().recruitCost:N0} cr</color>", Hud.Text(13, false, TextAnchor.MiddleRight));
+                Button(new Rect(r.xMax - 100f * s, r.y + 7f * s, 94f * s, r.height - 14f * s), "Recruit", id, Recruit, s, missing > 0);
+                return;
+            }
             if (id == AllOre || id == Everything)
             {
                 GUI.Label(new Rect(x + 4f * s, r.y, r.width - 200f * s, r.height), id == AllOre ? "Store all the ore aboard" : "Store everything aboard", Hud.Text(15, sel, TextAnchor.MiddleLeft));
@@ -649,6 +707,7 @@ namespace CarrierGame.Demo
             var t = Table;
             string id = SelectedId;
             float y = area.y + pad;
+            if (Current == Page.Crew) { DrawCrew(area, s); return; }
             if (Current == Page.Fit || (Current != Page.Storage && id == null))
             {
                 DrawShip(new Rect(area.x + pad, area.yMax - 270f * s, area.width - pad * 2f, 260f * s), s);
@@ -702,6 +761,34 @@ namespace CarrierGame.Demo
             var list = new List<string>();
             foreach (var i in inputs) list.Add($"{i.tonnes:0.##} t {t.Name(i.item).ToLower()}");
             return string.Join(", ", list);
+        }
+
+        /// <summary>The crew page's details: the crew aboard and how well they work the ship, the
+        /// recruits waiting here, and what they cost.</summary>
+        void DrawCrew(Rect area, float s)
+        {
+            var crew = CrewAboard;
+            var table = CrewTable.Get();
+            float pad = 12f * s;
+            var sb = new System.Text.StringBuilder();
+            if (crew != null)
+            {
+                float eff = crew.Efficiency;
+                sb.Append($"<b>Crew aboard  {crew.Aboard} of {crew.complement}</b>\n");
+                sb.Append(eff >= 0.999f ? "<color=#7ee08a>Working at full strength</color>\n"
+                                        : $"<color=#ffb060>Working at {eff:P0}: speed, turning, shield, guns, main gun and mining laser all slowed</color>\n");
+                sb.Append($"<color=#9aa4b0>Below {table.threshold:P0} of the complement the ship works less well. Hull damage costs crew; repairs don't bring them back.</color>\n\n");
+            }
+            int pool = Mathf.FloorToInt(IndustryLedger.Pool(Site.siteName) + 1e-4f);
+            var place = table.Place(Site.siteName);
+            sb.Append($"Recruits waiting here  <b>{pool}</b>" + (place != null && place.refillPerMinute > 0f ? $"   <color=#9aa4b0>(about {place.refillPerMinute:0.#} more a minute)</color>" : "") + "\n");
+            sb.Append($"Cost  <b>{table.recruitCost:N0} cr</b> each");
+            var hold = Hold;
+            if (hold != null) sb.Append($"   <color=#9aa4b0>(you have {hold.Credits:N0} cr: {Mathf.FloorToInt(hold.Credits / Mathf.Max(1f, table.recruitCost))} recruits)</color>");
+            var style = Hud.Text(14, false, TextAnchor.UpperLeft);
+            style.wordWrap = true;
+            GUI.Label(new Rect(area.x + pad, area.y + pad, area.width - pad * 2f, area.height - pad * 2f), sb.ToString(), style);
+            style.wordWrap = false;
         }
 
         /// <summary>The frigate's numbers now, against as built, and its slots.</summary>

@@ -74,6 +74,12 @@ namespace Carrier.EditorTools
             Observatory(s, root, b);
             Depot(s, root, b);
             IndustrySites(s, root, b);
+            Settlements(s, root, b);
+            // every place that recruits crew is a port (its screen opens when docked, or landed
+            // on its pad, for the crew page)
+            foreach (var inst in root.GetComponentsInChildren<Installation>(true).Concat(s.sys.GetComponentsInChildren<Installation>(true)).Distinct())
+                if (!inst.hostile && CrewTable.Get().Place(inst.displayName)?.Recruits == true && inst.GetComponent<IndustrySite>() == null)
+                    inst.gameObject.AddComponent<IndustrySite>().siteName = inst.displayName;
             SurfaceBaseInSpace(s, "Selene Base", s.wSelene, false, 8f, b,
                 "A colony on Selene: pressure domes, habitats, a control tower and tanks round a landing pad. " +
                 "From orbit over it, land (K) to come down beside it.");

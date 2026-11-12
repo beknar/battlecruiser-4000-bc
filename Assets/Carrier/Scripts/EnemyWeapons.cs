@@ -45,6 +45,10 @@ namespace CarrierGame
         public float fireArc = 180f;
         [Tooltip("Cleared while lurking in an ambush: no shooting until the ambush is sprung.")]
         public bool weaponsFree = true;
+        /// <summary>How well its crew work it (Crew: 1 at full strength): short-handed, it fires
+        /// less often.</summary>
+        [System.NonSerialized] public float efficiency = 1f;
+        float Slow(float interval) => interval / Mathf.Max(0.05f, efficiency);
 
         /// <summary>Shots held back because an asteroid or wreck was in the way (for the reel log).</summary>
         public int HeldForCover { get; private set; }
@@ -131,17 +135,17 @@ namespace CarrierGame
             bool inArc = fireArc >= 180f || Vector3.Angle(transform.forward, target.position - transform.position) <= fireArc;
             if (gunPrefab != null && now >= nextBurst && dist < gunRange && inArc)
             {
-                nextBurst = now + burstInterval;
+                nextBurst = now + Slow(burstInterval);
                 StartCoroutine(Burst());
             }
             if (missilePrefab != null && now >= nextSalvo && dist < missileRange)
             {
-                nextSalvo = now + salvoInterval;
+                nextSalvo = now + Slow(salvoInterval);
                 StartCoroutine(Salvo());
             }
             if (beam != null && now >= nextBeam && dist < beamRange && beam.Current == MainBeam.State.Idle)
             {
-                nextBeam = now + beamInterval;
+                nextBeam = now + Slow(beamInterval);
                 beam.StartCharge();
             }
         }

@@ -142,7 +142,13 @@ namespace CarrierGame.Demo
             if (At != null && At.market)
                 r += LastSoldTonnes > 0.5f ? $", sold {LastSoldTonnes:F0} t of ore for {LastSoldCredits:N0} cr" : ", nothing to sell";
             var site = IndustrySite.At(At);
-            if (site != null) r += $", {IndustrySite.Services(site.Spec)} (U)";
+            if (site != null)
+            {
+                var what = new System.Collections.Generic.List<string>();
+                if (site.Spec != null) what.Add(IndustrySite.Services(site.Spec));
+                if (site.Recruits) what.Add("recruits crew");
+                if (what.Count > 0) r += $", {string.Join(", ", what)} (U)";
+            }
             return r;
         }
 

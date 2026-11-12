@@ -125,7 +125,7 @@ namespace Carrier.EditorTools
             }
             // the fields round the star, with their bases
             orbits["Inner Belt"] = Frame("Inner Belt", sys, null, T("Inner Belt (warp point)").position, 0f, 10500f,
-                new[] { T("Inner Belt"), T("Inner Belt (warp point)"), T("Installations/Deepcut Station"), T("Installations/Belt Smelter") });
+                new[] { T("Inner Belt"), T("Inner Belt (warp point)"), T("Installations/Deepcut Station"), T("Installations/Belt Smelter"), T("Installations/Hollow Rock") });
             orbits["Outer Drift"] = Frame("Outer Drift", sys, null, T("Outer Drift (warp point)").position, 0f, 13500f,
                 new[] { T("Outer Drift"), T("Outer Drift (warp point)"), T("Installations/Corsair Haven") });
             // the industrial sites in space: the gas works round Jovara, the deep yard round the star
@@ -133,6 +133,16 @@ namespace Carrier.EditorTools
                 Frame("Jovara Gas Works", sys, orbits["Jovara"], gas.position, 0f, 5000f, new[] { gas }, face: true);
             if (T("Installations/Kestrel Deep Yard") is Transform yard)
                 Frame("Kestrel Deep Yard", sys, null, yard.position, 0f, 5000f, new[] { yard }, face: true);
+            // the settlements in space: colony stations round Thalassa and Arges, the orbital works
+            // round Ochre, the arcology round the star (the fleet base is at Thalassa's L4: below)
+            if (T("Installations/Concord Colony") is Transform concord)
+                Frame("Concord Colony", sys, orbits["Thalassa"], concord.position, 0f, 6000f, new[] { concord }, face: true);
+            if (T("Installations/Arges Station") is Transform argesStation)
+                Frame("Arges Station", sys, orbits["Arges"], argesStation.position, 0f, 5000f, new[] { argesStation }, face: true);
+            if (T("Installations/Ochre Orbital Works") is Transform works)
+                Frame("Ochre Orbital Works", sys, orbits["Ochre"], works.position, 0f, 6000f, new[] { works }, face: true);
+            if (T("Installations/Lantern Arcology") is Transform lantern)
+                Frame("Lantern Arcology", sys, null, lantern.position, 0f, 9000f, new[] { lantern }, face: true);
 
             // the Lagrange points: L4 (the Trojans) and L5 (the depot) of Jovara, L1 of Thalassa (the observatory)
             Orbit Lagrange(string name, Orbit planet, int n, float reach, IEnumerable<Transform> contents)
@@ -157,6 +167,8 @@ namespace Carrier.EditorTools
             var depot = Lagrange("Jovara L5 Depot", orbits["Jovara"], 5, 5000f, new[] { T("Installations/Jovara L5 Depot") });
             depot.librationDegrees = 0.25f;     // a slow swing of about 800 m to and fro round L5
             var l1 = Lagrange("Thalassa L1 Observatory", orbits["Thalassa"], 1, 5000f, new[] { T("Installations/Thalassa L1 Observatory") });
+            if (T("Installations/Aegis Fleet Base") is Transform aegis)
+                Lagrange("Aegis Fleet Base", orbits["Thalassa"], 4, 6000f, new[] { aegis });
             var keep = l1.gameObject.AddComponent<StationKeeping>();
             keep.orbit = l1;
             keep.thrusters = l1.GetComponentsInChildren<Renderer>(true).Where(r => r.name == "Thruster").ToArray();

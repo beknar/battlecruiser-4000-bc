@@ -86,6 +86,8 @@ namespace CarrierGame.Demo
                 best.beamDamage = Mathf.Max(best.beamDamage, s.beamDamage);
                 best.cargo = Mathf.Max(best.cargo, s.cargo);
                 best.slots = Mathf.Max(best.slots, s.slots);
+                best.crew = Mathf.Max(best.crew, s.crew);
+                best.mining = Mathf.Max(best.mining, s.mining);
             }
             // (in co-op the game goes on, as with the pause menu: the others are still playing)
             paused = !LiveSwap && !CoopClient.Active;
@@ -285,7 +287,9 @@ namespace CarrierGame.Demo
             GUI.Label(new Rect(panel.x, panel.y + pad * 0.6f, w, 40f * s), "CHOOSE YOUR FRIGATE AND CAPTAIN", Hud.Text(26, true, TextAnchor.MiddleCenter));
 
             // the frigates, down the left
-            float top = panel.y + pad * 0.6f + 56f * s, listW = Mathf.Min(360f * s, w * 0.3f), rowH = 74f * s;
+            float top = panel.y + pad * 0.6f + 56f * s, listW = Mathf.Min(360f * s, w * 0.3f);
+            // (as many as there are frigates, in the room above the captains)
+            float rowH = Mathf.Min(74f * s, h * 0.62f / Mathf.Max(1, roster.frigates.Length) - 8f * s);
             rowRects.Clear();
             for (int i = 0; i < roster.frigates.Length; i++)
             {
@@ -328,6 +332,8 @@ namespace CarrierGame.Demo
             Bar("Main gun", st.beamDamage, best.beamDamage, $"{st.beamCharge:F0} s charge");
             Bar("Cargo", st.cargo, best.cargo, $"{st.cargo:F0} t");
             Bar("Part slots", st.slots, best.slots, $"{st.slots} slots");
+            Bar("Crew", st.crew, best.crew, $"{st.crew}");
+            Bar("Mining", st.mining, best.mining, $"{st.mining:F0} t/s");
             float dy = Mathf.Max(pic.yMax, by) + 12f * s;
             var desc = Hud.Text(15, false);
             desc.wordWrap = true;

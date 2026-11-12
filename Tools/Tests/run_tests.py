@@ -16,6 +16,7 @@ Stages, in order (--quick runs the ones marked *):
   ships        -shiptest -frigate <id> for each frigate (put in, its weapons fire, the start menu)
   water        -watertest: Pelagia's sea (afloat, under, out again, roll, the sea forces)
   industry     -industrytest: the refineries and factories (refine, build, fit, the pads, the save)
+  crew         -crewtest: crew losses and what they do, the installations' crews, the settlements, recruiting
   coop *       Star System -systemtest -cooptest against the scripted bot (Tools/CoopTest/bot.py)
   web          the web build's co-op test in headless Chrome (Tools/WebTest/cooptest.sh)
   system       the full Star System self-test (warps, landing, mining, a battle)
@@ -53,7 +54,7 @@ WINDOW = ["-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", 
 WINDOWS = os.name == "nt"
 EXE = ".exe" if WINDOWS else ""
 
-STAGES = ["tools", "server", "unity", "build", "serverproc", "autotest", "hud", "ships", "water", "industry", "coop",
+STAGES = ["tools", "server", "unity", "build", "serverproc", "autotest", "hud", "ships", "water", "industry", "crew", "coop",
           "web", "system", "land", "orbit", "station"]
 QUICK = ["tools", "server", "unity", "serverproc", "autotest", "hud", "coop"]
 # Star System self-tests: stage -> (extra arguments, time limit in seconds)
@@ -61,13 +62,14 @@ SELFTESTS = {
     "hud": (["-hudtest"], 900),
     "water": (["-watertest"], 900),
     "industry": (["-industrytest"], 900),
+    "crew": (["-crewtest"], 1500),
     "system": ([], 1500),
     "land": (["-landtest"], 900),
     "orbit": (["-orbittest"], 1800),
     "station": (["-stationtest"], 1800),
 }
 # the frigates a player can fly (Assets/Carrier/Data/frigates.json), each tested by the ships stage
-FRIGATES = ["Sentinel", "Lancer", "Warden", "Talon"]
+FRIGATES = ["Sentinel", "Lancer", "Warden", "Talon", "Vanguard"]
 BUILD_METHODS = {"CarrierDemo": "Build", "AsteroidAmbush": "BuildAsteroids", "StarSystem": "BuildStarSystem",
                  "StarSystemWeb": "BuildStarSystemWeb"}
 # files a Unity build or batch run rewrites without changing them (reverted if they were clean before)

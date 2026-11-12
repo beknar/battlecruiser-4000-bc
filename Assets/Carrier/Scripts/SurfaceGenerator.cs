@@ -42,6 +42,18 @@ namespace CarrierGame
         [Tooltip("The pad's landable radius and deck height (m).")]
         public float industryPadRadius = 140f, industryDeck = 6f;
 
+        [Header("Settlements (cities, military and industrial bases on the ground)")]
+        [Tooltip("Each named base's layout, named as the base is: a landing pad ('Outpost') at the middle and its buildings round it, each set on the ground where it falls.")]
+        public GameObject[] settlements;
+
+        /// <summary>The layout for a named base, or null.</summary>
+        public GameObject Settlement(string baseName)
+        {
+            if (settlements == null || baseName == null) return null;
+            foreach (var s in settlements) if (s != null && s.name == baseName) return s;
+            return null;
+        }
+
         [Header("Ground forces (hostile worlds)")]
         [Tooltip("A heavy turret for the gun batteries.")]
         public CarrierTurret battery;

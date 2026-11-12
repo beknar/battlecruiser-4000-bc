@@ -258,6 +258,10 @@ namespace CarrierGame.Demo
             var hull = cc.GetComponent<Health>();
             hull.cannotDie = true;
             Log("(the frigate can't be destroyed from here on: the test goes on whatever happens in the fights)");
+            // (nor its crew thinned: a short-handed frigate is slower to get out of range, and the
+            // crew are -crewtest's to test)
+            var people = cc.GetComponent<Crew>();
+            if (people != null) people.Changed += () => { if (people.Missing > 0) people.SetAboard(people.complement); };
             yield return WarpTo(kb, "Corsair Haven", "s8_haven");
             yield return GridTest(kb, "Corsair Haven", "Haven Gun A", "s8_haven", 25f, r => ok = r);
             Log($"{(ok ? "PASS" : "FAIL")}: Corsair Haven (its guns open up, both sides hit, out of range they stop)");

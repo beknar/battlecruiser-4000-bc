@@ -62,6 +62,8 @@ namespace CarrierGame.Demo
             t.waterOnly = LaunchArgs.Switch("watertest");
             // -industrytest (or ?industrytest): only the refineries and factories
             t.industryOnly = LaunchArgs.Switch("industrytest");
+            // -crewtest (or ?crewtest): only the crew and the settlements
+            t.crewOnly = LaunchArgs.Switch("crewtest");
             // -cooptest (or ?cooptest), with -connect address:port (?server=...&connect): co-op with
             // the scripted second player (Tools/CoopTest/bot.py); -coopquick (?coopquick) skips the
             // part at Corsair Haven
@@ -148,10 +150,21 @@ namespace CarrierGame.Demo
             Log($"start: near {WarpPoint.Nearest(cc.transform.position)?.displayName}, warp ready {drive.CanWarp(out string why0)} {why0}");
 
             // ---------------------------------------------------------------- keyboard
+            // the test's own keyboard and pad go on working when the window loses focus (a console
+            // or a notification popping up mid-test used to swallow a key press)
+            Application.runInBackground = true;
+            InputSystem.settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
             var kb = InputSystem.AddDevice<Keyboard>("SystemTestKeyboard");
             if (coopOnly)
             {
                 yield return CoopTest(kb, coopQuick);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
+            if (crewOnly)
+            {
+                yield return CrewTest(kb);
                 Log("done");
                 if (!web) Application.Quit();
                 yield break;

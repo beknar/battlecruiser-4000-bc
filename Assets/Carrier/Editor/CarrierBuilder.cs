@@ -157,6 +157,7 @@ namespace Carrier.EditorTools
                 yield return $"{Root}/Models/{n}.fbx";
             foreach (var path in FrigateModelPaths()) yield return path;
             foreach (var path in IndustryModelPaths()) yield return path;
+            foreach (var path in SettlementModelPaths()) yield return path;
         }
 
         static void ConfigureModels()

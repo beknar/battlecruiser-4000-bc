@@ -23,8 +23,10 @@ namespace CarrierGame.Demo
         /// <summary>Closed this frame or the last (so the key that closed it isn't also read by the game).</summary>
         public static bool JustClosed => InputFocus.JustReleased(InputFocus.Panel.PauseMenu) || InputFocus.JustReleased(InputFocus.Panel.StartMenu);
 
-        enum Item { Resume, Restart, Sound, Captain, Coop, Ship, Quit }
-        static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Captain, Item.Coop, Item.Ship, Item.Quit };
+        // (no frigate here: the frigate is chosen at the start of the game, on the start menu,
+        // and kept for the game: its crew, parts and hold go with it)
+        enum Item { Resume, Restart, Sound, Captain, Coop, Quit }
+        static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Captain, Item.Coop, Item.Quit };
 
         int selected;
         Item? confirming;
@@ -78,7 +80,6 @@ namespace CarrierGame.Demo
                 case Item.Sound: return SoundFX.Muted ? "Sound: off" : "Sound: on";
                 case Item.Captain: return $"Captain:  <   {Demo.Captain.Current.name}   >";
                 case Item.Coop: return CoopClient.Active ? $"Co-op: {CoopClient.Instance.Players.Count} playing" : "Co-op: join a game";
-                case Item.Ship: return $"Ship: {ShipName()}";
                 default: return sure ? "Quit: press again to confirm" : "Quit";
             }
         }
@@ -104,21 +105,9 @@ namespace CarrierGame.Demo
                     var coop = FindAnyObjectByType<CoopMenu>();
                     if (coop != null) coop.Open();
                     break;
-                case Item.Ship:
-                    Close();
-                    var start = FindAnyObjectByType<StartMenu>();
-                    if (start != null) start.Open();
-                    break;
                 case Item.Restart: Restart(); break;
                 case Item.Quit: Quit(); break;
             }
-        }
-
-        static string ShipName()
-        {
-            var roster = FrigateRoster.Get();
-            var e = roster != null ? roster.Find(PlayerFrigate.Flying) : null;
-            return e != null ? e.displayName : "frigate";
         }
 
         public void Restart() => ReloadLevel();

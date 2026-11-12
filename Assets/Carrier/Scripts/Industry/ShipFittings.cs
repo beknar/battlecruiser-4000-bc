@@ -28,6 +28,8 @@ namespace CarrierGame
         readonly List<(CarrierTurret gun, float range, float interval)> guns = new List<(CarrierTurret, float, float)>();
 
         Health health;
+        Crew crew;
+        float crewEff = 1f;
         Shield shieldC;
         CarrierController cc;
         CargoHold hold;
@@ -41,6 +43,8 @@ namespace CarrierGame
             if (captured) return;
             captured = true;
             health = GetComponent<Health>();
+            crew = GetComponent<Crew>();
+            if (crew != null) crew.Changed += CrewChanged;
             shieldC = GetComponentInChildren<Shield>(true);
             cc = GetComponent<CarrierController>();
             hold = GetComponent<CargoHold>();
@@ -57,6 +61,36 @@ namespace CarrierGame
             cargo = hold != null ? hold.capacity : 0f;
             if (beam != null) { beamDamage = beam.damagePerSecond; beamCharge = beam.chargeTime; }
             miningRate = laser != null ? laser.rate : 0f;
+        }
+
+        void OnDestroy()
+        {
+            if (crew != null) crew.Changed -= CrewChanged;
+        }
+
+        // (a short crew: everything it works slows down; only its numbers are looked at again)
+        void CrewChanged()
+        {
+            float e = crew != null ? crew.Efficiency : 1f;
+            if (Mathf.Abs(e - crewEff) > 0.001f) Apply(true);
+        }
+
+        /// <summary>What a short crew does to a stat (1 at full strength): top speed,
+        /// acceleration, turning, the shield and its recharge, the guns' rate of fire, the main
+        /// gun's charge time and the mining laser all suffer; the hull, the hold and what each
+        /// shot does don't.</summary>
+        public float CrewFactor(string stat)
+        {
+            float e = crew != null ? crew.Efficiency : 1f;
+            switch (stat)
+            {
+                case "speed": case "acceleration": case "turn": case "shield": case "recharge":
+                case "gunRate": case "miningRate":
+                    return e;
+                case "beamCharge":
+                    return 1f / Mathf.Max(0.05f, e);
+            }
+            return 1f;
         }
 
         /// <summary>The product of the fitted parts' factors for one stat (1 with none).</summary>
@@ -98,8 +132,8 @@ namespace CarrierGame
             return 0f;
         }
 
-        /// <summary>A stat with the parts fitted now.</summary>
-        public float Value(string stat) => Base(stat) * Factor(stat);
+        /// <summary>A stat with the parts fitted now, and the crew it has.</summary>
+        public float Value(string stat) => Base(stat) * Factor(stat) * CrewFactor(stat);
 
         public bool IsFitted(string id) => fitted.Contains(id);
 
@@ -152,23 +186,27 @@ namespace CarrierGame
         }
 
         /// <summary>Set the ship's numbers from what it was built with and the parts fitted.</summary>
-        void Apply()
+        /// <summary>`crewOnly`: just what the crew's efficiency changes (a hit, mid-fight): the hull,
+        /// the hold and the fitted parts are left as they are, and nobody is told the parts changed.</summary>
+        void Apply(bool crewOnly = false)
         {
             Capture();
-            if (health != null) health.SetMax(hull * Factor("hull"));
+            crewEff = crew != null ? crew.Efficiency : 1f;
+            float F(string stat) => Factor(stat) * CrewFactor(stat);
+            if (health != null && !crewOnly) health.SetMax(hull * F("hull"));
             if (shieldC != null)
             {
-                shieldC.SetCapacity(shield * Factor("shield"));
-                shieldC.rechargeRate = recharge * Factor("recharge");
+                shieldC.SetCapacity(shield * F("shield"));
+                shieldC.rechargeRate = recharge * F("recharge");
             }
             if (cc != null)
             {
-                cc.maxSpeed = speed * Factor("speed");
-                cc.acceleration = acceleration * Factor("acceleration");
-                cc.turnRate = turn * Factor("turn");
+                cc.maxSpeed = speed * F("speed");
+                cc.acceleration = acceleration * F("acceleration");
+                cc.turnRate = turn * F("turn");
             }
-            if (hold != null) hold.capacity = cargo * Factor("cargo");
-            float dmg = Factor("gunDamage"), rng = Factor("gunRange"), rate = Factor("gunRate");
+            if (hold != null && !crewOnly) hold.capacity = cargo * Factor("cargo");
+            float dmg = F("gunDamage"), rng = F("gunRange"), rate = F("gunRate");
             foreach (var (gun, range, interval) in guns)
             {
                 if (gun == null) continue;
@@ -178,11 +216,11 @@ namespace CarrierGame
             }
             if (beam != null)
             {
-                beam.damagePerSecond = beamDamage * Factor("beamDamage");
-                beam.chargeTime = beamCharge * Factor("beamCharge");
+                beam.damagePerSecond = beamDamage * F("beamDamage");
+                beam.chargeTime = beamCharge * F("beamCharge");
             }
-            if (laser != null) laser.rate = miningRate * Factor("miningRate");
-            Changed?.Invoke();
+            if (laser != null) laser.rate = miningRate * F("miningRate");
+            if (!crewOnly) Changed?.Invoke();
         }
     }
 }

@@ -90,6 +90,8 @@ namespace Carrier.EditorTools
             var hold = root.AddComponent<CargoHold>();
             hold.capacity = fs.cargo;
             // and the slots for the parts made at the factories
+            // (its crew first: the fittings look at how well they work it)
+            root.AddComponent<Crew>().complement = fs.crew > 0 ? fs.crew : 100;
             root.AddComponent<ShipFittings>().slots = fs.slots > 0 ? fs.slots : 4;
 
             var sensorGo = Node("MineralSensor", root.transform);
@@ -135,7 +137,7 @@ namespace Carrier.EditorTools
 
             var laser = node.AddComponent<MiningLaser>();
             laser.range = 1500f;
-            laser.rate = 8f;
+            laser.rate = fs.miningRate > 0f ? fs.miningRate : 8f;   // tonnes a second
             laser.head = head.transform;
             laser.muzzle = muzzle;
             laser.beamGlow = Line("BeamGlow", node.transform, Mats["FX_MiningGlow"], 2, false);

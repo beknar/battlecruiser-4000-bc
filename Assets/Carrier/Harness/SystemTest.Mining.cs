@@ -21,7 +21,7 @@ namespace CarrierGame.Demo
             for (int i = 0; i < 60 && map.Selected?.displayName != name; i++) yield return Key(kb, UnityEngine.InputSystem.Key.Tab);
             if (map.Selected?.displayName != name)
             {
-                Log($"FAIL: couldn't choose {name} on the map (map open {SystemMap.IsOpen}, selected {map.Selected?.displayName}, menu open {GameMenu.IsOpen}, " +
+                Log($"FAIL: couldn't choose {name} on the map (map open {SystemMap.IsOpen}, input with {InputFocus.Holder}, selected {map.Selected?.displayName}, menu open {GameMenu.IsOpen}, " +
                     $"destroyed {cc.Destroyed}, landing {PlanetLanding.Instance?.Current}, docking {Docking.Instance?.Current}, warp {drive.Current})");
                 if (SystemMap.IsOpen) yield return Key(kb, UnityEngine.InputSystem.Key.Escape);
                 yield break;

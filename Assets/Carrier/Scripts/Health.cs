@@ -94,6 +94,10 @@ namespace CarrierGame
             if (!Dead) Current = Mathf.Max(fraction * maxHealth, Mathf.Min(1f, maxHealth));
         }
 
+        /// <summary>Damage that reached the hull (after the shield), as it is taken: its crew
+        /// (Crew) lose people by it.</summary>
+        public event System.Action<float> HullDamaged;
+
         public void Damage(float amount)
         {
             if (Dead || amount <= 0f) return;
@@ -104,14 +108,19 @@ namespace CarrierGame
             Hits++;
             LastHitTime = Time.time;
             LastHitAmount = applied;
-            if (Current > 0f) return;
-            Die();
+            // (destroyed first if it is: what the crew's loss sets off can't undo a killing hit)
+            if (Current <= 0f) Die();
+            if (applied > 0f) HullDamaged?.Invoke(applied);
         }
 
         /// <summary>Co-op: this one's hull, as the host has it.</summary>
         public void NetSetHull(float current)
         {
-            if (!Dead) Current = Mathf.Clamp(current, 1f, maxHealth);
+            if (Dead) return;
+            float before = Current;
+            Current = Mathf.Clamp(current, 1f, maxHealth);
+            // (the host's damage costs crew here too, so both games show the same crew)
+            if (Current < before) HullDamaged?.Invoke(before - Current);
         }
 
         /// <summary>Co-op: destroyed on the host. It stays down until the host has it back.</summary>

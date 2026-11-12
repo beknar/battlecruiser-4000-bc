@@ -33,7 +33,8 @@ namespace Carrier.EditorTools
             public float gunInterval, gunRange, gunYawSpeed, gunDamage, boltSpeed;
             public float[] boltSize, shieldScale;
             public float beamCharge, beamDamage, cargo;
-            public int slots;
+            public int slots, crew;
+            public float miningRate;
             public XZ[] ciws, liftSpots;
         }
 

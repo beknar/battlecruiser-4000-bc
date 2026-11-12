@@ -35,9 +35,8 @@ AXES = {"+X": Vector((1, 0, 0)), "-X": Vector((-1, 0, 0)), "+Y": Vector((0, 1, 0
         "+Z": Vector((0, 0, 1)), "-Z": Vector((0, 0, -1))}
 
 
-def islands(obj):
-    """Loose part id for each face (vertices at the same position count as joined)."""
-    me = obj.data
+def components(me, weld):
+    """Each vertex's component: vertices joined by edges, and (with weld) at the same position."""
     parent = list(range(len(me.vertices)))
 
     def find(i):
@@ -51,27 +50,36 @@ def islands(obj):
         if a != b:
             parent[a] = b
 
-    first = {}
-    for v in me.vertices:
-        key = (round(v.co.x, 5), round(v.co.y, 5), round(v.co.z, 5))
-        if key in first:
-            union(v.index, first[key])
-        else:
-            first[key] = v.index
+    if weld:
+        first = {}
+        for v in me.vertices:
+            key = (round(v.co.x, 5), round(v.co.y, 5), round(v.co.z, 5))
+            if key in first:
+                union(v.index, first[key])
+            else:
+                first[key] = v.index
     for e in me.edges:
         union(e.vertices[0], e.vertices[1])
-    return [find(p.vertices[0]) for p in me.polygons]
+    return [find(i) for i in range(len(me.vertices))]
+
+
+def islands(obj):
+    """Loose part id for each face (vertices at the same position count as joined)."""
+    comp = components(obj.data, True)
+    return [comp[p.vertices[0]] for p in obj.data.polygons]
 
 
 def in_box(p, b):
     return b[0] <= p.x <= b[1] and b[2] <= p.y <= b[3] and b[4] <= p.z <= b[5]
 
 
-def select_faces(obj, box, mode):
+def select_faces(obj, box, mode, part=None):
     """Faces to cut: whole loose parts whose middle is in the box ("islands"), or every face whose
-    middle is in it, leaving out the hull's own (biggest) part ("faces")."""
+    middle is in it, leaving out the hull's own (biggest) part ("faces"). `part`: the mesh's loose
+    parts if already found (islands)."""
     me = obj.data
-    part = islands(obj)
+    if part is None:
+        part = islands(obj)
     if mode == "faces":
         sizes = {}
         for p in part:
@@ -103,25 +111,15 @@ def joined_barrel_faces(obj, housing_box, boxes):
     pieces are bigger than a box drawn tight round the barrel."""
     me = obj.data
     part = islands(obj)
-    housing = {part[i] for i in select_faces(obj, housing_box, "islands")}
+    housing = {part[i] for i in select_faces(obj, housing_box, "islands", part)}
     if not isinstance(boxes[0], list):
         boxes = [boxes]
-    parent = list(range(len(me.vertices)))
-
-    def find(i):
-        while parent[i] != i:
-            parent[i] = parent[parent[i]]
-            i = parent[i]
-        return i
-
-    for e in me.edges:
-        a, b = find(e.vertices[0]), find(e.vertices[1])
-        if a != b:
-            parent[a] = b
+    # the pieces between UV seams: joined by edges only, not welded across the seams
+    piece = components(me, False)
     pieces = {}
     for i, poly in enumerate(me.polygons):
         if part[i] in housing:
-            pieces.setdefault(find(poly.vertices[0]), []).append(i)
+            pieces.setdefault(piece[poly.vertices[0]], []).append(i)
     out = []
     for faces in pieces.values():
         pts = [me.vertices[v].co for i in faces for v in me.polygons[i].vertices]

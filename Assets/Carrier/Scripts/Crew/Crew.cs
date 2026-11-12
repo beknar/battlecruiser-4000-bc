@@ -35,6 +35,10 @@ namespace CarrierGame
         public event Action Changed;
 
         readonly List<Health> hulls = new List<Health>();
+        // each hull's strength as last seen (a destroyed one keeps its share), and their total
+        readonly List<float> hullMax = new List<float>();
+        float totalHull;
+        int totalFrame = -1;
         EnemyWeapons[] weapons;
 
         void Start()
@@ -44,6 +48,7 @@ namespace CarrierGame
             {
                 h.HullDamaged += OnHull;
                 hulls.Add(h);
+                hullMax.Add(Mathf.Max(1f, h.maxHealth));
             }
             weapons = GetComponentsInChildren<EnemyWeapons>(true);
             ApplyToWeapons();
@@ -58,10 +63,19 @@ namespace CarrierGame
         void OnHull(float applied)
         {
             if (complement <= 0 || applied <= 0f) return;
-            // (against the hulls as they are now: co-op scaling and armour make them stronger)
-            float total = 0f;
-            foreach (var h in hulls) if (h != null) total += h.maxHealth;
-            Lose(complement * CrewTable.Get().casualties * applied / Mathf.Max(1f, total));
+            // (against all its hulls as they are now, co-op scaling and armour making them stronger,
+            // and the ones destroyed outright as they were: a hull's worth always costs the same)
+            if (totalFrame != Time.frameCount)
+            {
+                totalFrame = Time.frameCount;
+                totalHull = 0f;
+                for (int i = 0; i < hulls.Count; i++)
+                {
+                    if (hulls[i] != null) hullMax[i] = Mathf.Max(1f, hulls[i].maxHealth);
+                    totalHull += hullMax[i];
+                }
+            }
+            Lose(complement * CrewTable.Get().casualties * applied / Mathf.Max(1f, totalHull));
         }
 
         /// <summary>Lose `n` crew (never below the survivors).</summary>

@@ -27,7 +27,10 @@ namespace CarrierGame
         public SiteSpec Spec => IndustryTable.Get().Site(siteName);
         /// <summary>It recruits crew (CrewTable).</summary>
         public bool Recruits => CrewTable.Get().Place(siteName)?.Recruits ?? false;
-        public SiteState State => IndustryLedger.Site(siteName);
+        /// <summary>Its storage and lines; a place that only recruits has none, and gets an empty
+        /// one of its own that the ledger never holds (so it is never saved or run).</summary>
+        public SiteState State => Spec != null ? IndustryLedger.Site(siteName) : (none ??= new SiteState { name = siteName });
+        SiteState none;
 
         /// <summary>What it does, for the HUD and the map: "refinery and factory".</summary>
         public static string Services(SiteSpec s)

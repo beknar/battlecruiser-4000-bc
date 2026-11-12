@@ -60,6 +60,8 @@ namespace CarrierGame.Demo
             t.shipOnly = LaunchArgs.Switch("shiptest");
             // -watertest (or ?watertest): only the sea (Pelagia: afloat, under, out, the sea forces)
             t.waterOnly = LaunchArgs.Switch("watertest");
+            // -industrytest (or ?industrytest): only the refineries and factories
+            t.industryOnly = LaunchArgs.Switch("industrytest");
             // -cooptest (or ?cooptest), with -connect address:port (?server=...&connect): co-op with
             // the scripted second player (Tools/CoopTest/bot.py); -coopquick (?coopquick) skips the
             // part at Corsair Haven
@@ -150,6 +152,13 @@ namespace CarrierGame.Demo
             if (coopOnly)
             {
                 yield return CoopTest(kb, coopQuick);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
+            if (industryOnly)
+            {
+                yield return IndustryTest(kb);
                 Log("done");
                 if (!web) Application.Quit();
                 yield break;

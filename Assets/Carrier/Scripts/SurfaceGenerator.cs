@@ -34,6 +34,14 @@ namespace CarrierGame
         [Tooltip("Fortress buildings round a hostile base's pad (bunkers, a command post, radar...).")]
         public GameObject[] fort;
 
+        [Header("Industry (IndustryTable sites on the ground)")]
+        [Tooltip("An industrial site's landing pad (its deck is a 'Pad ' collider under an 'Outpost' root).")]
+        public GameObject industryPad;
+        [Tooltip("A refinery and a factory, built beside the pad.")]
+        public GameObject industryRefinery, industryFactory;
+        [Tooltip("The pad's landable radius and deck height (m).")]
+        public float industryPadRadius = 140f, industryDeck = 6f;
+
         [Header("Ground forces (hostile worlds)")]
         [Tooltip("A heavy turret for the gun batteries.")]
         public CarrierTurret battery;

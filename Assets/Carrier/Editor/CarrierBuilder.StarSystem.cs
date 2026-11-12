@@ -548,6 +548,9 @@ namespace Carrier.EditorTools
             var docking = demoGo.AddComponent<Docking>();
             docking.carrier = cc;
             docking.drive = drive;
+            // the industry: its lines, the save, and the sites' screen
+            demoGo.AddComponent<IndustryDirector>().carrier = cc;
+            demoGo.AddComponent<IndustryPanel>().carrier = cc;
 
             foreach (var w in sys.GetComponentsInChildren<WarpPoint>())
                 Log($"warp point {w.displayName,-16} {w.kind,-13} {w.transform.position.magnitude / 1000f,6:F0} km from the star");

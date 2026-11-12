@@ -60,7 +60,12 @@ namespace CarrierGame.Tests
                 Assert.That(s.shield, Is.GreaterThan(0f), e.id);
                 Assert.That(s.speed, Is.GreaterThan(0f), e.id);
                 Assert.That(s.cargo, Is.GreaterThan(0f), e.id);
+                Assert.That(s.slots, Is.GreaterThan(0), e.id + ": slots for ship parts");
             }
+            // the frigates differ in what they can carry and fit
+            var stats = Roster.frigates.Select(f => FrigateStats.Of(f.prefab)).ToArray();
+            Assert.That(stats.Select(x => x.cargo).Distinct().Count(), Is.GreaterThan(1), "holds of different sizes");
+            Assert.That(stats.Select(x => x.slots).Distinct().Count(), Is.GreaterThan(1), "different numbers of part slots");
         }
 
         [Test]

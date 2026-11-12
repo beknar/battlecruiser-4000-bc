@@ -71,7 +71,9 @@ namespace CarrierGame.Demo
             // the system map has the keys and the pad while it is open; the warp drive flies the
             // ship while it is charging or in warp
             bool warpFlying = (warp != null && warp.Current != WarpDrive.State.Ready) || PlanetLanding.Transitioning;
-            if (SystemMap.IsOpen || SystemMap.JustClosed || warpFlying)
+            // (and so has an industrial site's screen)
+            bool panel = SystemMap.IsOpen || SystemMap.JustClosed || IndustryPanel.IsOpen || IndustryPanel.JustClosed;
+            if (panel || warpFlying)
             {
                 WatchDestruction();
                 if (!carrier.Destroyed)
@@ -81,7 +83,7 @@ namespace CarrierGame.Demo
                     carrier.elevator = autoElevator ?? 0f;
                     carrier.rollInput = autoRoll ?? 0f;
                 }
-                if (warpFlying && !SystemMap.IsOpen && !SystemMap.JustClosed)
+                if (warpFlying && !panel)
                 {
                     if ((k != null && (k.escapeKey.wasPressedThisFrame || k.pKey.wasPressedThisFrame)) || (pad != null && pad.startButton.wasPressedThisFrame)) Menu.Open();
                 }

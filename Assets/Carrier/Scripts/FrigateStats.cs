@@ -15,7 +15,9 @@ namespace CarrierGame
         public float gunDps, gunRange;
         /// <summary>One bow-beam shot's damage, and how long it takes to charge.</summary>
         public float beamDamage, beamCharge;
+        /// <summary>The hold (tonnes), and how many ship parts it can have fitted.</summary>
         public float cargo;
+        public int slots;
 
         public static FrigateStats Of(GameObject ship)
         {
@@ -54,6 +56,8 @@ namespace CarrierGame
             }
             var hold = ship.GetComponent<CargoHold>();
             if (hold != null) s.cargo = hold.capacity;
+            var fit = ship.GetComponent<ShipFittings>();
+            if (fit != null) s.slots = fit.slots;
             return s;
         }
     }

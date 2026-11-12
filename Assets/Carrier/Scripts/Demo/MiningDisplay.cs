@@ -95,7 +95,8 @@ namespace CarrierGame.Demo
             var list = hold.Manifest();
             var sb = new System.Text.StringBuilder();
             sb.Append($"<b>CARGO HOLD</b>   {hold.Used:F1} / {hold.capacity:F0} t\n");
-            if (list.Count == 0) sb.Append("<color=#9aa4b0>empty: cut ore with the mining laser</color>");
+            var goods = hold.Goods.Sorted(IndustryTable.Get());
+            if (list.Count == 0 && goods.Count == 0) sb.Append("<color=#9aa4b0>empty: cut ore with the mining laser</color>");
             foreach (var (m, t) in list)
                 sb.Append($"\n<color={Minerals.Hex(m)}>{Minerals.Name(m)}</color>  {(t >= 10f ? t.ToString("F0") : t.ToString("F2"))} t   <color=#9aa4b0>{t * Minerals.Value(m):N0} cr</color>");
             if (list.Count > 0)
@@ -103,6 +104,15 @@ namespace CarrierGame.Demo
                 var cheap = hold.Cheapest();
                 sb.Append($"\n\nWorth <b>{hold.Value:N0} cr</b>");
                 if (cheap != null) sb.Append($"\n<color=#9aa4b0>J jettisons the cheapest: {Minerals.Name(cheap.Value).ToLower()}</color>");
+            }
+            // refined materials and parts, carried between the industrial sites
+            if (goods.Count > 0)
+            {
+                var table = IndustryTable.Get();
+                sb.Append("\n");
+                foreach (var e in goods)
+                    sb.Append($"\n<color=#cfe0f0>{table.Name(e.id)}</color>  {table.Amount(e.id, e.amount)}" +
+                              (table.Part(e.id) != null ? $"   <color=#9aa4b0>{table.Mass(e.id, e.amount):F0} t</color>" : ""));
             }
             if (hold.TotalLost > 0f) sb.Append($"\n<color=#ff6050>{hold.TotalLost:F0} t lost with the ship</color>");
             var style = Hud.Text(15);

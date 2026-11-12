@@ -83,8 +83,14 @@ namespace CarrierGame
         public void ScaleTo(float k)
         {
             if (builtMax < 0f) builtMax = maxHealth;
+            SetMax(builtMax * k);
+        }
+
+        /// <summary>A new full strength (parts fitted: ShipFittings), keeping how damaged it is.</summary>
+        public void SetMax(float max)
+        {
             float fraction = maxHealth > 0f ? Current / maxHealth : 1f;
-            maxHealth = builtMax * k;
+            maxHealth = Mathf.Max(1f, max);
             if (!Dead) Current = Mathf.Max(fraction * maxHealth, Mathf.Min(1f, maxHealth));
         }
 

@@ -1,5 +1,5 @@
 {
-    "note": "The frigates a player can fly, first the starting one. The scene builder (CarrierBuilder.Frigates) makes a prefab of each and the start menu's roster from them. The starting frigate's guns are ball mounts on its gun pods (frigate_hardpoints.json); the others' are the turrets modelled on them, cut out by Tools/Blender/convert_frigates.py (frigate_<id>_hardpoints.json), which also gives where their CIWS mounts go. Every frigate has its turrets, at least one CIWS mount and one main gun (the bow beam). Speeds in m/s, turns in degrees a second; gunDamage is each shot's; beamDamage is a second's of the beam. Rebuild (Tools > Carrier > Build Everything) after changing anything here.",
+    "note": "The frigates a player can fly, first the starting one. The scene builder (CarrierBuilder.Frigates) makes a prefab of each and the start menu's roster from them. The starting frigate's guns are ball mounts on its gun pods (frigate_hardpoints.json); the others' are the turrets modelled on them, cut out by Tools/Blender/convert_frigates.py (frigate_<id>_hardpoints.json), which also gives where their CIWS mounts go. Every frigate has its turrets, at least one CIWS mount and one main gun (the bow beam). Speeds in m/s, turns in degrees a second; gunDamage is each shot's; beamDamage is a second's of the beam; cargo is the hold in tonnes (ore, refined materials and parts all count), and slots how many ship parts (industry.json) it can have fitted. Rebuild (Tools > Carrier > Build Everything) after changing anything here.",
     "frigates": [
         {
             "id": "Sentinel",
@@ -11,7 +11,7 @@
             "maxSpeed": 150, "acceleration": 30, "turnRate": 20, "pitchRate": 12, "maxPitch": 60, "elevatorSpeed": 40, "elevatorAcceleration": 15,
             "hull": 6000, "shield": 6000, "shieldRecharge": 250,
             "gunInterval": 0.5, "gunRange": 4500, "gunYawSpeed": 70, "gunDamage": 90,
-            "beamCharge": 10, "beamDamage": 1400, "cargo": 600,
+            "beamCharge": 10, "beamDamage": 1400, "cargo": 600, "slots": 4,
             "ciws": [{"x": -11, "z": -12}, {"x": -11, "z": -23}, {"x": 11, "z": -12}, {"x": 11, "z": -23}],
             "liftSpots": [{"x": -15, "z": 58}, {"x": 15, "z": 58}, {"x": -15, "z": -32}, {"x": 15, "z": -32}],
             "shieldScale": [55, 55, 108]
@@ -27,7 +27,7 @@
             "hull": 4500, "shield": 5000, "shieldRecharge": 300,
             "gunInterval": 0.55, "gunRange": 4200, "gunYawSpeed": 90, "gunDamage": 55,
             "boltSize": [0.9, 0.9, 14], "boltSpeed": 2800,
-            "beamCharge": 9, "beamDamage": 1200, "cargo": 450,
+            "beamCharge": 9, "beamDamage": 1200, "cargo": 450, "slots": 3,
             "liftSpots": [{"x": -10, "z": 40}, {"x": 10, "z": 40}, {"x": -14, "z": -32}, {"x": 14, "z": -32}]
         },
         {
@@ -41,7 +41,7 @@
             "hull": 8500, "shield": 8000, "shieldRecharge": 220,
             "gunInterval": 0.8, "gunRange": 5000, "gunYawSpeed": 55, "gunDamage": 70,
             "boltSize": [1.0, 1.0, 16], "boltSpeed": 2600,
-            "beamCharge": 12, "beamDamage": 1400, "cargo": 800
+            "beamCharge": 12, "beamDamage": 1400, "cargo": 800, "slots": 5
         },
         {
             "id": "Talon",
@@ -54,7 +54,7 @@
             "hull": 5500, "shield": 5500, "shieldRecharge": 260,
             "gunInterval": 1.0, "gunRange": 5200, "gunYawSpeed": 60, "gunDamage": 130,
             "boltSize": [1.4, 1.4, 18], "boltSpeed": 2400,
-            "beamCharge": 7, "beamDamage": 1800, "cargo": 550
+            "beamCharge": 7, "beamDamage": 1800, "cargo": 550, "slots": 4
         }
     ]
 }

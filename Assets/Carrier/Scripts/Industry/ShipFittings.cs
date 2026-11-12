@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace CarrierGame
@@ -117,9 +118,24 @@ namespace CarrierGame
             return true;
         }
 
+        /// <summary>Whether a part can come off: not if what is aboard wouldn't fit the hold without it.</summary>
+        public bool CanUnfit(string id, out string why)
+        {
+            Capture();
+            why = "";
+            if (!fitted.Contains(id)) why = "not fitted";
+            else if (hold != null)
+            {
+                float cap = cargo * FactorOf(fitted.Where(p => p != id), "cargo");
+                if (hold.Used > cap + 0.01f) why = $"{hold.Used:F0} t aboard, and the hold takes {cap:F0} t without it";
+            }
+            return why == "";
+        }
+
         public bool Unfit(string id)
         {
-            if (!fitted.Remove(id)) return false;
+            if (!CanUnfit(id, out _)) return false;
+            fitted.Remove(id);
             Apply();
             return true;
         }

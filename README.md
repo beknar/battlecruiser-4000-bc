@@ -923,7 +923,7 @@ Each part can also be run alone:
   otherwise.
 - `-industrysave <file>`: save the game there instead of the player's data folder. Automated
   runs (tests, reels) save only where they are told to, so they never touch the player's save.
-  `-newgame` starts without reading the save.
+  `-newgame` plays without the save: it neither reads it nor writes over it.
 - `CarrierDemo.exe -autotest <dir>`: runs the scripted self-test and writes a report and screenshots
   to `<dir>`. The test covers:
   - handling, attitude and elevators;

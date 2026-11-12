@@ -268,8 +268,9 @@ namespace Carrier.EditorTools
 
         static string IndLabel(string name)
         {
-            var s = IndustryTable.Get().Site(name);
-            return s == null ? "" : s.CanRefine && s.CanBuild ? "Refinery and factory" : s.CanRefine ? "Refinery" : "Factory";
+            // (as the HUD and the site's screen put it, with a capital)
+            string s = IndustrySite.Services(IndustryTable.Get().Site(name));
+            return s.Length > 0 ? char.ToUpper(s[0]) + s.Substring(1) : s;
         }
 
         static void IndustrySites(SystemRefs s, Transform parent, Built b)

@@ -61,10 +61,8 @@ namespace CarrierGame
         public void ScaleTo(float k)
         {
             if (baseCapacity < 0f) { baseCapacity = capacity; baseRecharge = rechargeRate; }
-            float fraction = Fraction;
-            capacity = baseCapacity * k;
+            SetCapacity(baseCapacity * k);
             rechargeRate = baseRecharge * k;
-            if (Strength > 0f) Strength = fraction * capacity;
         }
 
         /// <summary>A new full strength (parts fitted: ShipFittings), keeping how charged it is.</summary>

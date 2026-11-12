@@ -321,8 +321,20 @@ namespace CarrierGame.Tests
                 Assert.That(back.hold.Single().id, Is.EqualTo("Iron"));
                 Assert.That(back.version, Is.EqualTo(IndustrySave.Version));
                 Assert.That(IndustrySave.Read(path + ".missing"), Is.Null);
+                // written again over the first: replaced whole
+                d.credits = 8f;
+                Assert.That(IndustrySave.Write(d, path), Is.True);
+                Assert.That(IndustrySave.Read(path).credits, Is.EqualTo(8f));
+                Assert.That(File.Exists(path + ".tmp"), Is.False);
+                // caught between writing the new one and putting it in place: the .tmp is read
+                File.Move(path, path + ".tmp");
+                Assert.That(IndustrySave.Read(path)?.credits, Is.EqualTo(8f));
             }
-            finally { if (File.Exists(path)) File.Delete(path); }
+            finally
+            {
+                if (File.Exists(path)) File.Delete(path);
+                if (File.Exists(path + ".tmp")) File.Delete(path + ".tmp");
+            }
         }
     }
 
@@ -383,6 +395,20 @@ namespace CarrierGame.Tests
             fit.Fit("ArmourPlating");
             fit.Fit("CompositeArmour");
             Assert.That(health.maxHealth, Is.EqualTo(1000f * FactorOf("ArmourPlating", "hull") * FactorOf("CompositeArmour", "hull")).Within(0.01f));
+        }
+
+        [Test]
+        public void ACargoPodComesOffOnlyIfWhatIsAboardStillFits()
+        {
+            fit.Fit("CargoPod");
+            Assert.That(hold.Load("SteelPlate", 600f), Is.EqualTo(600f), "more than the 500 t built hold");
+            Assert.That(fit.CanUnfit("CargoPod", out string why), Is.False);
+            Assert.That(why, Does.Contain("aboard"));
+            Assert.That(fit.Unfit("CargoPod"), Is.False);
+            Assert.That(fit.IsFitted("CargoPod"), Is.True);
+            hold.Unload("SteelPlate", 150f);
+            Assert.That(fit.Unfit("CargoPod"), Is.True, "450 t fits the hold without it");
+            Assert.That(hold.capacity, Is.EqualTo(500f).Within(0.01f));
         }
 
         [Test]

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace CarrierGame
@@ -34,9 +35,13 @@ namespace CarrierGame
         }
 
         CarrierController attached;
+        // (the ship it is attached to, held as a plain object: swapping the frigate points every
+        // Unity object reference in the level at the new ship, these included, so they can't tell)
+        object attachedShip;
         CargoHold hold;
         ShipFittings fittings;
         float saveDue = -1f, nextRegular;
+        bool holdDirty;
 
         public CargoHold Hold => hold;
         public ShipFittings Fittings => fittings;
@@ -69,7 +74,7 @@ namespace CarrierGame
         {
             IndustryLedger.Finished -= OnFinished;
             IndustryLedger.Changed -= Dirty;
-            Detach();
+            Detach(true);
             Save();
             if (Instance == this) Instance = null;
         }
@@ -78,35 +83,63 @@ namespace CarrierGame
 
         void Attach(CarrierController cc)
         {
-            Detach();
+            // (a swapped-in frigate: the old one's hold was noted the frame before, and its
+            // references here already point at the new ship, so nothing more is noted)
+            Detach(false);
             attached = cc;
+            attachedShip = cc;
             if (cc == null) return;
             hold = cc.GetComponent<CargoHold>();
             fittings = cc.GetComponent<ShipFittings>();
             if (fittings == null) fittings = cc.gameObject.AddComponent<ShipFittings>();
-            fittings.SetFitted(IndustryLedger.FittedTo(FrigateClass.Of(cc)));
+            var saved = IndustryLedger.FittedTo(FrigateClass.Of(cc));
+            fittings.SetFitted(saved);
+            // parts saved as fitted that it can't take now (fewer slots, or a part that no longer
+            // exists) aren't lost: they go into a factory's storage
+            var dropped = saved.Where(id => !fittings.IsFitted(id)).ToList();
+            if (dropped.Count > 0)
+            {
+                var table = IndustryTable.Get();
+                var factory = table.sites.FirstOrDefault(s => s.CanBuild);
+                foreach (var id in dropped)
+                    if (factory != null && table.Part(id) != null) IndustryLedger.Site(factory.name).stock.Add(id, 1f);
+                saved.Clear();
+                saved.AddRange(fittings.Fitted);
+                if (factory != null) Notices.Post($"{dropped.Count} part(s) no longer fit: put into storage at {factory.name}");
+                Dirty();
+            }
             fittings.Changed += FittingsChanged;
             if (hold != null)
             {
                 if (haveHeld) hold.Restore(heldContents, heldCredits);
-                hold.Changed += Dirty;
+                hold.Changed += HoldChanged;
             }
         }
 
-        void Detach()
+        void Detach(bool remember)
         {
-            if (attached == null) return;
-            Remember();
-            if (hold != null) hold.Changed -= Dirty;
+            if (attachedShip == null) return;
+            if (remember) Remember();
+            if (hold != null) hold.Changed -= HoldChanged;
             if (fittings != null) fittings.Changed -= FittingsChanged;
             attached = null;
+            attachedShip = null;
             hold = null;
             fittings = null;
         }
 
-        /// <summary>Note the hold as it is now (for the save, and for the next frigate or level).</summary>
+        void HoldChanged()
+        {
+            holdDirty = true;
+            Dirty();
+        }
+
+        /// <summary>Note the hold as it is now (for the save, and for the next frigate or level).
+        /// Done each frame it changes, so the note is never more than a frame old, even when the
+        /// level goes and the hold with it.</summary>
         void Remember()
         {
+            holdDirty = false;
             if (hold == null) return;
             heldContents = hold.Contents();
             heldCredits = hold.Credits;
@@ -129,7 +162,8 @@ namespace CarrierGame
 
         void Update()
         {
-            if (carrier != attached) Attach(carrier);
+            if (!ReferenceEquals(carrier, attachedShip)) Attach(carrier);
+            if (holdDirty) Remember();
             IndustryLedger.Advance(Time.deltaTime);
             float now = Time.unscaledTime;
             if ((saveDue >= 0f && now >= saveDue) || now >= nextRegular) Save();

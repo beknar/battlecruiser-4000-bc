@@ -46,7 +46,8 @@ namespace CarrierGame
                 if (!string.IsNullOrEmpty(TestPath)) return TestPath;
                 string chosen = LaunchArgs.ValueOf("-industrysave");
                 if (!string.IsNullOrEmpty(chosen)) return chosen;
-                if (LaunchArgs.Automated) return null;
+                // (a new game, or a test, never writes over the player's own save)
+                if (LaunchArgs.Automated || NewGame) return null;
                 return Path.Combine(Application.persistentDataPath, "industry_save.json");
             }
         }
@@ -86,8 +87,18 @@ namespace CarrierGame
                 // (written beside it first, so a crash mid-write can't leave half a save)
                 string tmp = path + ".tmp";
                 File.WriteAllText(tmp, ToJson(d));
-                if (File.Exists(path)) File.Delete(path);
-                File.Move(tmp, path);
+                if (!File.Exists(path)) File.Move(tmp, path);
+                else
+                {
+                    try { File.Replace(tmp, path, null); }
+                    catch (Exception)
+                    {
+                        // (where the file system can't replace in one step: Read falls back to the
+                        // .tmp if it is caught between the two)
+                        File.Delete(path);
+                        File.Move(tmp, path);
+                    }
+                }
                 LastPath = path;
                 Saves++;
                 return true;
@@ -103,10 +114,13 @@ namespace CarrierGame
         public static Data Read(string path = null)
         {
             path ??= FilePath;
-            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
+            if (string.IsNullOrEmpty(path)) return null;
+            // (a save caught half-way through being written is still in its .tmp)
+            string from = File.Exists(path) ? path : File.Exists(path + ".tmp") ? path + ".tmp" : null;
+            if (from == null) return null;
             try
             {
-                var d = FromJson(File.ReadAllText(path));
+                var d = FromJson(File.ReadAllText(from));
                 LastPath = path;
                 return d;
             }

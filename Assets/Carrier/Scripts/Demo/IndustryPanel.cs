@@ -57,8 +57,17 @@ namespace CarrierGame.Demo
             if (IsOpen) InputFocus.Release(InputFocus.Panel.Industry);
         }
 
-        CargoHold Hold => carrier != null ? carrier.GetComponent<CargoHold>() : null;
-        ShipFittings Fittings => carrier != null ? carrier.GetComponent<ShipFittings>() : null;
+        CargoHold hold;
+        ShipFittings fittings;
+        float rowsDue;
+        CargoHold Hold
+        {
+            get { if (hold == null && carrier != null) hold = carrier.GetComponent<CargoHold>(); return hold; }
+        }
+        ShipFittings Fittings
+        {
+            get { if (fittings == null && carrier != null) fittings = carrier.GetComponent<ShipFittings>(); return fittings; }
+        }
         static IndustryTable Table => IndustryTable.Get();
 
         /// <summary>The site the frigate is at now (docked, or landed on its pad), or null.</summary>
@@ -111,6 +120,7 @@ namespace CarrierGame.Demo
 
         void BuildRows()
         {
+            rowsDue = Time.unscaledTime + 0.25f;
             rows.Clear();
             if (Site == null) return;
             var spec = Site.Spec;
@@ -214,10 +224,10 @@ namespace CarrierGame.Demo
                     {
                         bool build = Current == Page.Build;
                         var q = build ? Site.State.building : Site.State.refining;
+                        // (the last one queued of this recipe: never another's)
                         int i = q.FindLastIndex(j => j.recipe == id);
-                        if (i < 0) i = q.Count - 1;
                         if (i >= 0 && IndustryLedger.Cancel(Site.siteName, build, i)) Say("Cancelled: its inputs are back in storage");
-                        else Say("Nothing queued", true);
+                        else Say($"No {Table.Name(id).ToLower()} queued", true);
                     }
                     break;
                 case FitToggle:
@@ -226,6 +236,7 @@ namespace CarrierGame.Demo
                         if (fit == null) return;
                         if (fit.IsFitted(id))
                         {
+                            if (!fit.CanUnfit(id, out string full)) { Say($"Can't take off the {Table.Name(id).ToLower()}: {full}", true); break; }
                             fit.Unfit(id);
                             stock.Add(id, 1f);
                             IndustryLedger.Touch();
@@ -296,7 +307,9 @@ namespace CarrierGame.Demo
                 return;
             }
             if (Time.frameCount == openedFrame) return;
-            BuildRows();
+            // (what is aboard and stored changes as jobs finish: the list is looked at again a
+            // few times a second, and after anything done here)
+            if (Time.unscaledTime >= rowsDue) BuildRows();
             bool shift = k != null && (k.leftShiftKey.isPressed || k.rightShiftKey.isPressed);
             string id = SelectedId;
             if (k != null)

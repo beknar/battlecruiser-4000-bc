@@ -313,9 +313,13 @@ namespace CarrierGame.Demo
             var st = stats[selected];
             float bx = pic.xMax + pad, bw = panel.xMax - pad - bx, by = top;
             if (bw < 220f * s) { bx = rx; bw = rw; by = pic.yMax + 10f * s; }
+            // (eleven bars, and the description under them, above the captains' row)
+            const int bars = 11;
+            float room = panel.yMax - pad - 38f * s - 96f * s - 26f * s - 100f * s - by;
+            float bh = Mathf.Clamp(room / bars - 4f * s, 14f * s, 26f * s);
             void Bar(string label, float v, float max, string value)
             {
-                float lw = 110f * s, vw = 92f * s, bh = 26f * s;
+                float lw = 110f * s, vw = 92f * s;
                 GUI.Label(new Rect(bx, by, lw, bh), $"<b>{label}</b>", Hud.Text(14, false, TextAnchor.MiddleLeft));
                 var track = new Rect(bx + lw, by + bh * 0.3f, Mathf.Max(20f, bw - lw - vw), bh * 0.4f);
                 Hud.Fill(track, new Color(1f, 1f, 1f, 0.1f));

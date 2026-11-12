@@ -52,8 +52,35 @@ namespace CarrierGame.Tests
         {
             var (health, crew, _) = MakeShip();
             yield return null;
-            health.NetSetHull(800f);                   // the host says 200 of it is gone
+            health.NetSetHull(700f);                   // joining: catching up with damage done before
+            Assert.That(crew.Current, Is.EqualTo(100f), "the first word from the host costs nobody");
+            health.NetSetHull(500f);                   // then the host says 200 more is gone
             Assert.That(crew.Current, Is.EqualTo(100f - 100f * CrewTable.Get().casualties * 0.2f).Within(0.01f));
+            health.NetKill();                          // and destroyed: the last 500
+            Assert.That(health.Dead, Is.True);
+            Assert.That(crew.Current, Is.EqualTo(100f - 100f * CrewTable.Get().casualties * 0.7f).Within(0.01f));
+        }
+
+        [UnityTest]
+        public IEnumerator HullsDestroyedOutrightStillCountForTheirShare()
+        {
+            // an installation of two guns: one destroyed outright, then the other hit for half its hull
+            var root = Make("Installation");
+            root.SetActive(false);
+            var crew = root.AddComponent<Crew>();
+            crew.complement = 100;
+            var a = new GameObject("Gun A"); a.transform.SetParent(root.transform);
+            var b = new GameObject("Gun B"); b.transform.SetParent(root.transform);
+            var ha = a.AddComponent<Health>(); ha.maxHealth = 1000f;
+            var hb = b.AddComponent<Health>(); hb.maxHealth = 1000f;
+            root.SetActive(true);
+            yield return null;
+            ha.Damage(1000f);                          // (destroyed, and gone the frame after)
+            yield return null;
+            yield return null;
+            float after = crew.Current;
+            hb.Damage(500f);                           // a quarter of the two guns' hull
+            Assert.That(after - crew.Current, Is.EqualTo(100f * CrewTable.Get().casualties * 0.25f).Within(0.01f));
         }
     }
 }

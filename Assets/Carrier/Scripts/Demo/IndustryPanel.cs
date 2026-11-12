@@ -63,19 +63,19 @@ namespace CarrierGame.Demo
         CargoHold hold;
         ShipFittings fittings;
         Crew crew;
+        CarrierController cachedFor;   // (the ship those are looked up on: another ship, look again)
         float rowsDue;
-        Crew CrewAboard
+        void Recache()
         {
-            get { if (crew == null && carrier != null) crew = carrier.GetComponent<Crew>(); return crew; }
+            if (cachedFor == carrier && (carrier == null || (hold != null && fittings != null && crew != null))) return;
+            cachedFor = carrier;
+            hold = carrier != null ? carrier.GetComponent<CargoHold>() : null;
+            fittings = carrier != null ? carrier.GetComponent<ShipFittings>() : null;
+            crew = carrier != null ? carrier.GetComponent<Crew>() : null;
         }
-        CargoHold Hold
-        {
-            get { if (hold == null && carrier != null) hold = carrier.GetComponent<CargoHold>(); return hold; }
-        }
-        ShipFittings Fittings
-        {
-            get { if (fittings == null && carrier != null) fittings = carrier.GetComponent<ShipFittings>(); return fittings; }
-        }
+        Crew CrewAboard { get { Recache(); return crew; } }
+        CargoHold Hold { get { Recache(); return hold; } }
+        ShipFittings Fittings { get { Recache(); return fittings; } }
         static IndustryTable Table => IndustryTable.Get();
 
         /// <summary>The site the frigate is at now (docked, or landed on its pad), or null.</summary>
@@ -113,6 +113,8 @@ namespace CarrierGame.Demo
 
         public void Show(Page page)
         {
+            // (only the pages this place has: a place that only recruits has its crew page alone)
+            if (!PageAvailable(page)) page = System.Array.Find(Pages, PageAvailable);
             Current = page;
             selected = 0;
             scroll = 0;
@@ -144,7 +146,7 @@ namespace CarrierGame.Demo
                     rows.Add(Everything);
                     var seen = new HashSet<string>();
                     if (hold != null) foreach (var e in hold.Contents()) if (seen.Add(e.id)) rows.Add(e.id);
-                    foreach (var e in stock.Sorted(Table)) if (seen.Add(e.id)) rows.Add(e.id);
+                    if (stock != null) foreach (var e in stock.Sorted(Table)) if (seen.Add(e.id)) rows.Add(e.id);
                     break;
                 case Page.Refine:
                     foreach (var r in Table.refined) if (spec.Refines(r.id)) rows.Add(r.id);

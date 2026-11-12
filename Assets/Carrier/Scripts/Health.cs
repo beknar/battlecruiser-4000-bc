@@ -91,7 +91,8 @@ namespace CarrierGame
         {
             float fraction = maxHealth > 0f ? Current / maxHealth : 1f;
             maxHealth = Mathf.Max(1f, max);
-            if (!Dead) Current = Mathf.Max(fraction * maxHealth, Mathf.Min(1f, maxHealth));
+            // (a hull at nothing stays at nothing: whatever calls this mid-hit can't undo a kill)
+            if (!Dead && Current > 0f) Current = Mathf.Max(fraction * maxHealth, Mathf.Min(1f, maxHealth));
         }
 
         /// <summary>Damage that reached the hull (after the shield), as it is taken: its crew
@@ -119,15 +120,23 @@ namespace CarrierGame
             if (Dead) return;
             float before = Current;
             Current = Mathf.Clamp(current, 1f, maxHealth);
-            // (the host's damage costs crew here too, so both games show the same crew)
-            if (Current < before) HullDamaged?.Invoke(before - Current);
+            // (the host's damage costs crew here too, so both games show the same crew; not the
+            // first time, which only catches up with damage done before this game joined)
+            if (netSynced && Current < before) HullDamaged?.Invoke(before - Current);
+            netSynced = true;
         }
+
+        bool netSynced;
 
         /// <summary>Co-op: destroyed on the host. It stays down until the host has it back.</summary>
         public void NetKill()
         {
             if (Dead) return;
+            float rest = Current;
+            Current = 0f;
             Die();
+            // (the last of the hull, as the host lost it)
+            if (netSynced && rest > 0f) HullDamaged?.Invoke(rest);
             CancelInvoke(nameof(Respawn));
         }
 

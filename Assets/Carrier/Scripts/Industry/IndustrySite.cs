@@ -4,8 +4,9 @@ using UnityEngine;
 namespace CarrierGame
 {
     /// <summary>
-    /// An industrial site in the level (IndustryTable sites, by name): a refinery, a factory or
-    /// both, with storage. In space it is an Installation the frigate docks at; on a planet's or
+    /// A port in the level: an industrial site (IndustryTable sites, by name: a refinery, a
+    /// factory or both, with storage), a place that recruits crew (CrewTable), or both. As an
+    /// industrial site it is a refinery, a factory or both, with storage. In space it is an Installation the frigate docks at; on a planet's or
     /// moon's surface (and on the asteroid) it is round a landing pad (`pad`, `padRadius`), and
     /// the frigate sets down on that. Its storage and queues are in IndustryLedger.
     /// </summary>
@@ -24,6 +25,8 @@ namespace CarrierGame
         void OnDisable() => All.Remove(this);
 
         public SiteSpec Spec => IndustryTable.Get().Site(siteName);
+        /// <summary>It recruits crew (CrewTable).</summary>
+        public bool Recruits => CrewTable.Get().Place(siteName)?.Recruits ?? false;
         public SiteState State => IndustryLedger.Site(siteName);
 
         /// <summary>What it does, for the HUD and the map: "refinery and factory".</summary>

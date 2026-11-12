@@ -310,6 +310,15 @@ namespace CarrierGame.Demo
             sb.Append($"Range  {km:F2} km      Speed  {speed:F0} m/s\n");
             sb.Append($"Length  {length:F0} m\n");
             if (info != null) sb.Append($"Weapons  {info.weapons}      Threat  {info.threat}\n");
+            // its crew (an installation's, for one of its guns), and how well they work it
+            var people = Crew.Of(shown);
+            if (people != null)
+            {
+                float eff = people.Efficiency;
+                sb.Append($"Crew  {people.Aboard:N0} of {people.complement:N0}" +
+                          (eff < 0.999f ? $"   <color=#ffb060>working at {eff:P0}</color>" : "") + "\n");
+            }
+            else if (shown.GetComponentInParent<Installation>() != null) sb.Append("Crew  none (automated)\n");
 
             string guns = carrier.target == shown ? carrier.GunsBearingText() : "";
             if (guns.Length > 0) sb.Append($"In arc  {(guns.StartsWith("none") ? "<color=#ffb060>none</color>" : guns)}\n");

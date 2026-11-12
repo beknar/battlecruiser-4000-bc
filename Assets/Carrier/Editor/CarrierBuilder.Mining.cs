@@ -90,6 +90,8 @@ namespace Carrier.EditorTools
             var hold = root.AddComponent<CargoHold>();
             hold.capacity = fs.cargo;
             // and the slots for the parts made at the factories
+            // (its crew first: the fittings look at how well they work it)
+            root.AddComponent<Crew>().complement = fs.crew > 0 ? fs.crew : 100;
             root.AddComponent<ShipFittings>().slots = fs.slots > 0 ? fs.slots : 4;
 
             var sensorGo = Node("MineralSensor", root.transform);

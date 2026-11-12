@@ -24,6 +24,14 @@ namespace CarrierGame
             public List<string> parts = new List<string>();
         }
 
+        /// <summary>A number by name (a recruit pool, a frigate class's crew).</summary>
+        [Serializable]
+        public class Named
+        {
+            public string name;
+            public float value;
+        }
+
         [Serializable]
         public class Data
         {
@@ -33,6 +41,8 @@ namespace CarrierGame
             public List<Stock.Entry> hold = new List<Stock.Entry>();
             public float credits;
             public List<Fitting> fittings = new List<Fitting>();
+            public List<Named> pools = new List<Named>();
+            public List<Named> crews = new List<Named>();
         }
 
         /// <summary>A file a self-test saves to instead (its own folder).</summary>
@@ -70,6 +80,8 @@ namespace CarrierGame
             d.sites ??= new List<SiteState>();
             d.hold ??= new List<Stock.Entry>();
             d.fittings ??= new List<Fitting>();
+            d.pools ??= new List<Named>();
+            d.crews ??= new List<Named>();
             return d;
         }
 

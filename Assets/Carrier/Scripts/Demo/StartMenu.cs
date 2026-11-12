@@ -86,6 +86,7 @@ namespace CarrierGame.Demo
                 best.beamDamage = Mathf.Max(best.beamDamage, s.beamDamage);
                 best.cargo = Mathf.Max(best.cargo, s.cargo);
                 best.slots = Mathf.Max(best.slots, s.slots);
+                best.crew = Mathf.Max(best.crew, s.crew);
             }
             // (in co-op the game goes on, as with the pause menu: the others are still playing)
             paused = !LiveSwap && !CoopClient.Active;
@@ -328,6 +329,7 @@ namespace CarrierGame.Demo
             Bar("Main gun", st.beamDamage, best.beamDamage, $"{st.beamCharge:F0} s charge");
             Bar("Cargo", st.cargo, best.cargo, $"{st.cargo:F0} t");
             Bar("Part slots", st.slots, best.slots, $"{st.slots} slots");
+            Bar("Crew", st.crew, best.crew, $"{st.crew}");
             float dy = Mathf.Max(pic.yMax, by) + 12f * s;
             var desc = Hud.Text(15, false);
             desc.wordWrap = true;

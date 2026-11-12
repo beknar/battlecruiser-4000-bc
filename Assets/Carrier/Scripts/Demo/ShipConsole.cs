@@ -185,7 +185,8 @@ namespace CarrierGame.Demo
 
             var gun = demo.MainGun;
             var cargo = demo.Cargo;
-            int bars = 3 + (gun != null ? 1 : 0) + (warp != null ? 1 : 0) + (cargo != null ? 1 : 0);
+            var crew = cc.GetComponent<Crew>();
+            int bars = 3 + (gun != null ? 1 : 0) + (warp != null ? 1 : 0) + (cargo != null ? 1 : 0) + (crew != null ? 1 : 0);
             var info = InfoLines(cc);
             var small = Hud.Text(13);
             float infoH = info.Count * small.lineHeight * 1.05f;
@@ -283,6 +284,13 @@ namespace CarrierGame.Demo
             // the hold
             if (cargo != null)
                 Bar(x, ref y, colW, row, "CARGO", cargo.Fraction, Amber, $"{cargo.Used:F0}/{cargo.capacity:F0} t" + (cargo.Credits > 0.5f ? $"  {cargo.Credits:N0} cr" : ""));
+            // the crew: short of 90% of them, everything slows (the efficiency shown)
+            if (crew != null)
+            {
+                float eff = crew.Efficiency;
+                Bar(x, ref y, colW, row, "CREW", crew.Share, eff >= 0.999f ? Green : eff >= 0.6f ? Amber : Red,
+                    $"{crew.Aboard}/{crew.complement}" + (eff < 0.999f ? $"  {eff:P0} eff." : ""));
+            }
             y += 6f * s;
 
             // weapon lights

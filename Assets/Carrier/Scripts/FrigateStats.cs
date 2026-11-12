@@ -18,6 +18,8 @@ namespace CarrierGame
         /// <summary>The hold (tonnes), and how many ship parts it can have fitted.</summary>
         public float cargo;
         public int slots;
+        /// <summary>The people who work it.</summary>
+        public int crew;
 
         public static FrigateStats Of(GameObject ship)
         {
@@ -58,6 +60,8 @@ namespace CarrierGame
             if (hold != null) s.cargo = hold.capacity;
             var fit = ship.GetComponent<ShipFittings>();
             if (fit != null) s.slots = fit.slots;
+            var people = ship.GetComponent<Crew>();
+            if (people != null) s.crew = people.complement;
             return s;
         }
     }

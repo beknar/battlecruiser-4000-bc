@@ -51,12 +51,18 @@ namespace Carrier.EditorTools
 
         static Vector3 IV(float[] a) => a != null && a.Length == 3 ? new Vector3(a[0], a[1], a[2]) : Vector3.zero;
 
+        /// <summary>A model's lights, berth and pad (Data/industry_hardpoints.json, or
+        /// settlement_hardpoints.json for the settlements' own models), or null.</summary>
         static IndModelPoints IndPointsFor(string model)
         {
-            var path = Root + "/Data/industry_hardpoints.json";
-            if (!File.Exists(path)) return null;
-            var pts = JsonUtility.FromJson<IndPoints>(File.ReadAllText(path));
-            return pts?.models?.FirstOrDefault(m => m.name == model);
+            foreach (var file in new[] { "industry_hardpoints.json", "settlement_hardpoints.json" })
+            {
+                var path = Root + "/Data/" + file;
+                if (!File.Exists(path)) continue;
+                var found = JsonUtility.FromJson<IndPoints>(File.ReadAllText(path))?.models?.FirstOrDefault(m => m.name == model);
+                if (found != null) return found;
+            }
+            return null;
         }
 
         // ------------------------------------------------------------------ materials
@@ -159,6 +165,8 @@ namespace Carrier.EditorTools
         static IndPrefabs IndustryPrefabs()
         {
             if (ind != null) return ind;
+            layouts = null;   // (the settlements' layouts are made from these)
+            missingPieces.Clear();
             ind = new IndPrefabs
             {
                 refinerySpace = IndPrefab("Ind_RefinerySpace", true),

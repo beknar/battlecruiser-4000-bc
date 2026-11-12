@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
@@ -112,10 +113,13 @@ namespace CarrierGame
             var f = t.features;
             var root = t.go.transform;
             stage = "pad";
+            // a settlement (a city, a military or industrial base): its own layout round its pad
+            var layout = f != null && f.baseName != null && f.site != SiteKind.Base ? Kit.Settlement(f.baseName) : null;
             // an industrial site: its own pad, with a refinery and a factory beside it
             var industry = f != null && f.baseName != null ? IndustryTable.Get().Site(f.baseName) : null;
             if (industry != null && (!industry.OnGround || Kit.industryPad == null)) industry = null;
-            if (industry != null) BuildIndustry(t, f, industry);
+            if (layout != null) BuildSettlement(t, f, layout);
+            else if (industry != null) BuildIndustry(t, f, industry);
             // the landing pad (a base's launch pad on a hostile world)
             else if (f != null && f.site != SiteKind.None && Kit.outpost != null)
             {
@@ -131,9 +135,17 @@ namespace CarrierGame
                     foreach (Transform c in o.transform)
                         if (c.name == "Parked craft") Destroy(c.gameObject);    // room for its own ships
                 t.outpost = o.transform;
+                // a named base that recruits crew: landed on its pad, its screen opens (the crew page)
+                if (f.baseName != null && f.site != SiteKind.Base && (CrewTable.Get().Place(f.baseName)?.Recruits ?? false))
+                {
+                    var port = o.AddComponent<IndustrySite>();
+                    port.siteName = f.baseName;
+                    port.pad = o.transform;
+                    port.padRadius = SurfaceWorld.PadRadius * 0.55f;
+                }
             }
             stage = "base";
-            if (f != null && f.site != SiteKind.None && industry == null) BuildBase(t, f);
+            if (f != null && f.site != SiteKind.None && industry == null && layout == null) BuildBase(t, f);
 
             stage = "boulders";
             // boulders
@@ -149,7 +161,7 @@ namespace CarrierGame
                 {
                     double cu = t.ci * (double)T + Rn(60f, T - 60f), cv = t.cj * (double)T - w.V + Rn(60f, T - 60f);
                     if (Mathf.Abs((float)cv) > w.V - w.polarBand) continue;
-                    if (f != null && f.site != SiteKind.None && Dist(cu, cv, f.su, f.sv) < (industry != null ? 760f : SurfaceWorld.PadRadius + 140f)) continue;
+                    if (f != null && f.site != SiteKind.None && Dist(cu, cv, f.su, f.sv) < (layout != null ? 1900f : industry != null ? 760f : SurfaceWorld.PadRadius + 140f)) continue;
                     bool nearUnit = false;
                     if (f != null) foreach (var us in f.units) if (Dist(cu, cv, us.u, us.v) < 60f) { nearUnit = true; break; }
                     float size = Mathf.Lerp(w.boulderSize.x, w.boulderSize.y, Mathf.Pow(Rn(0f, 1f), 2.2f));
@@ -222,6 +234,53 @@ namespace CarrierGame
             }
             if (spec.CanRefine) Beside(Kit.industryRefinery, 90f);
             if (spec.CanBuild) Beside(Kit.industryFactory, -90f);
+            BuildingsBuilt += built;
+        }
+
+        /// <summary>A settlement (SurfaceKit.settlements): its layout put down at the site, the pad
+        /// (its "Outpost") on the flattened site and each building on the ground where it falls
+        /// (none in the sea, off the area or on a steep slope). The pad is a port: landed on it,
+        /// the frigate can recruit crew there, and use it as an industrial site if it is one.</summary>
+        void BuildSettlement(Tile t, TileFeatures f, GameObject layout)
+        {
+            var root = t.go.transform;
+            Vector3 p = Place(t, f.su, f.sv, out float turn);
+            p.y = Center.y + f.siteHeight;
+            var group = Instantiate(layout, root);
+            group.name = "Settlement: " + f.baseName;
+            group.transform.SetPositionAndRotation(p, Quaternion.Euler(0f, f.siteYaw + turn, 0f));
+            int built = 0;
+            Transform pad = null;
+            foreach (Transform c in group.transform.Cast<Transform>().ToArray())
+            {
+                if (c.name.StartsWith("Outpost"))
+                {
+                    pad = c;
+                    c.position = new Vector3(c.position.x, p.y + SurfaceWorld.PadLift, c.position.z);
+                    continue;
+                }
+                // on the ground where it falls (its own sink below its pivot, kept from the layout)
+                Vector3 at = c.position;
+                var n = (at - t.go.transform.position) / T;
+                float ground = t.terrain.transform.position.y + t.terrain.SampleHeight(at);
+                bool off = n.x < 0f || n.x > 1f || n.z < 0f || n.z > 1f || ground < SeaLevel + 3f
+                           || t.data.GetSteepness(Mathf.Clamp01(n.x), Mathf.Clamp01(n.z)) > 28f;
+                if (off) { Destroy(c.gameObject); continue; }
+                c.position = new Vector3(at.x, ground + (c.localPosition.y), at.z);
+                built++;
+            }
+            foreach (var col in group.GetComponentsInChildren<Collider>(true)) col.gameObject.layer = layer;
+            if (pad != null)
+            {
+                t.outpost = pad;
+                if (pad.GetComponent<Obstacle>() == null) { var ob = pad.gameObject.AddComponent<Obstacle>(); ob.cover = false; ob.radius = 0f; ob.coreRadius = 0f; }
+                var port = pad.gameObject.AddComponent<IndustrySite>();
+                port.siteName = f.baseName;
+                port.padRadius = Kit.industryPadRadius;
+                port.pad = new GameObject("Pad centre").transform;
+                port.pad.SetParent(pad, false);
+                port.pad.localPosition = Vector3.up * Kit.industryDeck;
+            }
             BuildingsBuilt += built;
         }
 

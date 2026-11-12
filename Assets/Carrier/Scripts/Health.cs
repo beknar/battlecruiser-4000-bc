@@ -94,6 +94,10 @@ namespace CarrierGame
             if (!Dead) Current = Mathf.Max(fraction * maxHealth, Mathf.Min(1f, maxHealth));
         }
 
+        /// <summary>Damage that reached the hull (after the shield), as it is taken: its crew
+        /// (Crew) lose people by it.</summary>
+        public event System.Action<float> HullDamaged;
+
         public void Damage(float amount)
         {
             if (Dead || amount <= 0f) return;
@@ -104,6 +108,7 @@ namespace CarrierGame
             Hits++;
             LastHitTime = Time.time;
             LastHitAmount = applied;
+            if (applied > 0f) HullDamaged?.Invoke(applied);
             if (Current > 0f) return;
             Die();
         }

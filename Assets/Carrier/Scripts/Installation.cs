@@ -28,6 +28,19 @@ namespace CarrierGame
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() => All.Clear();
         void OnEnable() { if (!All.Contains(this)) All.Add(this); }
+
+        // its crew (CrewTable): none on an automated one
+        void Awake()
+        {
+            if (GetComponent<Crew>() != null) return;
+            var table = CrewTable.Get();
+            int n = table.CrewOf(displayName);
+            if (n <= 0) return;
+            var c = gameObject.AddComponent<Crew>();
+            c.complement = n;
+            var place = table.Place(displayName);
+            c.reinforcePerMinute = hostile && place != null ? place.refillPerMinute : 0f;
+        }
         void OnDisable() => All.Remove(this);
 
         public Vector3 BerthPosition => berth != null ? berth.position : transform.position;

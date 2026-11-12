@@ -105,7 +105,8 @@ scenes cut through black.
 There are four frigates to choose from. As each game starts, the start menu offers them, with a
 turning picture of each, bars comparing them, and the five captains. The game waits while the
 menu is up. Launching with a different frigate starts the level again with it. The menu shows once
-a run; the pause menu's **Ship** item brings it back. The choice is remembered for next time.
+a run, and the frigate is kept for the game: its crew, parts and hold go with it, so the pause menu
+doesn't change it. The choice is remembered for next time.
 
 | Frigate | Kind | Guns | CIWS | Hull / shield | Speed, turn |
 |---|---|---|---|---|---|
@@ -293,8 +294,9 @@ system to travel around.
   - Two comets are on long orbits: bright Comet Iskra close to the star, and faint Comet
     Mirren far out.
   - Ten stations, bases and installations have been built (see below), five industrial sites
-    (refineries and factories: see Industry), and six launch structures on the planets and
-    moons.
+    (refineries and factories: see Industry), ten settlements (colony stations, cities,
+    military and industrial bases: see Crew and the settlements), and six launch structures on
+    the planets and moons.
   - The frigate starts near Thalassa.
 - **Orbits.** Everything moves on its orbit, fast enough to see within ten minutes.
   - **Kepler orbits.** The planets go round the star, and the moons and the orbiting stations
@@ -622,6 +624,59 @@ tank, pipe, window and pad textures made by `Tools/Textures/make_industry_textur
 | Kestrel Deep Yard | in deep space (docked) | - | everything |
 | Belt Smelter | on an asteroid (pad): Inner Belt | steel plate, titanium billets, aluminium sheet, copper wire, superalloy ingots, rare-earth magnets, precious conductors, reactor fuel rods, armour glass, diamond optics | - |
 
+### Crew and the settlements
+
+Every frigate has a crew, and so has every installation except the automated ones (the Cinder
+Orbital Battery's defence platforms, and the two long-range sensor arrays: Ochre Relay and the
+Thalassa L1 Observatory). The rules and every place's people are in
+`Assets/Carrier/Resources/Data/crew.json`.
+
+| Frigate | Crew |
+|---|---|
+| Sentinel | 140 |
+| Lancer | 90 |
+| Warden | 220 |
+| Talon | 110 |
+
+- **Losses.** Hull damage kills crew: a full hull's worth of damage kills half of them. Some
+  always survive (15%), so a frigate is never left with nobody. Shield hits cost nobody.
+  Repairs at a station mend the hull, not the crew, and a frigate destroyed and back comes back
+  with the crew it had.
+- **Short-handed.** Down to 90% of its complement a frigate works at full strength. Beyond 10%
+  lost it works less well, more so the more are lost (down to 30% at worst). Its top speed,
+  acceleration, turning, shield and recharge, rate of fire, main-gun charge and mining laser
+  all suffer; the hull, the hold and what each shot does don't. The console's CREW bar shows the
+  crew and the efficiency.
+- **Installations too.** A hostile base loses crew as its guns are hit, and its guns fire less
+  often for it. It gets reinforcements slowly. The target panel shows a target's crew.
+- **Recruiting.** At the bigger friendly places, the site's screen (U, or Back + RB) has a CREW
+  page: recruit one, ten, or as many as the frigate is short, at 250 cr each. Each place has a
+  pool of people willing to sign on, which refills slowly in game time. The pools and the crew
+  aboard are saved with the game.
+
+**The settlements.** Ten new places, where people live and work in numbers, and where crew can
+be recruited. They are built from the licensed packs in `Assets/Carrier/Kit` (Mega_City,
+SpaceColony2086, Volstok_District, Monolith_megastructure, OrbitalBase, Tropical_Scifi_City,
+Sci-Fi_Flying_Cargo_Ship, SciFi_Cliff, SilentZonePack, RMG_Crane, Industrial_Pipe_Rack,
+Desert_Outpost, Starship) and the project's own models: a habitat ring, radar domes, and a
+fortress's walls, towers and gate (`Tools/Blender/build_settlements.py`).
+
+| Place | Kind | Where | Get there |
+|---|---|---|---|
+| Concord Colony | Colony station: a habitat ring 1.2 km across round its hub | In orbit of Thalassa | Dock |
+| Arges Station | Colony station: drum habitats on a spine | In orbit of Jovara's moon Arges | Dock |
+| Port Ochre | City: towers up to half a kilometre tall round a spaceport | On Ochre | Land on its pad |
+| Pyrois Domes | Domed town | On Jovara's moon Pyrois | Land on its pad |
+| Hollow Rock | Asteroid city: towers and domes on a big rock | The Inner Belt | Dock (sets down on its pad) |
+| Lantern Arcology | Deep-space habitat: a slab of towers 2.6 km across | Deep space, between Cinder and the Jovara Trojans | Dock |
+| Aegis Fleet Base | Military base: hangars, armoured blocks, gun turrets | Thalassa's L4 point | Dock |
+| Fort Brontes | Military base: walls and gun towers round a spaceport, hangars, bunkers, radar | On Jovara's moon Brontes | Land on its pad |
+| Steropes Heavy Industries | Industrial base: a power plant, refinery, factory, crane yards (also an industrial site) | On Jovara's moon Steropes | Land on its pad |
+| Ochre Orbital Works | Industrial base: a factory yard and a refinery (also an industrial site) | In orbit of Ochre | Dock |
+
+Crew can also be recruited at Thalassa Highport, Deepcut Station, Brontes Shipyard, Selene Base,
+Ochre Foundry, Mnemos Works and the Kestrel Deep Yard.
+
 ## Controls
 
 | Action | Keyboard / mouse | Xbox 360 pad |
@@ -901,7 +956,7 @@ The games run one at a time, in a 1280x720 window.
 | `build` | the builds (with `--build`) |
 | `serverproc` | the server program, end to end |
 | `autotest` | the Carrier Demo and Asteroid Ambush autotests |
-| `hud`, `ships`, `water`, `industry`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
+| `hud`, `ships`, `water`, `industry`, `crew`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
 | `web` | the web build's co-op test |
 
 `--quick` runs `tools`, `server`, `unity`, `serverproc`, `autotest`, `hud` and `coop`.
@@ -957,6 +1012,13 @@ Each part can also be run alone:
   the water and launching from under it, the sea bases and submarines, their torpedoes (no
   flame, bubbles) and the ship's guns hitting a base under the water.
 
+  Add `-crewtest` (or `?crewtest` on the web) to test only the crew and the settlements: that
+  the pause menu offers no other frigate, that hull damage costs crew and more than 10% lost
+  slows the frigate (top speed, turning, shield, guns) while repairs don't bring them back, that
+  every installation has its crew but the automated ones and a hostile base's guns slow as it
+  loses them, and at each of the ten settlements: arriving, docking or landing on its pad, and
+  recruiting ten crew for credits, with pictures of each.
+
   Add `-industrytest` (or `?industrytest` on the web) to test only the industry, with the jobs
   sped up: ore stored and refined at the Belt Smelter (docked on its pad), the steel and
   aluminium carried to the Kestrel Deep Yard, a cargo pod built there and fitted (the hold
@@ -1010,7 +1072,8 @@ Each part can also be run alone:
   reel (about 210 s), `-frigates` for the start menu and the four frigates, `-sea` for the sea
   reel (about 200 s: each frigate comes down from orbit onto Pelagia's sea, sails in on an island
   base, dives on a torpedo base and launches out of the water), or `-all` for everything in one reel. That includes the ship's console and
-  the captain. Add `-reelcoop <address>:<port>` to `-all` for its co-op scene: two scripted
+  the captain, refining, building and fitting a part on the sites' screen, the crew (losses,
+  the frigate slowed, recruiting), the ten settlements and a run on Pelagia's sea. Add `-reelcoop <address>:<port>` to `-all` for its co-op scene: two scripted
   wingmen (`Tools/CoopTest/wingman.py <server url> <name> <right,up,forward>`, started first,
   named `Kestrel 2` and `Kestrel 3`) wait on that server and fly in formation with the frigate.
   Join the frames and sound with ffmpeg:
@@ -1034,8 +1097,11 @@ The web version has two test modes, added to the page address:
 
 `Assets/Carrier/Kit` is not in this repo. It holds marketplace packs from an Unreal asset export:
 Spaceship_Kit, CargoShip, Mega_City, MC_Environment, Megastructure_Fallen_City,
-Sci-Fi_Flying_Cargo_Ship and StylizedShieldsVol1. Those packs are licensed and can't be
-redistributed.
+Sci-Fi_Flying_Cargo_Ship and StylizedShieldsVol1, and for the settlements SpaceColony2086, Starship,
+Volstok_District, Monolith_megastructure, OrbitalBase, Tropical_Scifi_City, SciFi_Cliff,
+SilentZonePack, RMG_Crane, Industrial_Pipe_Rack and Desert_Outpost (staged by
+`Tools/stage_carrier_assets.py`). Those packs are licensed and can't be redistributed. Without them
+the settlements are built with only the project's own pieces.
 
 Two sets of files are made from those packs, so they are left out too: the enemy cruiser's breakup
 meshes and `Models/ShieldHex.fbx`.

@@ -237,10 +237,47 @@ namespace CarrierGame
             BuildingsBuilt += built;
         }
 
-        /// <summary>A settlement (SurfaceKit.settlements): its layout put down at the site, the pad
-        /// (its "Outpost") on the flattened site and each building on the ground where it falls
-        /// (none in the sea, off the area or on a steep slope). The pad is a port: landed on it,
-        /// the frigate can recruit crew there, and use it as an industrial site if it is one.</summary>
+        /// <summary>Settlement buildings put down in rubble on this surface (struck from orbit), for the self-test.</summary>
+        public int Ruined { get; private set; }
+
+        // the settlement buildings standing here, by their key (to be ruined by a strike while landed)
+        readonly Dictionary<long, (Transform t, int i)> buildings = new Dictionary<long, (Transform, int)>();
+
+        /// <summary>A strike from orbit has ruined a settlement building while the ship is down
+        /// here: rubble in its place, now.</summary>
+        public bool Ruin(long key)
+        {
+            if (!buildings.TryGetValue(key, out var b) || b.t == null) return false;
+            buildings.Remove(key);
+            Vector3 at = b.t.position;
+            Rubble(b.t.parent, new Vector3(at.x, at.y - b.t.localPosition.y, at.z), b.i);
+            Destroy(b.t.gameObject);
+            Ruined++;
+            return true;
+        }
+
+        /// <summary>A heap of broken blocks where a building stood.</summary>
+        void Rubble(Transform parent, Vector3 at, int seed)
+        {
+            var rng = new System.Random(seed * 7919 + 17);
+            var heap = new GameObject("Rubble");
+            heap.transform.SetParent(parent, true);
+            heap.transform.position = at;
+            for (int k = 0; k < 7; k++)
+            {
+                var b = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                Destroy(b.GetComponent<Collider>());
+                b.transform.SetParent(heap.transform, false);
+                float s = 6f + (float)rng.NextDouble() * 16f;
+                b.transform.localScale = new Vector3(s, s * 0.45f, s * (0.6f + (float)rng.NextDouble()));
+                b.transform.localPosition = new Vector3((float)rng.NextDouble() * 30f - 15f, s * 0.15f, (float)rng.NextDouble() * 30f - 15f);
+                b.transform.localRotation = Quaternion.Euler((float)rng.NextDouble() * 30f, (float)rng.NextDouble() * 360f, (float)rng.NextDouble() * 30f);
+                var r = b.GetComponent<MeshRenderer>();
+                if (Kit.rubble != null) r.sharedMaterial = Kit.rubble;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+        }
+
         void BuildSettlement(Tile t, TileFeatures f, GameObject layout)
         {
             var root = t.go.transform;
@@ -251,8 +288,10 @@ namespace CarrierGame
             group.transform.SetPositionAndRotation(p, Quaternion.Euler(0f, f.siteYaw + turn, 0f));
             int built = 0;
             Transform pad = null;
-            foreach (Transform c in group.transform.Cast<Transform>().ToArray())
+            var pieces = group.transform.Cast<Transform>().ToArray();
+            for (int i = 0; i < pieces.Length; i++)
             {
+                var c = pieces[i];
                 if (c.name.StartsWith("Outpost"))
                 {
                     pad = c;
@@ -266,7 +305,17 @@ namespace CarrierGame
                 bool off = n.x < 0f || n.x > 1f || n.z < 0f || n.z > 1f || ground < SeaLevel + 3f
                            || t.data.GetSteepness(Mathf.Clamp01(n.x), Mathf.Clamp01(n.z)) > 28f;
                 if (off) { Destroy(c.gameObject); continue; }
+                long key = WorldState.BuildingKey(f.baseName, i);
+                if (Destroyed.Contains(key))
+                {
+                    // (struck from orbit: rubble where it stood, till it is rebuilt)
+                    Rubble(group.transform, new Vector3(at.x, ground, at.z), i);
+                    Destroy(c.gameObject);
+                    Ruined++;
+                    continue;
+                }
                 c.position = new Vector3(at.x, ground + (c.localPosition.y), at.z);
+                buildings[key] = (c, i);
                 built++;
             }
             foreach (var col in group.GetComponentsInChildren<Collider>(true)) col.gameObject.layer = layer;

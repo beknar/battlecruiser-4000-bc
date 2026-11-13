@@ -24,6 +24,7 @@ namespace Carrier.EditorTools
             var kit = new SurfaceKit();
             kit.terrain = SaveMat("Surface_Terrain", new Material(Shader.Find("Universal Render Pipeline/Terrain/Lit")));
             kit.sky = SaveMat("Surface_Sky", new Material(Shader.Find("Carrier/SkyGradient")));
+            kit.rubble = Lit("Surface_Rubble", new Color(0.16f, 0.14f, 0.13f), metallic: 0f, smooth: 0.1f);
             kit.water = Lit("Surface_Water", new Color(0.02f, 0.1f, 0.2f), metallic: 0.05f, smooth: 0.93f);
             var lava = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
             lava.SetColor("_BaseColor", new Color(3f, 1.2f, 0.3f));

@@ -165,6 +165,8 @@ namespace CarrierGame
         }
 
         /// <summary>How long a kind of unit takes to be rebuilt once destroyed (ground_units.json; 0: never).</summary>
+        public static float RebuildMinutesOf(UnitKind k) => RebuildMinutes(k);
+
         static float RebuildMinutes(UnitKind k)
         {
             var t = Stats;

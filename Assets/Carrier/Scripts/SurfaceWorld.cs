@@ -642,7 +642,9 @@ namespace CarrierGame
             if (f == null || f.site == SiteKind.None || f.siteHeightReady) return;
             var ctx = Neighbourhood(f.i, f.j);
             float m = 0f;
-            float h = Height(f.su, f.sv, Region(f.su, f.sv), ctx, false, ref m);
+            // (without the strikes' craters: a pad's level is the same whenever it is worked out,
+            // and the pad keeps it, struck or not)
+            float h = Height(f.su, f.sv, Region(f.su, f.sv), ctx, false, ref m, false);
             switch (kind)
             {
                 case SurfaceKind.Ocean: h = Mathf.Max(h, Sea + 28f); break;
@@ -665,7 +667,7 @@ namespace CarrierGame
         /// texture hint in `m` (scorch, salt, craters' ejecta, maria). `region` is Region() there
         /// (passed in: tiles interpolate it from a coarse grid). Without `flatten` the landing pads
         /// aren't levelled (used to find out how high to level them).</summary>
-        public float Height(double u, double v, float region, TileFeatures[] ctx, bool flatten, ref float m)
+        public float Height(double u, double v, float region, TileFeatures[] ctx, bool flatten, ref float m, bool scarred = true)
         {
             float h;
             m = 0f;
@@ -765,6 +767,7 @@ namespace CarrierGame
                 }
             }
             if (craterAmount > 0f) Craters(u, v, ref h, ref m);
+            if (scarred) h += ScarAt(u, v, out _);
 
             if (flatten)
             {
@@ -875,10 +878,57 @@ namespace CarrierGame
                     w[3] = (1f - steep) * (1f - nz) * 0.7f;
                     break;
             }
+            // (a strike's crater: bare, blasted rock)
+            ScarAt(u, v, out float scorch);
+            if (scorch > 0f) { for (int i = 0; i < w.Length; i++) w[i] *= 1f - scorch; w[2] += scorch * 3f; }
             float sum = 0f;
             for (int i = 0; i < w.Length; i++) sum += w[i];
             if (sum < 1e-4f) { w[0] = 1f; sum = 1f; }
             for (int i = 0; i < w.Length; i++) w[i] /= sum;
+        }
+
+        /// <summary>The craters strikes from orbit have left on this body (WorldState: a new array
+        /// whenever they change, so the workers building the ground read one whole).</summary>
+        public volatile WorldState.Scar[] scars = Array.Empty<WorldState.Scar>();
+
+        /// <summary>How much the craters lower the ground at a place (m, negative; a raised rim
+        /// round each), and how scorched it is there (0..1).</summary>
+        public float ScarAt(double u, double v, out float scorch)
+        {
+            scorch = 0f;
+            var sc = scars;
+            if (sc.Length == 0) return 0f;
+            float dh = 0f;
+            foreach (var s in sc)
+            {
+                float du = (float)WrapDelta(u - s.u, C), dv = (float)(v - s.v);
+                float r2 = du * du + dv * dv, reach = s.radius * 1.5f;
+                if (r2 >= reach * reach) continue;
+                float x = Mathf.Sqrt(r2) / s.radius;
+                if (x < 1f) dh -= s.depth * (1f - x * x);
+                float rim = (x - 1.05f) / 0.18f;
+                dh += s.depth * 0.22f * Mathf.Exp(-rim * rim);
+                scorch = Mathf.Max(scorch, 1f - Smooth(0.6f, 1.35f, x));
+            }
+            return dh;
+        }
+
+        /// <summary>Whether a settlement's building at (u, v) stands on the ground of its area `f`
+        /// (as the surface puts it down: on the area, out of the sea, not on a steep slope).</summary>
+        public bool Stands(TileFeatures f, double u, double v)
+        {
+            double au = u - f.i * (double)T, av = v + V - f.j * (double)T;
+            au -= Math.Floor(au / C) * C;
+            if (au < 0 || au > T || av < 0 || av > T) return false;
+            var ctx = Neighbourhood(f.i, f.j) ?? Array.Empty<TileFeatures>();
+            foreach (var g in ctx) EnsureSiteHeight(g);
+            float m = 0f, region = Region(u, v);
+            float h = Height(u, v, region, ctx, true, ref m);
+            if (!float.IsNegativeInfinity(seaLevel) && h < seaLevel + 3f) return false;
+            const float d = 4f;
+            float hx = Height(u + d, v, region, ctx, true, ref m), hz = Height(u, v + d, region, ctx, true, ref m);
+            float slope = Mathf.Atan(new Vector2(hx - h, hz - h).magnitude / d) * Mathf.Rad2Deg;
+            return slope <= 28f;
         }
 
         /// <summary>Where the sun is for a landing in one area (the time of day differs from place to place).</summary>

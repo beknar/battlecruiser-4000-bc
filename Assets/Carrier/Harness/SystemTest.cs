@@ -68,6 +68,8 @@ namespace CarrierGame.Demo
             t.streamOnly = LaunchArgs.Switch("streamtest");
             // -approachtest (or ?approachtest): only the real-size worlds and flying down to them
             t.approachOnly = LaunchArgs.Switch("approachtest");
+            // -striketest (or ?striketest): only the strikes from orbit
+            t.strikeOnly = LaunchArgs.Switch("striketest");
             // -cooptest (or ?cooptest), with -connect address:port (?server=...&connect): co-op with
             // the scripted second player (Tools/CoopTest/bot.py); -coopquick (?coopquick) skips the
             // part at Corsair Haven
@@ -162,6 +164,13 @@ namespace CarrierGame.Demo
             if (coopOnly)
             {
                 yield return CoopTest(kb, coopQuick);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
+            if (strikeOnly)
+            {
+                yield return StrikeTest(kb);
                 Log("done");
                 if (!web) Application.Quit();
                 yield break;

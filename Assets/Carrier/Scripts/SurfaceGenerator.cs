@@ -45,6 +45,8 @@ namespace CarrierGame
         [Header("Settlements (cities, military and industrial bases on the ground)")]
         [Tooltip("The named bases with a layout (Resources/Settlements/<name>: a landing pad ('Outpost') at the middle and its buildings round it, each set on the ground where it falls). Loaded only to build a surface, and let go with it.")]
         public string[] settlements;
+        [Tooltip("Rubble where a settlement building was struck from orbit.")]
+        public Material rubble;
 
         /// <summary>The layout for a named base (loaded now), or null.</summary>
         public GameObject Settlement(string baseName)

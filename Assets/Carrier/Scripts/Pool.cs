@@ -44,6 +44,7 @@ namespace CarrierGame
                     var go = stack.Pop();
                     if (go == null) continue;              // went with its scene
                     var t = go.transform;
+                    if (OrbitalSystem.Instance != null) OrbitalSystem.Instance.Forget(t);
                     t.SetPositionAndRotation(position, rotation);
                     t.localScale = key.transform.localScale;
                     go.SetActive(true);

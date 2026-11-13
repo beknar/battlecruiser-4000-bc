@@ -397,6 +397,11 @@ namespace Carrier.EditorTools
             drive.sparkMaterial = sparkMat;
             // flying near the planets: up out from them, cruise, the air and its sky
             var flight = frigate.AddComponent<PlanetFlight>();
+            // and the kinetic strike from orbit (Y), with the strikes' looks
+            var ks = frigate.AddComponent<KineticStrike>();
+            ks.glowMaterial = ParticleAdditive("FX_StrikeGlow", KenneyTex("light_01"), new Color(3f, 2.6f, 2f, 1f));
+            ks.beamMaterial = ParticleAdditive("FX_StrikeBeam", null, new Color(2.4f, 2.6f, 3f, 1f));
+            ks.ringMaterial = ParticleAdditive("FX_StrikeRing", KenneyTex("circle_05"), new Color(2f, 1.8f, 1.5f, 1f));
             flight.skyDome = SaveMat("SkyDome", new Material(Shader.Find("Carrier/SkyDome")));
 
             // hostiles hiding in two of the fields

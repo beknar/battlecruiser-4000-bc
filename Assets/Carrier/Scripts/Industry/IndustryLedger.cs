@@ -180,6 +180,7 @@ namespace CarrierGame
         {
             if (string.IsNullOrEmpty(place) || n <= 0f) return;
             pools[place] = Mathf.Max(0f, Pool(place) - n);
+            Changed?.Invoke();
         }
 
         /// <summary>Recruits waiting at a place (its whole pool the first time; 0 where none recruit).</summary>

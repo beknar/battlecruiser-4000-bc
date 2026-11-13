@@ -59,7 +59,9 @@ namespace CarrierGame.Demo
 
         void Update()
         {
-            body = Over();
+            var b = Over();
+            if (b != body) { nextLook = 0f; targeted = false; }      // (a new body: its own target, now)
+            body = b;
             if (body != null && Time.time >= nextLook)
             {
                 nextLook = Time.time + 1f;
@@ -99,7 +101,9 @@ namespace CarrierGame.Demo
             Notices.Post($"Kinetic strike away: {label}, {fall / 1000f:F0} km down");
             SoundFX.Play(Sfx.Cannon, start, 1f, 0.5f);
             var fireball = ship.GetComponent<Health>()?.deathEffect;
-            StrikeFx.Rod(start, () => OrbitalStrikes.GroundPoint(b, u, v), Mathf.Clamp(fall / fallSpeed, 3f, 25f), new Color(1f, 0.85f, 0.6f), () =>
+            // (from where it was dropped, turning with the body as it falls)
+            Vector3 startLocal = b.transform.InverseTransformPoint(start);
+            StrikeFx.Rod(() => b.transform.TransformPoint(startLocal), () => OrbitalStrikes.GroundPoint(b, u, v), Mathf.Clamp(fall / fallSpeed, 3f, 25f), new Color(1f, 0.85f, 0.6f), () =>
             {
                 Vector3 at = OrbitalStrikes.GroundPoint(b, u, v);
                 StrikeFx.Flash(at, radius * 10f, new Color(1f, 0.8f, 0.55f), fireball);

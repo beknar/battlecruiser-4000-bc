@@ -43,11 +43,14 @@ namespace CarrierGame.Demo
         }
 
         /// <summary>When it fires next (game seconds), or never while it is destroyed.</summary>
-        public double NextAt => health != null && health.Dead ? double.PositiveInfinity : WorldState.TryTimer(timer, out double at) ? at : 0.0;
+        public double NextAt => health != null && health.Dead ? double.PositiveInfinity
+            : WorldState.TryTimer(timer, out double at) ? at : WorldState.Clock + intervalMinutes * 60.0 * 0.5;
 
         void Update()
         {
             if (health != null && health.Dead) return;
+            // (no clock for it: a game from before it, or the world just loaded without it)
+            if (!WorldState.TryTimer(timer, out _)) { WorldState.SetTimer(timer, NextAt); return; }
             if (WorldState.Clock >= NextAt) FireNow();
         }
 
@@ -86,9 +89,10 @@ namespace CarrierGame.Demo
                 for (int k = 0; k < 3; k++)
                 {
                     int shot = k;
-                    Vector3 from = transform.position;
-                    float fall = Vector3.Distance(from, Ground());
-                    StrikeFx.Rod(from, Ground, Mathf.Clamp(fall / 6000f, 3f, 20f) + k * 0.6f, new Color(1f, 0.6f, 0.35f), () =>
+                    // (from where it fired, turning with the body as the slug falls)
+                    Vector3 from = body.transform.InverseTransformPoint(transform.position);
+                    float fall = Vector3.Distance(transform.position, Ground());
+                    StrikeFx.Rod(() => body.transform.TransformPoint(from), Ground, Mathf.Clamp(fall / 6000f, 3f, 20f) + k * 0.6f, new Color(1f, 0.6f, 0.35f), () =>
                     {
                         StrikeFx.Flash(Ground(), radius * 6f, new Color(1f, 0.7f, 0.45f), fireball);
                         if (shot == 0) land();

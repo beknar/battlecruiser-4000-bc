@@ -118,6 +118,8 @@ namespace CarrierGame.Demo
             if (landing == null || body == null) return res;
             var w = landing.WorldFor(body);
             var mem = WorldState.Body(body.displayName);
+            var units = new HashSet<long>();
+            var ruined = new List<long>();
             ForAreas(w, u, v, radius + 400f, f =>
             {
                 long area = (long)f.i * w.M + f.j;
@@ -128,10 +130,11 @@ namespace CarrierGame.Demo
                     double du = SurfaceWorld.WrapDelta(s.u - u, w.C), dv = s.v - v;
                     if (du * du + dv * dv > (double)radius * radius || mem.destroyed.Contains(key)) continue;
                     mem.destroyed.Add(key, GroundForces.RebuildMinutesOf(s.kind));
+                    units.Add(key);
                     res.units++;
                 }
-                // a settlement's buildings, where its layout has them
-                var layout = f.baseName != null ? landing.kit.Settlement(f.baseName) : null;
+                // a settlement's buildings, where its layout has them (and the ground holds them up)
+                var layout = f.baseName != null && f.site != SiteKind.Base ? landing.kit.Settlement(f.baseName) : null;
                 if (layout == null) return;
                 var turn = Quaternion.Euler(0f, f.siteYaw, 0f);
                 for (int i = 0; i < layout.transform.childCount; i++)
@@ -142,7 +145,9 @@ namespace CarrierGame.Demo
                     double du = SurfaceWorld.WrapDelta(f.su + off.x - u, w.C), dv = f.sv + off.z - v;
                     long key = WorldState.BuildingKey(f.baseName, i);
                     if (du * du + dv * dv > (double)radius * radius || mem.destroyed.Contains(key)) continue;
+                    if (!w.Stands(f, f.su + off.x, f.sv + off.z)) continue;
                     mem.destroyed.Add(key, BuildingRebuildMinutes);
+                    ruined.Add(key);
                     res.buildings++;
                     res.place = f.baseName;
                 }
@@ -152,12 +157,20 @@ namespace CarrierGame.Demo
                 res.casualties = Mathf.Min(res.buildings * CasualtiesPerBuilding, Mathf.FloorToInt(IndustryLedger.Pool(res.place)));
                 IndustryLedger.Lose(res.place, res.casualties);
             }
+            // the ship down on that body: what the strike hit there goes now
+            if (PlanetLanding.OnSurface && landing.Body == body && landing.Surface != null)
+            {
+                foreach (var gu in landing.Surface.GetComponentsInChildren<GroundUnit>())
+                    if (gu.Alive && units.Contains(gu.key) && gu.TryGetComponent(out Health h)) h.Damage(h.maxHealth * 50f + 1e6f, gu.transform.position, HitKind.Beam);
+                foreach (var key in ruined) landing.Surface.Ruin(key);
+            }
             WorldState.AddScar(body.displayName, new WorldState.Scar { u = u, v = v, radius = radius * 0.8f, depth = craterDepth, at = WorldState.Clock });
-            WorldState.Strikes.Add(new WorldState.Strike
+            WorldState.LogStrike(new WorldState.Strike
             {
                 at = WorldState.Clock, body = body.displayName, place = res.place ?? "", weapon = weapon,
                 units = res.units, buildings = res.buildings, casualties = res.casualties, seen = seen,
             });
+            IndustryLedger.Touch();      // (saved soon: the craters, the losses)
             return res;
         }
     }

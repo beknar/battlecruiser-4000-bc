@@ -72,6 +72,8 @@ namespace CarrierGame
             public float extent;                // m, about how big it is
             public volatile int state;          // 0 nothing, 1 working, 2 worked out, 3 ready
             public volatile bool cancelled;
+            public volatile bool redoing;       // worked out again (a crater) while its old mesh is drawn
+            public volatile bool stale;         // the ground changed while it was being worked out
             public int generation;
             // worked out (worker thread) -> made into a mesh (main thread)
             public Vector3[] v;
@@ -129,12 +131,31 @@ namespace CarrierGame
             if (!Threads) RunSome(4f);
         }
 
-        /// <summary>Work every patch out again (the ground has changed: a crater).</summary>
-        public void Refresh()
+        /// <summary>Work out again the patches round a place (the ground has changed there: a
+        /// crater): `dir` from the body's centre (its own space), `radius` m. Each keeps its old
+        /// mesh drawn till the new one is ready.</summary>
+        public void Refresh(Vector3 dir, float radius)
         {
-            if (!Active) return;
-            SetActive(false);
-            SetActive(true);
+            if (!Active || roots == null) return;
+            Vector3 at = dir.normalized * R;
+            foreach (var r in roots) Refresh(r, at, radius);
+        }
+
+        void Refresh(Node nd, Vector3 at, float radius)
+        {
+            if (nd == null || Vector3.Distance(nd.centre, at) > nd.extent * 1.5f + radius) return;
+            if (nd.state == 1 || nd.state == 2 || nd.redoing) nd.stale = true;
+            else if (nd.state == 3) Redo(nd);
+            if (nd.kids != null) foreach (var k in nd.kids) Refresh(k, at, radius);
+        }
+
+        void Redo(Node nd)
+        {
+            nd.redoing = true;
+            nd.stale = false;
+            Interlocked.Increment(ref pending);
+            if (Threads) ThreadPool.QueueUserWorkItem(_ => Work(nd));
+            else mainThreadWork.Add(nd);
         }
 
         void SetActive(bool on)
@@ -290,9 +311,12 @@ namespace CarrierGame
                         float slope = 1f - Vector3.Dot(nn, up);
                         Color col = PlanetMaps.Ground(kind, up, mapSeed) * (1f - Mathf.Clamp01(slope * 3f) * 0.35f);
                         col = PlanetMaps.Hint(kind, col, hint[g]);
-                        world.FromDirection(up, out double su, out double sv);
-                        world.ScarAt(su, sv, out float scorch);
-                        if (scorch > 0f) col = Color.Lerp(col, new Color(0.12f, 0.1f, 0.09f), scorch * 0.85f);
+                        if (world.scars.Length > 0)
+                        {
+                            world.FromDirection(up, out double su, out double sv);
+                            world.ScarAt(su, sv, out float scorch);
+                            if (scorch > 0f) col = Color.Lerp(col, new Color(0.12f, 0.1f, 0.09f), scorch * 0.85f);
+                        }
                         c[k] = col;
                     }
                 // the skirt: round the edge, hanging down
@@ -307,13 +331,14 @@ namespace CarrierGame
                     uv[s + e] = uv[k];
                 }
                 nd.v = v; nd.n = n; nd.c = c; nd.uv = uv;
-                nd.state = 2;
+                if (!nd.redoing) nd.state = 2;
                 lock (gate) built.Enqueue(nd);
             }
             catch (System.Exception ex)
             {
                 Debug.LogWarning($"[PlanetTerrain] {bodyName}: {ex.Message}");
-                nd.state = 0;
+                if (nd.redoing) nd.redoing = false;     // (its old mesh kept)
+                else nd.state = 0;
                 Done(nd);
             }
         }
@@ -412,6 +437,7 @@ namespace CarrierGame
                 lock (gate) { if (built.Count == 0) break; nd = built.Dequeue(); }
                 Done(nd);
                 if (nd.cancelled) continue;
+                var old = nd.redoing ? nd.mesh : null;
                 var mesh = meshPool.Count > 0 ? meshPool.Pop() : new Mesh { name = "TerrainPatch", hideFlags = HideFlags.DontSave };
                 mesh.Clear();
                 mesh.vertices = nd.v;
@@ -435,8 +461,18 @@ namespace CarrierGame
                 }
                 nd.go.transform.localPosition = nd.centre;
                 nd.go.GetComponent<MeshFilter>().sharedMesh = mesh;
-                nd.mr.enabled = false;
-                nd.state = 3;
+                if (nd.redoing)
+                {
+                    // (worked out again: the new mesh in place of the old, drawn as it was)
+                    nd.redoing = false;
+                    if (old != null) meshPool.Push(old);
+                }
+                else
+                {
+                    nd.mr.enabled = false;
+                    nd.state = 3;
+                }
+                if (nd.stale) Redo(nd);
             }
         }
 

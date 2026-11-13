@@ -21,7 +21,7 @@ namespace CarrierGame
         static readonly Dictionary<string, BodyMemory> bodies = new Dictionary<string, BodyMemory>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { Clock = 0; bodies.Clear(); timers.Clear(); Strikes.Clear(); ScarsChanged = null; }
+        static void ResetStatics() { Clock = 0; bodies.Clear(); timers.Clear(); Strikes.Clear(); ScarsChanged = null; Restored = null; }
 
         public static void Advance(float dt) { if (dt > 0f) Clock += dt * IndustryLedger.SpeedUp; }
 
@@ -65,13 +65,43 @@ namespace CarrierGame
 
         /// <summary>The strikes so far this game, the newest last.</summary>
         public static readonly List<Strike> Strikes = new List<Strike>();
-        /// <summary>Told when a body's craters change (the ground built from them is built again).</summary>
-        public static event Action<string> ScarsChanged;
+        /// <summary>Told when a body's craters change (the ground built from them is built again):
+        /// which body, and the crater made or deepened.</summary>
+        public static event Action<string, Scar> ScarsChanged;
 
+        /// <summary>The most craters a body keeps (the oldest go), and strikes kept in the log.</summary>
+        public const int MaxScars = 48, MaxStrikes = 200;
+
+        /// <summary>A crater left by a strike. One where a crater already is deepens that one a
+        /// little (to at most 1.6 times a strike's own), rather than adding a pit as deep as all
+        /// the strikes there together.</summary>
         public static void AddScar(string body, Scar s)
         {
-            Body(body).scars.Add(s);
-            ScarsChanged?.Invoke(body);
+            var list = Body(body).scars;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var o = list[i];
+                double du = o.u - s.u, dv = o.v - s.v;
+                float r = Mathf.Max(o.radius, s.radius);
+                if (du * du + dv * dv >= (double)r * r * 0.25) continue;
+                float deeper = Mathf.Max(o.depth, s.depth);
+                o.depth = Mathf.Max(deeper, Mathf.Min(deeper + s.depth * 0.15f, s.depth * 1.6f));
+                o.radius = r;
+                o.at = s.at;
+                list[i] = o;
+                ScarsChanged?.Invoke(body, o);
+                return;
+            }
+            list.Add(s);
+            if (list.Count > MaxScars) list.RemoveAt(0);
+            ScarsChanged?.Invoke(body, s);
+        }
+
+        /// <summary>A strike, logged (the oldest go past MaxStrikes).</summary>
+        public static void LogStrike(Strike s)
+        {
+            Strikes.Add(s);
+            if (Strikes.Count > MaxStrikes) Strikes.RemoveAt(0);
         }
 
         /// <summary>When things in the world are due next (a strike satellite's next strike), by name.</summary>
@@ -141,8 +171,16 @@ namespace CarrierGame
             Strikes.Clear();
             Clock = s != null ? Math.Max(0.0, s.clock) : 0.0;
             if (s?.timers != null) foreach (var t in s.timers) if (t != null && t.name != null) timers[t.name] = t.at;
-            if (s?.bodies == null) return;
-            foreach (var b in s.bodies)
+            if (s?.bodies != null) RestoreBodies(s.bodies);
+            Restored?.Invoke();
+        }
+
+        /// <summary>Told when the world has been loaded (the ground is built again with its craters).</summary>
+        public static event Action Restored;
+
+        static void RestoreBodies(List<SavedBody> saved)
+        {
+            foreach (var b in saved)
             {
                 if (b == null || b.name == null) continue;
                 var m = Body(b.name);

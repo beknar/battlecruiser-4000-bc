@@ -22,7 +22,7 @@ namespace CarrierGame.Demo
         Light glow;
         Color color;
         float size;
-        Vector3 start;
+        MeshRenderer coreRenderer, ringRenderer;
 
         /// <summary>The strikes' materials (KineticStrike carries them from the builder): a soft
         /// glow for the sprites, a beam for the beams and streaks, a ring for the shock wave.</summary>
@@ -35,17 +35,19 @@ namespace CarrierGame.Demo
         /// <summary>The camera's distance to a point: what is seen from far is drawn bigger.</summary>
         static float Far(Vector3 p) => Camera.main != null ? Vector3.Distance(Camera.main.transform.position, p) : 1000f;
 
-        /// <summary>A rod (or slug) from `from` to wherever `to` says the target is now, in `seconds`; then `landed`.</summary>
-        public static StrikeFx Rod(Vector3 from, Func<Vector3> to, float seconds, Color color, Action landed)
+        /// <summary>A rod (or slug) from where `from` says it was dropped to wherever `to` says the
+        /// target is now (each where the body has turned to: the origin may move under it as it
+        /// falls), in `seconds`; then `landed`.</summary>
+        public static StrikeFx Rod(Func<Vector3> from, Func<Vector3> to, float seconds, Color color, Action landed)
         {
             var fx = Make("Strike rod", Kind.Rod, color);
-            fx.start = from;
+            fx.from = from;
             fx.to = to;
             fx.seconds = Mathf.Max(0.5f, seconds);
             fx.landed = landed;
             fx.core = Ball(fx.transform, color);
             fx.streak = Line(fx.gameObject, color);
-            fx.transform.position = from;
+            fx.transform.position = from();
             return fx;
         }
 
@@ -70,7 +72,9 @@ namespace CarrierGame.Demo
             fx.size = size;
             fx.seconds = 4f;
             fx.core = Ball(fx.transform, color);
+            fx.coreRenderer = fx.core.GetComponent<MeshRenderer>();
             fx.ring = RingAt(fx.transform, at, color);
+            fx.ringRenderer = fx.ring != null ? fx.ring.GetComponent<MeshRenderer>() : null;
             fx.glow = fx.gameObject.AddComponent<Light>();
             fx.glow.type = LightType.Point;
             fx.glow.color = color;
@@ -122,10 +126,11 @@ namespace CarrierGame.Demo
             return q.transform;
         }
 
+        static MaterialPropertyBlock block;
         static void Tint(Renderer r, Color c)
         {
             c = new Color(c.r * 2.5f, c.g * 2.5f, c.b * 2.5f, c.a);   // (HDR: bright enough to bloom)
-            var block = new MaterialPropertyBlock();
+            if (block == null) block = new MaterialPropertyBlock();
             block.SetColor("_BaseColor", c);
             block.SetColor("_Color", c);
             r.SetPropertyBlock(block);
@@ -158,7 +163,7 @@ namespace CarrierGame.Demo
             {
                 case Kind.Rod:
                 {
-                    Vector3 end = to();
+                    Vector3 start = from(), end = to();
                     // (falling faster as it goes, as a rod from orbit does)
                     float s0 = k * k * (0.6f + 0.4f * k), sBack = Mathf.Max(0f, s0 - 0.12f);
                     transform.position = Vector3.Lerp(start, end, s0);
@@ -191,11 +196,11 @@ namespace CarrierGame.Demo
                     core.localScale = Vector3.one * Mathf.Max(size * (0.4f + grow), far * 0.05f * (1f - k));
                     if (glow != null) glow.intensity = 8f * (1f - k);
                     var c = color * (1f - k * k);
-                    Tint(core.GetComponent<MeshRenderer>(), c);
+                    Tint(coreRenderer, c);
                     if (ring != null)
                     {
                         ring.localScale = Vector3.one * size * (0.3f + 2.2f * grow);
-                        Tint(ring.GetComponent<MeshRenderer>(), color * (1f - k));
+                        Tint(ringRenderer, color * (1f - k));
                     }
                     if (k >= 1f) Done();
                     break;

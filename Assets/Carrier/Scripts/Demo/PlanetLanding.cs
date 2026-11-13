@@ -97,6 +97,7 @@ namespace CarrierGame.Demo
             // the ground seen close to from space is each body's own surface
             PlanetTerrain.Worlds = wp => Seamless(wp) ? WorldFor(wp) : null;
             WorldState.ScarsChanged += ScarsChanged;
+            WorldState.Restored += ScarsRestored;
             // (where a surface is built: the system leaves what is there to it)
             OrbitalSystem.SurfaceAt = SiteCenter;
         }
@@ -105,6 +106,7 @@ namespace CarrierGame.Demo
         {
             if (Instance == this) { Instance = null; PlanetTerrain.Worlds = null; }
             WorldState.ScarsChanged -= ScarsChanged;
+            WorldState.Restored -= ScarsRestored;
             if (Prepared) Discard();
             if (Site != null) CombatPilot.FloorAt = null;   // (the surface may already be gone in a scene change)
             if (Site != null && Site.water) Sea.Clear();    // (a restart down on the sea: the next level has none)
@@ -426,16 +428,43 @@ namespace CarrierGame.Demo
         }
 
         /// <summary>A new crater on a body: its surface (and the ground seen from space) has it from now on.</summary>
-        void ScarsChanged(string bodyName)
+        /// <summary>A crater made: the ground of its body built again where it is. While the ship
+        /// is down on that body, the surface there is left as it is (no seams between the areas
+        /// built before and after); the crater is in it from the next time it is built.</summary>
+        void ScarsChanged(string bodyName, WorldState.Scar scar)
         {
             foreach (var kv in worlds)
                 if (kv.Key != null && kv.Key.displayName == bodyName)
                 {
-                    kv.Value.scars = WorldState.Body(bodyName).scars.ToArray();
-                    if (kv.Key.TryGetComponent(out PlanetTerrain t)) t.Refresh();
-                    // (ground built ahead without it: built again)
-                    if (Prepared && preparedFor == kv.Key) Discard();
+                    if (Busy && Body == kv.Key) { scarsWaiting.Add(kv.Key); continue; }
+                    ApplyScars(kv.Key, kv.Value, scar.u, scar.v, scar.radius * 1.6f);
                 }
+        }
+
+        readonly HashSet<WarpPoint> scarsWaiting = new HashSet<WarpPoint>();
+
+        /// <summary>The world loaded: every body's ground built again with its craters (that one
+        /// the ship is down on when it is back in space).</summary>
+        void ScarsRestored()
+        {
+            foreach (var kv in worlds)
+                if (kv.Key != null)
+                {
+                    if (Busy && Body == kv.Key) scarsWaiting.Add(kv.Key);
+                    else ApplyScars(kv.Key, kv.Value, 0, 0, 0f);
+                }
+        }
+
+        void ApplyScars(WarpPoint body, SurfaceWorld w, double u, double v, float reach)
+        {
+            w.scars = WorldState.Body(body.displayName).scars.ToArray();
+            if (body.TryGetComponent(out PlanetTerrain t))
+            {
+                if (reach > 0f) t.Refresh(w.Direction(u, v), reach);
+                else t.Refresh(Vector3.up, (float)w.R * 4f);      // (everywhere)
+            }
+            // (ground built ahead without it: built again)
+            if (Prepared && preparedFor == body) Discard();
         }
 
         static int AreaOf(SurfaceWorld w, double u, double v)
@@ -573,6 +602,13 @@ namespace CarrierGame.Demo
         void Update()
         {
             if (carrier == null) return;
+            // (craters made while down on a body: its ground built with them, back in space)
+            if (scarsWaiting.Count > 0 && !Busy)
+            {
+                foreach (var b in scarsWaiting)
+                    if (b != null && worlds.TryGetValue(b, out var sw)) ApplyScars(b, sw, 0, 0, 0f);
+                scarsWaiting.Clear();
+            }
             if (Current == State.OnSurface)
             {
                 // destroyed down here: it comes back at its respawn point in space

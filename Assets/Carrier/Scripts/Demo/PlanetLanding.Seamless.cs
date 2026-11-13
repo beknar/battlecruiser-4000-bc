@@ -94,7 +94,9 @@ namespace CarrierGame.Demo
             float alt = pf.Altitude;
             if (!Prepared)
             {
-                if (alt < prepareHeight) Prepare(body);
+                // (coming down: by hand, nose down or sinking, or the auto-lander)
+                bool down = carrier.ClimbRate < -2f || GoingDown;
+                if (alt < prepareHeight && down) Prepare(body);
                 if (!Prepared) return;
             }
             else if (alt > prepareHeight + 8000f) { Discard(); return; }

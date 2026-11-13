@@ -204,8 +204,16 @@ namespace CarrierGame.Demo
                         cc.throttle = 0f;
                         var oc2 = demo.orbitCamera;
                         if (oc2 != null) { oc2.yaw = Mathf.Atan2(look.x, look.z) * Mathf.Rad2Deg - 25f; oc2.pitch = 12f; }
+                        // (the frigate's point defence off: with a full crew it shoots every shell down)
+                        var ciws = demo.Ciws;
+                        bool ciwsWas = ciws != null && ciws.active;
+                        if (ciws != null) ciws.active = false;
                         near.garrison.Raise();
+                        // (a battery's shells take a while to find the range: up to 15 s for a hit)
+                        float hitBy = Time.time + 15f;
                         yield return new WaitForSeconds(7f);
+                        while (Time.time < hitBy && (hull1 - health.Current) + (shield1 - (shield != null ? shield.Strength : 0f)) <= 0f) yield return null;
+                        if (ciws != null) ciws.active = ciwsWas;
                         Shot($"l_{name.Replace(' ', '_').ToLower()}_forces");
                         float took = (hull1 - health.Current) + (shield1 - (shield != null ? shield.Strength : 0f));
                         Log($"  close to a {near.name} ({Vector3.Distance(near.transform.position, cc.transform.position):F0} m, in sight {Cover.Visible(near.transform.position + Vector3.up * 8f, cc.transform.position)}, " +

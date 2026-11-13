@@ -40,11 +40,13 @@ namespace CarrierGame
 
         /// <summary>The patches drawn now (for the self-test and the HUD).</summary>
         public int Drawn { get; private set; }
-        public int Pending => pending;
+        public int Pending => Mathf.Max(0, pending);
         public bool Active { get; private set; }
         public static readonly List<PlanetTerrain> All = new List<PlanetTerrain>();
 
         float R;                                // the body's radius (m)
+        string bodyName = "";                   // (for the workers' warnings: a Unity object's name is the main thread's)
+        int generation;                         // patches asked for before the last let-go are forgotten
         Transform holder;                       // metres, round the body's centre (turning with it)
         Node[] roots;
         int pending;
@@ -70,6 +72,7 @@ namespace CarrierGame
             public float extent;                // m, about how big it is
             public volatile int state;          // 0 nothing, 1 working, 2 worked out, 3 ready
             public volatile bool cancelled;
+            public int generation;
             // worked out (worker thread) -> made into a mesh (main thread)
             public Vector3[] v;
             public Vector3[] n;
@@ -84,6 +87,7 @@ namespace CarrierGame
         void Start()
         {
             if (sphere == null) sphere = GetComponent<Renderer>();
+            bodyName = name;
         }
 
         /// <summary>The body's surface, found the first time it is wanted.</summary>
@@ -118,6 +122,10 @@ namespace CarrierGame
             ApplyBuilt();
             Drawn = 0;
             foreach (var r in roots) Visit(r, eyeM);
+            // (the plain sphere until every face has its own patches: no holes while they come)
+            bool covered = true;
+            foreach (var r in roots) if (r.state != 3) { covered = false; break; }
+            if (sphere != null && sphere.enabled == covered) sphere.enabled = !covered;
             if (!Threads) RunSome(4f);
         }
 
@@ -150,7 +158,7 @@ namespace CarrierGame
 
         Node NewNode(int face, int level, double s0, double t0, double size)
         {
-            var nd = new Node { face = face, level = level, s0 = s0, t0 = t0, size = size };
+            var nd = new Node { face = face, level = level, s0 = s0, t0 = t0, size = size, generation = generation };
             nd.centre = Point(face, s0 + size * 0.5, t0 + size * 0.5) * R;
             nd.extent = (float)(size * 0.5 * Mathf.PI * 0.5 * R);
             return nd;
@@ -199,7 +207,7 @@ namespace CarrierGame
                 foreach (var k in nd.kids) Free(k);
                 nd.kids = null;
             }
-            if (nd.state == 3) { Show(nd, true); Drawn++; if (sphere != null && sphere.enabled) sphere.enabled = false; }
+            if (nd.state == 3) { Show(nd, true); Drawn++; }
             else if (nd.state == 0) Request(nd);
         }
 
@@ -236,7 +244,7 @@ namespace CarrierGame
         {
             try
             {
-                if (nd.cancelled) { Interlocked.Decrement(ref pending); return; }
+                if (nd.cancelled) { Done(nd); return; }
                 const int G = N + 2;                         // with a border, for the normals
                 var pos = new Vector3[G * G];
                 var hint = new float[G * G];
@@ -293,9 +301,9 @@ namespace CarrierGame
             }
             catch (System.Exception ex)
             {
-                Debug.LogWarning($"[PlanetTerrain] {name}: {ex.Message}");
+                Debug.LogWarning($"[PlanetTerrain] {bodyName}: {ex.Message}");
                 nd.state = 0;
-                Interlocked.Decrement(ref pending);
+                Done(nd);
             }
         }
 
@@ -341,6 +349,13 @@ namespace CarrierGame
             return new Vector2(1f - lon / (Mathf.PI * 2f), (lat + Mathf.PI / 2f) / Mathf.PI);
         }
 
+        /// <summary>A patch finished with (worked out, cancelled or failed): one fewer pending, unless
+        /// it was asked for before the terrain was last let go.</summary>
+        void Done(Node nd)
+        {
+            if (nd.generation == generation) Interlocked.Decrement(ref pending);
+        }
+
         /// <summary>The e-th point round a patch's edge.</summary>
         static int Edge(int e)
         {
@@ -384,7 +399,7 @@ namespace CarrierGame
             {
                 Node nd;
                 lock (gate) { if (built.Count == 0) break; nd = built.Dequeue(); }
-                Interlocked.Decrement(ref pending);
+                Done(nd);
                 if (nd.cancelled) continue;
                 var mesh = meshPool.Count > 0 ? meshPool.Pop() : new Mesh { name = "TerrainPatch", hideFlags = HideFlags.DontSave };
                 mesh.Clear();
@@ -420,7 +435,7 @@ namespace CarrierGame
             nd.cancelled = true;
             if (nd.kids != null) foreach (var k in nd.kids) Free(k);
             nd.kids = null;
-            if (mainThreadWork.Remove(nd)) Interlocked.Decrement(ref pending);
+            if (mainThreadWork.Remove(nd)) Done(nd);
             if (nd.mesh != null) { meshPool.Push(nd.mesh); nd.mesh = null; }
             if (nd.go != null) Destroy(nd.go);
             nd.go = null;
@@ -432,6 +447,7 @@ namespace CarrierGame
             roots = null;
             mainThreadWork.Clear();
             lock (gate) built.Clear();
+            generation++;
             pending = 0;
             Drawn = 0;
         }

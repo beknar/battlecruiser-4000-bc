@@ -179,7 +179,7 @@ namespace CarrierGame
         }
 
         /// <summary>Velocity at time t relative to what it goes round (m/s, finite difference).</summary>
-        public Vector3 Velocity(double t) => (Offset(t + 0.5) - Offset(t - 0.5));
+        public Vector3 Velocity(double t) => (OffsetD(t + 0.5) - OffsetD(t - 0.5)).ToVector3();
 
         /// <summary>Put its frame at a world position (OrbitalSystem works it out in double, round
         /// the world's origin), `offset` from what it goes round (for turning to face it).</summary>

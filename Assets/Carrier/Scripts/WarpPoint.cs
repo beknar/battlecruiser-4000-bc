@@ -42,8 +42,16 @@ namespace CarrierGame
 
         /// <summary>Where it is (where it really is, even while ScaledSpace has it drawn nearer:
         /// the screen's text can be worked out in the middle of drawing).</summary>
-        public Vector3 Position => scaled != null || (scaled = GetComponent<ScaledSpace>()) != null ? scaled.RealPosition : transform.position;
+        public Vector3 Position
+        {
+            get
+            {
+                if (!scaledLooked) { scaledLooked = true; scaled = GetComponent<ScaledSpace>(); }
+                return scaled != null ? scaled.RealPosition : transform.position;
+            }
+        }
         ScaledSpace scaled;
+        bool scaledLooked;
 
         /// <summary>Something built, not a natural body.</summary>
         public bool Built => kind >= Kind.Station;

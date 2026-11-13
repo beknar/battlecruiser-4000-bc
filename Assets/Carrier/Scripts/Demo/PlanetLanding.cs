@@ -96,6 +96,8 @@ namespace CarrierGame.Demo
             if (carrier != null && drive == null) drive = carrier.GetComponent<WarpDrive>();
             // the ground seen close to from space is each body's own surface
             PlanetTerrain.Worlds = wp => Seamless(wp) ? WorldFor(wp) : null;
+            // (where a surface is built: the system leaves what is there to it)
+            OrbitalSystem.SurfaceAt = SiteCenter;
         }
 
         void OnDestroy()
@@ -283,6 +285,10 @@ namespace CarrierGame.Demo
             Site.outpost = outpost;
             Site.pad = outpost != null ? outpost.position : new Vector3(SiteCenter.x, Surface.FloorAt(SiteCenter), SiteCenter.z);
             Surface.Shifted += d => { if (Site != null) Site.pad += d; };
+            // (the system out of the way, as for a planet: its bodies go round at km/s, and one
+            // passing through where the surface is built would be in the way there)
+            OrbitalSystem.Instance?.Park(true);
+            ScaledSpace.Active = false;
             ApplyLook(Site.look);
             ArriveOverPad();
             Surface.Running = true;

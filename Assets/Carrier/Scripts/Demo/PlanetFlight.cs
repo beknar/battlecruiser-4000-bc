@@ -50,6 +50,7 @@ namespace CarrierGame.Demo
 
         WarpDrive drive;
         Health health;
+        bool wasInSpace = true;
         float nextCheck;
         bool combat;
         string combatWhy = "";
@@ -163,9 +164,17 @@ namespace CarrierGame.Demo
             if (inSpace)
             {
                 ship.speedScale = top / Mathf.Max(1f, ship.maxSpeed);
-                ship.accelScale = Mathf.Max(1f, ship.speedScale * 0.5f);
+                // (speeding up to the cruise, or slowing from it when it is cut: as fast as the
+                // speed it is at, so a cut cruise doesn't coast on for hundreds of kilometres)
+                ship.accelScale = Mathf.Max(1f, Mathf.Max(ship.Speed, top) / Mathf.Max(1f, ship.maxSpeed) * 0.5f);
             }
-            else if (ship.accelScale != 1f) ship.accelScale = 1f;
+            else if (wasInSpace)
+            {
+                // (down on a surface its own flight takes over: no cruise left in the scales)
+                ship.speedScale = 1f;
+                ship.accelScale = 1f;
+            }
+            wasInSpace = inSpace;
 
             // ---- heating: speed in thick air
             float q = Density * ship.Speed * ship.Speed;                 // (dynamic pressure, nearly)

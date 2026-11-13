@@ -21,7 +21,7 @@ namespace CarrierGame.Demo
             {
                 if (info == null || !info.Hostile) continue;
                 var t = info.transform;
-                if (t.position.y < -50000f || t.GetComponentInParent<PlanetSurface>() != null) continue;   // on a planet: each game's own
+                if (t.GetComponentInParent<PlanetSurface>() != null) continue;   // on a planet: each game's own
                 string id = PathOf(t);
                 string unique = id;
                 for (int n = 2; ents.ContainsKey(unique); n++) unique = $"{id}#{n}";

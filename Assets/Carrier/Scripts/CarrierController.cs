@@ -11,7 +11,7 @@ namespace CarrierGame
     /// Being destroyed and coming back, and running into things, each have a file
     /// (CarrierController.Respawn.cs, .Collisions.cs).
     /// </summary>
-    public partial class CarrierController : MonoBehaviour, IVelocity, IOriginShift
+    public partial class CarrierController : MonoBehaviour, IVelocity
     {
         [Header("Identity")]
         public string shipName = "Carrier";
@@ -130,8 +130,8 @@ namespace CarrierGame
         /// <summary>Seconds until a destroyed ship comes back (0 while alive).</summary>
         public float RespawnIn => Destroyed ? Mathf.Max(0f, health.RespawnAt - Time.time) : 0f;
 
-        void OnEnable() => PlayerShips.Add(transform);
-        void OnDisable() => PlayerShips.Remove(transform);
+        void OnEnable() { PlayerShips.Add(transform); OrbitalSystem.Recentred += OriginShifted; }
+        void OnDisable() { PlayerShips.Remove(transform); OrbitalSystem.Recentred -= OriginShifted; }
 
         void Start()
         {

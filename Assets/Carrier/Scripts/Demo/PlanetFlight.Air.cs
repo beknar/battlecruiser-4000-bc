@@ -69,7 +69,16 @@ namespace CarrierGame.Demo
         {
             if (ship == null) return;
             CarryRound();
-            if (!spaceKnown && !PlanetLanding.Busy) RememberSpace();
+            if (PlanetLanding.Busy)
+            {
+                // (down on a surface, its own look is on, set by PlanetLanding: not undone here,
+                // and the space look comes back with it)
+                blending = false;
+                AirLook = 0f;
+                if (dome != null) dome.gameObject.SetActive(false);
+                return;
+            }
+            if (!spaceKnown) RememberSpace();
             var look = Body != null && !PlanetLanding.Busy && PlanetLanding.Instance != null && ScaleHeight(Body) > 0f
                 ? PlanetLanding.Instance.WorldFor(Body).look : null;
             float top = AirTop(Body);

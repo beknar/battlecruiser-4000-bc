@@ -76,16 +76,16 @@ namespace CarrierGame
             if (hum != null) hum.volume = on ? hum.volume : 0f;
         }
 
-        /// <summary>Where the ship comes back after being destroyed (the last place it warped to),
-        /// kept relative to the reach it is in (a planet's, moon's or field's orbit, which doesn't
-        /// spin, or a station turning with its planet), or else to `frame`.</summary>
-        /// <summary>The world's origin moved (OrbitalSystem, PlanetSurface): a respawn point kept
-        /// in the world moves with it.</summary>
-        public void OriginShifted(Vector3 delta)
+        /// <summary>The system's origin was brought back to the frigate (OrbitalSystem): a respawn
+        /// point kept in the world (in no reach) moves with it.</summary>
+        void OriginShifted(Vector3 delta)
         {
             if (spawnFrame == null) spawnPosition += delta;
         }
 
+        /// <summary>Where the ship comes back after being destroyed (the last place it warped to),
+        /// kept relative to the reach it is in (a planet's, moon's or field's orbit, which doesn't
+        /// spin, or a station turning with its planet), or else to `frame`.</summary>
         public void SetSpawn(Vector3 position, Quaternion rotation, Transform frame = null)
         {
             if (OrbitalSystem.Instance != null)

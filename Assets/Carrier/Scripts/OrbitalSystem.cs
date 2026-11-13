@@ -135,8 +135,8 @@ namespace CarrierGame
                 if (go == null) continue;
                 var t = go.transform;
                 if (t == system || t == transform || frames.Contains(t) || far.ContainsKey(t)) continue;
-                if (t.position.y < -100000f) continue;          // a planet's surface (and the frigate on it)
-                if (Camera.main != null && t == Camera.main.transform.root && me != null && me.position.y < -100000f) continue;
+                if (AtSurface(t.position)) continue;          // a planet's surface (and the frigate on it)
+                if (Camera.main != null && t == Camera.main.transform.root && me != null && AtSurface(me.position)) continue;
                 t.position += d;
                 Tell(go, d, true);
             }
@@ -145,6 +145,11 @@ namespace CarrierGame
 
         /// <summary>Told when the origin is brought back to the frigate: everything moved by this.</summary>
         public static event System.Action<Vector3> Recentred;
+
+        /// <summary>Where a planet's surface is being built (PlanetLanding), or null: what is
+        /// within 200 km of it is the surface's (it has its own origin), not the system's.</summary>
+        public static Vector3? SurfaceAt;
+        static bool AtSurface(Vector3 p) => SurfaceAt.HasValue && (p - SurfaceAt.Value).sqrMagnitude < 200000f * 200000f;
 
         Orbit[] orbits;
         Double3[] pos = new Double3[0], posBefore = new Double3[0];
@@ -181,6 +186,8 @@ namespace CarrierGame
         {
             Instance = this;
             HoldOrigin = false;
+            ScaledSpace.Active = true;
+            SurfaceAt = null;
             StarGM = starGM;
             if (system == null) system = transform;
             orbits = system.GetComponentsInChildren<Orbit>(true).ToArray();
@@ -218,7 +225,7 @@ namespace CarrierGame
                 foreach (var go in roots)
                 {
                     var t = go.transform;
-                    if (t == system || t == transform || t.position.y < -100000f) continue;
+                    if (t == system || t == transform) continue;
                     int fi = HomeFrame(go, authored);
                     laidOut.Add((t, fi, fi >= 0 ? (Double3)(t.position - authored[fi]) : (Double3)(t.position - star)));
                 }
@@ -484,7 +491,7 @@ namespace CarrierGame
                 var t = go.transform;
                 if (t == system || t == me || t == cam || t == transform || frames.Contains(t) || far.ContainsKey(t)) continue;
                 Vector3 p = t.position;
-                if (p.y < -100000f) continue;          // a planet's surface, far below everything
+                if (AtSurface(p)) continue;          // a planet's surface (it has its own origin)
                 int i = -1;
                 if (go.TryGetComponent(out OrbitHome home) && home.home != null) i = IndexOf(home.home);
                 if (i < 0) i = ReachOf(p, before);

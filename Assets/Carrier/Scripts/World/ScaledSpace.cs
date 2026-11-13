@@ -27,6 +27,9 @@ namespace CarrierGame
         public static bool Active = true;
 
         static readonly List<ScaledSpace> all = new List<ScaledSpace>();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => Active = true;
         static bool hooked;
         static readonly int LightDirId = Shader.PropertyToID("_CarrierLightDir");
         static MaterialPropertyBlock block;

@@ -241,6 +241,31 @@ namespace CarrierGame
         /// (its "Outpost") on the flattened site and each building on the ground where it falls
         /// (none in the sea, off the area or on a steep slope). The pad is a port: landed on it,
         /// the frigate can recruit crew there, and use it as an industrial site if it is one.</summary>
+        /// <summary>Settlement buildings in rubble on this surface (struck from orbit), for the self-test.</summary>
+        public int Ruined { get; private set; }
+
+        /// <summary>A heap of broken blocks where a building stood.</summary>
+        void Rubble(Transform parent, Vector3 at, int seed)
+        {
+            var rng = new System.Random(seed * 7919 + 17);
+            var heap = new GameObject("Rubble");
+            heap.transform.SetParent(parent, true);
+            heap.transform.position = at;
+            for (int k = 0; k < 7; k++)
+            {
+                var b = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                Destroy(b.GetComponent<Collider>());
+                b.transform.SetParent(heap.transform, false);
+                float s = 6f + (float)rng.NextDouble() * 16f;
+                b.transform.localScale = new Vector3(s, s * 0.45f, s * (0.6f + (float)rng.NextDouble()));
+                b.transform.localPosition = new Vector3((float)rng.NextDouble() * 30f - 15f, s * 0.15f, (float)rng.NextDouble() * 30f - 15f);
+                b.transform.localRotation = Quaternion.Euler((float)rng.NextDouble() * 30f, (float)rng.NextDouble() * 360f, (float)rng.NextDouble() * 30f);
+                var r = b.GetComponent<MeshRenderer>();
+                if (Kit.rubble != null) r.sharedMaterial = Kit.rubble;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+        }
+
         void BuildSettlement(Tile t, TileFeatures f, GameObject layout)
         {
             var root = t.go.transform;
@@ -251,8 +276,20 @@ namespace CarrierGame
             group.transform.SetPositionAndRotation(p, Quaternion.Euler(0f, f.siteYaw + turn, 0f));
             int built = 0;
             Transform pad = null;
-            foreach (Transform c in group.transform.Cast<Transform>().ToArray())
+            var pieces = group.transform.Cast<Transform>().ToArray();
+            for (int i = 0; i < pieces.Length; i++)
             {
+                var c = pieces[i];
+                if (!c.name.StartsWith("Outpost") && Destroyed.Contains(WorldState.BuildingKey(f.baseName, i)))
+                {
+                    // (struck from orbit: rubble where it stood, till it is rebuilt)
+                    Vector3 rp = c.position;
+                    float rg = t.terrain.transform.position.y + t.terrain.SampleHeight(rp);
+                    Rubble(group.transform, new Vector3(rp.x, rg, rp.z), i);
+                    Destroy(c.gameObject);
+                    Ruined++;
+                    continue;
+                }
                 if (c.name.StartsWith("Outpost"))
                 {
                     pad = c;

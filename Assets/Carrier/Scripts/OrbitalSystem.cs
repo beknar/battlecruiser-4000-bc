@@ -182,6 +182,10 @@ namespace CarrierGame
         /// <summary>Free things kept far off, in doubles (for the self-test).</summary>
         public int FarCount => far.Count;
 
+        /// <summary>Something is put to new use where it is now (a pooled shot taken again): no
+        /// longer kept far off where it was.</summary>
+        public void Forget(Transform t) { if (t != null) far.Remove(t); }
+
         void Awake()
         {
             Instance = this;
@@ -451,6 +455,10 @@ namespace CarrierGame
             return -1;
         }
 
+        /// <summary>A shot or explosion put by in its pool (switched off, moved into place when it
+        /// is used again): not carried, and not kept far off.</summary>
+        static bool IsPutBy(GameObject go) => !go.activeSelf && go.TryGetComponent(out Pooled _);
+
         /// <summary>Move what is free in space (ships, shots, wreckage) along with whatever it is in
         /// (`openSpace` where it is in nothing). `back`: the origin came back by this, so what
         /// moved is told even if its reach held it still.</summary>
@@ -461,7 +469,7 @@ namespace CarrierGame
             foreach (var kv in far)
             {
                 var t = kv.Key;
-                if (t == null) { nearAgain.Add(t); continue; }
+                if (t == null || IsPutBy(t.gameObject)) { nearAgain.Add(t); continue; }
                 var e = kv.Value;
                 Double3 sys = e.frame >= 0 ? pos[e.frame] + e.off : e.off;
                 Vector3 now = (sys - origin).ToVector3();
@@ -487,7 +495,7 @@ namespace CarrierGame
             var me = player != null ? player.root : null;
             foreach (var go in roots)
             {
-                if (go == null) continue;
+                if (go == null || IsPutBy(go)) continue;
                 var t = go.transform;
                 if (t == system || t == me || t == cam || t == transform || frames.Contains(t) || far.ContainsKey(t)) continue;
                 Vector3 p = t.position;

@@ -175,6 +175,13 @@ namespace CarrierGame
 
         // ------------------------------------------------------------ crew
 
+        /// <summary>People lost at a place (a strike from orbit): fewer recruits waiting there.</summary>
+        public static void Lose(string place, float n)
+        {
+            if (string.IsNullOrEmpty(place) || n <= 0f) return;
+            pools[place] = Mathf.Max(0f, Pool(place) - n);
+        }
+
         /// <summary>Recruits waiting at a place (its whole pool the first time; 0 where none recruit).</summary>
         public static float Pool(string place)
         {

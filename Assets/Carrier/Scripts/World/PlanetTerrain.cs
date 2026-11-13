@@ -129,6 +129,14 @@ namespace CarrierGame
             if (!Threads) RunSome(4f);
         }
 
+        /// <summary>Work every patch out again (the ground has changed: a crater).</summary>
+        public void Refresh()
+        {
+            if (!Active) return;
+            SetActive(false);
+            SetActive(true);
+        }
+
         void SetActive(bool on)
         {
             Active = on;
@@ -282,6 +290,9 @@ namespace CarrierGame
                         float slope = 1f - Vector3.Dot(nn, up);
                         Color col = PlanetMaps.Ground(kind, up, mapSeed) * (1f - Mathf.Clamp01(slope * 3f) * 0.35f);
                         col = PlanetMaps.Hint(kind, col, hint[g]);
+                        world.FromDirection(up, out double su, out double sv);
+                        world.ScarAt(su, sv, out float scorch);
+                        if (scorch > 0f) col = Color.Lerp(col, new Color(0.12f, 0.1f, 0.09f), scorch * 0.85f);
                         c[k] = col;
                     }
                 // the skirt: round the edge, hanging down

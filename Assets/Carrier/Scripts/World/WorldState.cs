@@ -21,7 +21,7 @@ namespace CarrierGame
         static readonly Dictionary<string, BodyMemory> bodies = new Dictionary<string, BodyMemory>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { Clock = 0; bodies.Clear(); }
+        static void ResetStatics() { Clock = 0; bodies.Clear(); timers.Clear(); Strikes.Clear(); ScarsChanged = null; }
 
         public static void Advance(float dt) { if (dt > 0f) Clock += dt * IndustryLedger.SpeedUp; }
 
@@ -38,7 +38,54 @@ namespace CarrierGame
         public class BodyMemory
         {
             public readonly HashSet<int> explored = new HashSet<int>();
+            /// <summary>Ground forces and settlement buildings destroyed, each till it is rebuilt.</summary>
             public readonly DestroyedSet destroyed = new DestroyedSet();
+            /// <summary>Craters left by strikes from orbit (they stay).</summary>
+            public readonly List<Scar> scars = new List<Scar>();
+        }
+
+        /// <summary>A crater a strike from orbit left on a body's ground: where (its surface's u, v),
+        /// how wide and how deep (m), and when.</summary>
+        [Serializable]
+        public struct Scar
+        {
+            public double u, v;
+            public float radius, depth;
+            public double at;
+        }
+
+        /// <summary>A strike from orbit: when, where, by what, and what it did (for the HUD and the self-test).</summary>
+        public struct Strike
+        {
+            public double at;
+            public string body, place, weapon;
+            public int units, buildings, casualties;
+            public bool seen;
+        }
+
+        /// <summary>The strikes so far this game, the newest last.</summary>
+        public static readonly List<Strike> Strikes = new List<Strike>();
+        /// <summary>Told when a body's craters change (the ground built from them is built again).</summary>
+        public static event Action<string> ScarsChanged;
+
+        public static void AddScar(string body, Scar s)
+        {
+            Body(body).scars.Add(s);
+            ScarsChanged?.Invoke(body);
+        }
+
+        /// <summary>When things in the world are due next (a strike satellite's next strike), by name.</summary>
+        static readonly Dictionary<string, double> timers = new Dictionary<string, double>();
+        public static bool TryTimer(string name, out double at) => timers.TryGetValue(name, out at);
+        public static void SetTimer(string name, double at) => timers[name] = at;
+
+        /// <summary>The key a settlement's building is remembered by in its body's DestroyedSet
+        /// (apart from the ground forces' keys: the top bit is theirs never).</summary>
+        public static long BuildingKey(string place, int index)
+        {
+            uint h = 2166136261;
+            foreach (char c in place ?? "") { h ^= c; h *= 16777619; }
+            return (1L << 62) | ((long)(h & 0xFFFFFF) << 16) | (uint)(index & 0xFFFF);
         }
 
         // ------------------------------------------------------------ saving
@@ -51,6 +98,14 @@ namespace CarrierGame
             public List<long> units = new List<long>();
             public List<double> destroyedAt = new List<double>();
             public List<float> rebuildMinutes = new List<float>();
+            public List<Scar> scars = new List<Scar>();
+        }
+
+        [Serializable]
+        public class SavedTimer
+        {
+            public string name;
+            public double at;
         }
 
         [Serializable]
@@ -58,6 +113,7 @@ namespace CarrierGame
         {
             public double clock;
             public List<SavedBody> bodies = new List<SavedBody>();
+            public List<SavedTimer> timers = new List<SavedTimer>();
         }
 
         public static Saved Snapshot()
@@ -65,7 +121,7 @@ namespace CarrierGame
             var s = new Saved { clock = Clock };
             foreach (var kv in bodies)
             {
-                var b = new SavedBody { name = kv.Key, explored = new List<int>(kv.Value.explored) };
+                var b = new SavedBody { name = kv.Key, explored = new List<int>(kv.Value.explored), scars = new List<Scar>(kv.Value.scars) };
                 foreach (var (key, at, minutes) in kv.Value.destroyed.Entries())
                 {
                     b.units.Add(key);
@@ -74,19 +130,24 @@ namespace CarrierGame
                 }
                 s.bodies.Add(b);
             }
+            foreach (var kv in timers) s.timers.Add(new SavedTimer { name = kv.Key, at = kv.Value });
             return s;
         }
 
         public static void Restore(Saved s)
         {
             bodies.Clear();
+            timers.Clear();
+            Strikes.Clear();
             Clock = s != null ? Math.Max(0.0, s.clock) : 0.0;
+            if (s?.timers != null) foreach (var t in s.timers) if (t != null && t.name != null) timers[t.name] = t.at;
             if (s?.bodies == null) return;
             foreach (var b in s.bodies)
             {
                 if (b == null || b.name == null) continue;
                 var m = Body(b.name);
                 if (b.explored != null) foreach (int i in b.explored) m.explored.Add(i);
+                if (b.scars != null) m.scars.AddRange(b.scars);
                 if (b.units == null) continue;
                 for (int i = 0; i < b.units.Count; i++)
                     m.destroyed.Restore(b.units[i], b.destroyedAt != null && i < b.destroyedAt.Count ? b.destroyedAt[i] : Clock,
@@ -97,6 +158,8 @@ namespace CarrierGame
         public static void Clear()
         {
             bodies.Clear();
+            timers.Clear();
+            Strikes.Clear();
             Clock = 0;
         }
     }

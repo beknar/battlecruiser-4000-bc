@@ -96,6 +96,7 @@ namespace CarrierGame.Demo
             if (carrier != null && drive == null) drive = carrier.GetComponent<WarpDrive>();
             // the ground seen close to from space is each body's own surface
             PlanetTerrain.Worlds = wp => Seamless(wp) ? WorldFor(wp) : null;
+            WorldState.ScarsChanged += ScarsChanged;
             // (where a surface is built: the system leaves what is there to it)
             OrbitalSystem.SurfaceAt = SiteCenter;
         }
@@ -103,6 +104,7 @@ namespace CarrierGame.Demo
         void OnDestroy()
         {
             if (Instance == this) { Instance = null; PlanetTerrain.Worlds = null; }
+            WorldState.ScarsChanged -= ScarsChanged;
             if (Prepared) Discard();
             if (Site != null) CombatPilot.FloorAt = null;   // (the surface may already be gone in a scene change)
             if (Site != null && Site.water) Sea.Clear();    // (a restart down on the sea: the next level has none)
@@ -413,12 +415,27 @@ namespace CarrierGame.Demo
             if (worlds.TryGetValue(body, out var w)) return w;
             float r = body.kind == WarpPoint.Kind.AsteroidField ? Mathf.Max(800f, body.bodyRadius * 0.3f) * surfaceScale : Mathf.Max(500f, body.bodyRadius);
             w = new SurfaceWorld(body.surface, body.displayName, r, body.hostile);
+            // (with the craters strikes from orbit have left on it, now and as they come)
+            w.scars = WorldState.Body(body.displayName).scars.ToArray();
             // the bases seen on it from orbit are on its surface too, in the same places
             foreach (var b in WarpPoint.All)
                 if (b != null && b.landsOn == body && body.kind != WarpPoint.Kind.AsteroidField)
                     w.AddBase(b.displayName, body.transform.InverseTransformDirection(b.Position - body.Position), b.hostile);
             worlds[body] = w;
             return w;
+        }
+
+        /// <summary>A new crater on a body: its surface (and the ground seen from space) has it from now on.</summary>
+        void ScarsChanged(string bodyName)
+        {
+            foreach (var kv in worlds)
+                if (kv.Key != null && kv.Key.displayName == bodyName)
+                {
+                    kv.Value.scars = WorldState.Body(bodyName).scars.ToArray();
+                    if (kv.Key.TryGetComponent(out PlanetTerrain t)) t.Refresh();
+                    // (ground built ahead without it: built again)
+                    if (Prepared && preparedFor == kv.Key) Discard();
+                }
         }
 
         static int AreaOf(SurfaceWorld w, double u, double v)
@@ -790,7 +807,8 @@ namespace CarrierGame.Demo
             string cruise = pf.Cruising ? $"  <color=#bfe6ff>cruise {pf.TopSpeed / 1000f:F1} km/s</color>"
                           : pf.Cruise && pf.CruiseBlockedBy != "" ? $"  <color=#ff6050>cruise: {pf.CruiseBlockedBy}</color>"
                           : "  <color=#9aa4b0>O cruise</color>";
-            return $"{pf.Body.displayName}  alt {alt}{air}{heat}{cruise}";
+            string strike = KineticStrike.Instance != null ? KineticStrike.Instance.HudText() : null;
+            return $"{pf.Body.displayName}  alt {alt}{air}{heat}{cruise}{(strike != null ? "  " + strike : "")}";
         }
 
         void OnGUI()

@@ -765,6 +765,7 @@ namespace CarrierGame
                 }
             }
             if (craterAmount > 0f) Craters(u, v, ref h, ref m);
+            h += ScarAt(u, v, out _);
 
             if (flatten)
             {
@@ -875,10 +876,39 @@ namespace CarrierGame
                     w[3] = (1f - steep) * (1f - nz) * 0.7f;
                     break;
             }
+            // (a strike's crater: bare, blasted rock)
+            ScarAt(u, v, out float scorch);
+            if (scorch > 0f) { for (int i = 0; i < w.Length; i++) w[i] *= 1f - scorch; w[2] += scorch * 3f; }
             float sum = 0f;
             for (int i = 0; i < w.Length; i++) sum += w[i];
             if (sum < 1e-4f) { w[0] = 1f; sum = 1f; }
             for (int i = 0; i < w.Length; i++) w[i] /= sum;
+        }
+
+        /// <summary>The craters strikes from orbit have left on this body (WorldState: a new array
+        /// whenever they change, so the workers building the ground read one whole).</summary>
+        public volatile WorldState.Scar[] scars = Array.Empty<WorldState.Scar>();
+
+        /// <summary>How much the craters lower the ground at a place (m, negative; a raised rim
+        /// round each), and how scorched it is there (0..1).</summary>
+        public float ScarAt(double u, double v, out float scorch)
+        {
+            scorch = 0f;
+            var sc = scars;
+            if (sc.Length == 0) return 0f;
+            float dh = 0f;
+            foreach (var s in sc)
+            {
+                float du = (float)WrapDelta(u - s.u, C), dv = (float)(v - s.v);
+                float r2 = du * du + dv * dv, reach = s.radius * 1.5f;
+                if (r2 >= reach * reach) continue;
+                float x = Mathf.Sqrt(r2) / s.radius;
+                if (x < 1f) dh -= s.depth * (1f - x * x);
+                float rim = (x - 1.05f) / 0.18f;
+                dh += s.depth * 0.22f * Mathf.Exp(-rim * rim);
+                scorch = Mathf.Max(scorch, 1f - Smooth(0.6f, 1.35f, x));
+            }
+            return dh;
         }
 
         /// <summary>Where the sun is for a landing in one area (the time of day differs from place to place).</summary>

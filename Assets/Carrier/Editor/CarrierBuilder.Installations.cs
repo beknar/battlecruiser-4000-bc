@@ -75,6 +75,7 @@ namespace Carrier.EditorTools
             Depot(s, root, b);
             IndustrySites(s, root, b);
             Settlements(s, root, b);
+            StrikeSatellites(s, p, root, b);
             // every place that recruits crew is a port (its screen opens when docked, or landed
             // on its pad, for the crew page)
             foreach (var inst in root.GetComponentsInChildren<Installation>(true).Concat(s.sys.GetComponentsInChildren<Installation>(true)).Distinct())
@@ -595,6 +596,56 @@ namespace Carrier.EditorTools
                 "Corsair weapons platforms over Cinder's north pole: three gun platforms and a beam lance, tied to a command node. " +
                 "They open fire on anything within 6.5 km.", 1300f, 8600f, HostileWorks, s.wCinder, true);
             b.shots.Add(("inst_battery", c + toThalassa * 3200f + Vector3.up * 900f, c));
+        }
+
+        // ------------------------------------------------------------------ strike satellites
+
+        /// <summary>Corsair strike satellites, each hanging over a settlement and turning with its
+        /// body, firing on it every so often (StrikeSatellite): an ion cannon (the beam lance) over
+        /// Port Ochre, a mass driver (a gun platform) over Pyrois Domes. Each is a hostile
+        /// destination that fights back, and can be destroyed (the corsairs put it back in half
+        /// an hour).</summary>
+        static void StrikeSatellites(SystemRefs s, Prefabs p, Transform parent, Built b)
+        {
+            var lance = OrbitalPrefab(p, true);
+            var platform = OrbitalPrefab(p, false);
+            void One(string name, string target, bool ion, float altitude, float minutes, string desc)
+            {
+                var tw = s.sys.GetComponentsInChildren<WarpPoint>(true).FirstOrDefault(w => w.displayName == target);
+                if (tw == null || tw.landsOn == null) { Log($"strike satellite {name}: no {target} to hang over"); return; }
+                var body = tw.landsOn.transform;
+                Vector3 radial = (tw.Position - body.position).normalized;
+                Vector3 along = Vector3.Cross(radial, Vector3.up);
+                var f = BodyFrame(body, name, radial, along.sqrMagnitude > 0.01f ? along : Vector3.right);
+                Object.DestroyImmediate(f.GetComponent<RaiseToGround>());   // (it hangs in space, not on the ground)
+                var inst = (GameObject)PrefabUtility.InstantiatePrefab(ion ? lance : platform);
+                inst.name = name;
+                inst.transform.SetParent(f, false);
+                inst.transform.localPosition = new Vector3(0f, tw.landsOn.bodyRadius + altitude, 0f);
+                inst.transform.localRotation = Quaternion.identity;
+                inst.GetComponent<TargetInfo>().displayName = name;
+                inst.GetComponent<Health>().respawnDelay = 1800f;
+                var sat = inst.AddComponent<CarrierGame.Demo.StrikeSatellite>();
+                sat.weapon = ion ? CarrierGame.Demo.StrikeSatellite.Weapon.IonCannon : CarrierGame.Demo.StrikeSatellite.Weapon.MassDriver;
+                sat.target = target;
+                sat.intervalMinutes = minutes;
+                var grid = inst.AddComponent<DefenseGrid>();
+                grid.gridName = name;
+                grid.weapons = new[] { inst.GetComponent<EnemyWeapons>() };
+                grid.engageRange = 6000f;
+                grid.disengageRange = 9500f;
+                Facility(inst, name, WarpPoint.Kind.Weapons, true);
+                Destination(inst, name, WarpPoint.Kind.Weapons, desc, 300f, 7000f, HostileWorks, tw.landsOn, true);
+                b.targets.Add(inst.transform);
+                Log($"strike satellite {name}: over {target} on {tw.landsOn.displayName}, {altitude / 1000f:F0} km up, every {minutes:F0} min");
+            }
+            One("Corsair Ion Satellite", "Port Ochre", true, 250000f, 30f,
+                "A corsair strike satellite hanging 250 km over Port Ochre: an ion cannon that burns into the city every half hour, " +
+                "ruining buildings and killing its people. It fights back with its beam and two turrets. Destroy it to stop the strikes " +
+                "(the corsairs put it back in half an hour).");
+            One("Corsair Mass Driver", "Pyrois Domes", false, 120000f, 20f,
+                "A corsair mass driver hanging 120 km over Pyrois Domes: every twenty minutes it fires a salvo of slugs down onto the domes. " +
+                "A gun platform with three triple turrets and missiles. Destroy it to stop the strikes (the corsairs put it back in half an hour).");
         }
 
         // ------------------------------------------------------------------ installations

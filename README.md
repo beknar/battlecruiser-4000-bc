@@ -520,6 +520,32 @@ system to travel around.
     and sets it down. On the ground, K flies it back up to orbit. Any steering takes the
     controls back.
   - Asteroid fields are landed on as before, with a fade.
+- **Strikes from orbit.** What is on a planet's ground is where its surface says it is, so a
+  strike from orbit works out what it hits whether or not anyone is down there (`OrbitalStrikes`):
+  - ground forces in the blast are destroyed, each rebuilt in its own time;
+  - a settlement's buildings in it are ruined (rubble, till they are rebuilt an hour later), and
+    its people killed (fewer recruits there);
+  - a crater is left in the ground, scorched, on the surface landed on and on the ground seen
+    from space alike;
+  - it is all kept and saved with the world (`WorldState`).
+
+  **The frigate's kinetic strike** (Y): over a planet or moon, from space, it drops a tungsten rod
+  on the nearest ground forces within 30 km of the point below (a fortress, a battery, tanks), or
+  on the ground straight down. The rod falls for a few seconds, a white streak glowing in the air,
+  and lands in a flash and a shock ring that spread for kilometres: everything within 450 m is
+  destroyed. One every 20 seconds. The HUD shows what it would hit.
+
+  **Corsair strike satellites** hang over two settlements, turning with their bodies, and fire
+  on them on the game's clock, whether anyone is near or not (`StrikeSatellite`):
+
+  | Satellite | Over | Weapon | Every |
+  |---|---|---|---|
+  | Corsair Ion Satellite | Port Ochre (250 km up) | Ion cannon: a beam to the city | 30 min |
+  | Corsair Mass Driver | Pyrois Domes (120 km up) | A salvo of three slugs | 20 min |
+
+  Near one, its strikes are seen. Each is a hostile destination that fights back (the beam lance,
+  a gun platform); destroyed, it strikes no more until the corsairs put it back half an hour
+  later.
 
   | World | Surface |
   |---|---|
@@ -761,6 +787,7 @@ Ochre Foundry, Mnemos Works and the Kestrel Deep Yard.
 | System map (Star System) | M | R3 |
 | Auto-land / climb to orbit, dock / undock (Star System) | K | LB |
 | Cruise on/off (Star System) | O | |
+| Kinetic strike from orbit (Star System) | Y | |
 | Mining laser on/off | Z | Back + A |
 | Mineral scan | V | Back + Y |
 | Cargo hold list / jettison the cheapest ore | I / J | Back + X / Back + B |
@@ -1138,6 +1165,11 @@ Each part can also be run alone:
   - the map changes, and every launcher launches.
 
   Then it warps to fast-moving Cinder and to each launcher for pictures, and restarts.
+  Add `-striketest` (or `?striketest` on the web) to test the strikes from orbit: the mass driver
+  striking Pyrois Domes on its own time with nobody near, the ion satellite watched burning into
+  Port Ochre, the frigate's rod on Cinder Fortress (Y) destroying its ground forces, landing there
+  to find them gone and the crater in the ground, the rubble at Port Ochre, the ion satellite
+  destroyed and striking no more, and the save holding the craters and the satellites' clocks.
   Add `-approachtest` (or `?approachtest` on the web) to test the real-size system and flying
   down to it: the planets' sizes and distances, the world drawn round the frigate after a warp
   of millions of kilometres, the far bodies drawn nearer, Ochre's ground seen from orbit, the

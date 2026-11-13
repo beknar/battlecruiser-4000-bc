@@ -75,6 +75,49 @@ namespace CarrierGame.Tests
         }
 
         [Test]
+        public void CratersAndTheSatellitesClocksAreSaved()
+        {
+            WorldState.AddScar("Cinder", new WorldState.Scar { u = 1234.5, v = -678.9, radius = 360f, depth = 60f, at = 5.0 });
+            WorldState.SetTimer("strike:Corsair Ion Satellite", 1800.0);
+            var json = IndustrySave.ToJson(new IndustrySave.Data { world = WorldState.Snapshot() });
+            WorldState.Clear();
+            WorldState.Restore(IndustrySave.FromJson(json).world);
+            var s = WorldState.Body("Cinder").scars;
+            Assert.That(s.Count, Is.EqualTo(1));
+            Assert.That(s[0].u, Is.EqualTo(1234.5).Within(1e-9));
+            Assert.That(s[0].radius, Is.EqualTo(360f));
+            Assert.That(WorldState.TryTimer("strike:Corsair Ion Satellite", out double at) && at == 1800.0, Is.True);
+        }
+
+        [Test]
+        public void ABuildingsKeyIsNeverAGroundUnitsKey()
+        {
+            long b = WorldState.BuildingKey("Port Ochre", 7);
+            Assert.That(b, Is.Not.EqualTo(WorldState.BuildingKey("Port Ochre", 8)));
+            Assert.That(b, Is.Not.EqualTo(WorldState.BuildingKey("Pyrois Domes", 7)));
+            // ground units: (area << 8) | id, the area well under 2^40: never the top bit
+            long unit = ((long)500000 << 8) | 255u;
+            Assert.That((b >> 62) & 1L, Is.EqualTo(1L));
+            Assert.That((unit >> 62) & 1L, Is.EqualTo(0L));
+        }
+
+        [Test]
+        public void ACraterLowersAndScorchesTheGround()
+        {
+            var w = new SurfaceWorld(SurfaceKind.Desert, "Test", 200000.0, false);
+            float m = 0f;
+            var ctx = System.Array.Empty<TileFeatures>();
+            float before = w.Height(1000.0, 500.0, w.Region(1000.0, 500.0), ctx, false, ref m);
+            w.scars = new[] { new WorldState.Scar { u = 1000.0, v = 500.0, radius = 400f, depth = 50f } };
+            float after = w.Height(1000.0, 500.0, w.Region(1000.0, 500.0), ctx, false, ref m);
+            Assert.That(after, Is.LessThan(before - 40f), "the crater's floor");
+            w.ScarAt(1000.0, 500.0, out float scorch);
+            Assert.That(scorch, Is.GreaterThan(0.9f));
+            w.ScarAt(1000.0 + 3000.0, 500.0, out float away);
+            Assert.That(away, Is.EqualTo(0f), "far from it, untouched");
+        }
+
+        [Test]
         public void EveryGroundUnitKindIsRebuiltInTime()
         {
             var t = GroundUnitTable.Get();

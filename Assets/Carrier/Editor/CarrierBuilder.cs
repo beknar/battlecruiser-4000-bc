@@ -784,51 +784,16 @@ namespace Carrier.EditorTools
             if (mhp != null)
             {
                 var bolt = MakeBolt("FrigateBolt_" + fs.id, "FX_BeamBolt", V3(fs.boltSize), fs.boltSpeed, fs.gunDamage, p.explosionSmall);
-                cc.mainTurrets = ModelledTurrets(root, turretParts, hullMat, bolt);
+                cc.mainTurrets = ModelledTurrets(root, turretParts, hullMat, bolt)
+                    .Concat(ExtraMounts(root, hull.GetComponentInChildren<MeshCollider>(), bolt)).ToArray();
+                cc.missiles = AddMissileCells(root, hull.GetComponentInChildren<MeshCollider>(), p);
             }
             else
             {
             var gunsNode = Node("SideGuns", root.transform).transform;
-            cc.mainTurrets = fhp.guns.Select(g =>
-            {
-                // a ball mount just outboard of the pod's outer face, resting straight out from the side
-                Vector3 outward = V3(g.outward).normalized;
-                Vector3 pivot = V3(g.muzzle) + outward * 1.5f;
-                var go = Node("SideGun_" + g.name, gunsNode, pivot, Quaternion.LookRotation(outward, Vector3.up));
-                var yaw = Node("Mount", go.transform).transform;
-                // visible ball turret (Tools/Blender/build_ball_turret.py): the collar stays on the
-                // pod, the ball and barrel swing with the mount; the ball's centre is the pivot
-                var model = Place(OwnModel("BallTurret"), go.transform, "Model");
-                PrefabUtility.UnpackPrefabInstance(model, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
-                Transform Part(string n) => model.GetComponentsInChildren<Transform>().First(t => t.name == n);
-                var collar = Part("BT_Base");
-                var ball = Part("BT_Ball");
-                var barrel = Part("BT_Barrel");
-                ball.SetParent(yaw, true);
-                barrel.SetParent(yaw, true);
-                collar.GetComponent<Renderer>().sharedMaterial = Mats["Hull_Dark"];
-                ball.GetComponent<Renderer>().sharedMaterial = Mats["Hull_Main"];
-                barrel.GetComponent<Renderer>().sharedMaterial = Mats["Hull_Dark"];
-                var bb = BoundsIn(go.transform, barrel);
-                Log($"ball turret {g.name}: barrel bounds {bb.center:F1} size {bb.size:F1} (expect along +Z to ~10.6)");
-                var muzzle = Node("Muzzle", yaw, new Vector3(0f, 0f, bb.max.z + 0.5f)).transform;
-                var tu = go.AddComponent<CarrierTurret>();
-                tu.label = g.name;
-                tu.yaw = yaw;
-                tu.muzzles = new[] { muzzle };
-                tu.projectilePrefab = p.frigateBolt;
-                tu.ballMount = true;
-                tu.yawSpeed = fs.gunYawSpeed;
-                // reaches 30 degrees past the centreline in any direction, so both guns can share a
-                // target ahead, astern, above or below, wherever the line of fire clears the hull
-                tu.coneLimit = 120f;
-                tu.checkHullClearance = true;
-                tu.fireInterval = fs.gunInterval;
-                tu.range = fs.gunRange;
-                tu.fireCone = 3f;
-                tu.leadTarget = true;
-                return tu;
-            }).ToArray();
+            // a ball mount just outboard of each pod's outer face, resting straight out from the side
+            cc.mainTurrets = fhp.guns.Select(g => BallMount(gunsNode, "SideGun_" + g.name, g.name,
+                V3(g.muzzle) + V3(g.outward).normalized * 1.5f, V3(g.outward).normalized, p.frigateBolt, 1f)).ToArray();
             }
 
             // engines: the kit exhaust plume in each of the stern nozzles
@@ -885,6 +850,19 @@ namespace Carrier.EditorTools
                     return f;
                 }
                 var spots = LiftSpots(hb);
+                // a spot worked out from the bounds (not given in the data) that misses the hull,
+                // above or below (a slender bow, a waisted hull), moves in toward the centreline
+                if (fs.liftSpots == null || fs.liftSpots.Length == 0)
+                {
+                    bool Hits(float x, float z, bool top)
+                    {
+                        var from = root.transform.TransformPoint(new Vector3(x, top ? 200f : -200f, z));
+                        return hullCol != null && hullCol.Raycast(new Ray(from, root.transform.TransformDirection(top ? Vector3.down : Vector3.up)), out _, 400f);
+                    }
+                    for (int i = 0; i < spots.Length; i++)
+                        for (float k = 1f; k > 0.05f; k -= 0.15f)
+                            if (Hits(spots[i].x * k, spots[i].y, true) && Hits(spots[i].x * k, spots[i].y, false)) { spots[i].x *= k; break; }
+                }
                 cc.liftThrustersUp = spots.Select((s, i) =>
                     Make("Ventral" + (i + 1), new Vector3(s.x, Surface(s.x, s.y, false) - 0.3f, s.y), Vector3.down)).ToArray();
                 cc.liftThrustersDown = spots.Select((s, i) =>
@@ -901,10 +879,112 @@ namespace Carrier.EditorTools
             return saved;
         }
 
+        /// <summary>A visible ball turret (Tools/Blender/build_ball_turret.py) at `pivot`, resting
+        /// facing `outward`: the collar stays on the hull, the ball and barrel swing with the mount;
+        /// the ball's centre is the pivot. It reaches 30 degrees past square to its side in any
+        /// direction (so two on opposite sides can share a target ahead, astern, above or below),
+        /// wherever the line of fire clears the hull. `scale` sizes it to the ship.</summary>
+        static CarrierTurret BallMount(Transform under, string node, string label, Vector3 pivot, Vector3 outward, Projectile bolt, float scale)
+        {
+            var go = Node(node, under, pivot, Quaternion.LookRotation(outward, Mathf.Abs(outward.y) > 0.9f ? Vector3.forward : Vector3.up));
+            go.transform.localScale = Vector3.one * scale;
+            var yaw = Node("Mount", go.transform).transform;
+            var model = Place(OwnModel("BallTurret"), go.transform, "Model");
+            PrefabUtility.UnpackPrefabInstance(model, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+            Transform Part(string n) => model.GetComponentsInChildren<Transform>().First(t => t.name == n);
+            var collar = Part("BT_Base");
+            var ball = Part("BT_Ball");
+            var barrel = Part("BT_Barrel");
+            ball.SetParent(yaw, true);
+            barrel.SetParent(yaw, true);
+            collar.GetComponent<Renderer>().sharedMaterial = Mats["Hull_Dark"];
+            ball.GetComponent<Renderer>().sharedMaterial = Mats["Hull_Main"];
+            barrel.GetComponent<Renderer>().sharedMaterial = Mats["Hull_Dark"];
+            var bb = BoundsIn(go.transform, barrel);
+            Log($"ball turret {label}: barrel bounds {bb.center:F1} size {bb.size:F1} (expect along +Z to ~10.6)");
+            var muzzle = Node("Muzzle", yaw, new Vector3(0f, 0f, bb.max.z + 0.5f)).transform;
+            var tu = go.AddComponent<CarrierTurret>();
+            tu.label = label;
+            tu.yaw = yaw;
+            tu.muzzles = new[] { muzzle };
+            tu.projectilePrefab = bolt;
+            tu.ballMount = true;
+            tu.yawSpeed = fs.gunYawSpeed;
+            tu.coneLimit = 120f;
+            tu.checkHullClearance = true;
+            tu.fireInterval = fs.gunInterval;
+            tu.range = fs.gunRange;
+            tu.fireCone = 3f;
+            tu.leadTarget = true;
+            return tu;
+        }
+
+        /// <summary>A destroyer's or cruiser's ball mounts, at the hardpoints' mounts its data picks
+        /// (each set on the hull surface, found from the mesh, a little out from it).</summary>
+        static CarrierTurret[] ExtraMounts(GameObject root, MeshCollider hullCol, Projectile bolt)
+        {
+            if (mhp?.mounts == null || fs.mounts == null || fs.mounts.Length == 0) return new CarrierTurret[0];
+            var node = Node("Mounts", root.transform).transform;
+            Physics.SyncTransforms();
+            float scale = Mathf.Clamp(mhp.length / 200f, 1f, 1.8f);
+            int p = 0, s = 0, t = 0, k = 0;
+            var made = new List<CarrierTurret>();
+            foreach (int i in fs.mounts)
+            {
+                if (i < 0 || i >= mhp.mounts.Length) { Log($"{fs.displayName}: no mount {i} in the hardpoints"); continue; }
+                var m = mhp.mounts[i];
+                Vector3 at = V3(m.pos), up = V3(m.up).normalized;
+                // the hull's surface along the mount's side (cast in from outside)
+                var from = root.transform.TransformPoint(at + up * 60f);
+                if (hullCol != null && hullCol.Raycast(new Ray(from, root.transform.TransformDirection(-up)), out var hit, 120f))
+                    at = root.transform.InverseTransformPoint(hit.point);
+                else Log($"{fs.displayName} mount {i}: no hull surface found, set where the hardpoints say");
+                string label = m.side == "port" ? "Mount P" + ++p : m.side == "starboard" ? "Mount S" + ++s : m.side == "keel" ? "Mount K" + ++k : "Mount T" + ++t;
+                made.Add(BallMount(node, label.Replace(" ", "_"), label, at + up * 1.2f * scale, up, bolt, scale));
+            }
+            return made.ToArray();
+        }
+
+        /// <summary>A destroyer's or cruiser's missile launch cells, flush with the deck at the
+        /// hardpoints' cells, and the launcher that fires from them with its magazine.</summary>
+        static MissileLauncher AddMissileCells(GameObject root, MeshCollider hullCol, Prefabs pf)
+        {
+            if (fs.missiles <= 0 || mhp?.cells == null || mhp.cells.Length == 0) return null;
+            if (pf.missile == null) pf.missile = Load<Missile>(PrefabDir + "/Missile.prefab");
+            var node = Node("MissileCells", root.transform).transform;
+            Physics.SyncTransforms();
+            var cells = new List<Transform>();
+            foreach (var c in mhp.cells)
+            {
+                Vector3 at = V3(c.pos);
+                var from = root.transform.TransformPoint(new Vector3(at.x, at.y + 80f, at.z));
+                if (hullCol != null && hullCol.Raycast(new Ray(from, -root.transform.up), out var hit, 160f))
+                    at = root.transform.InverseTransformPoint(hit.point);
+                var cell = Node("Cell" + (cells.Count + 1), node, at + Vector3.up * 0.6f, Quaternion.LookRotation(Vector3.up, Vector3.forward)).transform;
+                // the hatch: a dark plate on the deck
+                var hatch = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                UnityEngine.Object.DestroyImmediate(hatch.GetComponent<Collider>());
+                hatch.name = "Hatch" + (cells.Count + 1);
+                hatch.transform.SetParent(node, false);
+                hatch.transform.localPosition = at + Vector3.up * 0.15f;
+                hatch.transform.localScale = new Vector3(3.2f, 0.3f, 3.2f);
+                hatch.GetComponent<Renderer>().sharedMaterial = Mats["Hull_Dark"];
+                cells.Add(cell);
+            }
+            var ml = node.gameObject.AddComponent<MissileLauncher>();
+            ml.missilePrefab = pf.missile;
+            ml.cells = cells.ToArray();
+            ml.cellReload = 10f;
+            ml.salvoInterval = 0.2f;
+            ml.magazine = fs.missiles;
+            Log($"{fs.displayName}: {cells.Count} missile cells, {fs.missiles} missiles");
+            return ml;
+        }
+
         static string FrigateSummary(GameObject prefab)
         {
             var s = FrigateStats.Of(prefab);
-            return $"{s.turrets} turrets ({s.barrels} barrels, {s.gunDps:F0} damage/s), {s.ciws} CIWS, {s.mainGuns} main gun, " +
+            return $"{s.turrets} turrets ({s.barrels} barrels, {s.gunDps:F0} damage/s), {s.ciws} CIWS, {s.mainGuns} main gun, {s.missiles} missiles, crew {s.crew}, " +
                    $"hull {s.hull:F0}, shield {s.shield:F0}, {s.speed:F0} m/s, {s.turnRate:F0} deg/s, hold {s.cargo:F0} t";
         }
 

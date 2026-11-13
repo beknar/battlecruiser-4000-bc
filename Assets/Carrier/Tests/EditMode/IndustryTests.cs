@@ -35,7 +35,9 @@ namespace CarrierGame.Tests
                 Assert.That(p.seconds, Is.GreaterThan(0f), p.id);
                 Assert.That(p.value, Is.GreaterThan(0f), p.id);
                 Assert.That(p.inputs, Is.Not.Empty, p.id);
-                Assert.That(p.effects, Is.Not.Empty, p.id + " does something fitted");
+                // (a ship's section, for a shipyard, is never fitted: it does nothing on a frigate)
+                if (p.structural) Assert.That(p.effects == null || p.effects.Length == 0, Is.True, p.id + " is a section: no effects");
+                else Assert.That(p.effects, Is.Not.Empty, p.id + " does something fitted");
             }
         }
 
@@ -59,7 +61,7 @@ namespace CarrierGame.Tests
         [Test]
         public void APartsEffectsAreOnTheFrigatesNumbers()
         {
-            foreach (var p in T.parts)
+            foreach (var p in T.parts.Where(p => p.effects != null))
                 foreach (var e in p.effects)
                 {
                     Assert.That(IndustryTable.Stats, Does.Contain(e.stat), $"{p.id}: {e.stat}");
@@ -67,7 +69,7 @@ namespace CarrierGame.Tests
                 }
             // every number a part can change is changed by some part
             foreach (var stat in IndustryTable.Stats)
-                Assert.That(T.parts.Any(p => p.effects.Any(e => e.stat == stat)), Is.True, $"no part changes {stat}");
+                Assert.That(T.parts.Any(p => p.effects != null && p.effects.Any(e => e.stat == stat)), Is.True, $"no part changes {stat}");
         }
 
         [Test]

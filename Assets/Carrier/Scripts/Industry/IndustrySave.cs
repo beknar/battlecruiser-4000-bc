@@ -7,7 +7,7 @@ namespace CarrierGame
 {
     /// <summary>
     /// The game saved to disk (JSON): every industrial site's storage and queues, the frigate's
-    /// hold and credits, and the parts each frigate class has fitted. It is written now and then
+    /// hold and credits, the parts each frigate class has fitted, and the ships built. It is written now and then
     /// while playing and on quitting (IndustryDirector), and read once when the game starts.
     /// The file is industry_save.json in the player's data folder; `-industrysave &lt;file&gt;` uses
     /// another, and `-newgame` starts without it. Automated runs (tests, reels) only save where
@@ -45,6 +45,10 @@ namespace CarrierGame
             public List<Named> crews = new List<Named>();
             /// <summary>The world's clock and memory (WorldState).</summary>
             public WorldState.Saved world = new WorldState.Saved();
+            /// <summary>The ships built: berthed at their shipyards, and the one commanded (none
+            /// when flying a frigate).</summary>
+            public List<BuiltShip> berthed = new List<BuiltShip>();
+            public BuiltShip commanded;
         }
 
         /// <summary>A file a self-test saves to instead (its own folder).</summary>

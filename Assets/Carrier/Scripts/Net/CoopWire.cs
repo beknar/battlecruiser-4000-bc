@@ -33,6 +33,8 @@ namespace CarrierGame
         public const string Ship = "ps", Enemies = "es", Fire = "fx", HitEnemy = "de", HitPlayer = "dp", Test = "test";
         // the kinds of Fire
         public const string Shot = "shot", Missile = "msl", Beam = "beam";
+        // a message on the comms channel, to everyone in the room (CoopChat): {text}
+        public const string Chat = "chat";
 
         // how a game message is routed: to one player, to the room's host, or (neither) to
         // everyone else in the room; the server adds who it came from

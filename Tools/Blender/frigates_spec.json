@@ -1,5 +1,5 @@
 {
-    "note": "What convert_frigates.py needs to know about each new frigate model (the recoloured copies in ai models/retextured, made by recolour_frigate.py). Positions are in the GLB's coordinates after Blender's import: bow at -X, +Z up, the hull on z = 0, 1 unit long; boxes are [x0, x1, y0, y1, z0, z1]. A turret is the parts of the model inside its boxes, cut out so they can turn: its barrels (loose parts whose middle is in the barrels box) elevate, the rest (the housing) traverses. A housing_mode of faces takes every face in the box (not whole loose parts): for a housing joined to its twin across the hull. A barrel_faces box (or list of boxes) adds barrels modelled joined to their housing: the pieces (between UV seams) of the housing's parts lying wholly in it elevate with the barrels. Read off grid_glb.py, grid_end.py and islands_render.py renders.",
+    "note": "What convert_frigates.py needs to know about each new frigate model (the recoloured copies in ai models/retextured, made by recolour_frigate.py). Positions are in the GLB's coordinates after Blender's import: bow at -X, +Z up, the hull on z = 0, 1 unit long; boxes are [x0, x1, y0, y1, z0, z1]. The \"ships\" (destroyers and the cruiser, built at shipyards) are the same, with a prefix for their files, extra_mounts (ball-mounted guns added on the hull: a point and the side it faces) and missile_cells (launch cells on the deck); their GLBs were aligned with align_glb.py. A turret is the parts of the model inside its boxes, cut out so they can turn: its barrels (loose parts whose middle is in the barrels box) elevate, the rest (the housing) traverses. A housing_mode of faces takes every face in the box (not whole loose parts): for a housing joined to its twin across the hull. A barrel_faces box (or list of boxes) adds barrels modelled joined to their housing: the pieces (between UV seams) of the housing's parts lying wholly in it elevate with the barrels. Read off grid_glb.py, grid_end.py and islands_render.py renders.",
     "frigates": [
         {
             "id": "Lancer",
@@ -93,6 +93,188 @@
                 { "pos": [0.50, 0.0, 0.098], "r": 0.026 }
             ],
             "ciws": [[-0.21, -0.02], [-0.21, 0.02], [0.215, -0.06], [0.215, 0.06]]
+        }
+    ],
+    "ships": [
+        {
+            "id": "Sovereign",
+            "prefix": "Cruiser",
+            "source": "retextured/cruiser1.glb",
+            "recolour": "--method scheme --split 0.95,1.1",
+            "length": 420,
+            "notes": "Boxy wedge cruiser: a long flat-decked armoured hull tapering to a split jaw bow, a tall stepped superstructure block aft with two forward-facing gun blocks on its spine (moulded into the hull, so not cut), four big cylindrical engine pods flanking it (six nozzles), small box mounts on the deck either side, four small stern mounts and twin belly domes. NOTE: the source model was pitched ~20 deg bow-down and rolled ~5 deg; retextured/cruiser1.glb has been levelled (up vector (-0.348,-0.080,0.934) rotated onto +Z, re-normalised) by work_a/level.py.",
+            "turrets": [
+                {"name": "DeckPort", "facing": "-X", "up": "+Z", "housing": [0.138, 0.183, -0.092, -0.058, 0.188, 0.207]},
+                {"name": "DeckStarboard", "facing": "-X", "up": "+Z", "housing": [0.137, 0.182, 0.055, 0.089, 0.188, 0.208]},
+                {"name": "KeelPort", "facing": "-X", "up": "-Z", "housing": [0.035, 0.093, -0.068, -0.012, 0.048, 0.08]},
+                {"name": "KeelStarboard", "facing": "-X", "up": "-Z", "housing": [0.035, 0.093, 0.011, 0.066, 0.048, 0.08]},
+                {"name": "AftPortOuter", "facing": "+X", "up": "+Z", "housing": [0.376, 0.408, -0.116, -0.086, 0.22, 0.24]},
+                {"name": "AftPortInner", "facing": "+X", "up": "+Z", "housing": [0.376, 0.408, -0.084, -0.053, 0.22, 0.24]},
+                {"name": "AftStarboardInner", "facing": "+X", "up": "+Z", "housing": [0.376, 0.408, 0.052, 0.083, 0.22, 0.24]},
+                {"name": "AftStarboardOuter", "facing": "+X", "up": "+Z", "housing": [0.376, 0.408, 0.084, 0.115, 0.22, 0.24]}
+            ],
+            "engines": [
+                {"pos": [0.495, -0.1186, 0.2], "r": 0.025},
+                {"pos": [0.495, 0.1186, 0.2], "r": 0.025},
+                {"pos": [0.456, -0.1474, 0.1317], "r": 0.029},
+                {"pos": [0.456, 0.1474, 0.1317], "r": 0.029},
+                {"pos": [0.418, -0.078, 0.16], "r": 0.017},
+                {"pos": [0.418, 0.078, 0.16], "r": 0.017}
+            ],
+            "ciws": [[-0.38, -0.05], [-0.38, 0.05], [-0.2, -0.07], [-0.2, 0.07], [0.0, -0.09], [0.0, 0.09]],
+            "extra_mounts": [
+                {"pos": [-0.15, -0.1084, 0.15], "side": "port"},
+                {"pos": [-0.15, 0.097, 0.15], "side": "starboard"},
+                {"pos": [-0.3, 0.0, 0.1859], "side": "top"},
+                {"pos": [-0.02, 0.0, 0.1937], "side": "top"}
+            ],
+            "missile_cells": [[-0.12, -0.035, 0.1899], [-0.12, 0.035, 0.1903], [-0.08, -0.035, 0.1909], [-0.08, 0.035, 0.1914], [0.05, -0.035, 0.1948], [0.05, 0.035, 0.1952], [0.09, -0.035, 0.1959], [0.09, 0.035, 0.1965]]
+        },
+        {
+            "id": "Halberd",
+            "prefix": "Destroyer",
+            "source": "retextured/destroyer1.glb",
+            "recolour": "--method scheme --split 0.95,1.1",
+            "length": 300,
+            "notes": "Missile destroyer: a long rounded hull with a jutting lower jaw at the bow and a mast on the foredeck, an oval sensor dome forward, recessed four-tube gun pods on both flanks (moulded in, not cut), a quad-barrelled dorsal turret ahead of a domed bridge with twin fins, four small dome mounts on the superstructure flanks, six big white missiles slung on pylons on the after flanks (three each side), a cross of fins near the stern and one round engine bell. NOTE: the source model was pitched ~20 deg and rolled ~14.5 deg; retextured/destroyer1.glb has been levelled (work_a/level3d.py: 3D long axis onto -X, roll -14.5 about X, re-normalised).",
+            "turrets": [
+                {"name": "Quad", "facing": "-X", "up": "+Z", "barrels": [0.04, 0.098, -0.022, 0.042, 0.288, 0.308], "barrel_faces": [0.04, 0.098, -0.022, 0.042, 0.288, 0.308], "housing": [0.04, 0.17, -0.035, 0.048, 0.258, 0.31]},
+                {"name": "PortFwd", "facing": "-X", "up": "+Z", "housing": [0.075, 0.106, -0.062, -0.044, 0.245, 0.266]},
+                {"name": "StarboardFwd", "facing": "-X", "up": "+Z", "housing": [0.075, 0.106, 0.055, 0.073, 0.245, 0.266]},
+                {"name": "PortAft", "facing": "-X", "up": "+Z", "housing": [0.129, 0.159, -0.061, -0.043, 0.24, 0.262]},
+                {"name": "StarboardAft", "facing": "-X", "up": "+Z", "housing": [0.129, 0.159, 0.055, 0.073, 0.24, 0.262]}
+            ],
+            "engines": [
+                {"pos": [0.49, 0.008, 0.178], "r": 0.027}
+            ],
+            "ciws": [[-0.25, 0.0], [0.36, 0.0]],
+            "extra_mounts": [
+                {"pos": [-0.22, -0.0681, 0.22], "side": "port"},
+                {"pos": [-0.22, 0.0756, 0.22], "side": "starboard"},
+                {"pos": [0.0, 0.0, 0.1114], "side": "keel"}
+            ],
+            "missile_cells": [[0.126, -0.0915, 0.258], [0.113, 0.1055, 0.258], [0.121, -0.115, 0.1795], [0.119, 0.1315, 0.18], [0.098, -0.082, 0.1125], [0.056, 0.0945, 0.1105]]
+        },
+        {
+            "id": "Rapier",
+            "prefix": "Destroyer",
+            "source": "retextured/destroyer2.glb",
+            "recolour": "--method scheme --split 0.95,1.1",
+            "length": 280,
+            "notes": "Long, slender cigar hull with a rounded bow; a stepped deck of three turrets forward of a tall mast-bridge (a small domed single fore, a small triple, a big domed twin), a boxy aft superstructure and twin engine bells in a collar at the stern; small fins and a hanging keel pod.",
+            "turrets": [
+                {"name": "Fore", "facing": "-X", "up": "+Z", "barrels": [-0.245, -0.135, -0.014, 0.014, 0.186, 0.212], "housing": [-0.165, -0.05, -0.036, 0.036, 0.18, 0.214]},
+                {"name": "Triple", "facing": "-X", "up": "+Z", "barrels": [-0.05, -0.014, 0.0, 0.03, 0.194, 0.208], "housing": [-0.028, 0.02, -0.008, 0.037, 0.185, 0.22]},
+                {"name": "Main", "facing": "-X", "up": "+Z", "barrels": [-0.065, 0.056, -0.03, 0.01, 0.213, 0.24], "housing": [0.03, 0.116, -0.05, 0.045, 0.2, 0.245]},
+                {"name": "Aft", "facing": "+X", "up": "+Z", "housing": [0.2, 0.233, -0.03, 0.002, 0.2, 0.232]}
+            ],
+            "engines": [
+                {"pos": [0.49, -0.031, 0.138], "r": 0.031},
+                {"pos": [0.49, 0.031, 0.138], "r": 0.031}
+            ],
+            "ciws": [[0.395, 0.0]],
+            "extra_mounts": [
+                {"pos": [-0.05, -0.0897, 0.12], "side": "port"},
+                {"pos": [-0.05, 0.0888, 0.12], "side": "starboard"},
+                {"pos": [0.25, -0.0817, 0.12], "side": "port"},
+                {"pos": [0.25, 0.0816, 0.12], "side": "starboard"},
+                {"pos": [-0.22, 0.0, 0.0998], "side": "keel"}
+            ],
+            "missile_cells": [[-0.33, -0.02, 0.182], [-0.33, 0.02, 0.182], [-0.3, -0.02, 0.18], [-0.3, 0.02, 0.18]]
+        },
+        {
+            "id": "Claymore",
+            "prefix": "Destroyer",
+            "source": "retextured/destroyer3.glb",
+            "recolour": "--method scheme --split 0.95,1.1",
+            "length": 300,
+            "notes": "Long, slender naval-grey gun destroyer: a needle bow, a low flat deck with three single-barrel dome turrets in a line ahead of a tall bridge (two masts, winged superstructure) and one dome aft firing astern; a three-nozzle engine bay in a recessed oval at the stern, small pods under the hull.",
+            "turrets": [
+                {"name": "A", "facing": "-X", "up": "+Z", "barrels": [-0.155, -0.1, -0.008, 0.008, 0.124, 0.138], "housing": [-0.128, -0.058, -0.032, 0.032, 0.12, 0.145]},
+                {"name": "B", "facing": "-X", "up": "+Z", "barrels": [-0.065, -0.025, -0.008, 0.008, 0.134, 0.148], "housing": [-0.04, 0.03, -0.032, 0.032, 0.126, 0.156]},
+                {"name": "C", "facing": "-X", "up": "+Z", "barrels": [0.03, 0.07, -0.008, 0.008, 0.149, 0.163], "housing": [0.056, 0.127, -0.03, 0.03, 0.143, 0.17]}
+            ],
+            "engines": [
+                {"pos": [0.49, 0.0, 0.095], "r": 0.013},
+                {"pos": [0.488, -0.026, 0.095], "r": 0.012},
+                {"pos": [0.488, 0.026, 0.095], "r": 0.012}
+            ],
+            "ciws": [[-0.26, 0.045], [0.43, 0.0]],
+            "extra_mounts": [
+                {"pos": [-0.2, -0.05, 0.12], "side": "top"},
+                {"pos": [-0.2, 0.05, 0.12], "side": "top"},
+                {"pos": [0.34, -0.05, 0.131], "side": "top"},
+                {"pos": [0.34, 0.05, 0.131], "side": "top"},
+                {"pos": [0.1, -0.085, 0.08], "side": "port"},
+                {"pos": [0.1, 0.085, 0.08], "side": "starboard"},
+                {"pos": [-0.25, 0.0, 0.032], "side": "keel"}
+            ],
+            "missile_cells": [[-0.42, -0.022, 0.118], [-0.42, 0.022, 0.118], [-0.37, -0.022, 0.12], [-0.37, 0.022, 0.12], [-0.32, -0.022, 0.121], [-0.32, 0.022, 0.121]]
+        },
+        {
+            "id": "Bulwark",
+            "prefix": "Destroyer",
+            "source": "retextured/destroyer4.glb",
+            "recolour": "--method scheme --split 0.95,1.1",
+            "length": 290,
+            "notes": "Battleship-styled heavy destroyer: a long flat foredeck with a glowing centre stripe, three big twin-gun turrets ahead of a tall stepped bridge tower (the third superfiring), a radar ball and a low twin mount aft firing astern; big engine nacelles high on each quarter, swept fins either side, a seven-nozzle stern.",
+            "turrets": [
+                {"name": "A", "facing": "-X", "up": "+Z", "barrels": [-0.162, -0.108, -0.017, 0.017, 0.144, 0.161], "housing": [-0.13, -0.06, -0.032, 0.032, 0.137, 0.166]},
+                {"name": "B", "facing": "-X", "up": "+Z", "barrels": [-0.064, -0.012, -0.017, 0.017, 0.149, 0.166], "housing": [-0.034, 0.036, -0.032, 0.032, 0.138, 0.17]},
+                {"name": "C", "facing": "-X", "up": "+Z", "barrels": [0.012, 0.054, -0.017, 0.017, 0.163, 0.179], "housing": [0.032, 0.098, -0.032, 0.032, 0.153, 0.182]},
+                {"name": "Aft", "facing": "+X", "up": "+Z", "barrels": [0.274, 0.315, -0.015, 0.015, 0.144, 0.157], "housing": [0.218, 0.29, -0.022, 0.022, 0.133, 0.162]}
+            ],
+            "engines": [
+                {"pos": [0.405, -0.072, 0.123], "r": 0.016},
+                {"pos": [0.405, 0.072, 0.123], "r": 0.016},
+                {"pos": [0.46, -0.018, 0.112], "r": 0.012},
+                {"pos": [0.46, 0.018, 0.112], "r": 0.012},
+                {"pos": [0.447, -0.038, 0.087], "r": 0.012},
+                {"pos": [0.447, 0.038, 0.087], "r": 0.012},
+                {"pos": [0.396, 0.0, 0.054], "r": 0.014}
+            ],
+            "ciws": [[-0.2, 0.055], [-0.2, -0.055]],
+            "extra_mounts": [
+                {"pos": [-0.3, -0.035, 0.143], "side": "top"},
+                {"pos": [-0.3, 0.035, 0.143], "side": "top"},
+                {"pos": [-0.1, -0.078, 0.1], "side": "port"},
+                {"pos": [-0.1, 0.078, 0.1], "side": "starboard"},
+                {"pos": [0.1, -0.098, 0.1], "side": "port"},
+                {"pos": [0.1, 0.098, 0.1], "side": "starboard"},
+                {"pos": [-0.25, 0.0, 0.052], "side": "keel"},
+                {"pos": [-0.05, 0.0, 0.052], "side": "keel"}
+            ],
+            "missile_cells": [[-0.41, -0.02, 0.151], [-0.41, 0.02, 0.151], [-0.38, -0.02, 0.15], [-0.38, 0.02, 0.15]]
+        },
+        {
+            "id": "Stiletto",
+            "prefix": "Destroyer",
+            "source": "retextured/destroyer5.glb",
+            "recolour": "--method scheme --split 0.95,1.1",
+            "length": 270,
+            "notes": "Sleek, smooth-hulled stealth destroyer: a long tapering cigar hull with dark flush deck panels, recessed casemate openings low on each flank, a dark rounded deckhouse block in an oval well aft (the one cuttable mount, housing only), finned engine pods on each quarter and a three-nozzle stern recess with two smaller nozzles below. Few guns modelled: most of its turrets must be added mounts, and the flush deck suits missile cells.",
+            "turrets": [
+                {"name": "Dorsal", "facing": "-X", "up": "+Z", "housing": [0.205, 0.292, -0.03, 0.032, 0.14, 0.21]}
+            ],
+            "engines": [
+                {"pos": [0.45, -0.036, 0.088], "r": 0.016},
+                {"pos": [0.45, 0.0, 0.088], "r": 0.016},
+                {"pos": [0.45, 0.036, 0.088], "r": 0.016},
+                {"pos": [0.401, -0.034, 0.042], "r": 0.01},
+                {"pos": [0.401, 0.034, 0.042], "r": 0.01}
+            ],
+            "ciws": [[0.36, 0.006]],
+            "extra_mounts": [
+                {"pos": [-0.3, 0.006, 0.126], "side": "top"},
+                {"pos": [-0.2, -0.04, 0.132], "side": "top"},
+                {"pos": [-0.2, 0.04, 0.133], "side": "top"},
+                {"pos": [0.1, -0.04, 0.138], "side": "top"},
+                {"pos": [0.1, 0.04, 0.138], "side": "top"},
+                {"pos": [0.05, -0.08, 0.09], "side": "port"},
+                {"pos": [0.05, 0.092, 0.09], "side": "starboard"},
+                {"pos": [-0.1, 0.006, 0.027], "side": "keel"}
+            ],
+            "missile_cells": [[-0.1, -0.02, 0.136], [-0.1, 0.02, 0.136], [-0.05, -0.02, 0.137], [-0.05, 0.02, 0.137], [0.0, -0.02, 0.137], [0.0, 0.02, 0.137], [0.05, -0.02, 0.138], [0.05, 0.02, 0.138]]
         }
     ]
 }

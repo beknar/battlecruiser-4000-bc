@@ -1,5 +1,5 @@
 {
-    "note": "The frigates a player can fly, first the starting one. The scene builder (CarrierBuilder.Frigates) makes a prefab of each and the start menu's roster from them. The starting frigate's guns are ball mounts on its gun pods (frigate_hardpoints.json); the others' are the turrets modelled on them, cut out by Tools/Blender/convert_frigates.py (frigate_<id>_hardpoints.json), which also gives where their CIWS mounts go. Every frigate has its turrets, at least one CIWS mount and one main gun (the bow beam). Speeds in m/s, turns in degrees a second; gunDamage is each shot's; beamDamage is a second's of the beam; cargo is the hold in tonnes (ore, refined materials and parts all count), slots how many ship parts (industry.json) it can have fitted, miningRate the mining laser's tonnes a second (8 if left out), and crew how many people work it (crew.json: short of 90% of them it works less well). Rebuild (Tools > Carrier > Build Everything) after changing anything here.",
+    "note": "The frigates a player can fly, first the starting one. The scene builder (CarrierBuilder.Frigates) makes a prefab of each and the start menu's roster from them. The starting frigate's guns are ball mounts on its gun pods (frigate_hardpoints.json); the others' are the turrets modelled on them, cut out by Tools/Blender/convert_frigates.py (frigate_<id>_hardpoints.json), which also gives where their CIWS mounts go. Every frigate has its turrets, at least one CIWS mount and one main gun (the bow beam). Speeds in m/s, turns in degrees a second; gunDamage is each shot's; beamDamage is a second's of the beam; cargo is the hold in tonnes (ore, refined materials and parts all count), slots how many ship parts (industry.json) it can have fitted, miningRate the mining laser's tonnes a second (8 if left out), and crew how many people work it (crew.json: short of 90% of them it works less well). The destroyers and the cruiser (category Destroyer or Cruiser, buildable) are built at a shipyard (industry.json ships) before they can be flown: they add ball-mounted guns at the hardpoints' mounts listed in mounts (by index), missiles (the magazine, fired from the hardpoints' launch cells and refilled when docked or landed at a site), and a destroyer has no main gun (noMainGun). A ship without a category is a Frigate. Rebuild (Tools > Carrier > Build Everything) after changing anything here.",
     "frigates": [
         {
             "id": "Sentinel",
@@ -68,6 +68,96 @@
             "gunInterval": 0.7, "gunRange": 5200, "gunYawSpeed": 50, "gunDamage": 75,
             "boltSize": [1.2, 1.2, 16], "boltSpeed": 2600,
             "beamCharge": 14, "beamDamage": 2400, "cargo": 500, "slots": 3, "crew": 300
+        },
+        {
+            "id": "Halberd",
+            "displayName": "Halberd",
+            "role": "Missile destroyer",
+            "description": "A destroyer built round its missiles: twenty-four in the magazine, six cells to fire them from, and eight turrets, the quad mount forward the heaviest. Tougher than any frigate but slower, with no bow beam and only two CIWS mounts.",
+            "category": "Destroyer", "buildable": true,
+            "prefab": "Destroyer_Halberd", "model": "Destroyer_Halberd", "texture": "Destroyer_Halberd_BaseColor.png", "hardpoints": "destroyer_halberd_hardpoints.json",
+            "shipName": "Halberd", "shipClass": "Missile destroyer",
+            "maxSpeed": 108, "acceleration": 17, "turnRate": 12, "pitchRate": 8, "maxPitch": 60, "elevatorSpeed": 28, "elevatorAcceleration": 10,
+            "hull": 12000, "shield": 10000, "shieldRecharge": 320,
+            "gunInterval": 0.75, "gunRange": 5000, "gunYawSpeed": 55, "gunDamage": 70,
+            "boltSize": [1.1, 1.1, 15], "boltSpeed": 2600, "mounts": [0, 1, 2],
+            "noMainGun": true, "missiles": 24,
+            "cargo": 900, "slots": 5, "crew": 380
+        },
+        {
+            "id": "Rapier",
+            "displayName": "Rapier",
+            "role": "Fast destroyer",
+            "description": "The quickest of the destroyers, long and slender, its seven turrets mostly forward. A light hull for its class, one CIWS mount and twelve missiles.",
+            "category": "Destroyer", "buildable": true,
+            "prefab": "Destroyer_Rapier", "model": "Destroyer_Rapier", "texture": "Destroyer_Rapier_BaseColor.png", "hardpoints": "destroyer_rapier_hardpoints.json",
+            "shipName": "Rapier", "shipClass": "Fast destroyer",
+            "maxSpeed": 112, "acceleration": 19, "turnRate": 13, "pitchRate": 9, "maxPitch": 60, "elevatorSpeed": 30, "elevatorAcceleration": 11,
+            "hull": 11000, "shield": 9500, "shieldRecharge": 340,
+            "gunInterval": 0.6, "gunRange": 4800, "gunYawSpeed": 65, "gunDamage": 65,
+            "boltSize": [1.0, 1.0, 14], "boltSpeed": 2700, "mounts": [0, 1, 4],
+            "noMainGun": true, "missiles": 12,
+            "cargo": 700, "slots": 5, "crew": 360
+        },
+        {
+            "id": "Claymore",
+            "displayName": "Claymore",
+            "role": "Gun destroyer",
+            "description": "Three heavy single-gun turrets and five ball mounts: the hardest-hitting guns of the destroyers. Two CIWS mounts and twelve missiles.",
+            "category": "Destroyer", "buildable": true,
+            "prefab": "Destroyer_Claymore", "model": "Destroyer_Claymore", "texture": "Destroyer_Claymore_BaseColor.png", "hardpoints": "destroyer_claymore_hardpoints.json",
+            "shipName": "Claymore", "shipClass": "Gun destroyer",
+            "maxSpeed": 105, "acceleration": 16, "turnRate": 11, "pitchRate": 8, "maxPitch": 60, "elevatorSpeed": 27, "elevatorAcceleration": 10,
+            "hull": 13000, "shield": 10500, "shieldRecharge": 330,
+            "gunInterval": 0.9, "gunRange": 5400, "gunYawSpeed": 50, "gunDamage": 120,
+            "boltSize": [1.3, 1.3, 17], "boltSpeed": 2500, "mounts": [0, 1, 4, 5, 6],
+            "noMainGun": true, "missiles": 12,
+            "cargo": 850, "slots": 6, "crew": 420
+        },
+        {
+            "id": "Bulwark",
+            "displayName": "Bulwark",
+            "role": "Heavy destroyer",
+            "description": "The slowest and toughest destroyer: four twin turrets, four flank mounts, two CIWS mounts, sixteen missiles and the biggest hold of its class.",
+            "category": "Destroyer", "buildable": true,
+            "prefab": "Destroyer_Bulwark", "model": "Destroyer_Bulwark", "texture": "Destroyer_Bulwark_BaseColor.png", "hardpoints": "destroyer_bulwark_hardpoints.json",
+            "shipName": "Bulwark", "shipClass": "Heavy destroyer",
+            "maxSpeed": 100, "acceleration": 15, "turnRate": 10, "pitchRate": 7, "maxPitch": 60, "elevatorSpeed": 26, "elevatorAcceleration": 9,
+            "hull": 15000, "shield": 12000, "shieldRecharge": 300,
+            "gunInterval": 0.85, "gunRange": 5200, "gunYawSpeed": 45, "gunDamage": 95,
+            "boltSize": [1.2, 1.2, 16], "boltSpeed": 2600, "mounts": [2, 3, 4, 5],
+            "noMainGun": true, "missiles": 16,
+            "cargo": 1100, "slots": 6, "crew": 460
+        },
+        {
+            "id": "Stiletto",
+            "displayName": "Stiletto",
+            "role": "Strike destroyer",
+            "description": "A sleek strike ship: one big dorsal turret, six ball mounts, eight missile cells and twenty missiles to fill them. One CIWS mount.",
+            "category": "Destroyer", "buildable": true,
+            "prefab": "Destroyer_Stiletto", "model": "Destroyer_Stiletto", "texture": "Destroyer_Stiletto_BaseColor.png", "hardpoints": "destroyer_stiletto_hardpoints.json",
+            "shipName": "Stiletto", "shipClass": "Strike destroyer",
+            "maxSpeed": 110, "acceleration": 18, "turnRate": 12, "pitchRate": 9, "maxPitch": 60, "elevatorSpeed": 29, "elevatorAcceleration": 11,
+            "hull": 11500, "shield": 9000, "shieldRecharge": 350,
+            "gunInterval": 0.7, "gunRange": 5000, "gunYawSpeed": 60, "gunDamage": 80,
+            "boltSize": [1.1, 1.1, 15], "boltSpeed": 2700, "mounts": [0, 1, 2, 5, 6, 7],
+            "noMainGun": true, "missiles": 20,
+            "cargo": 750, "slots": 5, "crew": 350
+        },
+        {
+            "id": "Sovereign",
+            "displayName": "Sovereign",
+            "role": "Heavy cruiser",
+            "description": "A heavy cruiser: twelve turrets, six CIWS mounts, a bow beam heavier than any frigate's, thirty-two missiles and eight cells, and the toughest hull and shield of all. Slow, and it needs a crew of eight hundred.",
+            "category": "Cruiser", "buildable": true,
+            "prefab": "Cruiser_Sovereign", "model": "Cruiser_Sovereign", "texture": "Cruiser_Sovereign_BaseColor.png", "hardpoints": "cruiser_sovereign_hardpoints.json",
+            "shipName": "Sovereign", "shipClass": "Heavy cruiser",
+            "maxSpeed": 90, "acceleration": 12, "turnRate": 8, "pitchRate": 6, "maxPitch": 60, "elevatorSpeed": 22, "elevatorAcceleration": 8,
+            "hull": 26000, "shield": 20000, "shieldRecharge": 450,
+            "gunInterval": 0.8, "gunRange": 5600, "gunYawSpeed": 40, "gunDamage": 125,
+            "boltSize": [1.5, 1.5, 18], "boltSpeed": 2500, "mounts": [0, 1, 2, 3],
+            "beamCharge": 16, "beamDamage": 3200, "missiles": 32,
+            "cargo": 1600, "slots": 8, "crew": 800
         }
     ]
 }

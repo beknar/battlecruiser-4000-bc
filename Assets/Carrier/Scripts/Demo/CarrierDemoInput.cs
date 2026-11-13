@@ -65,6 +65,7 @@ namespace CarrierGame.Demo
         void Update()
         {
             if (carrier == null) return;
+            Rearm();
             var k = Keyboard.current;
             var pad = Gamepad.current;
             PadSupport.Track(pad, k, Mouse.current);
@@ -183,7 +184,8 @@ namespace CarrierGame.Demo
             if (k.digit1Key.wasPressedThisFrame) LaunchFighters();
             if (k.digit2Key.wasPressedThisFrame) LaunchDrones();
             if (k.digit3Key.wasPressedThisFrame) LaunchDropships();
-            if (k.mKey.wasPressedThisFrame && warp == null) FireMissiles();   // with a warp drive, M is the system map
+            // (with a warp drive, M is the system map: 4 fires them anywhere)
+            if ((k.mKey.wasPressedThisFrame && warp == null) || k.digit4Key.wasPressedThisFrame) FireMissiles();
             if (k.fKey.wasPressedThisFrame) FireGuns();
             if (k.gKey.wasPressedThisFrame) ToggleAutoFire();
             if (k.qKey.wasPressedThisFrame && carrier.HasHangar) WingAttack();
@@ -369,7 +371,8 @@ namespace CarrierGame.Demo
             if (p.buttonWest.wasPressedThisFrame) { if (GunshipPad) ChargeMainGun(); else WingEscort(); }   // X
             if (p.buttonNorth.wasPressedThisFrame) NextTarget();          // Y
             if (p.rightShoulder.wasPressedThisFrame) FireGuns();          // RB
-            if (p.leftShoulder.wasPressedThisFrame && (carrier.HasMissiles || Landing == null)) FireMissiles();   // LB (landing, without missiles)
+            // LB: missiles at the target; without missiles or a target, landing and docking have it
+            if (p.leftShoulder.wasPressedThisFrame && (Landing == null || MissilesOnPad)) FireMissiles();
             if (p.leftStickButton.wasPressedThisFrame) ToggleAutoFire();  // L3
             if (p.rightStickButton.wasPressedThisFrame && warp == null) CycleCamera();    // R3 (the system map, with a warp drive)
             // right stick orbits and LT/RT zoom: handled by OrbitCamera
@@ -424,10 +427,33 @@ namespace CarrierGame.Demo
             Notices.Post(on ? "Main guns: auto-fire ON" : "Main guns: auto-fire OFF");
         }
 
+        /// <summary>The pad's LB fires missiles (not landing or docking): the ship has missiles left and a target.</summary>
+        public bool MissilesOnPad => PadFiresMissiles(carrier);
+
+        /// <summary>The rule for a ship (for landing and docking, which have LB otherwise).</summary>
+        public static bool PadFiresMissiles(CarrierController c) =>
+            c != null && c.HasMissiles && c.target != null && c.missiles.Stock != 0;
+
+        float nextRearm;
+
+        /// <summary>Docked at a station, or landed at a site: the magazine is refilled.</summary>
+        void Rearm()
+        {
+            var ml = carrier.missiles;
+            if (ml == null || !ml.NeedsRearming || Time.unscaledTime < nextRearm) return;
+            nextRearm = Time.unscaledTime + 1f;
+            var panel = IndustryPanel.Instance;
+            bool atSite = Docking.Docked || (panel != null && panel.Here() != null);
+            if (!atSite || carrier.Destroyed) return;
+            int n = ml.Rearm();
+            if (n > 0) Notices.Post($"Rearmed: {n} missile{(n == 1 ? "" : "s")} loaded ({ml.Stock} aboard)");
+        }
+
         public void FireMissiles()
         {
             if (!carrier.HasMissiles) { NotFitted($"The {carrier.shipName.ToLower()} has no missiles: guns only"); return; }
             if (carrier.target == null) { NoTarget(); return; }
+            if (carrier.missiles.Stock == 0) { NotFitted("Out of missiles: rearm docked at a station or landed at a site"); return; }
             carrier.FireMissiles();
             PadSupport.Rumble(0.35f, 0.5f, 0.35f);
         }

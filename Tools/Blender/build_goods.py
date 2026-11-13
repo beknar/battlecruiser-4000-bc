@@ -1687,6 +1687,83 @@ def b_MiningHead():
     move(st, MT((0, 0, 0), (0, 0, 10)))
 
 
+# ---- the shipyard's sections (structural parts: built for a destroyer or a cruiser, not fitted)
+
+def b_HullFrame():
+    """A hull frame section: two deep ring frames joined by stringers, a keel beam under them."""
+    L, R = 2.0, 0.85
+    for x in (-L / 2 + 0.08, L / 2 - 0.08):
+        torus(R, 0.07, (x, 0, R + 0.1), "paint_grey", rot=(0, 90, 0), segs=40, rsegs=10)
+        for k in range(8):
+            a = math.radians(k * 45 + 22.5)
+            box((0.06, 0.05, R * 0.9), (x, math.cos(a) * R * 0.45, R + 0.1 + math.sin(a) * R * 0.45), "steel_dark",
+                rot=(math.degrees(a) - 90, 0, 0))
+    for k in range(10):
+        a = math.radians(k * 36)
+        box((L, 0.08, 0.08), (0, math.cos(a) * R, R + 0.1 + math.sin(a) * R), "steel_plate", rot=(k * 36, 0, 0))
+    box((L + 0.1, 0.22, 0.12), (0, 0, 0.11), "gunmetal", bev=0.01)
+    box((0.4, 0.004, 0.12), (0, -R - 0.045, R + 0.1), "hazard_fine")
+    text("FRAME 41", (0, -0.12, 0.06), (90, 0, 0), 0.06, "stencil_white")
+
+
+def b_TurretMount():
+    """A turret mount: the training ring and its bearing race on a deck plate, the drive housing."""
+    box((1.8, 1.8, 0.12), (0, 0, 0.06), "paint_hull", bev=0.02)
+    cyl(0.78, 0.18, (0, 0, 0.21), "gunmetal", segs=48)
+    torus(0.7, 0.05, (0, 0, 0.32), "steel", segs=48, rsegs=10)
+    cyl(0.6, 0.12, (0, 0, 0.36), "steel_dark", segs=48)
+    for k in range(24):
+        a = math.radians(k * 15)
+        bolt((math.cos(a) * 0.72, math.sin(a) * 0.72, 0.3), (0, 0, 0), 0.02, 0.014)
+    box((0.42, 0.3, 0.3), (0.55, -0.62, 0.27), "paint_yellow", bev=0.02)
+    cyl(0.1, 0.36, (0.55, -0.42, 0.27), "steel", rot=(90, 0, 0), segs=20)
+    box((0.3, 0.004, 0.08), (0.55, -0.772, 0.3), "stencil_black")
+    text("TRAIN", (-0.4, -0.902, 0.06), (90, 0, 0), 0.06, "stencil_white")
+
+
+def b_MissileCells():
+    """A block of four vertical launch cells: square tubes in a frame, their hatches shut."""
+    W = 1.5
+    box((W, W, 1.6), (0, 0, 0.8), "paint_hull", bev=0.02)
+    for ix in (-1, 1):
+        for iy in (-1, 1):
+            x, y = ix * W / 4, iy * W / 4
+            box((W / 2 - 0.1, W / 2 - 0.1, 0.06), (x, y, 1.63), "paint_grey", bev=0.01)
+            box((W / 2 - 0.3, 0.04, 0.02), (x, y, 1.67), "hazard_fine")
+            cyl(0.05, 0.05, (x + 0.22, y + 0.22, 1.67), "steel_dark", segs=16)
+    for k in range(5):
+        box((W + 0.02, 0.04, 0.04), (0, -W / 2 - 0.01, 0.2 + k * 0.32), "steel_dark")
+    box((0.5, 0.004, 0.14), (0, -W / 2 - 0.004, 0.4), "paint_red")
+    text("VLS 4", (0, -W / 2 - 0.006, 1.1), (90, 0, 0), 0.12, "stencil_white")
+
+
+def b_BridgeModule():
+    """A bridge module: a tapered block with a band of armoured windows and a sensor mast."""
+    box((2.0, 1.2, 0.9), (0, 0, 0.45), "paint_light", taper=(0.82, 0.78), bev=0.03)
+    box((1.55, 0.02, 0.18), (0, -0.53, 0.72), "glass_dark", rot=(-14, 0, 0))
+    for k in range(6):
+        box((0.03, 0.03, 0.2), (-0.7 + k * 0.28, -0.54, 0.72), "paint_dark", rot=(-14, 0, 0))
+    cyl(0.05, 0.6, (0.4, 0.1, 1.2), "steel", segs=16)
+    box((0.5, 0.06, 0.06), (0.4, 0.1, 1.4), "steel_dark")
+    sphere(0.12, (-0.45, 0.1, 1.0), "paint_white")
+    box((1.0, 0.004, 0.08), (0, -0.6, 0.18), "hazard_fine")
+    text("BRIDGE", (0, -0.6, 0.38), (90, 0, 0), 0.1, "stencil_black")
+
+
+def b_CrewQuarters():
+    """Crew quarters: a long habitation block with rows of portholes and an airlock."""
+    L, W, H = 2.0, 0.9, 0.8
+    box((L, W, H), (0, 0, H / 2 + 0.04), "paint_white", bev=0.04)
+    for row in (0.3, 0.6):
+        for k in range(7):
+            cyl(0.05, 0.02, (-0.75 + k * 0.25, -W / 2 - 0.005, row), "glow_cyan", rot=(90, 0, 0), segs=16)
+            torus(0.055, 0.012, (-0.75 + k * 0.25, -W / 2 - 0.012, row), "steel", rot=(90, 0, 0), segs=20, rsegs=6)
+    box((0.3, 0.06, 0.55), (L / 2 - 0.1, -W / 2 - 0.02, 0.36), "paint_orange", bev=0.01)
+    box((0.02, 0.4, 0.04), (0, 0, H + 0.06), "steel_dark")
+    box((L + 0.02, 0.06, 0.06), (0, -W / 2, 0.06), "paint_dark")
+    text("DECK 3  BERTHS 40", (-0.2, -W / 2 - 0.006, 0.76), (90, 0, 0), 0.06, "stencil_black")
+
+
 BUILD = {k[2:]: v for k, v in globals().items() if k.startswith("b_")}
 
 # ----------------------------------------------------------------------------------------------

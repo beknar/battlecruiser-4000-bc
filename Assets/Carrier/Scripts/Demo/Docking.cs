@@ -203,7 +203,7 @@ namespace CarrierGame.Demo
             if (InputFocus.PanelUp) return;   // a panel has the keys
             var k = Keyboard.current;
             var pad = Gamepad.current;
-            bool press = (k != null && k.kKey.wasPressedThisFrame) || (pad != null && !carrier.HasMissiles && pad.leftShoulder.wasPressedThisFrame);
+            bool press = (k != null && k.kKey.wasPressedThisFrame) || (pad != null && !CarrierDemoInput.PadFiresMissiles(carrier) && pad.leftShoulder.wasPressedThisFrame);
             if (!press) return;
             if (Current == State.Free && candidate != null) Dock();
             else if (Current == State.Docked) Undock();

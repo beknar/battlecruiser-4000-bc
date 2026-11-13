@@ -21,6 +21,8 @@ Stages, in order (--quick runs the ones marked *):
   approach     -approachtest: the real-size system; the ground seen from orbit; the auto-lander down to a pad and back; by hand onto a moon
   strike       -striketest: strikes from orbit: satellites on settlements (off-screen and watched), the frigate's kinetic rods, craters, rubble
   coop *       Star System -systemtest -cooptest against the scripted bot (Tools/CoopTest/bot.py)
+  aibot        the AI wingman: Star System -coopbot (headless) checked as a player sees it, through its
+               API and through the MCP server (Tools/CoopAI/aibot_test.py)
   web          the web build's co-op test in headless Chrome (Tools/WebTest/cooptest.sh)
   system       the full Star System self-test (warps, landing, mining, a battle)
   land         -landtest: a landing on every kind of world
@@ -58,7 +60,7 @@ WINDOWS = os.name == "nt"
 EXE = ".exe" if WINDOWS else ""
 
 STAGES = ["tools", "server", "unity", "build", "serverproc", "autotest", "hud", "ships", "water", "industry", "crew", "stream", "approach", "strike", "coop",
-          "web", "system", "land", "orbit", "station"]
+          "aibot", "web", "system", "land", "orbit", "station"]
 QUICK = ["tools", "server", "unity", "serverproc", "autotest", "hud", "coop"]
 # Star System self-tests: stage -> (extra arguments, time limit in seconds)
 SELFTESTS = {
@@ -75,7 +77,7 @@ SELFTESTS = {
     "station": (["-stationtest"], 1800),
 }
 # the frigates a player can fly (Assets/Carrier/Data/frigates.json), each tested by the ships stage
-FRIGATES = ["Sentinel", "Lancer", "Warden", "Talon", "Vanguard"]
+FRIGATES = ["Sentinel", "Lancer", "Warden", "Talon", "Vanguard", "Halberd", "Rapier", "Claymore", "Bulwark", "Stiletto", "Sovereign"]
 BUILD_METHODS = {"CarrierDemo": "Build", "AsteroidAmbush": "BuildAsteroids", "StarSystem": "BuildStarSystem",
                  "StarSystemWeb": "BuildStarSystemWeb"}
 # files a Unity build or batch run rewrites without changing them (reverted if they were clean before)
@@ -441,6 +443,45 @@ class Runner:
         lines = report.read_text(encoding="utf-8", errors="replace").splitlines() if report.exists() else []
         self.selftest_result(st, "selftest_coop.txt", lines)
 
+    def aibot(self, st):
+        """The AI wingman: the Star System build as a co-op bot (-coopbot, no window), and a test
+        player (Tools/CoopAI/aibot_test.py) that orders it on the comms channel, through its HTTP
+        API and through the MCP server, then tells it to quit."""
+        if not self.need_websockets(st):
+            return
+        exe = self.game("StarSystem", st)
+        if not exe:
+            return
+        server = self.server(st)
+        if not server:
+            return
+        d = self.fresh("aibot")
+        game = None
+        with self.coop_server(server, d, 7792) as port:
+            api = free_port(7781)
+            try:
+                game = self.start([exe, "-batchmode", "-nographics", "-coopbot", "-connect", f"127.0.0.1:{port}", "-name", "Wingman",
+                                   "-botport", api, "-logFile", d / "bot_game.log"], d / "bot_game.out", cwd=exe.parent)
+                code = self.play(st, "aibot_test.py", [sys.executable, "-B", "-u", PROJECT / "Tools" / "CoopAI" / "aibot_test.py",
+                                                       f"http://127.0.0.1:{api}", f"ws://127.0.0.1:{port}/coop", "Wingman"],
+                                 d / "aibot_test.log", 420)
+                # it was told to quit
+                try:
+                    game.wait(timeout=30)
+                except subprocess.TimeoutExpired:
+                    st.fail(f"the bot game didn't quit when told to (see {d / 'bot_game.log'})")
+            finally:
+                stop(game)
+        lines = (d / "aibot_test.log").read_text(errors="replace").splitlines()
+        for line in lines:
+            if line.startswith("[AIBot] FAIL"):
+                st.fail(line[len("[AIBot] "):])
+        done = [l for l in lines if l.startswith("[AIBot] done")]
+        if done:
+            st.note(done[-1][len("[AIBot] "):])
+        if code != 0 and st.ok:
+            st.fail(f"aibot_test.py exit code {code} (see {d / 'aibot_test.log'})")
+
     def web(self, st):
         if not self.need_websockets(st):
             return
@@ -493,7 +534,7 @@ class Runner:
                     self.selftest(st, name, *SELFTESTS[name])
                 else:
                     {"tools": self.tools, "server": self.server_tests, "unity": self.unity_tests, "build": self.build,
-                     "serverproc": self.serverproc, "autotest": self.autotest, "coop": self.coop, "web": self.web,
+                     "serverproc": self.serverproc, "autotest": self.autotest, "coop": self.coop, "aibot": self.aibot, "web": self.web,
                      "ships": self.ships}[name](st)
             except Exception as e:  # a broken stage mustn't stop the others
                 st.fail(f"{type(e).__name__}: {e}")

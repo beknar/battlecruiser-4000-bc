@@ -89,12 +89,13 @@ namespace CarrierGame
         /// <summary>A switch given either way: "-name" on the command line or "?name" on the page.</summary>
         public static bool Switch(string name) => Has("-" + name) || PageHas(name);
 
-        /// <summary>Is a test or a reel driving the game (so no one is there to answer menus)?</summary>
+        /// <summary>Is a test, a reel or an AI player (-coopbot) driving the game (so no one is there to
+        /// answer menus, and the player's own save is left alone)?</summary>
         public static bool Automated
         {
             get
             {
-                foreach (var m in new[] { "-systemtest", "-reel", "-autotest", "-webpadtest", "-cooptest" }) if (Has(m)) return true;
+                foreach (var m in new[] { "-systemtest", "-reel", "-autotest", "-webpadtest", "-cooptest", "-coopbot" }) if (Has(m)) return true;
                 return PageHas("systemtest") || PageHas("padtest");
             }
         }

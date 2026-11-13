@@ -4,8 +4,9 @@ using UnityEngine;
 namespace CarrierGame
 {
     /// <summary>
-    /// The frigates a player can fly (Resources/FrigateRoster.asset, made by the scene builder from
-    /// Data/frigates.json): each one's name, what it is good at, and its prefab. The start menu
+    /// The ships a player can fly (Resources/FrigateRoster.asset, made by the scene builder from
+    /// Data/frigates.json): each one's name, what it is good at, its class (frigate, destroyer or
+    /// cruiser), whether it has to be built first, and its prefab. The start menu
     /// offers them, the level puts the chosen one in (PlayerFrigate), and in co-op the others'
     /// ships are built from them.
     /// </summary>
@@ -21,7 +22,14 @@ namespace CarrierGame
             public string role;
             public string description;
             public GameObject prefab;
+            /// <summary>Frigate, Destroyer or Cruiser.</summary>
+            public string category = Frigate;
+            /// <summary>Built at a shipyard (industry.json ships) before it can be flown: the start
+            /// menu offers it only once the player has one (IndustryLedger.Owns).</summary>
+            public bool buildable;
         }
+
+        public const string Frigate = "Frigate", Destroyer = "Destroyer", Cruiser = "Cruiser";
 
         public Entry[] frigates = new Entry[0];
 

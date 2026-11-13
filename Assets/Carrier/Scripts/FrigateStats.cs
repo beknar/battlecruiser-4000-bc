@@ -21,6 +21,8 @@ namespace CarrierGame
         /// <summary>The people who work it, and how fast its mining laser cuts (tonnes a second).</summary>
         public int crew;
         public float mining;
+        /// <summary>Missiles in its magazine (0: none; -1: no limit), and the cells it fires them from.</summary>
+        public int missiles, missileCells;
 
         public static FrigateStats Of(GameObject ship)
         {
@@ -56,6 +58,11 @@ namespace CarrierGame
             {
                 s.beamDamage = beams[0].damagePerSecond * beams[0].fireDuration;
                 s.beamCharge = beams[0].chargeTime;
+            }
+            if (cc != null && cc.missiles != null)
+            {
+                s.missiles = cc.missiles.magazine;
+                s.missileCells = cc.missiles.cells != null ? cc.missiles.cells.Length : 0;
             }
             var hold = ship.GetComponent<CargoHold>();
             if (hold != null) s.cargo = hold.capacity;

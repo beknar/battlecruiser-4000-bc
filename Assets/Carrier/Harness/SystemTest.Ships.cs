@@ -9,9 +9,10 @@ namespace CarrierGame.Demo
     /// <summary>
     /// The frigates (-shiptest, with -frigate &lt;id&gt; for one other than the starting frigate):
     /// the level put the chosen one in and pointed everything at it; it has what every frigate
-    /// must (its turrets, a CIWS mount or more, one main gun); its guns fire on a target ahead,
-    /// to each side, above and astern, never off target or through the hull; its main gun charges
-    /// and fires. Pictures of it from round about, and of the start menu.
+    /// must (its turrets, a CIWS mount or more, one main gun, none on a destroyer); its guns fire
+    /// on a target ahead, to each side, above, below and astern, never off target or through the hull;
+    /// its main gun charges and fires; a destroyer's or cruiser's missiles fire from its cells
+    /// and its magazine fills again. Pictures of it from round about, and of the start menu.
     /// </summary>
     public partial class SystemTest
     {
@@ -52,12 +53,16 @@ namespace CarrierGame.Demo
             Check(st.turrets >= 2 && st.turrets == proto.turrets && cc.mainTurrets.All(t => t != null && t.muzzles.Length > 0),
                   $"its turrets, each with its muzzles ({st.turrets} turrets, {st.barrels} barrels)");
             Check(st.ciws >= 1, $"at least one CIWS mount ({st.ciws})");
-            Check(st.mainGuns == 1, $"one main gun ({st.mainGuns})");
+            bool destroyer = entry != null && entry.category == FrigateRoster.Destroyer;
+            Check(st.mainGuns == (destroyer ? 0 : 1), destroyer ? $"no main gun on a destroyer ({st.mainGuns})" : $"one main gun ({st.mainGuns})");
+            if (entry != null && entry.category != FrigateRoster.Frigate)
+                Check(st.missiles > 0 && st.missileCells > 0 && cc.missiles != null && cc.missiles.Stock == st.missiles,
+                      $"missiles: {st.missiles} in the magazine, {st.missileCells} cells");
 
             Shot("ship_" + flying + "_start");
             yield return Pictures(flying);
 
-            // the guns: a target ahead, to each side, above and astern
+            // the guns: a target ahead, to each side, above, below and astern
             cc.throttle = 0f;
             var dummy = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             dummy.name = "Gunnery target";
@@ -76,6 +81,7 @@ namespace CarrierGame.Demo
                 ("to port", -t.right * 1500f + t.forward * 300f),
                 ("to starboard", t.right * 1500f + t.forward * 300f),
                 ("above", t.up * 1200f + t.forward * 500f),
+                ("below", -t.up * 1200f + t.forward * 500f),   // (for the keel mounts)
                 ("astern", -t.forward * 1600f),
             };
             int bearing = 0, intoHull = 0;
@@ -112,11 +118,29 @@ namespace CarrierGame.Demo
             var gun = cc.GetComponentInChildren<MainBeam>();
             dummy.transform.position = t.position + t.forward * 2500f;
             cc.SetTarget(dummy.transform);
-            int hb = dh.Hits;
-            float dmg0 = dh.TotalDamage;
-            demo.ChargeMainGun();
-            yield return new WaitForSeconds(gun.chargeTime + gun.fireDuration + 1.5f);
-            Check(dh.TotalDamage > dmg0, $"the main gun charges ({gun.chargeTime:F0} s) and hits ({dh.TotalDamage - dmg0:F0} damage)");
+            if (gun != null)
+            {
+                float dmg0 = dh.TotalDamage;
+                demo.ChargeMainGun();
+                yield return new WaitForSeconds(gun.chargeTime + gun.fireDuration + 1.5f);
+                Check(dh.TotalDamage > dmg0, $"the main gun charges ({gun.chargeTime:F0} s) and hits ({dh.TotalDamage - dmg0:F0} damage)");
+            }
+
+            // missiles (a destroyer's or the cruiser's): a salvo from the cells, one fewer aboard
+            // for each, and the magazine filled again
+            if (cc.missiles != null && cc.missiles.magazine > 0)
+            {
+                foreach (var turret in cc.mainTurrets) turret.autoFire = false;
+                int stock0 = cc.missiles.Stock, ready = cc.missiles.ReadyCells;
+                float dmg0 = dh.TotalDamage;
+                demo.FireMissiles();
+                yield return new WaitForSeconds(ready * cc.missiles.salvoInterval + 9f);
+                int fired = stock0 - cc.missiles.Stock;
+                Log($"  missiles: {fired} fired of {ready} cells ready, {cc.missiles.Stock} left, {dh.TotalDamage - dmg0:F0} damage");
+                Check(fired > 0 && fired <= ready, $"a missile salvo from the cells ({fired} fired, {ready} cells)");
+                Check(dh.TotalDamage > dmg0, "the missiles hit");
+                Check(cc.missiles.Rearm() == fired && cc.missiles.Stock == cc.missiles.magazine, "rearming fills the magazine");
+            }
             cc.SetTarget(null);
             Destroy(dummy);
 

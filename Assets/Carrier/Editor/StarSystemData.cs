@@ -14,6 +14,11 @@ namespace Carrier.EditorTools
     [Serializable]
     public class StarSystemData
     {
+        /// <summary>How much wider the level is laid out than the file's distances (km): wide enough
+        /// that no body's reach overlaps another's (a float still holds it to well under a metre).
+        /// The real orbits are CarrierBuilder.DistanceScale times wider again.</summary>
+        public const float LayoutScale = 25f;
+
         /// <summary>A body placed round the star.</summary>
         [Serializable]
         public class Placed
@@ -29,7 +34,7 @@ namespace Carrier.EditorTools
                 get
                 {
                     float a = angle * Mathf.Deg2Rad;
-                    return new Vector3(Mathf.Cos(a) * distanceKm, heightKm, Mathf.Sin(a) * distanceKm) * 1000f;
+                    return new Vector3(Mathf.Cos(a) * distanceKm, heightKm, Mathf.Sin(a) * distanceKm) * 1000f * LayoutScale;
                 }
             }
 

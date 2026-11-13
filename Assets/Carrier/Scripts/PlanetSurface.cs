@@ -54,6 +54,10 @@ namespace CarrierGame
             return l;
         }
         public Transform Ship { get; private set; }
+
+        /// <summary>Build round this from now on (the ship, once it is down: a stand-in for it
+        /// before, while the ground is built ahead of it).</summary>
+        public void Follow(Transform ship) => Ship = ship;
         /// <summary>The middle of the world down here (fixed).</summary>
         public Vector3 Center { get; private set; }
         /// <summary>The planet position (unwrapped) at Center.</summary>

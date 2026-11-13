@@ -20,7 +20,7 @@ namespace CarrierGame
     /// WarpEffects.
     /// </summary>
     [DefaultExecutionOrder(100)]   // LateUpdate after the camera's, so the warp tunnel sits on it
-    public class WarpDrive : MonoBehaviour
+    public class WarpDrive : MonoBehaviour, IOriginShift
     {
         public enum State { Ready, Charging, Warping, Arriving }
 
@@ -69,6 +69,13 @@ namespace CarrierGame
         Vector3 from, to, via, travelDir, toOffset;
         float stateStart, chargeHitTime, arriveSpeed;
         WarpEffects fx;
+
+        /// <summary>The world's origin moved (it is brought back to the ship all through a warp):
+        /// the trip's points move with it.</summary>
+        public void OriginShifted(Vector3 d)
+        {
+            from += d; to += d; via += d;
+        }
 
         void Start()
         {
@@ -291,8 +298,7 @@ namespace CarrierGame
         void TurnToward(Vector3 dir, float degPerSec, float dt)
         {
             if (dir.sqrMagnitude < 1e-4f) return;
-            float wantHeading = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
-            float wantPitch = Mathf.Clamp(Mathf.Atan2(dir.y, new Vector2(dir.x, dir.z).magnitude) * Mathf.Rad2Deg, -ship.maxPitch, ship.maxPitch);
+            ship.Aim(dir, out float wantHeading, out float wantPitch);
             ship.SetAttitude(Mathf.MoveTowardsAngle(ship.Heading, wantHeading, degPerSec * dt),
                              Mathf.MoveTowards(ship.Pitch, wantPitch, degPerSec * 0.6f * dt));
         }

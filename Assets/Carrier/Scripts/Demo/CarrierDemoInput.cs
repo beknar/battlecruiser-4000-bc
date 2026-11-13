@@ -22,6 +22,9 @@ namespace CarrierGame.Demo
         [System.NonSerialized] public float? autoRudder;
         /// <summary>Pitch, elevator and roll input from the self-test; used while the player isn't flying.</summary>
         [System.NonSerialized] public float? autoPitch, autoElevator, autoRoll;
+        /// <summary>The pilot is steering (the rudder, the nose, the elevator thrusters or the roll),
+        /// this frame: it takes the controls back from an auto-pilot.</summary>
+        public bool PilotFlying { get; private set; }
 
         WarpDrive warp;
         /// <summary>The landing controller, if this level has one.</summary>
@@ -128,6 +131,7 @@ namespace CarrierGame.Demo
                     if (Mathf.Abs(padLift) > 0.05f && Mathf.Abs(padLift) > Mathf.Abs(lift)) lift = padLift;
                 }
             }
+            PilotFlying = turn != 0f || pitch != 0f || lift != 0f || roll != 0f;
             WatchDestruction();
             if (carrier.Destroyed) return;
             carrier.rudder = turn != 0f || !autoRudder.HasValue ? turn : autoRudder.Value;

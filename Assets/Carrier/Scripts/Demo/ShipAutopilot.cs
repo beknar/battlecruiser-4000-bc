@@ -13,7 +13,8 @@ namespace CarrierGame.Demo
         /// <param name="standoff">Preferred range in metres.</param>
         public static float Broadside(CarrierController ship, Vector3 target, int side, float standoff)
         {
-            Vector3 to = target - ship.transform.position;
+            // (in the ship's up frame, where its heading and nose angle are measured)
+            Vector3 to = Quaternion.Inverse(ship.upFrame) * (target - ship.transform.position);
             to.y = 0f;
             float dist = to.magnitude;
             if (dist < 1f) return 0f;
@@ -28,7 +29,7 @@ namespace CarrierGame.Demo
         /// <summary>Point the bow straight at the target (for the bow beam): rudder and pitch input.</summary>
         public static Vector2 BowOn(CarrierController ship, Vector3 target)
         {
-            Vector3 to = target - ship.transform.position;
+            Vector3 to = Quaternion.Inverse(ship.upFrame) * (target - ship.transform.position);
             float bearing = Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg;
             float elevation = Mathf.Atan2(to.y, new Vector2(to.x, to.z).magnitude) * Mathf.Rad2Deg;
             float rudder = Mathf.Clamp(Mathf.DeltaAngle(ship.Heading, bearing) / 10f, -1f, 1f);

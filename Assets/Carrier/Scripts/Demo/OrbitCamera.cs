@@ -20,6 +20,9 @@ namespace CarrierGame.Demo
         [Tooltip("LT/RT zoom the camera (off when the triggers fly the ship).")]
         public bool padTriggerZoom = true;
 
+        Transform cachedTarget;
+        CarrierController ship;
+
         void LateUpdate()
         {
             // no orbiting or zooming under the pause menu (it still follows its target)
@@ -50,9 +53,12 @@ namespace CarrierGame.Demo
             }
             yaw += autoRotate * Time.deltaTime;
             if (target == null) return;
-            var rot = Quaternion.Euler(pitch, yaw, 0f);
-            Vector3 focus = target.position + offset;
-            transform.SetPositionAndRotation(focus - rot * Vector3.forward * distance, rot);
+            // (round the ship's own up: out from the planet it is by, so the horizon stays level)
+            if (target != cachedTarget) { cachedTarget = target; ship = target.GetComponent<CarrierController>(); }
+            Quaternion frame = ship != null ? ship.upFrame : Quaternion.identity;
+            var rot = frame * Quaternion.Euler(pitch, yaw, 0f);
+            Vector3 focus = target.position + frame * offset;
+            transform.SetPositionAndRotation(focus - rot * Vector3.forward * distance, Quaternion.LookRotation(rot * Vector3.forward, frame * Vector3.up));
         }
     }
 }

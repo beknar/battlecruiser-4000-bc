@@ -33,7 +33,8 @@ namespace CarrierGame
                 if (col.enabled && col.Raycast(ray, out var hit, reach * 2f) && hit.distance < best) { best = hit.distance; hitAt = hit.point; }
             if (best == float.MaxValue) return;
             transform.rotation = Quaternion.FromToRotation(transform.up, up) * transform.rotation;
-            transform.position = hitAt - up * sink;
+            // (on a planet's real ground, its hills and pads, where it has one: PlanetTerrain)
+            transform.position = hitAt + up * (PlanetTerrain.GroundAt(body, hitAt) - sink);
             Settled = true;
         }
     }

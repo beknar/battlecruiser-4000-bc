@@ -30,10 +30,11 @@ namespace CarrierGame.Demo
             var shield = cc.GetComponentInChildren<Shield>();
             var spaceSky = RenderSettings.skybox;
             Log($"landing: near {WarpPoint.Nearest(cc.transform.position)?.displayName}; HUD '{Plain(landing.HudText())}'");
+            // (K is the auto-lander: from orbit down through the air and over to the surface)
             yield return Key(kb, UnityEngine.InputSystem.Key.K);
-            yield return WaitLanding(landing, PlanetLanding.State.OnSurface, 15f);
+            yield return WaitLanding(landing, PlanetLanding.State.OnSurface, 300f);
             var site = landing.Site;
-            if (site == null) { Log("FAIL: landing (K did not land)"); yield break; }
+            if (site == null) { Log($"FAIL: landing (K did not land: {landing.AutopilotStage}, {PlanetFlight.Instance?.Altitude:F0} m up)"); yield break; }
             // where it should come back to on take-off: the same place over the body it landed on
             var orbitBody = landing.Body;
             Vector3 orbit = landing.OrbitOffset;
@@ -43,9 +44,11 @@ namespace CarrierGame.Demo
             bool siteOk = site.kind == SurfaceKind.Ocean && site.terrain != null && Mathf.Approximately(site.terrain.terrainData.size.x, SurfaceGenerator.Size) &&
                           landing.Altitude > 50f;
 
-            // fly to the pad and set down on it
+            // fly to the pad and set down on it (the auto-lander does, coming down from orbit)
             float hull0 = health.Current, shield0 = shield != null ? shield.Strength : 0f;
-            float until = Time.time + 70f;
+            float until = Time.time + 150f;
+            while (landing.Autopilot && !landing.Landed && Time.time < until) yield return null;
+            until = Time.time + 70f;
             bool descending = false;
             while (Time.time < until && !landing.Landed)
             {
@@ -73,13 +76,17 @@ namespace CarrierGame.Demo
             bool edgeOk = false;
             yield return StreamingTest(landing, ok => edgeOk = ok);
 
+            // K again: the climb, out of the surface, up through the air and back to orbit
             yield return Key(kb, UnityEngine.InputSystem.Key.K);
-            yield return WaitLanding(landing, PlanetLanding.State.InSpace, 10f);
+            yield return WaitLanding(landing, PlanetLanding.State.InSpace, 150f);
+            until = Time.time + 300f;
+            while (landing.Autopilot && Time.time < until) yield return null;
             yield return new WaitForSeconds(0.5f);
+            float orbitHeight = orbitBody != null ? orbitBody.arrivalDistance - orbitBody.bodyRadius : 0f;
+            float upNow = orbitBody != null ? Vector3.Distance(cc.transform.position, orbitBody.Position) - orbitBody.bodyRadius : 0f;
             bool backOk = landing.Current == PlanetLanding.State.InSpace && landing.Site == null && RenderSettings.skybox == spaceSky &&
-                          !RenderSettings.fog && orbitBody != null && Vector3.Distance(cc.transform.position - orbitBody.Position, orbit) < 3000f;
-            Log($"  take off (K): back in space {landing.Current == PlanetLanding.State.InSpace}, " +
-                $"{(orbitBody != null ? Vector3.Distance(cc.transform.position - orbitBody.Position, orbit) : -1f):F0} m from where it left over {orbitBody?.displayName}, " +
+                          !RenderSettings.fog && orbitBody != null && upNow > orbitHeight * 0.9f;
+            Log($"  take off (K): back in space {landing.Current == PlanetLanding.State.InSpace}, {upNow / 1000f:F0} km up over {orbitBody?.displayName} (orbit {orbitHeight / 1000f:F0} km), " +
                 $"space sky back {RenderSettings.skybox == spaceSky}, fog {RenderSettings.fog}, warp {(drive.CanWarp(out string lw) ? "ready" : lw)}");
             Log(siteOk && downOk && edgeOk && backOk ? "PASS: landing (land, touch down on the pad, fly round the planet, take off)"
                 : $"FAIL: landing (site {siteOk}, touchdown {downOk}, streaming {edgeOk}, back {backOk})");
@@ -197,8 +204,16 @@ namespace CarrierGame.Demo
                         cc.throttle = 0f;
                         var oc2 = demo.orbitCamera;
                         if (oc2 != null) { oc2.yaw = Mathf.Atan2(look.x, look.z) * Mathf.Rad2Deg - 25f; oc2.pitch = 12f; }
+                        // (the frigate's point defence off: with a full crew it shoots every shell down)
+                        var ciws = demo.Ciws;
+                        bool ciwsWas = ciws != null && ciws.active;
+                        if (ciws != null) ciws.active = false;
                         near.garrison.Raise();
+                        // (a battery's shells take a while to find the range: up to 15 s for a hit)
+                        float hitBy = Time.time + 15f;
                         yield return new WaitForSeconds(7f);
+                        while (Time.time < hitBy && (hull1 - health.Current) + (shield1 - (shield != null ? shield.Strength : 0f)) <= 0f) yield return null;
+                        if (ciws != null) ciws.active = ciwsWas;
                         Shot($"l_{name.Replace(' ', '_').ToLower()}_forces");
                         float took = (hull1 - health.Current) + (shield1 - (shield != null ? shield.Strength : 0f));
                         Log($"  close to a {near.name} ({Vector3.Distance(near.transform.position, cc.transform.position):F0} m, in sight {Cover.Visible(near.transform.position + Vector3.up * 8f, cc.transform.position)}, " +
@@ -246,12 +261,15 @@ namespace CarrierGame.Demo
                 }
                 if (name == "Ochre")
                 {
-                    // climb out through the ceiling
-                    cc.throttle = 0f;
+                    // climb out by hand, nose up, back into the air over the planet
+                    cc.throttle = 1f;
+                    demo.autoPitch = 1f;
                     demo.autoElevator = 1f;
-                    until = Time.time + 90f;
+                    until = Time.time + 120f;
                     while (Time.time < until && landing.Current == PlanetLanding.State.OnSurface) yield return null;
+                    demo.autoPitch = null;
                     demo.autoElevator = null;
+                    cc.throttle = 0.2f;
                     Log($"  climbing: left the surface by itself {landing.Current != PlanetLanding.State.OnSurface}");
                     good &= landing.Current != PlanetLanding.State.OnSurface;
                     yield return WaitLanding(landing, PlanetLanding.State.InSpace, 10f);

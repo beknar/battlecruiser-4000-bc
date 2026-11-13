@@ -21,6 +21,7 @@ namespace CarrierGame
         {
             if (spawnFrame != null) spawnPosition = spawnFrame.position + spawnFrame.rotation * spawnOffset;
             transform.SetPositionAndRotation(spawnPosition, spawnRotation);
+            upFrame = Quaternion.identity;
             heading = spawnRotation.eulerAngles.y;
             pitchAngle = 0f;
             rollAngle = 0f;
@@ -73,6 +74,13 @@ namespace CarrierGame
                 }
             foreach (var f in allFlares) if (f) { f.thrust = 0f; f.Apply(0f); f.enabled = on; }
             if (hum != null) hum.volume = on ? hum.volume : 0f;
+        }
+
+        /// <summary>The system's origin was brought back to the frigate (OrbitalSystem): a respawn
+        /// point kept in the world (in no reach) moves with it.</summary>
+        void OriginShifted(Vector3 delta)
+        {
+            if (spawnFrame == null) spawnPosition += delta;
         }
 
         /// <summary>Where the ship comes back after being destroyed (the last place it warped to),

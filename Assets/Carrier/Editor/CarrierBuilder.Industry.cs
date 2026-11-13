@@ -324,11 +324,11 @@ namespace Carrier.EditorTools
 
         static void GasWorks(SystemRefs s, Transform parent, Built b, IndPrefabs ip)
         {
-            // 25 km out from Jovara, away from where its moons are at the start
+            // 250 km over Jovara's clouds, away from where its moons are at the start
             Vector3 jv = s.jovara.transform.position;
             Vector3 toStar = -jv; toStar.y = 0f; toStar.Normalize();
             Vector3 dir = Quaternion.Euler(0f, 150f, 0f) * toStar;
-            Vector3 pos = jv + dir * 25000f + Vector3.up * 800f;
+            Vector3 pos = Above(jv, RadiusOf(s.jovara), dir * 25000f + Vector3.up * 800f, 250000f);
             SpaceSite("Jovara Gas Works", ip.refinerySpace, parent, pos, Quaternion.LookRotation(Vector3.Cross(Vector3.up, dir), Vector3.up), b,
                       s.jovara.GetComponent<WarpPoint>());
         }

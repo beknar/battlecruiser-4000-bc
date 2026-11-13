@@ -123,6 +123,11 @@ namespace Carrier.EditorTools
             ob.cover = cover;
         }
 
+        /// <summary>A point `altitude` above a body's surface (centre `c`, radius `R`), toward `dir`.</summary>
+        static Vector3 Above(Vector3 c, float R, Vector3 dir, float altitude) => c + dir.normalized * (R + altitude);
+
+        static float RadiusOf(GameObject body) => body.GetComponent<WarpPoint>().bodyRadius;
+
         /// <summary>A berth: where a docked frigate lies (its forward is the way out).</summary>
         static Transform Berth(Transform parent, Vector3 pos, Vector3 forward)
         {
@@ -545,7 +550,7 @@ namespace Carrier.EditorTools
         {
             var platform = OrbitalPrefab(p, false);
             var lance = OrbitalPrefab(p, true);
-            Vector3 c = s.cinder.transform.position + Vector3.up * 9500f;
+            Vector3 c = Above(s.cinder.transform.position, RadiusOf(s.cinder), Vector3.up, 120000f);   // (over the pole, 120 km up)
             Vector3 toThalassa = s.thalassa.transform.position - c; toThalassa.y = 0f; toThalassa.Normalize();
             var go = new GameObject("Cinder Orbital Battery");
             go.transform.SetParent(parent, false);
@@ -598,7 +603,7 @@ namespace Carrier.EditorTools
         {
             Vector3 br = s.wBrontes.Position, jv = s.jovara.transform.position;
             Vector3 radial = (br - jv); radial.y = 0f; radial.Normalize();
-            Vector3 pos = br + Quaternion.Euler(0f, 90f, 0f) * radial * 7500f + Vector3.up * 600f;
+            Vector3 pos = Above(br, s.wBrontes.bodyRadius, Quaternion.Euler(0f, 90f, 0f) * radial * 7500f + Vector3.up * 600f, 80000f);
             var go = new GameObject("Brontes Shipyard");
             go.transform.SetParent(parent, false);
             go.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(radial, Vector3.up));
@@ -649,7 +654,7 @@ namespace Carrier.EditorTools
         {
             Vector3 oc = s.ochre.transform.position;
             Vector3 toStar = (-oc); toStar.y = 0f; toStar.Normalize();
-            Vector3 pos = oc + Quaternion.Euler(0f, -60f, 0f) * toStar * 10500f + Vector3.up * 1500f;
+            Vector3 pos = Above(oc, RadiusOf(s.ochre), Quaternion.Euler(0f, -60f, 0f) * toStar * 10500f + Vector3.up * 1500f, 150000f);
             var go = new GameObject("Ochre Relay");
             go.transform.SetParent(parent, false);
             go.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(toStar, Vector3.up));

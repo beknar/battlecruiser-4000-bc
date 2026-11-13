@@ -15,8 +15,11 @@ namespace CarrierGame.Demo
         // ------------------------------------------------------------------ mining
 
         /// <summary>Open the map and warp to a place by name (Tab to it, Enter).</summary>
+        int collectionsAtWarp;
+
         IEnumerator WarpTo(Keyboard kb, string name, string shot)
         {
+            collectionsAtWarp = SceneMemory.Collections;
             if (!SystemMap.IsOpen) yield return Key(kb, UnityEngine.InputSystem.Key.M);
             for (int i = 0; i < 60 && map.Selected?.displayName != name; i++) yield return Key(kb, UnityEngine.InputSystem.Key.Tab);
             if (map.Selected?.displayName != name)

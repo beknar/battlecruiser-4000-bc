@@ -123,6 +123,15 @@ namespace CarrierGame.Demo
                   $"loaded aboard: {hold.Amount("SteelPlate"):F1} t of steel plate and {hold.Amount("AluminiumSheet"):F1} t of sheet; the hold {hold.Used:F0} of {hold.capacity:F0} t");
             yield return Leave();
             Check(dock.Current == Docking.State.Free, $"Esc closes the screen, K lifts off the pad ({dock.Current}, {keel:F0} m above the rock's site)");
+            {
+                var hp = cc.GetComponent<Health>();
+                var sh = cc.GetComponentInChildren<Shield>();
+                Log($"  after lifting off: hull {hp.Current:F0}, shield {(sh != null ? sh.Strength : 0f):F0}, last hit {Time.time - Mathf.Max(hp.LastHitTime, sh != null ? sh.LastHitTime : -100f):F1} s ago; " +
+                    $"warp {(drive.CanWarp(out string why) ? "ready" : why)}");
+                // (a bump on the pad locks the warp drive for a few seconds: wait it out)
+                float clear = Time.time + drive.recentHitSeconds + 1f;
+                while (!drive.CanWarp(out _) && Time.time < clear) yield return null;
+            }
 
             // ---- the deep yard: build a cargo pod and fit it
             yield return DockAt("Kestrel Deep Yard", r => ok = r);
@@ -179,15 +188,17 @@ namespace CarrierGame.Demo
                 string file = name.Split(' ')[0].ToLower();
                 yield return LookAt(Point(name).Position, $"i_{file}_from_orbit", 2.4f, 40f);
                 yield return Key(kb, K.K);
-                yield return WaitLanding(landing, PlanetLanding.State.OnSurface, 60f);
-                yield return new WaitForSeconds(2.5f);
+                yield return WaitLanding(landing, PlanetLanding.State.OnSurface, 120f);
+                float downBy = Time.time + 120f;
+                while (landing.Autopilot && Time.time < downBy) yield return null;
+                yield return new WaitForSeconds(1f);
                 var site = IndustrySite.All.FirstOrDefault(s => s.siteName == name && s.pad != null);
                 var surface = landing.Surface;
                 bool refinery = surface != null && surface.GetComponentsInChildren<Transform>(true).Any(t => t.name == "Ind_RefinerySurface");
                 bool factory = surface != null && surface.GetComponentsInChildren<Transform>(true).Any(t => t.name == "Ind_FactorySurface");
                 Check(landing.Current == PlanetLanding.State.OnSurface && site != null && refinery && factory,
                       $"down at {name}: its pad{(site != null ? $" {Vector3.Distance(Flat(site.pad.position), Flat(cc.transform.position)):F0} m off" : " missing")}, refinery {refinery}, factory {factory}");
-                if (site == null) { yield return Key(kb, K.K); yield return WaitLanding(landing, PlanetLanding.State.InSpace, 15f); continue; }
+                if (site == null) { landing.TakeOff(); yield return WaitLanding(landing, PlanetLanding.State.InSpace, 15f); continue; }
                 Shot($"i_{file}_surface");
                 yield return LookAt(site.transform.position, $"i_{file}_site", 4f, 14f);
                 // over to the pad, and down on it
@@ -224,7 +235,7 @@ namespace CarrierGame.Demo
                     Shot($"i_{file}_on_the_pad");
                     oc.distance = d0; oc.pitch = p0;
                 }
-                yield return Key(kb, K.K);
+                landing.TakeOff();
                 yield return WaitLanding(landing, PlanetLanding.State.InSpace, 15f);
                 yield return new WaitForSeconds(0.5f);
             }

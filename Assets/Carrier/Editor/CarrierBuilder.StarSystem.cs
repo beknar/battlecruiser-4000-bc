@@ -33,7 +33,7 @@ namespace Carrier.EditorTools
         static Vector3 Polar(float angleDeg, float distKm, float yKm)
         {
             float a = angleDeg * Mathf.Deg2Rad;
-            return new Vector3(Mathf.Cos(a) * distKm, yKm, Mathf.Sin(a) * distKm) * 1000f;
+            return new Vector3(Mathf.Cos(a) * distKm, yKm, Mathf.Sin(a) * distKm) * 1000f * StarSystemData.LayoutScale;
         }
 
         // ------------------------------------------------------------------ planet textures
@@ -74,52 +74,18 @@ namespace Carrier.EditorTools
             return Color.Lerp(cs[i], cs[i + 1], t - i);
         }
 
-        static (Texture2D, Texture2D) VolcanicMaps() => PlanetMaps("Planet_Volcanic", 1024, 512, (d, lat) =>
-        {
-            float rock = ProcNoise.Fbm(d * 3f, 501, 5) * 0.5f + 0.5f;
-            float crack = Mathf.Pow(ProcNoise.Ridged(d * 4.5f + Vector3.one * 3f, 503, 5), 5f);
-            float lava = Edge(0.12f, 0.4f, crack);
-            var basalt = Color.Lerp(new Color(0.06f, 0.05f, 0.05f), new Color(0.2f, 0.16f, 0.14f), rock);
-            var albedo = Color.Lerp(basalt, new Color(0.45f, 0.12f, 0.03f), lava);
-            var glow = Color.Lerp(Color.black, new Color(1f, 0.42f, 0.08f), lava) * (0.6f + 0.4f * rock);
-            return (albedo, glow);
-        }, true);
+        // (the colours are CarrierGame.PlanetMaps': the ground seen close to, PlanetTerrain, colours
+        // itself from the very same functions)
+        static (Texture2D, Texture2D) VolcanicMaps() => PlanetMaps("Planet_Volcanic", 1024, 512, (d, lat) => CarrierGame.PlanetMaps.Volcanic(d), true);
 
-        static Texture2D DesertMap() => PlanetMaps("Planet_Desert", 1024, 512, (d, lat) =>
-        {
-            float n = ProcNoise.Fbm(d * 2.4f, 601, 6) * 0.5f + 0.5f;
-            float dunes = Mathf.Sin(lat * 60f + ProcNoise.Fbm(d * 6f, 607, 3) * 8f) * 0.5f + 0.5f;
-            var c = Ramp(n, new Color(0.38f, 0.25f, 0.17f), new Color(0.72f, 0.42f, 0.22f), new Color(0.86f, 0.66f, 0.42f), new Color(0.92f, 0.8f, 0.6f));
-            c *= 0.92f + 0.1f * dunes;
-            float basin = Edge(0.62f, 0.8f, ProcNoise.Fbm(d * 1.3f + Vector3.one * 7f, 611, 3) * 0.5f + 0.5f);
-            c = Color.Lerp(c, new Color(0.5f, 0.3f, 0.2f), basin * 0.5f);
-            return (c, Color.black);
-        }, false).albedo;
+        static Texture2D DesertMap() => PlanetMaps("Planet_Desert", 1024, 512, (d, lat) => (CarrierGame.PlanetMaps.Desert(d), Color.black), false).albedo;
 
-        static Texture2D OceanMap() => PlanetMaps("Planet_Ocean", 2048, 1024, (d, lat) =>
-        {
-            float h = ProcNoise.Fbm(d * 2.1f, 701, 6) + 0.25f * ProcNoise.Fbm(d * 7f, 709, 4);
-            Color c;
-            if (h < 0.06f)
-                c = Color.Lerp(new Color(0.01f, 0.035f, 0.12f), new Color(0.03f, 0.14f, 0.28f), Mathf.InverseLerp(-0.35f, 0.06f, h));
-            else
-                c = Ramp(Mathf.InverseLerp(0.06f, 0.5f, h), new Color(0.55f, 0.5f, 0.34f), new Color(0.11f, 0.25f, 0.08f),
-                         new Color(0.2f, 0.26f, 0.1f), new Color(0.33f, 0.26f, 0.17f), new Color(0.5f, 0.5f, 0.5f));
-            float ice = Edge(0.72f, 0.82f, Mathf.Abs(lat) + 0.06f * ProcNoise.Fbm(d * 5f, 713, 3));
-            c = Color.Lerp(c, new Color(0.92f, 0.95f, 0.98f), ice);
-            float cloud = Edge(0.18f, 0.6f, ProcNoise.Fbm(d * 3.2f + Vector3.one * 11f, 719, 5)) * 0.65f;
-            c = Color.Lerp(c, new Color(0.95f, 0.96f, 0.98f), cloud);
-            return (c, Color.black);
-        }, false).albedo;
+        static Texture2D OceanMap() => PlanetMaps("Planet_Ocean", 2048, 1024, (d, lat) => (CarrierGame.PlanetMaps.Ocean(d, true), Color.black), false).albedo;
 
-        static Texture2D IceGiantMap() => PlanetMaps("Planet_IceGiant", 1024, 512, (d, lat) =>
-        {
-            float warp = ProcNoise.Fbm(d * 2.5f, 801, 4);
-            float band = Mathf.Sin(lat * 9f + warp * 1.6f) * 0.35f + Mathf.Sin(lat * 23f + warp * 3f) * 0.15f + 0.5f;
-            var c = Ramp(band, new Color(0.18f, 0.42f, 0.55f), new Color(0.36f, 0.66f, 0.74f), new Color(0.58f, 0.82f, 0.86f), new Color(0.28f, 0.52f, 0.66f));
-            c = Color.Lerp(c, new Color(0.85f, 0.95f, 0.97f), Edge(0.8f, 1f, Mathf.Abs(lat)) * 0.5f);
-            return (c, Color.black);
-        }, false).albedo;
+        static Texture2D IceGiantMap() => PlanetMaps("Planet_IceGiant", 1024, 512, (d, lat) => (CarrierGame.PlanetMaps.IceGiant(d), Color.black), false).albedo;
+
+        /// <summary>A moon's grey map (its own seed: no two alike).</summary>
+        static Texture2D MoonMap(string name, int seed) => PlanetMaps($"Moon_{name}", 1024, 512, (d, lat) => (CarrierGame.PlanetMaps.Moon(d, seed), Color.black), false).albedo;
 
         /// <summary>A smooth radial glow for the star's corona (black outside, so it adds nothing there).</summary>
         static Texture2D StarGlowTexture()
@@ -197,6 +163,7 @@ namespace Carrier.EditorTools
             ob.radius = radius * 1.02f;
             ob.coreRadius = radius;
             go.AddComponent<Drift>().spin = new Vector3(0f, spin, 0f);
+            go.AddComponent<ScaledSpace>();
             if (atmo != null)
             {
                 var a = new GameObject("Atmosphere", typeof(MeshFilter), typeof(MeshRenderer));
@@ -209,6 +176,21 @@ namespace Carrier.EditorTools
                 ar.receiveShadows = false;
             }
             return go;
+        }
+
+        /// <summary>The ground seen close to from space (PlanetTerrain): the body's own surface, in
+        /// its map's colours (a gas giant has no ground to see).</summary>
+        static void AddTerrain(GameObject body, SurfaceKind kind, Material mat, int mapSeed)
+        {
+            if (kind == SurfaceKind.GasGiant) return;
+            var tm = SaveMat(mat.name + "_Terrain", new Material(mat));
+            tm.EnableKeyword("_TERRAIN");
+            EditorUtility.SetDirty(tm);
+            var t = body.AddComponent<PlanetTerrain>();
+            t.kind = kind;
+            t.material = tm;
+            t.mapSeed = mapSeed;
+            t.sphere = body.GetComponent<MeshRenderer>();
         }
 
         static WarpPoint MakeWarpPoint(GameObject go, string display, WarpPoint.Kind kind, string desc, float bodyRadius, float arrival,
@@ -305,23 +287,26 @@ namespace Carrier.EditorTools
             fill.transform.rotation = Quaternion.LookRotation(new Vector3(-0.2f, 1f, -0.3f));
             var sys = new GameObject("Kestrel System").transform;
 
-            // the star: 3.5 km in radius, a few degrees across from the inner system (it lights
+            // the star: 50,000 km in radius, a few degrees across from the inner system (it lights
             // everything through the sun light; it needn't fill the sky to do it)
+            const float StarRadius = 5.0e7f;
             var star = new GameObject("Kestrel", typeof(MeshFilter), typeof(MeshRenderer));
             star.transform.SetParent(sys, false);
-            star.transform.localScale = Vector3.one * 7000f;
+            star.transform.localScale = Vector3.one * StarRadius * 2f;
             star.layer = layer;
             star.AddComponent<ProceduralSphere>().Build();
             star.GetComponent<MeshRenderer>().sharedMaterial = starMat;
             star.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
             star.AddComponent<SphereCollider>().radius = 0.5f;
             var sob = star.AddComponent<Obstacle>();
-            sob.radius = 3800f; sob.coreRadius = 3500f;
+            sob.radius = StarRadius * 1.08f; sob.coreRadius = StarRadius;
+            star.AddComponent<ScaledSpace>().starLit = false;
             var corona = GameObject.CreatePrimitive(PrimitiveType.Quad);
             StripColliders(corona);
             corona.name = "Corona";
             corona.transform.SetParent(sys, false);
-            corona.transform.localScale = Vector3.one * 32000f;
+            corona.transform.localScale = Vector3.one * StarRadius * 9.1f;
+            corona.AddComponent<ScaledSpace>().starLit = false;
             var cr = corona.GetComponent<MeshRenderer>();
             cr.sharedMaterial = coronaMat;
             cr.shadowCastingMode = ShadowCastingMode.Off;
@@ -330,7 +315,7 @@ namespace Carrier.EditorTools
             sl.corona = corona.transform;
             var wStar = MakeWarpPoint(star, "Kestrel", WarpPoint.Kind.Star,
                 "A yellow-white main-sequence star. A close pass gives a spectacular view, and nowhere to hide.",
-                3500f, 24000f, new Color(1f, 0.85f, 0.45f));
+                StarRadius, StarRadius * 3f, new Color(1f, 0.85f, 0.45f));
 
             // the planets, moons and asteroid fields: Data/star_system.json (the star's mass is set
             // by one planet's year: Thalassa's 90 minutes; Thalassa turns fast enough for a
@@ -350,6 +335,7 @@ namespace Carrier.EditorTools
                 var (mat, atmo) = planetLook[pd.Surface];
                 var planet = MakePlanet(pd.name, sys, pd.Position, pd.radius, mat, atmo, pd.atmosphereScale, layer, pd.spinMatchesElevator ? ThalassaSpin() : pd.spin);
                 var wp = MakeWarpPoint(planet, pd.name, WarpPoint.Kind.Planet, pd.description, pd.radius, pd.arrival, pd.MapColor, null, pd.hostile);
+                AddTerrain(planet, pd.Surface, mat, 901);
                 wp.surface = pd.Surface;
                 bodies[pd.name] = planet;
                 points[pd.name] = wp;
@@ -359,11 +345,13 @@ namespace Carrier.EditorTools
             WarpPoint Moon(string name, GameObject planet, WarpPoint parentWp, float angle, float distKm, float radius, int seed, string desc)
             {
                 Vector3 pos = planet.transform.position + new Vector3(Mathf.Cos(angle * Mathf.Deg2Rad), 0.03f, Mathf.Sin(angle * Mathf.Deg2Rad)) * distKm * 1000f;
-                var m = MakeAsteroid(name, sys, pos, Quaternion.Euler(0f, angle, 0f), 1f, seed, 5, 3, new Vector3(radius, radius * 0.97f, radius),
-                                     0.05f, 40, radius / 6f, rockMat, layer, radius * 1.15f, radius * 0.9f);
+                var moonMat = PlanetMat($"Moon_{name}", MoonMap(name, seed), null, Color.black, 0.03f);
+                var m = MakePlanet(name, sys, pos, radius, moonMat, null, 1f, layer, 0f);
                 m.GetComponent<Obstacle>().cover = true;
+                m.AddComponent<MineralDeposit>().seed = MineralDeposit.PositionSeed(pos);
                 m.GetComponent<MineralDeposit>().body = BodyClass.Moon;
-                var mw = MakeWarpPoint(m, name, WarpPoint.Kind.Moon, desc, radius, radius * 3.2f + 1500f, new Color(0.75f, 0.75f, 0.78f), parentWp);
+                AddTerrain(m, SurfaceKind.Moon, moonMat, seed);
+                var mw = MakeWarpPoint(m, name, WarpPoint.Kind.Moon, desc, radius, radius + 80000f, new Color(0.75f, 0.75f, 0.78f), parentWp);
                 mw.surface = SurfaceKind.Moon;
                 return mw;
             }
@@ -407,6 +395,9 @@ namespace Carrier.EditorTools
             drive.flashMaterial = flashMat;
             drive.ringMaterial = ringMat;
             drive.sparkMaterial = sparkMat;
+            // flying near the planets: up out from them, cruise, the air and its sky
+            var flight = frigate.AddComponent<PlanetFlight>();
+            flight.skyDome = SaveMat("SkyDome", new Material(Shader.Find("Carrier/SkyDome")));
 
             // hostiles hiding in two of the fields
             var all = new List<GameObject>();

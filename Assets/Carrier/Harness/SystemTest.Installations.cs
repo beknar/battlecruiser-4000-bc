@@ -20,7 +20,7 @@ namespace CarrierGame.Demo
             var oc = demo.orbitCamera;
             if (oc == null) { Shot(shot); yield break; }
             float d0 = oc.distance, p0 = oc.pitch, y0 = oc.yaw;
-            Vector3 to = p - cc.transform.position;
+            Vector3 to = Quaternion.Inverse(cc.upFrame) * (p - cc.transform.position);   // (in the ship's up frame, as the camera turns)
             oc.yaw = Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg;
             oc.pitch = down - Mathf.Atan2(to.y, new Vector2(to.x, to.z).magnitude) * Mathf.Rad2Deg;
             oc.distance = demo.ShipViewDistance * distMul;
@@ -126,7 +126,13 @@ namespace CarrierGame.Demo
             float engagedAt = grid.NearestGun(cc.transform.position, out _);
             Log($"  engaged {grid.Engaged} at {engagedAt / 1000f:F1} km from the nearest gun");
             if (!grid.Engaged) { done(false); yield break; }
-            var target = guns.Select(w => w.transform).FirstOrDefault(t => t.name == targetName) ?? guns[0].transform;
+            // (the named gun, if the frigate can see it from where it has come in: otherwise the
+            // nearest one it can see; the frigate arrives from wherever its last place was)
+            var named = guns.Select(w => w.transform).FirstOrDefault(t => t.name == targetName);
+            bool Seen(Transform t) => t != null && Cover.Visible(cc.transform.position, t.position + Vector3.up * 8f);
+            var target = Seen(named) ? named
+                : guns.Select(w => w.transform).Where(Seen).OrderBy(t => Vector3.Distance(t.position, cc.transform.position)).FirstOrDefault()
+                  ?? named ?? guns[0].transform;
             // the missiles and beams reach farther than the turrets: close in to turret range
             yield return FlyTo(target.position, 2500f, 40f, 0.5f);
             cc.throttle = 0.15f;
@@ -181,7 +187,9 @@ namespace CarrierGame.Demo
             var landing = PlanetLanding.Instance;
             var wp = Point(name);
             if (landing == null || wp == null) { Log($"  FAIL: no landing controller, or no {name}"); done(false); yield break; }
-            int gc0 = SceneMemory.Collections;
+            // (from before the warp here: the ground below starts being built as soon as the
+            // frigate is low over a planet, and the garbage is collected then)
+            int gc0 = Mathf.Min(SceneMemory.Collections, collectionsAtWarp);
             float alt = Vector3.Distance(cc.transform.position, wp.Position);
             Vector3 up = (wp.Position - wp.landsOn.Position).normalized;
             float overhead = Vector3.Angle(up, cc.transform.position - wp.Position);

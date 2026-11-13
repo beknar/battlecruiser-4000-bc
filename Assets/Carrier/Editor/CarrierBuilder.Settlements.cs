@@ -339,7 +339,7 @@ namespace Carrier.EditorTools
             Vector3 th = s.thalassa.transform.position;
             Vector3 toStar = -th; toStar.y = 0f; toStar.Normalize();
             Vector3 dir = Quaternion.Euler(0f, 200f, 0f) * toStar;
-            Vector3 pos = th + dir * 36000f + Vector3.up * 1500f;
+            Vector3 pos = Above(th, RadiusOf(s.thalassa), dir * 36000f + Vector3.up * 1500f, 400000f);
             var t = NewRoot(parent, name, pos, Quaternion.LookRotation(Vector3.Cross(Vector3.up, dir), Vector3.up));
             // the hub (a ringed drum, its axis along the ring's), the habitat ring round it, docking
             // modules and a collar at the hub's front
@@ -364,7 +364,7 @@ namespace Carrier.EditorTools
             Vector3 at = arges.Position;
             Vector3 jv = s.jovara.transform.position;
             Vector3 away = at - jv; away.y = 0f; away.Normalize();
-            Vector3 pos = at + Quaternion.Euler(0f, 90f, 0f) * away * 7000f + Vector3.up * 400f;
+            Vector3 pos = Above(at, arges.bodyRadius, Quaternion.Euler(0f, 90f, 0f) * away * 7000f + Vector3.up * 400f, 60000f);
             var t = NewRoot(parent, name, pos, Quaternion.LookRotation(away, Vector3.up));
             // three drums on a spine, habitat blocks round the middle one, a reactor astern, a
             // docking collar at the bow
@@ -483,7 +483,7 @@ namespace Carrier.EditorTools
             Vector3 oc = s.ochre.transform.position;
             Vector3 toStar = -oc; toStar.y = 0f; toStar.Normalize();
             Vector3 dir = Quaternion.Euler(0f, 100f, 0f) * toStar;
-            Vector3 pos = oc + dir * 16000f + Vector3.up * 600f;
+            Vector3 pos = Above(oc, RadiusOf(s.ochre), dir * 16000f + Vector3.up * 600f, 250000f);
             var t = NewRoot(parent, name, pos, Quaternion.LookRotation(Vector3.Cross(Vector3.up, dir), Vector3.up));
             // the factory yard and the refinery side by side, cranes and a reactor between them
             var factory = PlaceOwn(ip.factorySpace, t, Vector3.zero, 0f);

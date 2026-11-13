@@ -90,9 +90,13 @@ namespace CarrierGame
         // ------------------------------------------------------------------ where
 
         /// <summary>Its offset from what it goes round at time t (s), in the system's frame.</summary>
-        public Vector3 Offset(double t)
+        public Vector3 Offset(double t) => OffsetD(t).ToVector3();
+
+        /// <summary>Its offset from what it goes round at time t (s), in double precision (the
+        /// system is millions of kilometres across).</summary>
+        public Double3 OffsetD(double t)
         {
-            if (kind == Kind.Lagrange && secondary != null) return LagrangeOffset(t);
+            if (kind == Kind.Lagrange && secondary != null) return LagrangeOffsetD(t);
             double e = System.Math.Min(0.99, System.Math.Max(0.0, eccentricity));
             double M = meanAnomaly0 + MeanMotion * t;
             double E = M;
@@ -103,17 +107,47 @@ namespace CarrierGame
             }
             double x = semiMajor * (System.Math.Cos(E) - e);
             double y = semiMajor * System.Math.Sqrt(1.0 - e * e) * System.Math.Sin(E);
-            return periapsis * (float)x + ahead * (float)y;
+            Plane(out Double3 P, out Double3 Q);
+            return P * x + Q * y;
+        }
+
+        /// <summary>The orbit's plane as exact unit vectors (in doubles: a float's "unit" vector is
+        /// out by a few parts in a hundred million, a hundred metres at a planet's distance).</summary>
+        void Plane(out Double3 P, out Double3 Q)
+        {
+            P = ((Double3)periapsis).normalized;
+            Q = (Double3)ahead;
+            Q = (Q - P * Double3.Dot(P, Q)).normalized;
         }
 
         /// <summary>A Lagrange point of the secondary at time t (its offset from the star).</summary>
-        Vector3 LagrangeOffset(double t)
+        Double3 LagrangeOffsetD(double t)
         {
             double mu = secondary.massRatio;
-            Vector3 s = secondary.Offset(t);
-            Vector3 p = LagrangePoint(s, secondary.periapsis, secondary.ahead, mu, point,
-                                      librationDegrees * System.Math.Sin(secondary.MeanMotion * LibrationFraction(mu) * t + librationPhase));
+            Double3 s = secondary.OffsetD(t);
+            Double3 p = LagrangePointD(s, secondary.periapsis, secondary.ahead, mu, point,
+                                       librationDegrees * System.Math.Sin(secondary.MeanMotion * LibrationFraction(mu) * t + librationPhase));
             return p + drift;
+        }
+
+        /// <summary>LagrangePoint in double precision.</summary>
+        public static Double3 LagrangePointD(Double3 s, Vector3 p, Vector3 q, double mu, int n, double swing = 0.0)
+        {
+            double k = HillFraction(mu);
+            Double3 P = p, Q = q;
+            double sp = Double3.Dot(s, P), sq = Double3.Dot(s, Q);
+            Double3 along = -P * sq + Q * sp;
+            switch (n)
+            {
+                case 1: return s * (1.0 - k);
+                case 2: return s * (1.0 + k);
+                case 3: return -s * (1.0 + 5.0 * mu / 12.0);
+                default:
+                {
+                    double a = ((n == 4 ? 60.0 : -60.0) + swing) * System.Math.PI / 180.0;
+                    return s * System.Math.Cos(a) + along * System.Math.Sin(a);
+                }
+            }
         }
 
         /// <summary>Lagrange point `n` (1..5) for a planet at offset `s` from the star on an orbit
@@ -145,21 +179,22 @@ namespace CarrierGame
         }
 
         /// <summary>Velocity at time t relative to what it goes round (m/s, finite difference).</summary>
-        public Vector3 Velocity(double t) => (Offset(t + 0.5) - Offset(t - 0.5));
+        public Vector3 Velocity(double t) => (OffsetD(t + 0.5) - OffsetD(t - 0.5)).ToVector3();
 
-        /// <summary>Put it where it is at time t (relative to its parent frame).</summary>
-        public void Apply(double t)
+        /// <summary>Put its frame at a world position (OrbitalSystem works it out in double, round
+        /// the world's origin), `offset` from what it goes round (for turning to face it).</summary>
+        public void Put(Vector3 world, Double3 offset)
         {
+            Vector3 o = offset.normalized.ToVector3();
             if (!started)
             {
                 started = true;
-                rotation0 = transform.localRotation;
-                dir0 = Offset(0.0).normalized;
+                rotation0 = transform.rotation;
+                dir0 = o;
             }
-            Vector3 o = Offset(t);
-            transform.localPosition = o;
-            if (faceParent && o.sqrMagnitude > 1f && dir0.sqrMagnitude > 0.5f)
-                transform.localRotation = Quaternion.FromToRotation(dir0, o.normalized) * rotation0;
+            transform.position = world;
+            if (faceParent && o.sqrMagnitude > 0.5f && dir0.sqrMagnitude > 0.5f)
+                transform.rotation = Quaternion.FromToRotation(dir0, o) * rotation0;
         }
     }
 }

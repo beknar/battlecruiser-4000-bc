@@ -16,7 +16,8 @@ namespace CarrierGame
     /// </summary>
     public static class CoopWire
     {
-        public const int Protocol = 1;
+        // 2: positions are from the reach they are in (rf), the system at its real size
+        public const int Protocol = 2;
 
         // the game to the server
         public const string Hello = "hello", Level = "level", Ping = "ping", Captain = "captain";

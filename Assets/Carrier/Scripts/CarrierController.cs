@@ -73,14 +73,14 @@ namespace CarrierGame
         AudioSource hum;
 
         public Vector3 Velocity => transform.forward * speed + transform.up * liftSpeed;
-        /// <summary>Compass heading in degrees (0 = world +Z).</summary>
+        /// <summary>Compass heading in degrees (0 = +Z of the up frame: the world's in space).</summary>
         public float Heading => heading;
         /// <summary>Nose angle above the horizon in degrees (negative = nose down).</summary>
         public float Pitch => pitchAngle;
         /// <summary>Elevator thruster speed along the ship's up axis (m/s).</summary>
         public float LiftSpeed => liftSpeed;
-        /// <summary>Rate of climb in world terms (m/s), from the engines and the elevator thrusters.</summary>
-        public float ClimbRate => Velocity.y;
+        /// <summary>Rate of climb (m/s, along the up frame's up), from the engines and the elevator thrusters.</summary>
+        public float ClimbRate => Vector3.Dot(Velocity, upFrame * Vector3.up);
         public IReadOnlyList<Craft> Wing => wing;
         public float Speed => speed;
 
@@ -130,8 +130,8 @@ namespace CarrierGame
         /// <summary>Seconds until a destroyed ship comes back (0 while alive).</summary>
         public float RespawnIn => Destroyed ? Mathf.Max(0f, health.RespawnAt - Time.time) : 0f;
 
-        void OnEnable() => PlayerShips.Add(transform);
-        void OnDisable() => PlayerShips.Remove(transform);
+        void OnEnable() { PlayerShips.Add(transform); OrbitalSystem.Recentred += OriginShifted; }
+        void OnDisable() { PlayerShips.Remove(transform); OrbitalSystem.Recentred -= OriginShifted; }
 
         void Start()
         {

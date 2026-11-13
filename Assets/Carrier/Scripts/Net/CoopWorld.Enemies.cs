@@ -21,7 +21,7 @@ namespace CarrierGame.Demo
             {
                 if (info == null || !info.Hostile) continue;
                 var t = info.transform;
-                if (t.position.y < -50000f || t.GetComponentInParent<PlanetSurface>() != null) continue;   // on a planet: each game's own
+                if (t.GetComponentInParent<PlanetSurface>() != null) continue;   // on a planet: each game's own
                 string id = PathOf(t);
                 string unique = id;
                 for (int n = 2; ents.ContainsKey(unique); n++) unique = $"{id}#{n}";
@@ -147,13 +147,14 @@ namespace CarrierGame.Demo
             foreach (var e in ents.Values)
             {
                 if (e.t == null) { list.Add(new CoopEntity { id = e.id, gone = true, dead = true }); continue; }
-                Vector3 p = ToNet(e.t.position);
+                var np = ToNet(e.t.position);
+                Double3 p = np.p;
                 var q = e.t.rotation;
                 var mover = Motion.Of(e.t);
                 Vector3 v = mover != null ? mover.Velocity : Vector3.zero;
                 list.Add(new CoopEntity
                 {
-                    id = e.id, x = p.x, y = p.y, z = p.z, qx = q.x, qy = q.y, qz = q.z, qw = q.w, vx = v.x, vy = v.y, vz = v.z,
+                    id = e.id, rf = np.rf, x = p.x, y = p.y, z = p.z, qx = q.x, qy = q.y, qz = q.z, qw = q.w, vx = v.x, vy = v.y, vz = v.z,
                     hu = e.h != null ? e.h.Current / Mathf.Max(1f, e.h.maxHealth) : 1f,
                     dead = e.h != null && e.h.Dead,
                     lurk = e.pilot != null && e.pilot.Current == CombatPilot.State.Lurk,
@@ -180,9 +181,9 @@ namespace CarrierGame.Demo
                 if (s.gone || s.dead) continue;
                 if (e.pilot != null) e.pilot.NetLurk(s.lurk);
                 // the last two updates, to go between
-                e.ts0 = e.ts1; e.p0 = e.p1; e.q0 = e.q1;
-                e.ts1 = m.ts; e.p1 = new Vector3(s.x, s.y, s.z); e.q1 = new Quaternion(s.qx, s.qy, s.qz, s.qw); e.v1 = new Vector3(s.vx, s.vy, s.vz);
-                if (e.ts0 < 0) { e.ts0 = e.ts1; e.p0 = e.p1; e.q0 = e.q1; }
+                e.ts0 = e.ts1; e.p0 = e.p1; e.q0 = e.q1; e.rf0 = e.rf1;
+                e.ts1 = m.ts; e.p1 = new Double3(s.x, s.y, s.z); e.rf1 = s.rf ?? ""; e.q1 = new Quaternion(s.qx, s.qy, s.qz, s.qw); e.v1 = new Vector3(s.vx, s.vy, s.vz);
+                if (e.ts0 < 0) { e.ts0 = e.ts1; e.p0 = e.p1; e.q0 = e.q1; e.rf0 = e.rf1; }
             }
         }
 
@@ -193,19 +194,21 @@ namespace CarrierGame.Demo
                 if (e.t == null || e.ts1 < 0 || (e.h != null && e.h.Dead)) continue;
                 Vector3 p;
                 Quaternion q;
+                Vector3 w1 = FromNet(e.rf1, e.p1);
                 if (t >= e.ts1)
                 {
                     float ahead = (float)Math.Min(0.4, t - e.ts1);
-                    p = e.p1 + e.v1 * ahead;
+                    p = w1 + e.v1 * ahead;
                     q = e.q1;
                 }
                 else
                 {
                     float k = e.ts1 > e.ts0 ? Mathf.Clamp01((float)((t - e.ts0) / (e.ts1 - e.ts0))) : 1f;
-                    p = Vector3.Lerp(e.p0, e.p1, k);
+                    // (each end where its reach is now, then between them)
+                    p = e.rf0 == e.rf1 ? Vector3.Lerp(FromNet(e.rf0, e.p0), w1, k) : w1;
                     q = Quaternion.Slerp(e.q0, e.q1, k);
                 }
-                e.t.SetPositionAndRotation(FromNet(p), q);
+                e.t.SetPositionAndRotation(p, q);
                 if (e.puppet != null) e.puppet.velocity = e.v1;
             }
         }

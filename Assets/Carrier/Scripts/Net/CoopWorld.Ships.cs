@@ -18,12 +18,14 @@ namespace CarrierGame.Demo
             var warp = demo.Warp;
             var landing = PlanetLanding.Instance;
             var t = me.transform;
-            Vector3 p = ToNet(t.position), v = me.Velocity;
+            var np = ToNet(t.position);
+            Double3 p = np.p;
+            Vector3 v = me.Velocity;
             var q = t.rotation;
             Client.Send(new ShipMsg
             {
                 ts = Client.ServerNow,
-                x = p.x, y = p.y, z = p.z, qx = q.x, qy = q.y, qz = q.z, qw = q.w, vx = v.x, vy = v.y, vz = v.z,
+                rf = np.rf, x = p.x, y = p.y, z = p.z, qx = q.x, qy = q.y, qz = q.z, qw = q.w, vx = v.x, vy = v.y, vz = v.z,
                 th = me.throttle,
                 sh = shield != null ? shield.Fraction : 0f, su = shield != null && shield.Up,
                 hu = myHealth != null ? myHealth.Current / Mathf.Max(1f, myHealth.maxHealth) : 1f,

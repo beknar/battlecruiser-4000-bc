@@ -14,7 +14,50 @@ namespace CarrierGame
         public float Roll => rollAngle;
         float rollAngle;
 
-        Quaternion Attitude => Quaternion.Euler(-pitchAngle, heading, 0f) * Quaternion.AngleAxis(-rollAngle, Vector3.forward);
+        Quaternion Attitude => upFrame * Quaternion.Euler(-pitchAngle, heading, 0f) * Quaternion.AngleAxis(-rollAngle, Vector3.forward);
+
+        /// <summary>Which way is up for the heading, the nose angle and the wings' level: the world's
+        /// up in space, and near a planet the way out from it (PlanetFlight), so the ship flies level
+        /// over the ground wherever on the planet it is. The heading and nose angle are measured in it.</summary>
+        [System.NonSerialized] public Quaternion upFrame = Quaternion.identity;
+        /// <summary>The ship's up (the world's, or out from the planet it is by).</summary>
+        public Vector3 Up => upFrame * Vector3.up;
+
+        /// <summary>The heading and nose angle (in the up frame) that point the nose along a world direction.</summary>
+        public void Aim(Vector3 worldDir, out float wantHeading, out float wantPitch)
+        {
+            Vector3 d = Quaternion.Inverse(upFrame) * worldDir;
+            wantHeading = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
+            wantPitch = Mathf.Clamp(Mathf.Atan2(d.y, new Vector2(d.x, d.z).magnitude) * Mathf.Rad2Deg, -maxPitch, maxPitch);
+        }
+
+        /// <summary>Level, heading along a world direction.</summary>
+        public void Face(Vector3 worldDir)
+        {
+            Aim(worldDir, out float h, out _);
+            SetAttitude(h, 0f);
+        }
+
+        /// <summary>Take the heading and nose angle from a world rotation (a respawn, a jump).</summary>
+        public void TakeAttitude(Quaternion world)
+        {
+            var e = (Quaternion.Inverse(upFrame) * world).eulerAngles;
+            heading = e.y;
+            pitchAngle = Mathf.Clamp(-Mathf.DeltaAngle(0f, e.x), -maxPitch, maxPitch);
+            transform.rotation = Attitude;
+        }
+
+        /// <summary>Turn the up frame (PlanetFlight): the ship's heading and nose angle stay as they
+        /// were in it, so the ship turns with it.</summary>
+        public void SetUpFrame(Quaternion frame)
+        {
+            upFrame = frame;
+            if (!externalMotion && !Destroyed) transform.rotation = Attitude;
+        }
+
+        /// <summary>How fast the speed changes, as a multiple of `acceleration` (PlanetFlight's
+        /// cruise, high over a planet).</summary>
+        [System.NonSerialized] public float accelScale = 1f;
 
         /// <summary>Something else is flying the ship (the warp drive): no throttle, rudder or
         /// collisions from this controller until it is cleared.</summary>
@@ -66,9 +109,9 @@ namespace CarrierGame
                 UpdateLiftFlares(0f);
                 return;
             }
-            speed = Mathf.MoveTowards(speed, throttle * maxSpeed * speedScale, acceleration * dt);
+            speed = Mathf.MoveTowards(speed, throttle * maxSpeed * speedScale, acceleration * accelScale * dt);
 
-            // attitude: heading turns about the world vertical, the nose pitches up or down, and
+            // attitude: heading turns about the vertical (the up frame's), the nose pitches up or down, and
             // the ship rolls about its own length (all the way round, if the pilot keeps on)
             heading = Mathf.Repeat(heading + rudder * turnRate * dt, 360f);
             bool pitching = !holdLevel && Mathf.Abs(pitchInput) > 0.01f, rolling = !holdLevel && Mathf.Abs(rollInput) > 0.01f;

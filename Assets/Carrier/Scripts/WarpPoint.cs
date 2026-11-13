@@ -40,7 +40,18 @@ namespace CarrierGame
         [Tooltip("What the map calls it (empty: from its kind).")]
         public string kindLabel = "";
 
-        public Vector3 Position => transform.position;
+        /// <summary>Where it is (where it really is, even while ScaledSpace has it drawn nearer:
+        /// the screen's text can be worked out in the middle of drawing).</summary>
+        public Vector3 Position
+        {
+            get
+            {
+                if (!scaledLooked) { scaledLooked = true; scaled = GetComponent<ScaledSpace>(); }
+                return scaled != null ? scaled.RealPosition : transform.position;
+            }
+        }
+        ScaledSpace scaled;
+        bool scaledLooked;
 
         /// <summary>Something built, not a natural body.</summary>
         public bool Built => kind >= Kind.Station;
@@ -62,10 +73,13 @@ namespace CarrierGame
             if (dir.sqrMagnitude < 1f) dir = Vector3.back;
             if (overhead)
             {
-                // straight above it, a little back the way the ship came so it faces the base
+                // straight above it, a little back the way the ship came so it faces the base (on a
+                // planet or moon, high in its air: the ground is built as the ship comes down)
                 Vector3 up = transform.TransformDirection(overheadAxis).normalized;
                 Vector3 back = Vector3.ProjectOnPlane(dir, up);
-                Vector3 o = Position + up * arrivalDistance + (back.sqrMagnitude > 1f ? back.normalized * arrivalDistance * overheadSide : Vector3.zero);
+                bool body = landsOn != null && (landsOn.kind == Kind.Planet || landsOn.kind == Kind.Moon);
+                float h = body ? Mathf.Max(arrivalDistance, 12000f) : arrivalDistance;
+                Vector3 o = Position + up * h + (back.sqrMagnitude > 1f ? back.normalized * h * overheadSide : Vector3.zero);
                 if (Cover.Mask != 0)
                     for (int i = 0; i < 40 && Physics.CheckSphere(o, 250f, Cover.Mask, QueryTriggerInteraction.Ignore); i++)
                         o += up * 200f;

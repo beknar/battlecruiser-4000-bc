@@ -120,10 +120,12 @@ namespace CarrierGame.Tests
         [Test]
         public void APositionIsRoundTheStar()
         {
+            // (laid out StarSystemData.LayoutScale times wider than the file's kilometres)
             var p = new StarSystemData.Placed { angle = 90f, distanceKm = 10f, heightKm = 1f };
-            Assert.That(p.Position.x, Is.EqualTo(0f).Within(1e-2f));
-            Assert.That(p.Position.y, Is.EqualTo(1000f));
-            Assert.That(p.Position.z, Is.EqualTo(10000f).Within(1e-2f));
+            float k = StarSystemData.LayoutScale;
+            Assert.That(p.Position.x, Is.EqualTo(0f).Within(1e-2f * k));
+            Assert.That(p.Position.y, Is.EqualTo(1000f * k));
+            Assert.That(p.Position.z, Is.EqualTo(10000f * k).Within(1e-2f * k));
         }
     }
 }

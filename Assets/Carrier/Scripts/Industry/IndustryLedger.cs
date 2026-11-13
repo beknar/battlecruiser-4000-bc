@@ -234,15 +234,25 @@ namespace CarrierGame
             else if (Site(site).shipyard.Count >= YardLimit) why = "the slips are full";
             else
             {
+                // (an item listed twice is needed twice over)
                 var stock = Site(site).stock;
-                foreach (var i in recipe.inputs)
-                    if (!stock.Has(i.item, i.tonnes))
+                foreach (var kv in Totals(recipe.inputs))
+                    if (!stock.Has(kv.Key, kv.Value))
                     {
-                        why = $"needs {table.Amount(i.item, i.tonnes)} of {table.Name(i.item).ToLower()} in storage (has {table.Amount(i.item, stock.Amount(i.item))})";
+                        why = $"needs {table.Amount(kv.Key, kv.Value)} of {table.Name(kv.Key).ToLower()} in storage (has {table.Amount(kv.Key, stock.Amount(kv.Key))})";
                         break;
                     }
             }
             return why == "";
+        }
+
+        /// <summary>A recipe's inputs added up by item.</summary>
+        static Dictionary<string, float> Totals(Ingredient[] inputs)
+        {
+            var t = new Dictionary<string, float>();
+            if (inputs != null)
+                foreach (var i in inputs) t[i.item] = (t.TryGetValue(i.item, out float n) ? n : 0f) + i.tonnes;
+            return t;
         }
 
         /// <summary>Lay down a ship: its parts and materials leave storage now.</summary>

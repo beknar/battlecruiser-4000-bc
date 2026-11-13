@@ -34,6 +34,10 @@ namespace CarrierGame.Demo
 
         public Order Current { get; private set; } = Order.Hold;
         public int LeaderId { get; private set; }
+        /// <summary>Told to hold, go somewhere or dock: it doesn't form up on a player by itself.</summary>
+        public bool Released { get; private set; }
+        /// <summary>In a fight: attacking, or fighting back.</summary>
+        public bool Fighting => (Current == Order.Attack || defending) && Target != null;
         public string LeaderName => LeaderId != 0 && CoopClient.Instance != null ? CoopClient.Instance.NameOf(LeaderId) : "";
         public Transform Target { get; private set; }
         public WarpPoint Destination { get; private set; }
@@ -44,6 +48,9 @@ namespace CarrierGame.Demo
         WarpDrive drive;
         bool defending;
         float nextMissiles, nextWarp, nextLook;
+        // a warp the drive refused: why, and until when it isn't tried again
+        string warpWhy;
+        float warpBlockedUntil;
         // the ship's size (its bounds' half-diagonal), worked out once a ship
         CarrierController sized;
         float size = 150f;
@@ -52,17 +59,25 @@ namespace CarrierGame.Demo
 
         // ------------------------------------------------------------ orders
 
-        public void Hold() => Set(Order.Hold);
-        public void Follow(int playerId) { LeaderId = playerId; Set(Order.Follow); }
+        // (hold, go to and dock end the following: when a fight ends it goes back to what it was told)
+        public void Hold() { LeaveLeader(); Set(Order.Hold); }
+        public void Follow(int playerId) { LeaderId = playerId; Released = false; Set(Order.Follow); }
         public void Attack(Transform t) { Target = t; Set(Order.Attack); }
-        public void Goto(WarpPoint p) { Destination = p; Set(Order.Goto); }
-        public void Dock() => Set(Order.Dock);
+        public void Goto(WarpPoint p) { LeaveLeader(); Destination = p; Set(Order.Goto); }
+        public void Dock() { LeaveLeader(); Set(Order.Dock); }
+
+        void LeaveLeader()
+        {
+            LeaderId = 0;
+            Released = true;
+        }
 
         void Set(Order o)
         {
             Current = o;
             defending = false;
             nextWarp = 0f;
+            warpBlockedUntil = 0f;
             if (o != Order.Attack) Target = null;
         }
 
@@ -173,7 +188,8 @@ namespace CarrierGame.Demo
                         Current = Order.Hold;
                         break;
                     }
-                    TryWarp(Destination, $"warping to {Destination.displayName}");
+                    // (a warp the drive refuses ends the order: it says why, once, and holds)
+                    if (!TryWarp(Destination, $"warping to {Destination.displayName}")) { Current = Order.Hold; Released = true; }
                     break;
                 case Order.Dock:
                 {
@@ -207,14 +223,24 @@ namespace CarrierGame.Demo
             return true;
         }
 
-        void TryWarp(WarpPoint p, string doing)
+        /// <summary>Warp to a place (undocking first). False when the drive refuses (or did, in the
+        /// last 20 s): Doing says why, and stays saying it rather than flicking back and forth.</summary>
+        bool TryWarp(WarpPoint p, string doing)
         {
+            if (Time.time < warpBlockedUntil) { Doing = warpWhy; return false; }
             Doing = doing;
-            if (Undocking()) return;
-            if (drive == null) { Doing = $"can't warp to {p.displayName}: no warp drive"; return; }
-            if (Time.time < nextWarp) return;
-            nextWarp = Time.time + 3f;
-            if (!drive.Engage(p, out string why)) Doing = $"can't warp to {p.displayName}: {why}";
+            if (Undocking()) return true;
+            string why = null;
+            if (drive == null) why = "no warp drive";
+            else if (Time.time >= nextWarp)
+            {
+                nextWarp = Time.time + 3f;
+                if (!drive.Engage(p, out why) && string.IsNullOrEmpty(why)) why = "the drive refused";
+            }
+            if (string.IsNullOrEmpty(why)) return true;
+            warpWhy = Doing = $"can't warp to {p.displayName}: {why}";
+            warpBlockedUntil = Time.time + 20f;
+            return false;
         }
 
         void FollowLeader(CarrierController cc)
@@ -229,10 +255,13 @@ namespace CarrierGame.Demo
             }
             Vector3 lp = leader.transform.position;
             float far = Vector3.Distance(cc.transform.position, lp);
+            // far behind: warp to the place nearest the leader, if that is any nearer them (and the
+            // drive will go); otherwise fly after them
             if (far > warpAfter && drive != null)
             {
                 var near = WarpPoint.Nearest(lp);
-                if (near != null) { TryWarp(near, $"warping after {LeaderName}, to {near.displayName}"); return; }
+                if (near != null && Vector3.Distance(near.Position, lp) < far * 0.5f
+                    && TryWarp(near, $"warping after {LeaderName}, to {near.displayName}")) return;
             }
             if (Undocking()) { Doing = $"undocking to follow {LeaderName}"; return; }
             Vector3 to = lp + leader.transform.rotation * (slot * size);

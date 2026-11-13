@@ -427,8 +427,12 @@ namespace CarrierGame.Demo
             Notices.Post(on ? "Main guns: auto-fire ON" : "Main guns: auto-fire OFF");
         }
 
-        /// <summary>The pad's LB fires missiles (not landing or docking): the ship has missiles and a target.</summary>
-        public bool MissilesOnPad => carrier != null && carrier.HasMissiles && carrier.target != null;
+        /// <summary>The pad's LB fires missiles (not landing or docking): the ship has missiles left and a target.</summary>
+        public bool MissilesOnPad => PadFiresMissiles(carrier);
+
+        /// <summary>The rule for a ship (for landing and docking, which have LB otherwise).</summary>
+        public static bool PadFiresMissiles(CarrierController c) =>
+            c != null && c.HasMissiles && c.target != null && c.missiles.Stock != 0;
 
         float nextRearm;
 

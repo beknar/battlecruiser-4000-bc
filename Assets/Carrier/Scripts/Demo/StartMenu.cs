@@ -39,8 +39,9 @@ namespace CarrierGame.Demo
         }
 
         FrigateRoster roster;
-        /// <summary>The ships offered: every frigate, and the destroyers and cruiser the player has
-        /// built (all of them in the reels and tests).</summary>
+        /// <summary>The ships offered: every frigate, and the destroyer or cruiser the player is in
+        /// command of (all of them in the reels and tests). A ship berthed at a yard is taken command
+        /// of there, where its crew can come across.</summary>
         FrigateRoster.Entry[] offered = new FrigateRoster.Entry[0];
 
         int IndexOf(string id)
@@ -82,7 +83,8 @@ namespace CarrierGame.Demo
             if (roster == null || roster.frigates.Length == 0 || IsOpen || !InputFocus.Take(InputFocus.Panel.StartMenu)) return;
             openedFrame = Time.frameCount;
             IndustryDirector.LoadSaved();
-            offered = System.Array.FindAll(roster.frigates, e => e != null && (!e.buildable || LaunchArgs.Automated || Hud.ReelMode || IndustryLedger.Owns(e.id)));
+            offered = System.Array.FindAll(roster.frigates, e => e != null && (!e.buildable || LaunchArgs.Automated || Hud.ReelMode
+                || string.Equals(IndustryLedger.Commanded, e.id, System.StringComparison.OrdinalIgnoreCase)));
             selected = Mathf.Max(0, IndexOf(string.IsNullOrEmpty(PlayerFrigate.Flying) ? FrigateChoice.Current : PlayerFrigate.Flying));
             stats = new FrigateStats[offered.Length];
             best = new FrigateStats();
@@ -130,10 +132,8 @@ namespace CarrierGame.Demo
         public void Launch()
         {
             var e = offered[selected];
-            // a ship built at a yard comes out of its berth; choosing a frigate sends the one
-            // commanded until now back to its yard
-            if (e.buildable) IndustryLedger.Command(e.id);
-            else IndustryLedger.ReleaseCommand();
+            // choosing a frigate sends the ship commanded until now back to its yard
+            if (!e.buildable) IndustryLedger.ReleaseCommand();
             FrigateChoice.Set(e.id);
             FrigateChoice.Chosen = true;
             if (CoopClient.Active) CoopClient.Instance.SendCaptain();

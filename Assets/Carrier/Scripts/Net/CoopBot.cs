@@ -53,6 +53,7 @@ namespace CarrierGame.Demo
         int lastLeader;
         bool greeted;
         string lastDoing = "";
+        bool wasFighting;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() => Instance = null;
@@ -116,11 +117,18 @@ namespace CarrierGame.Demo
             if (Pilot != null && CoopClient.Active && Pilot.Doing != lastDoing)
             {
                 string now = Pilot.Doing;
-                bool worth = (now.StartsWith("engaging") && !lastDoing.StartsWith("engaging") && !lastDoing.StartsWith("closing on"))
-                             || now.StartsWith("target destroyed") || now.StartsWith("arrived") || now.StartsWith("can't");
+                bool worth = now.StartsWith("target destroyed") || now.StartsWith("arrived") || now.StartsWith("can't");
                 lastDoing = now;
                 if (worth) CoopChat.Say($"{Me}: {now}.");
             }
+            // a fight starting is said once, whatever it says it is doing on the way in
+            bool fighting = Pilot != null && Pilot.Fighting;
+            if (fighting && !wasFighting && CoopClient.Active)
+            {
+                var info = Pilot.Target.GetComponent<TargetInfo>();
+                CoopChat.Say($"{Me}: engaging {(info != null && !string.IsNullOrEmpty(info.Name) ? info.Name : Pilot.Target.name)}.");
+            }
+            wasFighting = fighting;
             while (requests.TryDequeue(out var r)) Serve(r.ctx, r.body);
         }
 
@@ -135,7 +143,7 @@ namespace CarrierGame.Demo
         void OnMessage(CoopMsg m)
         {
             if (m.t != CoopWire.Join || m.p == null || IsBot(m.p) || Pilot == null) return;
-            if (Pilot.LeaderId != 0 || Pilot.Current != Wingman.Order.Hold) return;
+            if (Pilot.LeaderId != 0 || Pilot.Current != Wingman.Order.Hold || Pilot.Released) return;
             Pilot.Follow(m.p.id);
             lastLeader = m.p.id;
             CoopChat.Say($"{Me}: welcome, {m.p.name}. Forming up on you; orders by name (\"{Me}, help\").");
@@ -357,7 +365,13 @@ namespace CarrierGame.Demo
             try
             {
                 bool post = method == "POST";
-                switch (path)
+                // (only programs on this machine: a web page's request carries an Origin, and a
+                // page can't send a JSON post here without a preflight this never answers)
+                bool fromPage = !string.IsNullOrEmpty(ctx.Request.Headers["Origin"]);
+                bool notJson = post && (ctx.Request.ContentType == null || !ctx.Request.ContentType.StartsWith("application/json", StringComparison.OrdinalIgnoreCase));
+                if (fromPage) { code = 403; json = "{\"error\":\"not from a web page\"}"; }
+                else if (notJson) { code = 415; json = "{\"error\":\"send JSON (Content-Type: application/json)\"}"; }
+                else switch (path)
                 {
                     case "/status" when !post: json = StatusJson(); break;
                     case "/messages" when !post:

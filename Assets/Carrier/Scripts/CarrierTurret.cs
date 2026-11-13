@@ -113,13 +113,17 @@ namespace CarrierGame
             // hold fire while the target is destroyed (waiting to respawn)
             bool alive = targetHealth == null || !targetHealth.Dead;
             bool wantFire = autoFire || Time.time < fireRequestUntil;
-            // (and the muzzle's own line clear: on a big ship a barrel off to one side of the
-            // pivot can have a funnel or a bridge in its way when the pivot's line is clear)
-            if (wantFire && alive && bears && cooldown <= 0f && OnTarget(aimAt)
-                && !(checkHullClearance && HullInTheWay(AimOrigin(), AimForward() * range)))
+            if (wantFire && alive && bears && cooldown <= 0f && OnTarget(aimAt))
             {
-                Fire();
-                fireRequestUntil = 0f;
+                // (and the muzzle's own line clear: on a big ship a barrel off to one side of the
+                // pivot can have a funnel or a bridge in its way when the pivot's line is clear;
+                // masked, it looks again a little later rather than every frame)
+                if (checkHullClearance && HullInTheWay(AimOrigin(), AimForward() * range)) cooldown = Mathf.Min(0.25f, fireInterval);
+                else
+                {
+                    Fire();
+                    fireRequestUntil = 0f;
+                }
             }
         }
 

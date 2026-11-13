@@ -132,7 +132,7 @@ the game with their turrets cut out of the hull (`Tools/Blender/convert_frigates
 
 Five destroyers and a heavy cruiser can be flown once they have been built at a shipyard (see
 [Shipyards](#shipyards-destroyers-and-the-cruiser)). Until then the start menu doesn't offer
-them; afterwards it offers the ones the player has.
+them; afterwards it offers the one the player commands.
 
 - **Destroyers** are tougher than any frigate but slower. They have no bow main gun. They carry
   more turrets (their own, plus ball mounts on the hull), fewer CIWS mounts (one or two), and a
@@ -772,7 +772,8 @@ then takes 9 to 20 minutes on the slips, two ships at a time, while the player i
 - **Take command** of a berthed ship on the Shipyard page. It is swapped in where the frigate
   lies, and the crew come across. The ship flown until then stays behind: a built one is
   berthed at that yard, and a frigate can be chosen again from the start menu.
-- The start menu offers the frigates and the built ships. Choosing a frigate sends the ship
+- The start menu offers the frigates and the built ship you command. A berthed ship is taken
+  command of at its yard, where the crew can come across. Choosing a frigate sends the ship
   commanded until then back to its yard.
 - The ships built, where each is berthed and the one commanded are saved with the rest.
 

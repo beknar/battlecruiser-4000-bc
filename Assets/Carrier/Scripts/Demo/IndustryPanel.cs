@@ -55,6 +55,14 @@ namespace CarrierGame.Demo
         // the shipyard's rows: a ship to build (its class), or one berthed here ("*berth:" and its class)
         const string Berth = "*berth:";
         const int TakeCommand = 10;
+        static readonly Dictionary<string, FrigateStats> shipStats = new Dictionary<string, FrigateStats>();
+        readonly Dictionary<string, bool> canLayDown = new Dictionary<string, bool>();
+
+        static FrigateStats StatsOf(FrigateRoster.Entry e)
+        {
+            if (!shipStats.TryGetValue(e.id, out var st)) shipStats[e.id] = st = FrigateStats.Of(e.prefab);
+            return st;
+        }
 
         void Awake() => Instance = this;
         void OnDestroy()
@@ -165,7 +173,12 @@ namespace CarrierGame.Demo
                 case Page.Shipyard:
                     if (spec == null || !spec.shipyard) break;
                     foreach (var b in IndustryLedger.Berthed) if (b.site == Site.siteName) rows.Add(Berth + b.id);
-                    foreach (var sh in Table.ships) rows.Add(sh.id);
+                    canLayDown.Clear();
+                    foreach (var sh in Table.ships)
+                    {
+                        rows.Add(sh.id);
+                        canLayDown[sh.id] = IndustryLedger.CanQueueShip(Site.siteName, sh.id, out _);
+                    }
                     break;
                 case Page.Fit:
                     if (spec == null || !spec.CanFit) break;
@@ -749,7 +762,7 @@ namespace CarrierGame.Demo
                          : IndustryLedger.Building(id) ? "<color=#ffc04d>on the slips</color>"
                          : recipe != null ? $"<color=#9aa4b0>{recipe.seconds / 60f:0.#} min</color>" : "";
             GUI.Label(new Rect(r.xMax - 250f * s, r.y, 110f * s, r.height * 0.55f), state, Hud.Text(12, false, TextAnchor.MiddleRight));
-            bool can = IndustryLedger.CanQueueShip(Site.siteName, id, out _);
+            bool can = canLayDown.TryGetValue(id, out bool c2) && c2;
             Button(new Rect(r.xMax - 130f * s, r.y + 7f * s, 124f * s, r.height - 14f * s), can ? "Build" : "<color=#8a94a0>Build</color>", id, QueueOne, s, can);
         }
 
@@ -760,7 +773,7 @@ namespace CarrierGame.Demo
             string cls = id.StartsWith(Berth) ? id.Substring(Berth.Length) : id;
             var e = FrigateRoster.Get()?.Find(cls);
             if (e == null) return;
-            var st = FrigateStats.Of(e.prefab);
+            var st = StatsOf(e);
             var sb = new System.Text.StringBuilder();
             sb.Append($"<b>{e.displayName.ToUpper()}</b>  <color=#9aa4b0>{e.category}  ·  {e.role}</color>\n\n");
             sb.Append(e.description).Append("\n\n");

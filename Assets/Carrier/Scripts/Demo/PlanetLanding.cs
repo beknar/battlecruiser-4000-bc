@@ -640,7 +640,7 @@ namespace CarrierGame.Demo
             if (Current == State.InSpace && Docking.WantsKey) return;   // K docks (or undocks) here
             var k = Keyboard.current;
             var pad = Gamepad.current;
-            bool press = (k != null && k.kKey.wasPressedThisFrame) || (pad != null && !(carrier.HasMissiles && carrier.target != null) && pad.leftShoulder.wasPressedThisFrame);
+            bool press = (k != null && k.kKey.wasPressedThisFrame) || (pad != null && !CarrierDemoInput.PadFiresMissiles(carrier) && pad.leftShoulder.wasPressedThisFrame);
             if (!press || carrier.Destroyed) return;
             if (Autopilot) { StopAutopilot("Auto-pilot off"); return; }
             if (Current == State.InSpace) Land();

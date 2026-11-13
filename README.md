@@ -299,20 +299,46 @@ system to travel around.
     military and industrial bases: see Crew and the settlements), and six launch structures on
     the planets and moons.
   - The frigate starts near Thalassa.
-- **Orbits.** Everything moves on its orbit, fast enough to see within ten minutes.
+- **Real sizes.** The planets are hundreds of kilometres across and millions of kilometres
+  apart, and the mini-warp crosses the gaps (16 seconds at most).
+
+  | Body | Across | From the star |
+  |---|---|---|
+  | Cinder | 320 km | 1.1 million km |
+  | Ochre | 480 km | 1.8 million km |
+  | Thalassa | 640 km | 2.6 million km |
+  | Pelagia | 440 km | 3.0 million km |
+  | Jovara | 1,000 km | 3.6 million km |
+  | Glacis | 840 km | 4.6 million km |
+  | The moons | 90 to 280 km | 1,400 to 3,100 km from their planets |
+  | Kestrel (the star) | 100,000 km | |
+
+  - **Precision.** A float holds a position to the centimetre only within a few hundred
+    kilometres of the origin. So where everything is in the system is worked out in doubles
+    (`Double3`, `OrbitalSystem`), and the world is drawn round the frigate: the origin is moved
+    back to it whenever it strays 20 km from it, and all through a warp. Ships and other free
+    things far from the frigate are kept in doubles in their orbit's frame until it comes back.
+    Co-op games send positions in the system's doubles.
+  - **Seeing far.** The camera sees out to 1,200 km. A planet, moon or the star further than
+    500 km off is drawn nearer and smaller in the same proportion, which looks the same from the
+    camera (`ScaledSpace`), and is lit from where it really is.
+  - The level is laid out small, about 6,500 km across, with every orbit 800 times its laid-out
+    size (`StarSystemData.LayoutScale`, `CarrierBuilder.DistanceScale`).
+- **Orbits.** Everything moves on its orbit, at real speeds: the planets take days to weeks to
+  go round the star, the moons hours.
   - **Kepler orbits.** The planets go round the star, and the moons and the orbiting stations
-    round their planets. Each period follows from Kepler's third law (T² ∝ a³) with game-sized
-    masses.
+    round their planets. Each period follows from Kepler's third law (T² ∝ a³), with the star's
+    mass set by Thalassa's year of 30 days.
 
     | Body | Period |
     |---|---|
-    | Cinder | 25 min |
-    | Ochre | 55 min |
-    | Thalassa | 90 min |
-    | Jovara | 2.5 h |
-    | Glacis | 3.7 h |
-    | Selene round Thalassa | 23 min |
-    | The orbital battery round Cinder (a polar orbit) | 29 min |
+    | Cinder | 8.4 days |
+    | Ochre | 18 days |
+    | Thalassa | 30 days |
+    | Jovara | 49 days |
+    | Glacis | 73 days |
+    | Selene round Thalassa | 18 h |
+    | The orbital battery round Cinder (a polar orbit, 120 km up) | 2.6 h |
 
   - **Comets.** They follow long ellipses. Iskra starts at its closest to the star and swings
     out fast, its tails turning to stay pointed away from the star. Mirren starts at its
@@ -327,13 +353,13 @@ system to travel around.
     Lagrange points of Thalassa and Jovara. The info panel gives each place's period.
   - **Lagrange points.** They move with their planets, at the real positions.
     - L1 and L2 are at the edge of the planet's Hill sphere, r(μ/3)^⅓ from it. Thalassa's L1 is
-      27.6 km sunward.
+      12,000 km sunward.
     - L4 and L5 are 60° ahead of and behind the planet.
     - L4 and L5 are stable, because Jovara is under 1/26 of the star's mass. The Trojan rocks at
-      L4 and the depot at L5 swing slowly round their points. One swing takes about 5 hours,
-      the planet's period divided by √(27μ/4).
-    - L1 is unstable. The observatory drifts off it, faster and faster, by a factor of e every
-      6 minutes, and fires its thrusters to get back.
+      L4 and the depot at L5 swing very slowly round their points: one swing takes the planet's
+      period divided by √(27μ/4), about thirty years at Jovara's real mass.
+    - L1 is unstable. The observatory drifts off it, faster and faster, by a factor of e about
+      every two days, and fires its thrusters to get back.
 - **Launch structures.** Each is a warp destination, arrived at from above, with a landing pad
   by it on the surface. Each turns with its world, launching payloads that leave a glowing
   trail into space.
@@ -472,9 +498,28 @@ system to travel around.
     surface, so they can't reach a ship in the air. A torpedo has no rocket flame: it trails
     bubbles, and draws a line of foam on the surface when it runs shallow. Their numbers are in
     `Assets/Carrier/Resources/Data/ground_units.json` (`seaBase`, `submarine`).
-- **Landing.** In orbit of a planet, moon or asteroid field, and out of combat, K (LB on the
-  pad) takes the frigate down to the surface under where it was. Where people live it comes in
-  near the nearest landing pad.
+- **Flying down.** The frigate can be flown all the way down to a planet or moon and back up,
+  with no break:
+  - **Up** is out from the body near it. The ship flies level over the ground wherever it is
+    on the planet, and the camera's horizon turns with it.
+  - **Cruise** (O): out of combat and more than 6 km from a station, the top speed grows with
+    the height above the ground (up to 15 km/s high over a planet). It slows near the ground
+    and in thick air.
+  - **The air** thickens toward the ground. Too fast in thick air, the hull heats up, shakes
+    and at worst is damaged. The sky closes over the stars, the fog comes in, and the light
+    takes the world's colours, until at the hand-off height it is the world's own sky.
+  - **The ground** seen from space is the planet's own surface (`PlanetTerrain`): a cube
+    sphere of patches split finer the nearer the camera is, from the same heights the ship
+    lands on, coloured from the same maps the planet wears from afar.
+  - **The hand-off.** Below 30 km the ground under the ship starts being built. At 3.2 km
+    (2.2 km on an airless moon) the ship goes over to it: the same place, height, heading and
+    speed, under the same sun, through a wisp of cloud. Climbing back above it returns the
+    ship to the air over the planet. The rest of the system is moved out of sight meanwhile.
+  - **The auto-lander.** In orbit, out of combat, K (LB on the pad) flies the frigate down
+    through the air to the nearest landing pad (or a few kilometres from a hostile fortress)
+    and sets it down. On the ground, K flies it back up to orbit. Any steering takes the
+    controls back.
+  - Asteroid fields are landed on as before, with a fade.
 
   | World | Surface |
   |---|---|
@@ -488,9 +533,8 @@ system to travel around.
   | Asteroid fields | A lump of dark rock with boulders, and the rest of the field drifting overhead |
 
   **The whole planet can be flown over.**
-  - The surface is a grid of 5 km x 5 km areas, sized from the body: four times its size in
-    space. The areas add up to its surface area, from 12 areas on the small asteroids to
-    2,000 on Jovara.
+  - The surface is a grid of 5 km x 5 km areas covering the body at its real size. The areas
+    add up to its surface area, from 12 areas on the small asteroids to about 300,000 on Jovara.
   - Areas are built round the ship as it flies: in full detail out to 5 km, and in less
     detail out to 15 km for the view. They are built on worker threads, or a few rows a frame
     in the web version.
@@ -715,7 +759,8 @@ Ochre Foundry, Mnemos Works and the Kestrel Deep Yard.
 | Choose the captain (pause menu) | ← / → on Captain, or click her portrait | D-pad ← / → |
 | Window / full screen | F11 | |
 | System map (Star System) | M | R3 |
-| Land / take off, dock / undock (Star System) | K | LB |
+| Auto-land / climb to orbit, dock / undock (Star System) | K | LB |
+| Cruise on/off (Star System) | O | |
 | Mining laser on/off | Z | Back + A |
 | Mineral scan | V | Back + Y |
 | Cargo hold list / jettison the cheapest ore | I / J | Back + X / Back + B |
@@ -772,8 +817,10 @@ In the web version, use the page's Full screen button rather than F11.
 - `Tools/Textures`: the script that makes the industrial sites' textures
 - `Assets/Carrier/Scripts/Industry`: the industry: its data, the sites' storage and production
   lines (`IndustryLedger`), the parts fitted to a frigate (`ShipFittings`) and the save
-- `Assets/Carrier/Scripts/World`: the world's clock and memory (`WorldState`) and the places
-  loaded only when near (`StreamedVisual`)
+- `Assets/Carrier/Scripts/World`: the world's clock and memory (`WorldState`), the places
+  loaded only when near (`StreamedVisual`), positions in doubles (`Double3`), far bodies drawn
+  nearer (`ScaledSpace`), and the planets' ground seen from space (`PlanetTerrain`,
+  `PlanetMaps`)
 
 ## Building
 
@@ -890,6 +937,12 @@ a sample of each message the server sends. The server's tests check that it send
 isn't in the samples, and the game's tests check that it reads every field in them. A field added
 on one side but not the other fails a test. Adding fields or messages keeps the protocol version; renaming one never happens,
 because released games and servers must keep understanding each other.
+
+Protocol 2 came with the real-size system: a position (a ship, an enemy, a shot, a hit) is sent
+from the reach it is in (`rf`: a planet's, moon's, station's or field's, which go round at
+several km/s millions of kilometres out, each game drawing them where its own clock has them),
+or from the star in open space, in doubles. Games and servers of protocol 1 can't play with it,
+so servers need rebuilding (above).
 
 - `Tools/CoopTest/server_test.py <host> <port> [--allowtest <settings file>]` tests a running
   server:
@@ -1075,8 +1128,8 @@ Each part can also be run alone:
   - a captain can be chosen in the pause menu by click and by key, and the choice is saved.
 
   The test pictures each captain, then puts the player's own choice back.
-  Add `-orbittest` (or `?orbittest` on the web) to test the orbits. It runs ten minutes of
-  them at 8x speed and checks every motion against Kepler's laws:
+  Add `-orbittest` (or `?orbittest` on the web) to test the orbits. It runs a week of them in
+  a minute and a quarter and checks every motion, in the system's doubles, against Kepler's laws:
   - the Highport stays geostationary;
   - Thalassa's L1 stays on the line from the star, kept there by station-keeping burns;
   - Jovara's L4 and L5 stay 60° from it, with the Trojans librating;
@@ -1085,6 +1138,11 @@ Each part can also be run alone:
   - the map changes, and every launcher launches.
 
   Then it warps to fast-moving Cinder and to each launcher for pictures, and restarts.
+  Add `-approachtest` (or `?approachtest` on the web) to test the real-size system and flying
+  down to it: the planets' sizes and distances, the world drawn round the frigate after a warp
+  of millions of kilometres, the far bodies drawn nearer, Ochre's ground seen from orbit, the
+  auto-lander from orbit down through the air onto Port Ochre's pad, the climb back to orbit,
+  and a descent by hand onto airless Selene and back up.
   Add `-stationtest` (or `?stationtest` on the web) to test only the stations, bases and
   installations. It warps to each one. It docks at every berth, checking the repair, the sale
   and that the warp drive and landing are locked while docked. It flies in on Corsair Haven and

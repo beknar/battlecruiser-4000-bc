@@ -45,6 +45,7 @@ namespace CarrierGame.Demo
         }
 
         static string V(Vector3 v) => $"{v.x:F1},{v.y:F1},{v.z:F1}";
+        static string V(CoopWorld.NetPos v) => $"{v.p.x:F1},{v.p.y:F1},{v.p.z:F1}";
 
         IEnumerator CoopTest(Keyboard kb, bool quick)
         {
@@ -85,7 +86,7 @@ namespace CarrierGame.Demo
             string pf = gun != null ? gun.projectilePrefab.name : "";
             float shield0 = shield != null ? shield.Strength : 0f, hull0 = hull.Current;
             int taken0 = world.HitsTaken, shown0 = world.ShotsShown;
-            Note($"ready|target={target}|front={V(world.ToNet(front))}|beside={V(world.ToNet(beside))}|pf={pf}");
+            Note($"ready|target={target}|front={V(world.ToNet(front))}|beside={V(world.ToNet(beside))}|rf={world.ToNet(front).rf}|pf={pf}");
             Log($"  asked the bot (the host) to fly beside me, move '{target}' 1.5 km ahead, hit me and shoot ('{pf}')");
             until = Time.realtimeSinceStartup + 10f;
             RemotePlayer bot = null;
@@ -175,7 +176,7 @@ namespace CarrierGame.Demo
                     Vector3 o = (cc.transform.position - haven.transform.position);
                     o.y = 0f;
                     Vector3 spot = haven.transform.position + o.normalized * 3500f + Vector3.up * 200f;
-                    Note($"goto={V(world.ToNet(spot))}");
+                    Note($"goto={V(world.ToNet(spot))}|rf={world.ToNet(spot).rf}");
                     until = Time.realtimeSinceStartup + 45f;
                     while (world.HitsSentToPlayers - toPlayers0 < 3 && Time.realtimeSinceStartup < until) yield return null;
                 }

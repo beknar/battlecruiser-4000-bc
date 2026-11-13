@@ -39,14 +39,19 @@ namespace Carrier.EditorTools
             go.transform.localScale = Vector3.one / Mathf.Max(1e-6f, body.lossyScale.x);
             along = Vector3.ProjectOnPlane(along, radial).normalized;
             go.transform.SetPositionAndRotation(body.position, Quaternion.LookRotation(along, radial.normalized));
+            go.AddComponent<RaiseToGround>().body = body;
             return go.transform;
         }
 
         /// <summary>A point `h` above the surface (radius R), `theta` radians along the frame's great circle.</summary>
         static Vector3 Arc(float R, float theta, float h, float x = 0f) =>
-            new Vector3(x, (R + h) * Mathf.Cos(theta), (R + h) * Mathf.Sin(theta));
+            new Vector3(x, (R + h) * Mathf.Cos(theta * arcScale), (R + h) * Mathf.Sin(theta * arcScale));
 
-        static Quaternion ArcRot(float theta) => Quaternion.AngleAxis(theta * Mathf.Rad2Deg, Vector3.right);
+        static Quaternion ArcRot(float theta) => Quaternion.AngleAxis(theta * arcScale * Mathf.Rad2Deg, Vector3.right);
+
+        /// <summary>The launchers were drawn up on bodies a fiftieth the size: their angles round the
+        /// body (theta) are scaled by this (the old radius over the new) so each keeps its length.</summary>
+        static float arcScale = 1f;
 
         /// <summary>The launcher as a destination: a point on the surface at `theta`, arrived at from above.</summary>
         static WarpPoint LauncherSite(Transform frame, float R, float theta, WarpPoint body, string name, string label, string desc, float arrival, float side = 0.15f)
@@ -90,12 +95,13 @@ namespace Carrier.EditorTools
             var th = s.thalassa.transform;
             var wThalassa = s.wThalassa;
             float RT = wThalassa.bodyRadius;
+            arcScale = 6500f / RT;
             var highport = sys.GetComponentsInChildren<Installation>(true).First(i => i.displayName == "Thalassa Highport").transform;
             Vector3 radial = (highport.position - th.position).normalized;
             Vector3 east = Vector3.Cross(th.up, radial).normalized;
             {
                 var f = BodyFrame(th, "Thalassa Space Elevator", radial, th.up);
-                float geo = Vector3.Distance(highport.position, th.position), top = geo - 240f, cw = 13500f;
+                float geo = Vector3.Distance(highport.position, th.position), top = geo - 240f, cw = geo + (geo - RT) * 0.35f;
                 var solid = new Geo(f, "Platform and counterweight");
                 solid.Box(sm.dark, new Vector3(0f, RT + 8f, 0f), new Vector3(280f, 16f, 280f));
                 solid.Box(sm.hull, new Vector3(0f, RT + 24f, 0f), new Vector3(120f, 18f, 120f));
@@ -127,9 +133,9 @@ namespace Carrier.EditorTools
                 ec.bottom = new Vector3(0f, RT + 110f, 0f);
                 ec.top = new Vector3(0f, top - 60f, 0f);
                 ec.climbers = climbers.ToArray();
-                ec.speed = 110f;
+                ec.speed = 400f;
                 var wp = LauncherSite(f, RT, 0f, wThalassa, "Thalassa Space Elevator", "Space elevator",
-                    "A space elevator: Thalassa turns once in 11 minutes, so an orbit 10 km from its centre keeps pace with the ground. " +
+                    "A space elevator: Thalassa turns once in about six hours, so an orbit 400 km up keeps pace with the ground. " +
                     "A tether runs from a sea platform on the equator up to the Highport there, and on to a counterweight beyond, " +
                     "and climbers ride it up and down.", 1500f, 0.9f);
                 Shot("elevator", wp, 1800f, 3500f);
@@ -172,6 +178,7 @@ namespace Carrier.EditorTools
             var oc = s.ochre.transform;
             var wOchre = oc.GetComponent<WarpPoint>();
             float RO = wOchre.bodyRadius;
+            arcScale = 5000f / RO;
             Vector3 sun = (s.star.position - oc.position).normalized;
             {
                 var f = BodyFrame(oc, "Ochre StarTram", sun, Vector3.Cross(Vector3.up, sun));
@@ -234,6 +241,7 @@ namespace Carrier.EditorTools
                 var wSelene = s.wSelene;
                 var sel = wSelene.transform;
                 float RS = wSelene.bodyRadius;
+                arcScale = 1400f / RS;
                 var baseT = sys.GetComponentsInChildren<Installation>(true).First(i => i.displayName == "Selene Base").transform;
                 Vector3 baseDir = (baseT.position - sel.position).normalized;
                 // 45 degrees round from the base: still in daylight (Selene doesn't turn), clear of it

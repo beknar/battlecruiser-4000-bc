@@ -1,98 +1,122 @@
 {
-    "note": "The Kestrel system's planets, moons and asteroid fields, which the scene builder (CarrierBuilder.StarSystem) places. Positions are round the star: an angle (degrees), a distance and a height (km). Radii and arrival distances are in metres; mass is a fraction of what the body goes round. Rebuild the scenes (Tools > Carrier > Build All) after changing anything here.",
+    "note": "The Kestrel system's planets, moons and asteroid fields, which the scene builder (CarrierBuilder.StarSystem) places. The level is laid out small: positions round the star are an angle (degrees), a distance and a height (km), and each distance from the star is multiplied by 20,000 for the real orbit (StarSystemData.LayoutScale for the level, times CarrierBuilder.DistanceScale), so the system is millions of kilometres across. Radii and arrival distances (from the body's centre) are real, in metres; moons' distances from their planets are real, in km; mass is a fraction of what the body goes round; spin is degrees a second. Rebuild the scenes (Tools > Carrier > Build All) after changing anything here.",
     "planets": [
         {
             "name": "Cinder",
             "angle": 20,
             "distanceKm": 55,
             "heightKm": 0.4,
-            "radius": 3200,
+            "radius": 160000,
             "surface": "Volcanic",
-            "atmosphereScale": 1.03,
+            "atmosphereScale": 1.045,
             "description": "A small volcanic world close to the star, its crust split by rivers of lava. A corsair patrol (a heavy cruiser and two destroyers) holds station here.",
-            "arrival": 9000,
-            "mapColor": [1, 0.45, 0.2],
+            "arrival": 310000,
+            "mapColor": [
+                1,
+                0.45,
+                0.2
+            ],
             "hostile": true,
-            "mass": 0.004,
-            "spin": 0.4
+            "mass": 1e-07,
+            "spin": 0.004
         },
         {
             "name": "Ochre",
             "angle": 135,
             "distanceKm": 92,
             "heightKm": -1,
-            "radius": 5000,
+            "radius": 240000,
             "surface": "Desert",
-            "atmosphereScale": 1.025,
+            "atmosphereScale": 1.0375,
             "description": "A dry desert planet of dune seas and dust basins under a thin, hazy atmosphere.",
-            "arrival": 13000,
-            "mapColor": [0.9, 0.65, 0.4],
+            "arrival": 390000,
+            "mapColor": [
+                0.9,
+                0.65,
+                0.4
+            ],
             "hostile": false,
-            "mass": 0.01,
-            "spin": 0.3
+            "mass": 2e-07,
+            "spin": 0.006
         },
         {
             "name": "Thalassa",
             "angle": 250,
             "distanceKm": 128,
             "heightKm": 0.8,
-            "radius": 6500,
+            "radius": 320000,
             "surface": "Ocean",
-            "atmosphereScale": 1.04,
+            "atmosphereScale": 1.06,
             "description": "An ocean world with scattered continents, polar ice and a thick blue atmosphere. Two moons, and a space elevator.",
-            "arrival": 30000,
-            "mapColor": [0.35, 0.6, 1],
+            "arrival": 470000,
+            "mapColor": [
+                0.35,
+                0.6,
+                1
+            ],
             "hostile": false,
-            "mass": 0.03,
-            "spin": 0,
+            "mass": 3.2e-07,
+            "spin": 0.0,
             "spinMatchesElevator": true,
             "yearSetsStarMass": true,
-            "note": "its year sets the star's mass; it turns at the speed that holds the elevator's top in geostationary orbit; arrivals 30 km out, clear of the moons"
+            "note": "its year (30 days) sets the star's mass; it turns at the speed that holds the elevator's top in geostationary orbit (400 km up: a day of about 6 hours, from its mass)"
         },
         {
             "name": "Jovara",
             "angle": 330,
             "distanceKm": 178,
             "heightKm": 2,
-            "radius": 16000,
+            "radius": 500000,
             "surface": "GasGiant",
-            "atmosphereScale": 1.03,
+            "atmosphereScale": 1.045,
             "description": "A banded gas giant with a great storm, circled by four moons.",
-            "arrival": 42000,
-            "mapColor": [0.95, 0.75, 0.55],
+            "arrival": 700000,
+            "mapColor": [
+                0.95,
+                0.75,
+                0.55
+            ],
             "hostile": false,
-            "mass": 0.036,
-            "spin": 0.15
+            "mass": 3e-06,
+            "spin": 0.012
         },
         {
             "name": "Glacis",
             "angle": 72,
             "distanceKm": 232,
             "heightKm": -2,
-            "radius": 11000,
+            "radius": 420000,
             "surface": "IceGiant",
-            "atmosphereScale": 1.035,
+            "atmosphereScale": 1.0525,
             "description": "A pale ice giant at the cold edge of the system, wrapped in methane haze. A pirate dreadnought and its destroyer escort guard the approach.",
-            "arrival": 30000,
-            "mapColor": [0.6, 0.9, 0.95],
+            "arrival": 600000,
+            "mapColor": [
+                0.6,
+                0.9,
+                0.95
+            ],
             "hostile": true,
-            "mass": 0.03,
-            "spin": 0.2
+            "mass": 8e-07,
+            "spin": 0.01
         },
         {
             "name": "Pelagia",
             "angle": 200,
             "distanceKm": 150,
             "heightKm": 1,
-            "radius": 4500,
+            "radius": 220000,
             "surface": "Ocean",
-            "atmosphereScale": 1.035,
+            "atmosphereScale": 1.0525,
             "description": "A pirate-held water world of scattered islands. Forts on the islands, torpedo bases on the sea floor, and submarines in its shallows.",
-            "arrival": 14000,
-            "mapColor": [0.25, 0.6, 0.8],
+            "arrival": 370000,
+            "mapColor": [
+                0.25,
+                0.6,
+                0.8
+            ],
             "hostile": true,
-            "mass": 0.012,
-            "spin": 0.25
+            "mass": 2e-07,
+            "spin": 0.008
         }
     ],
     "moons": [
@@ -100,8 +124,8 @@
             "name": "Selene",
             "planet": "Thalassa",
             "angle": 35,
-            "distanceKm": 16,
-            "radius": 1400,
+            "distanceKm": 1500,
+            "radius": 70000,
             "seed": 901,
             "description": "Thalassa's larger moon: grey, airless and heavily cratered. A colony, Selene Base, stands on its sunlit side.",
             "mass": 0.012
@@ -110,8 +134,8 @@
             "name": "Mnemos",
             "planet": "Thalassa",
             "angle": 205,
-            "distanceKm": 24,
-            "radius": 900,
+            "distanceKm": 2200,
+            "radius": 45000,
             "seed": 902,
             "description": "A small moon of Thalassa.",
             "mass": 0.004
@@ -120,8 +144,8 @@
             "name": "Brontes",
             "planet": "Jovara",
             "angle": 10,
-            "distanceKm": 34,
-            "radius": 2400,
+            "distanceKm": 1400,
+            "radius": 120000,
             "seed": 903,
             "description": "Jovara's inner moon, scarred by ancient impacts. A shipyard orbits it.",
             "mass": 0.01
@@ -130,8 +154,8 @@
             "name": "Arges",
             "planet": "Jovara",
             "angle": 125,
-            "distanceKm": 46,
-            "radius": 1600,
+            "distanceKm": 1900,
+            "radius": 80000,
             "seed": 904,
             "description": "A small moon of Jovara.",
             "mass": 0.005
@@ -140,8 +164,8 @@
             "name": "Steropes",
             "planet": "Jovara",
             "angle": 235,
-            "distanceKm": 60,
-            "radius": 2800,
+            "distanceKm": 2500,
+            "radius": 140000,
             "seed": 905,
             "description": "Jovara's largest moon, with deep craters along its terminator.",
             "mass": 0.015
@@ -150,8 +174,8 @@
             "name": "Pyrois",
             "planet": "Jovara",
             "angle": 300,
-            "distanceKm": 75,
-            "radius": 1100,
+            "distanceKm": 3100,
+            "radius": 55000,
             "seed": 906,
             "description": "A small moon of Jovara.",
             "mass": 0.003
@@ -168,7 +192,11 @@
             "seed": 3101,
             "description": "A quiet cluster of rock between the inner planets. Good cover, no contacts.",
             "arrival": 7000,
-            "mapColor": [0.7, 0.62, 0.52],
+            "mapColor": [
+                0.7,
+                0.62,
+                0.52
+            ],
             "hostile": false
         },
         {
@@ -181,7 +209,11 @@
             "seed": 3202,
             "description": "Rocks gathered at Jovara's leading Lagrange point, L4, 60 degrees ahead of it in its orbit. Raider fighters have been seen hiding here.",
             "arrival": 8000,
-            "mapColor": [0.85, 0.55, 0.45],
+            "mapColor": [
+                0.85,
+                0.55,
+                0.45
+            ],
             "hostile": true
         },
         {
@@ -194,7 +226,11 @@
             "seed": 3303,
             "description": "A thin belt of rock at the system's edge, where a pirate cruiser is said to lie in wait.",
             "arrival": 9000,
-            "mapColor": [0.8, 0.5, 0.5],
+            "mapColor": [
+                0.8,
+                0.5,
+                0.5
+            ],
             "hostile": true
         }
     ]

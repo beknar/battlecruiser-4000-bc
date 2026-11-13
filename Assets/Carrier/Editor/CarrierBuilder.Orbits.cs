@@ -6,35 +6,40 @@ using UnityEngine;
 namespace Carrier.EditorTools
 {
     /// <summary>
-    /// The orbits of the Kestrel system. The distances are compressed (the whole system is
-    /// 260 km across) and so is time: Thalassa goes round the star in 90 minutes, and every
-    /// other orbit follows from Kepler's third law with the masses below. So in ten minutes of
-    /// watching Cinder goes almost half way round, the moons and stations a good part of the way
-    /// round their planets, and the outer planets move visibly on the map. Where the bodies are and
-    /// their masses are in Data/star_system.json.
+    /// The orbits of the Kestrel system, at their real sizes: the planets are millions of
+    /// kilometres from the star (the level is laid out small, and each orbit round the star is
+    /// DistanceScale times its laid-out distance; OrbitalSystem puts everything at its real place
+    /// when the level starts). Thalassa goes round the star in 30 days, and every other orbit
+    /// follows from Kepler's third law with the masses below: the planets hardly move in a game,
+    /// the moons go round in hours. Where the bodies are and their masses are in
+    /// Data/star_system.json.
     ///
     /// Each planet, moon, field, comet, orbiting station and Lagrange point becomes a frame
     /// (an Orbit) with what belongs to it inside: a planet with its bases and its elevator, a
     /// moon's frame inside its planet's, a field with its rocks and its base. The masses are
-    /// a game's: big enough to put Thalassa's L1 point well clear of the planet (27.6 km out),
-    /// and Jovara's just under the limit (1/26 of the star) for its L4 and L5 to be stable.
+    /// small, as real planets' are (Thalassa's L1 point is about 12,000 km out from it).
     /// </summary>
     public static partial class CarrierBuilder
     {
         /// <summary>Thalassa's year (s), which sets the star's mass.</summary>
-        const double ThalassaYear = 5400.0;
+        const double ThalassaYear = 30.0 * 86400.0;
         static double starGM;
+
+        /// <summary>How much further each orbit round the star really is than it is laid out in the
+        /// level (the laid-out system is a few thousand kilometres across, where a float holds a
+        /// position to well under a metre): 20,000 times the file's distances in all.</summary>
+        public const double DistanceScale = 800.0;
 
         /// <summary>Each body's mass as a fraction of what it goes round (Data/star_system.json).</summary>
         static Dictionary<string, float> MassRatio => StarSystemData.Load().Masses;
 
         /// <summary>Thalassa's geostationary orbit (m from its centre): the top of its space
-        /// elevator, where the Highport is. The planet's spin is set to match.</summary>
-        const float ThalassaGeo = 10000f;
+        /// elevator, where the Highport is, 400 km up. The planet's spin is set to match.</summary>
+        static float ThalassaGeo => StarSystemData.Load().planets.First(p => p.name == "Thalassa").radius + 400000f;
 
         static void SetStarMass(Vector3 thalassaPos)
         {
-            double a = thalassaPos.magnitude;
+            double a = thalassaPos.magnitude * DistanceScale;
             starGM = 4.0 * System.Math.PI * System.Math.PI * a * a * a / (ThalassaYear * ThalassaYear);
             OrbitalSystem.StarGM = starGM;
         }
@@ -165,7 +170,7 @@ namespace Carrier.EditorTools
             swarm.rocks = trojans.transform.Find("Jovara Trojans");
             orbits["Trojans"] = trojans;
             var depot = Lagrange("Jovara L5 Depot", orbits["Jovara"], 5, 5000f, new[] { T("Installations/Jovara L5 Depot") });
-            depot.librationDegrees = 0.25f;     // a slow swing of about 800 m to and fro round L5
+            depot.librationDegrees = 0.00002f;  // a slow swing of about 1.2 km to and fro round L5
             var l1 = Lagrange("Thalassa L1 Observatory", orbits["Thalassa"], 1, 5000f, new[] { T("Installations/Thalassa L1 Observatory") });
             if (T("Installations/Aegis Fleet Base") is Transform aegis)
                 Lagrange("Aegis Fleet Base", orbits["Thalassa"], 4, 6000f, new[] { aegis });
@@ -206,6 +211,10 @@ namespace Carrier.EditorTools
                 if (best != null) e.AddComponent<OrbitHome>().home = best.transform;
             }
 
+            // every orbit round the star at its real size (Lagrange points follow their planets)
+            foreach (var o in sys.GetComponentsInChildren<Orbit>(true))
+                if (o.kind == Orbit.Kind.Kepler && o.parent == null) o.semiMajor *= DistanceScale;
+
             var runner = sys.gameObject.AddComponent<OrbitalSystem>();
             runner.system = sys;
             runner.starGM = starGM;
@@ -216,12 +225,12 @@ namespace Carrier.EditorTools
             foreach (var o in sys.GetComponentsInChildren<Orbit>(true).OrderBy(o => o.transform.position.magnitude))
             {
                 string what = o.kind == Orbit.Kind.Lagrange ? $"L{o.point} of {o.secondary.name.Replace(" (orbit)", "")}" :
-                    $"round {(o.parent != null ? o.parent.name.Replace(" (orbit)", "") : "Kestrel")}, a {o.semiMajor / 1000.0:F1} km, e {o.eccentricity:F2}";
-                Log($"orbit {o.name,-34} {what,-40} period {o.Period / 60.0,6:F1} min, reach {o.reach / 1000f:F1} km");
+                    $"round {(o.parent != null ? o.parent.name.Replace(" (orbit)", "") : "Kestrel")}, a {o.semiMajor / 1000.0:F0} km, e {o.eccentricity:F2}";
+                Log($"orbit {o.name,-34} {what,-40} period {o.Period / 3600.0,8:F1} h, reach {o.reach / 1000f:F1} km");
             }
-            Log($"orbits: star GM {starGM:E3}; Thalassa turns in {360f / ThalassaSpin():F0} s, geostationary at {ThalassaGeo / 1000f:F0} km; " +
-                $"Thalassa's L1 {Orbit.HillFraction(MassRatio["Thalassa"]) * 128.0:F1} km from it; Jovara's Trojans swing round L4 every " +
-                $"{PeriodOf(178000.0, starGM) / Orbit.LibrationFraction(MassRatio["Jovara"]) / 60.0:F0} min");
+            Log($"orbits: star GM {starGM:E3}; Thalassa turns in {360f / ThalassaSpin() / 3600f:F1} h, geostationary at {ThalassaGeo / 1000f:F0} km; " +
+                $"Thalassa's L1 {Orbit.HillFraction(MassRatio["Thalassa"]) * 128.0 * StarSystemData.LayoutScale * DistanceScale:F0} km from it; Jovara's Trojans swing round L4 every " +
+                $"{PeriodOf(178000.0 * StarSystemData.LayoutScale * DistanceScale, starGM) / Orbit.LibrationFraction(MassRatio["Jovara"]) / 86400.0:F0} days");
             return runner;
         }
     }

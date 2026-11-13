@@ -41,10 +41,16 @@ namespace CarrierGame
             Show(false);
         }
 
+        double lastTime = -1.0;
+
         void Update()
         {
             if (orbit == null || orbit.secondary == null) return;
-            float dt = Time.deltaTime;
+            // (on the orbits' clock: a time-lapse speeds the drift up with everything else)
+            var sys = OrbitalSystem.Instance;
+            double now = sys != null ? sys.Time : Time.timeSinceLevelLoad;
+            float dt = lastTime < 0.0 ? 0f : (float)(now - lastTime);
+            lastTime = now;
             Drift *= Mathf.Exp(Lambda * dt);
             LargestDrift = Mathf.Max(LargestDrift, Mathf.Abs(Drift));
             if (Mathf.Abs(Drift) > tolerance)

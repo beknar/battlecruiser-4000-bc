@@ -119,7 +119,7 @@ namespace CarrierGame.Tests
             Assert.That(got.ts, Is.EqualTo(4.25));
             Assert.That(got.e.Length, Is.EqualTo(1));
             Assert.That(got.e[0].id, Is.EqualTo("System/Base/Gun A"));
-            Assert.That(new Vector3(got.e[0].x, got.e[0].y, got.e[0].z), Is.EqualTo(new Vector3(1, 2, 3)));
+            Assert.That(new Double3(got.e[0].x, got.e[0].y, got.e[0].z), Is.EqualTo(new Double3(1, 2, 3)));
             Assert.That(got.e[0].hu, Is.EqualTo(0.5f));
             Assert.That(got.e[0].lurk, Is.True);
         }

@@ -39,7 +39,9 @@ namespace CarrierGame.Demo
             public NetPuppet puppet;
             public readonly List<Behaviour> off = new List<Behaviour>();
             public double ts0 = -1, ts1 = -1;
-            public Vector3 p0, p1, v1;
+            public Double3 p0, p1;
+            public string rf0 = "", rf1 = "";
+            public Vector3 v1;
             public Quaternion q0 = Quaternion.identity, q1 = Quaternion.identity;
             public Shield[] shields;
         }
@@ -118,8 +120,26 @@ namespace CarrierGame.Demo
         bool IsHost => On && Client.IsHost;
 
         /// <summary>From this game's world to the shared frame (relative to the star system) and back.</summary>
-        public Vector3 ToNet(Vector3 w) => sysRoot != null ? w - sysRoot.position : w;
-        public Vector3 FromNet(Vector3 n) => sysRoot != null ? n + sysRoot.position : n;
+        /// <summary>A position as sent: from the reach it is in (`rf`, a planet's, moon's, station's
+        /// or field's: they move fast on their orbits, and each game has them where its own clock
+        /// says), or in open space its place in the star system (in doubles: millions of
+        /// kilometres across, each game drawing it round its own ship).</summary>
+        public struct NetPos { public string rf; public Double3 p; }
+
+        public NetPos ToNet(Vector3 w)
+        {
+            var os = OrbitalSystem.Instance;
+            if (os == null) return new NetPos { rf = "", p = w };
+            string rf = os.FrameOf(w, out Vector3 off);
+            return rf != "" ? new NetPos { rf = rf, p = off } : new NetPos { rf = "", p = os.ToSystem(w) };
+        }
+
+        public Vector3 FromNet(string rf, Double3 n)
+        {
+            var os = OrbitalSystem.Instance;
+            if (os == null) return n.ToVector3();
+            return os.WorldOf(rf, n.ToVector3(), out Vector3 w) ? w : os.ToWorld(n);
+        }
 
         // ------------------------------------------------------------------ every frame
 
@@ -191,7 +211,7 @@ namespace CarrierGame.Demo
                     if (IsHost && ents.TryGetValue(m.tg ?? "", out var e) && e.h != null && !e.h.Dead)
                     {
                         Health.Source = remotes.TryGetValue(m.from, out var who) && who != null ? who.transform : null;
-                        e.h.Damage(m.a, FromNet(new Vector3(m.x, m.y, m.z)), (HitKind)m.kd);
+                        e.h.Damage(m.a, FromNet(m.rf, new Double3(m.x, m.y, m.z)), (HitKind)m.kd);
                         Health.Source = null;
                         HitsAppliedForOthers++;
                     }
@@ -201,7 +221,7 @@ namespace CarrierGame.Demo
                     if (myHealth != null && !myHealth.Dead)
                     {
                         Health.Source = null;
-                        myHealth.Damage(m.a, FromNet(new Vector3(m.x, m.y, m.z)), (HitKind)m.kd);
+                        myHealth.Damage(m.a, FromNet(m.rf, new Double3(m.x, m.y, m.z)), (HitKind)m.kd);
                         HitsTaken++;
                     }
                     break;

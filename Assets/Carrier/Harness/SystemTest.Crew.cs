@@ -25,7 +25,8 @@ namespace CarrierGame.Demo
         bool Arrived(string name)
         {
             var wp = Point(name);
-            return wp != null && Vector3.Distance(cc.transform.position, wp.Position) < wp.arrivalDistance * 1.6f;
+            // (a base on a planet or moon is arrived at high in its air: 12 km up)
+            return wp != null && Vector3.Distance(cc.transform.position, wp.Position) < Mathf.Max(wp.arrivalDistance, wp.overhead ? 12000f : 0f) * 1.6f;
         }
 
         IEnumerator CrewTest(Keyboard kb)
@@ -155,13 +156,15 @@ namespace CarrierGame.Demo
                 if (!Arrived(name)) { Check(false, $"arrives over {name}"); continue; }
                 yield return LookAt(Point(name).Position, $"c_{file}_from_orbit", 2.4f, 40f);
                 yield return Key(kb, K.K);
-                yield return WaitLanding(landing, PlanetLanding.State.OnSurface, 60f);
-                yield return new WaitForSeconds(2.5f);
+                yield return WaitLanding(landing, PlanetLanding.State.OnSurface, 120f);
+                float downBy = Time.time + 120f;
+                while (landing.Autopilot && Time.time < downBy) yield return null;
+                yield return new WaitForSeconds(1f);
                 var site = IndustrySite.All.FirstOrDefault(x => x.siteName == name && x.pad != null);
                 var group = landing.Surface != null ? landing.Surface.GetComponentsInChildren<Transform>(true).FirstOrDefault(x => x.name == "Settlement: " + name) : null;
                 int buildings = group != null ? group.childCount - 1 : 0;
                 Check(site != null && buildings >= 5, $"down at {name}: its pad {(site != null ? "there" : "missing")}, {buildings} buildings round it");
-                if (site == null) { yield return Key(kb, K.K); yield return WaitLanding(landing, PlanetLanding.State.InSpace, 15f); continue; }
+                if (site == null) { landing.TakeOff(); yield return WaitLanding(landing, PlanetLanding.State.InSpace, 15f); continue; }
                 yield return LookAt(site.transform.position + Vector3.up * 80f, $"c_{file}_site", 5f, 16f);
                 float until = Time.time + 90f;
                 bool descending = false;
@@ -194,7 +197,7 @@ namespace CarrierGame.Demo
                     Shot($"c_{file}_on_the_pad");
                     oc.distance = d0; oc.pitch = p0;
                 }
-                yield return Key(kb, K.K);
+                landing.TakeOff();
                 yield return WaitLanding(landing, PlanetLanding.State.InSpace, 15f);
                 yield return new WaitForSeconds(0.5f);
             }

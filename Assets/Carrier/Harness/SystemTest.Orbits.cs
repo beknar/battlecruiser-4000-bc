@@ -52,7 +52,12 @@ namespace CarrierGame.Demo
             var climbers = FindAnyObjectByType<ElevatorClimbers>();
             var homes = FindObjectsByType<OrbitHome>(FindObjectsSortMode.None);
             Vector3 S() => star.Position;
+            // (where each orbit is, from what it goes round, in the system's doubles: far from the
+            // frigate a float holds a position only to hundreds of metres)
+            Double3 Off(Orbit o) => sys.SystemPosition(o) - (o.parent != null ? sys.SystemPosition(o.parent) : Double3.zero);
+            double AngleD(Double3 a, Double3 b) => System.Math.Acos(System.Math.Max(-1.0, System.Math.Min(1.0, Double3.Dot(a, b) / (a.magnitude * b.magnitude)))) * 180.0 / System.Math.PI;
             var off0 = orbits.ToDictionary(o => o, o => o.transform.position - (o.parent != null ? o.parent.transform.position : S()));
+            var offD0 = orbits.ToDictionary(o => o, o => Off(o));
             double t0 = sys.Time;
             Vector3 ship0 = cc.transform.position - thalassa.transform.position;
             Vector3 hpLocal0 = thalassaBody.InverseTransformPoint(highport.transform.position);
@@ -67,12 +72,16 @@ namespace CarrierGame.Demo
             Shot("o0_map_start");
             yield return Key(kb, UnityEngine.InputSystem.Key.Escape);
 
-            // ten minutes of orbits, eight times as fast
-            Log("ten minutes of orbits at 8x speed...");
+            // a week of orbits (the game eight times as fast, the orbits a thousand times faster again:
+            // at their real sizes the planets take days to weeks to go round)
+            Log("a week of orbits in a minute and a quarter...");
             cc.throttle = 0f;
             Time.timeScale = 8f;
+            sys.timeLapse = 1000f;
             float frames = 0f, realStart = Time.realtimeSinceStartup;
-            while (sys.Time - t0 < 600.0) { frames++; yield return null; }
+            const double Span = 600000.0;
+            while (sys.Time - t0 < Span) { frames++; yield return null; }
+            sys.timeLapse = 1f;
             Time.timeScale = 1f;
             double dt = sys.Time - t0;
             Log($"  {dt:F0} s of orbits in {Time.realtimeSinceStartup - realStart:F0} s, {frames / Mathf.Max(1f, Time.realtimeSinceStartup - realStart):F0} frames a second; " +
@@ -82,11 +91,10 @@ namespace CarrierGame.Demo
             bool anglesOk = true;
             foreach (var o in orbits.Where(o => o.kind == Orbit.Kind.Kepler && o.eccentricity < 0.01))
             {
-                Vector3 now = o.transform.position - (o.parent != null ? o.parent.transform.position : S());
-                float moved = Vector3.Angle(off0[o], now), want = (float)(360.0 * dt / o.Period);
-                want %= 360f;
+                Double3 now = Off(o);
+                float moved = (float)AngleD(offD0[o], now), want = (float)(360.0 * dt / o.Period % 360.0);
                 want = want > 180f ? 360f - want : want;
-                float dr = Mathf.Abs(now.magnitude - off0[o].magnitude);
+                float dr = (float)System.Math.Abs(now.magnitude - offD0[o].magnitude);
                 bool ok = Mathf.Abs(moved - want) < 0.5f && dr < 2f;
                 anglesOk &= ok;
                 if (!ok || planets.Contains(o) || o.parent != null && planets.Contains(o.parent))
@@ -107,20 +115,21 @@ namespace CarrierGame.Demo
             results.Add(("the Highport is geostationary", hpDrift < 1f && kepler > 0.0 && System.Math.Abs(kepler - day) < day * 0.01));
 
             // the Lagrange points
-            Vector3 sT = thalassa.transform.position - S(), sL1 = l1.transform.position - S();
-            float colinear = Vector3.Angle(sT, sL1);
-            float hill = (float)Orbit.HillFraction(thalassa.massRatio) * sT.magnitude;
-            float l1Off = Vector3.Distance(l1.transform.position, thalassa.transform.position);
+            Double3 sT = sys.SystemPosition(thalassa), sL1 = sys.SystemPosition(l1);
+            float colinear = (float)AngleD(sT, sL1);
+            float hill = (float)(Orbit.HillFraction(thalassa.massRatio) * sT.magnitude);
+            float l1Off = (float)Double3.Distance(sL1, sT);
             Log($"  L1: {colinear:F3} deg off the star-Thalassa line, {l1Off / 1000f:F2} km from Thalassa (Hill radius {hill / 1000f:F2} km); " +
                 $"station-keeping burns {keep?.Burns}, largest drift {keep?.LargestDrift:F0} m, e-folding time {1f / Mathf.Max(1e-6f, keep != null ? keep.Lambda : 0f) / 60f:F1} min");
             bool l1Ok = colinear < 0.2f && Mathf.Abs(l1Off - hill) < 200f && keep != null && keep.Burns >= 1 && keep.LargestDrift <= keep.tolerance + 5f;
-            Vector3 sJ = jovara.transform.position - S();
-            float a4 = Vector3.Angle(sJ, l4.transform.position - S()), a5 = Vector3.Angle(sJ, l5.transform.position - S());
-            float r4 = (l4.transform.position - S()).magnitude / sJ.magnitude, r5 = (l5.transform.position - S()).magnitude / sJ.magnitude;
+            Double3 sJ = sys.SystemPosition(jovara), s4 = sys.SystemPosition(l4), s5 = sys.SystemPosition(l5);
+            float a4 = (float)AngleD(sJ, s4), a5 = (float)AngleD(sJ, s5);
+            float r4 = (float)(s4.magnitude / sJ.magnitude), r5 = (float)(s5.magnitude / sJ.magnitude);
             float rockMoved = rock != null ? Vector3.Distance(rock.localPosition, rock0) : 0f;
-            Log($"  L4 (Trojans): {a4:F2} deg from Jovara, radius ratio {r4:F4}; L5 (depot): {a5:F2} deg, ratio {r5:F4}; a Trojan rock librated {rockMoved:F0} m " +
+            Log($"  L4 (Trojans): {a4:F2} deg from Jovara, radius ratio {r4:F4}; L5 (depot): {a5:F2} deg, ratio {r5:F4}; a Trojan rock librated {rockMoved:F2} m " +
                 $"(one swing takes {(swarm != null ? swarm.LibrationPeriod / 3600.0 : 0.0):F1} h)");
-            bool l45Ok = Mathf.Abs(a4 - 60f) < 0.1f && Mathf.Abs(a5 - 60f) < 0.4f && Mathf.Abs(r4 - 1f) < 0.01f && Mathf.Abs(r5 - 1f) < 0.01f && rockMoved > 1f;
+            // (a Trojan swings round L4 over centuries at the real masses: in a week it only creeps)
+            bool l45Ok = Mathf.Abs(a4 - 60f) < 0.1f && Mathf.Abs(a5 - 60f) < 0.4f && Mathf.Abs(r4 - 1f) < 0.01f && Mathf.Abs(r5 - 1f) < 0.01f && rockMoved > 0.01f;
             results.Add(("Lagrange points (L1 on the line, unstable, kept by burns; L4 and L5 at 60 degrees, librating)", l1Ok && l45Ok));
 
             // the comet on its ellipse, its tails still away from the star
@@ -137,7 +146,8 @@ namespace CarrierGame.Demo
             foreach (var h in homes)
             {
                 if (h == null || h.home == null) continue;
-                float d = Vector3.Distance(h.transform.position - h.home.position, homeDist0[h]);
+                // (out of the frigate's way, a float holds a place only so well: allowed for)
+                float d = Vector3.Distance(h.transform.position - h.home.position, homeDist0[h]) - 4e-7f * h.transform.position.magnitude;
                 if (d > worstHome) { worstHome = d; worstName = h.name; }
             }
             Log($"  the frigate moved {shipMoved:F1} m relative to Thalassa; {homes.Length} posted enemies stayed with their posts (worst {worstName}, {worstHome:F0} m)");

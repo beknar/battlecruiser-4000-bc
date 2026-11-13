@@ -35,7 +35,8 @@ class Bot:
         self.host = 0
         self.clock0 = 0.0          # server clock at welcome, and my own then
         self.local0 = 0.0
-        self.pos = None            # where my ship is (shared frame)
+        self.pos = None
+        self.rf = ""            # where my ship is (shared frame)
         self.es_told = False
 
     def now(self):
@@ -52,7 +53,8 @@ class Bot:
         if self.pos is None:
             return
         x, y, z = self.pos
-        await self.send(ws, {"t": "ps", "ts": self.now(), "x": x, "y": y, "z": z, "qx": 0, "qy": 0, "qz": 0, "qw": 1,
+        # (positions are from the reach the game says it is in: rf)
+        await self.send(ws, {"t": "ps", "ts": self.now(), "rf": self.rf, "x": x, "y": y, "z": z, "qx": 0, "qy": 0, "qz": 0, "qw": 1,
                              "vx": 0, "vy": 0, "vz": 0, "th": 0, "sh": 1, "su": True, "hu": 1, "dead": False,
                              "warp": 0, "dock": False, "surf": "", "cap": 1})
 
@@ -71,7 +73,7 @@ class Bot:
                 await self.ship(ws)
                 if self.host == self.my_id and "target" in self.state and "front" in self.state:
                     fx, fy, fz = self.state["front"]
-                    await self.send(ws, {"t": "es", "ts": self.now(), "e": [{"id": self.state["target"], "x": fx, "y": fy, "z": fz,
+                    await self.send(ws, {"t": "es", "ts": self.now(), "e": [{"id": self.state["target"], "rf": self.rf, "x": fx, "y": fy, "z": fz,
                                                                           "qx": 0, "qy": 0, "qz": 0, "qw": 1, "hu": 0.6}]})
                     if tick % 10 == 0 and self.state.get("pf") and self.game_id:
                         # a shot from my ship toward the game's
@@ -79,7 +81,7 @@ class Bot:
                         gx, gy, gz = self.state["game"]
                         d = [gx - bx, gy - by, gz - bz]
                         n = max(1e-3, sum(c * c for c in d) ** 0.5)
-                        await self.send(ws, {"t": "fx", "src": f"p{self.my_id}", "k": "shot", "pf": self.state["pf"],
+                        await self.send(ws, {"t": "fx", "src": f"p{self.my_id}", "k": "shot", "pf": self.state["pf"], "rf": self.rf,
                                              "x": bx, "y": by, "z": bz, "dx": d[0] / n, "dy": d[1] / n, "dz": d[2] / n, "tg": ""})
             if self.leaving:
                 await ws.close()
@@ -119,9 +121,10 @@ class Bot:
                 k, _, v = part.partition("=")
                 self.state[k] = tuple(float(c) for c in v.split(",")) if k in ("front", "beside") else v
             self.pos = self.state["beside"]
+            self.rf = self.state.get("rf", "")
             # three hits on the game's ship
             for _ in range(3):
-                await self.send(ws, {"t": "dp", "to": self.game_id, "a": 300, "x": self.pos[0], "y": self.pos[1], "z": self.pos[2], "kd": 0})
+                await self.send(ws, {"t": "dp", "to": self.game_id, "a": 300, "rf": self.rf, "x": self.pos[0], "y": self.pos[1], "z": self.pos[2], "kd": 0})
         elif note == "de?":
             await self.note(ws, f"de={self.de}")
         elif note == "leave":
@@ -131,7 +134,10 @@ class Bot:
             for _ in range(3):
                 await self.send(ws, {"t": "de", "toHost": True, "tg": target, "a": 200, "x": 0, "y": 0, "z": 0, "kd": 0})
         elif note.startswith("goto="):
-            self.pos = tuple(float(c) for c in note[5:].split(","))
+            where, _, rest = note[5:].partition("|")
+            self.pos = tuple(float(c) for c in where.split(","))
+            if rest.startswith("rf="):
+                self.rf = rest[3:]
         elif note == "dp?":
             await self.note(ws, f"dp={self.dp}")
         elif note == "bye":

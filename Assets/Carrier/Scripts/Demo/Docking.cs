@@ -157,10 +157,11 @@ namespace CarrierGame.Demo
         {
             if (At == null) return;
             Vector3 f = At.berth != null ? At.berth.forward : carrier.transform.forward;
-            f.y = 0f;
-            if (f.sqrMagnitude < 1e-4f) f = Vector3.forward;
+            // (level in the ship's own up frame: out from the planet the station circles)
+            f = Vector3.ProjectOnPlane(f, carrier.Up);
+            if (f.sqrMagnitude < 1e-4f) f = carrier.upFrame * Vector3.forward;
             carrier.transform.position = At.BerthPosition;
-            carrier.SetAttitude(Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg, 0f);
+            carrier.Face(f);
             carrier.SetMotion(0f);
             carrier.throttle = 0f;
         }

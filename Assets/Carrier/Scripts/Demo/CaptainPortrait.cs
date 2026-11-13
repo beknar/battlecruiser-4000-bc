@@ -205,8 +205,8 @@ namespace CarrierGame.Demo
             if (gun != null && gun.Current == MainBeam.State.Firing) { m = Mood.Determined; ev = why = Ev.MainGunFiring; return; }
             if (warp != null && warp.Current == WarpDrive.State.Warping) { m = Mood.Awe; ev = why = Ev.InWarp; return; }
             if (warp != null && warp.Current == WarpDrive.State.Charging) { m = Mood.Focused; ev = why = Ev.WarpDriveCharging; return; }
-            if (landing != null && landing.Current == PlanetLanding.State.Descending) { m = Mood.Focused; ev = why = Ev.GoingDown; return; }
-            if (landing != null && landing.Current == PlanetLanding.State.Ascending) { m = Mood.Focused; ev = why = Ev.TakingOff; return; }
+            if (landing != null && (landing.Current == PlanetLanding.State.Descending || landing.GoingDown)) { m = Mood.Focused; ev = why = Ev.GoingDown; return; }
+            if (landing != null && (landing.Current == PlanetLanding.State.Ascending || landing.GoingUp)) { m = Mood.Focused; ev = why = Ev.TakingOff; return; }
             if (dock != null && (dock.Current == Docking.State.Docking || dock.Current == Docking.State.Undocking)) { m = Mood.Focused; ev = why = Ev.Docking; return; }
             if (dock != null && dock.Current == Docking.State.Docked) { m = Mood.Smile; ev = why = Ev.Docked; return; }
             if (hull != null && hull.Current < hull.maxHealth * 0.25f) { m = Mood.Alarmed; ev = why = Ev.HullCritical; return; }

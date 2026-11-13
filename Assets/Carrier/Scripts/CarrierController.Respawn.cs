@@ -21,6 +21,7 @@ namespace CarrierGame
         {
             if (spawnFrame != null) spawnPosition = spawnFrame.position + spawnFrame.rotation * spawnOffset;
             transform.SetPositionAndRotation(spawnPosition, spawnRotation);
+            upFrame = Quaternion.identity;
             heading = spawnRotation.eulerAngles.y;
             pitchAngle = 0f;
             rollAngle = 0f;
@@ -78,6 +79,13 @@ namespace CarrierGame
         /// <summary>Where the ship comes back after being destroyed (the last place it warped to),
         /// kept relative to the reach it is in (a planet's, moon's or field's orbit, which doesn't
         /// spin, or a station turning with its planet), or else to `frame`.</summary>
+        /// <summary>The world's origin moved (OrbitalSystem, PlanetSurface): a respawn point kept
+        /// in the world moves with it.</summary>
+        public void OriginShifted(Vector3 delta)
+        {
+            if (spawnFrame == null) spawnPosition += delta;
+        }
+
         public void SetSpawn(Vector3 position, Quaternion rotation, Transform frame = null)
         {
             if (OrbitalSystem.Instance != null)

@@ -61,7 +61,7 @@ class Wingman:
 
     async def follow(self, ws, m):
         (x, y, z), q = self.where(m)
-        await self.send(ws, {"t": "ps", "ts": m["ts"], "x": x, "y": y, "z": z, "qx": q[0], "qy": q[1], "qz": q[2], "qw": q[3],
+        await self.send(ws, {"t": "ps", "ts": m["ts"], "rf": m.get("rf", ""), "x": x, "y": y, "z": z, "qx": q[0], "qy": q[1], "qz": q[2], "qw": q[3],
                              "vx": m.get("vx", 0), "vy": m.get("vy", 0), "vz": m.get("vz", 0), "th": m.get("th", 0),
                              "sh": 1, "su": True, "hu": 1, "dead": False, "warp": 0, "dock": False, "surf": "", "cap": CAPTAIN})
 
@@ -74,7 +74,7 @@ class Wingman:
         # from the bow, a touch apart each time (two guns)
         side = 6.0 if int(time.monotonic() * 7) % 2 else -6.0
         sx, sy, sz = rotate(q, (side, 4.0, 40.0))
-        await self.send(ws, {"t": "fx", "src": f"p{self.my_id}", "k": "shot", "pf": self.pf,
+        await self.send(ws, {"t": "fx", "src": f"p{self.my_id}", "k": "shot", "pf": self.pf, "rf": m.get("rf", ""),
                              "x": x + sx, "y": y + sy, "z": z + sz, "dx": fx, "dy": fy, "dz": fz, "tg": ""})
 
     async def handle(self, ws, m):

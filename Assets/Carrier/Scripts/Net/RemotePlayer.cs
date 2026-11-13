@@ -27,7 +27,7 @@ namespace CarrierGame.Demo
         public float LastHeard { get; private set; } = -100f;
         public int Updates { get; private set; }
 
-        struct Sample { public double ts; public Vector3 p; public Quaternion q; public Vector3 v; }
+        struct Sample { public double ts; public string rf; public Double3 p; public Quaternion q; public Vector3 v; }
         readonly List<Sample> samples = new List<Sample>();
         Renderer[] renderers;
         Collider[] colliders;
@@ -63,7 +63,7 @@ namespace CarrierGame.Demo
                 var e = Pool.Take(health.deathEffect, transform.position, Quaternion.identity);
                 e.transform.localScale *= health.deathEffectScale;
             }
-            var s = new Sample { ts = m.ts, p = new Vector3(m.x, m.y, m.z), q = new Quaternion(m.qx, m.qy, m.qz, m.qw), v = new Vector3(m.vx, m.vy, m.vz) };
+            var s = new Sample { ts = m.ts, rf = m.rf ?? "", p = new Double3(m.x, m.y, m.z), q = new Quaternion(m.qx, m.qy, m.qz, m.qw), v = new Vector3(m.vx, m.vy, m.vz) };
             // a ship that wasn't here jumps to where it is, rather than sliding from where it was
             if (Hidden) samples.Clear();
             if (samples.Count > 0 && s.ts <= samples[samples.Count - 1].ts) return;
@@ -92,22 +92,24 @@ namespace CarrierGame.Demo
                 if (samples[i - 1].ts <= t) { a = samples[i - 1]; b = samples[i]; break; }
             Vector3 p;
             Quaternion q;
+            Vector3 wb = world.FromNet(b.rf, b.p);
             if (t >= b.ts)
             {
                 // past the last update: carry on as it was going, briefly
                 float ahead = (float)System.Math.Min(0.5, t - b.ts);
-                p = b.p + b.v * ahead;
+                p = wb + b.v * ahead;
                 q = b.q;
                 Velocity = b.v;
             }
             else
             {
                 float k = b.ts > a.ts ? Mathf.Clamp01((float)((t - a.ts) / (b.ts - a.ts))) : 1f;
-                p = Vector3.Lerp(a.p, b.p, k);
+                // (each end where its reach is now, then between them)
+                p = a.rf == b.rf ? Vector3.Lerp(world.FromNet(a.rf, a.p), wb, k) : wb;
                 q = Quaternion.Slerp(a.q, b.q, k);
                 Velocity = Vector3.Lerp(a.v, b.v, k);
             }
-            transform.SetPositionAndRotation(world.FromNet(p), q);
+            transform.SetPositionAndRotation(p, q);
         }
     }
 }

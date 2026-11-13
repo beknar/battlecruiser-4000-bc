@@ -22,7 +22,9 @@ namespace CarrierGame.Demo
     public class CoopEntity
     {
         public string id;
-        public float x, y, z, qx, qy, qz, qw, vx, vy, vz;
+        public double x, y, z;    // from the reach `rf` (or, rf "", in the system: double, millions of kilometres across)
+        public string rf = "";
+        public float qx, qy, qz, qw, vx, vy, vz;
         public float hu;          // hull, 0 to 1
         public bool dead, gone, lurk;
     }
@@ -37,8 +39,10 @@ namespace CarrierGame.Demo
         public string level, why, name;
         public CoopPlayer p;
         public CoopPlayer[] players;
-        // a player's ship
-        public float x, y, z, qx, qy, qz, qw, vx, vy, vz, th, sh, hu;
+        // a player's ship (and everything with a position: from the reach `rf`, or the system's origin if rf is "")
+        public double x, y, z;
+        public string rf = "";
+        public float qx, qy, qz, qw, vx, vy, vz, th, sh, hu;
         public bool su, dead, dock;
         public int warp, cap;
         public string surf, fr;
@@ -66,7 +70,9 @@ namespace CarrierGame.Demo
     {
         public string t = CoopWire.Ship;
         public double ts;
-        public float x, y, z, qx, qy, qz, qw, vx, vy, vz, th, sh, hu;
+        public double x, y, z;
+        public string rf = "";
+        public float qx, qy, qz, qw, vx, vy, vz, th, sh, hu;
         public bool su, dead, dock;
         public int warp, cap;
         public string surf = "";
@@ -80,15 +86,15 @@ namespace CarrierGame.Demo
 
     /// <summary>A shot, missile or beam, for show in the other games (k: CoopWire.Shot, Missile or Beam).</summary>
     [Serializable]
-    class FireMsg { public string t = CoopWire.Fire; public string src, k, pf, tg = ""; public float x, y, z, dx, dy, dz; }
+    class FireMsg { public string t = CoopWire.Fire; public string src, k, pf, tg = "", rf = ""; public double x, y, z; public float dx, dy, dz; }
 
     /// <summary>A hit on an enemy, to the host (whose game has the real one).</summary>
     [Serializable]
-    class HitEnemyMsg { public string t = CoopWire.HitEnemy; public bool toHost = true; public string tg; public float a, x, y, z; public int kd; }   // tg: the enemy
+    class HitEnemyMsg { public string t = CoopWire.HitEnemy; public bool toHost = true; public string tg, rf = ""; public float a; public double x, y, z; public int kd; }   // tg: the enemy
 
     /// <summary>A hit on a player's ship, from the host to that player.</summary>
     [Serializable]
-    class HitPlayerMsg { public string t = CoopWire.HitPlayer; public int to; public float a, x, y, z; public int kd; }
+    class HitPlayerMsg { public string t = CoopWire.HitPlayer; public int to; public float a; public string rf = ""; public double x, y, z; public int kd; }
 
     /// <summary>For the self-test's bot: what this game can see (enemy ids and such).</summary>
     [Serializable]

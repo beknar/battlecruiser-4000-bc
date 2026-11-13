@@ -11,7 +11,7 @@ namespace CarrierGame
     /// Being destroyed and coming back, and running into things, each have a file
     /// (CarrierController.Respawn.cs, .Collisions.cs).
     /// </summary>
-    public partial class CarrierController : MonoBehaviour, IVelocity
+    public partial class CarrierController : MonoBehaviour, IVelocity, IOriginShift
     {
         [Header("Identity")]
         public string shipName = "Carrier";
@@ -73,14 +73,14 @@ namespace CarrierGame
         AudioSource hum;
 
         public Vector3 Velocity => transform.forward * speed + transform.up * liftSpeed;
-        /// <summary>Compass heading in degrees (0 = world +Z).</summary>
+        /// <summary>Compass heading in degrees (0 = +Z of the up frame: the world's in space).</summary>
         public float Heading => heading;
         /// <summary>Nose angle above the horizon in degrees (negative = nose down).</summary>
         public float Pitch => pitchAngle;
         /// <summary>Elevator thruster speed along the ship's up axis (m/s).</summary>
         public float LiftSpeed => liftSpeed;
-        /// <summary>Rate of climb in world terms (m/s), from the engines and the elevator thrusters.</summary>
-        public float ClimbRate => Velocity.y;
+        /// <summary>Rate of climb (m/s, along the up frame's up), from the engines and the elevator thrusters.</summary>
+        public float ClimbRate => Vector3.Dot(Velocity, upFrame * Vector3.up);
         public IReadOnlyList<Craft> Wing => wing;
         public float Speed => speed;
 

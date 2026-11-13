@@ -23,7 +23,7 @@ namespace CarrierGame.Demo
     /// ship comes down by its landing pad (beside a hostile fortress, a few kilometres out).
     /// </summary>
     [DefaultExecutionOrder(300)]   // after the ship moves and the camera follows it
-    public class PlanetLanding : MonoBehaviour
+    public partial class PlanetLanding : MonoBehaviour
     {
         public enum State { InSpace, Descending, OnSurface, Ascending }
 
@@ -47,7 +47,17 @@ namespace CarrierGame.Demo
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() => Instance = null;
 
-        public State Current { get; private set; }
+        public State Current
+        {
+            get => current;
+            private set
+            {
+                current = value;
+                // (down there the surface keeps its own origin: the system's waits till the ship is back)
+                OrbitalSystem.HoldOrigin = value != State.InSpace;
+            }
+        }
+        State current;
         /// <summary>On a surface, or on the way down or up (no warp, no system map).</summary>
         public static bool Busy => Instance != null && Instance.Current != State.InSpace;
         public static bool OnSurface => Instance != null && Instance.Current == State.OnSurface;
@@ -84,11 +94,14 @@ namespace CarrierGame.Demo
         {
             Instance = this;
             if (carrier != null && drive == null) drive = carrier.GetComponent<WarpDrive>();
+            // the ground seen close to from space is each body's own surface
+            PlanetTerrain.Worlds = wp => Seamless(wp) ? WorldFor(wp) : null;
         }
 
         void OnDestroy()
         {
-            if (Instance == this) Instance = null;
+            if (Instance == this) { Instance = null; PlanetTerrain.Worlds = null; }
+            if (Prepared) Discard();
             if (Site != null) CombatPilot.FloorAt = null;   // (the surface may already be gone in a scene change)
             if (Site != null && Site.water) Sea.Clear();    // (a restart down on the sea: the next level has none)
             Site?.Destroy();
@@ -140,7 +153,8 @@ namespace CarrierGame.Demo
                 SoundFX.Ui(Sfx.UiError);
                 return false;
             }
-            StartCoroutine(Descend(body.LandingBody));
+            if (Seamless(body.LandingBody)) StartCoroutine(AutoLand(body.LandingBody));
+            else StartCoroutine(Descend(body.LandingBody));
             return true;
         }
 
@@ -149,16 +163,36 @@ namespace CarrierGame.Demo
         {
             if (Current != State.InSpace || body == null || body.surface == SurfaceKind.None || carrier.Destroyed) return false;
             var target = body.LandingBody;
+            if (Seamless(target))
+            {
+                // (the self-test and the reels, from anywhere: straight over to the surface by the
+                // place's pad, as quick as the ground can be built)
+                StopAutopilot(null);
+                StartCoroutine(JumpDown(target, body != target ? body.Position : carrier.transform.position));
+                return true;
+            }
             // from far off: on take-off it comes back into orbit of the body, not out where it was
             returnToArrival = Vector3.Distance(carrier.transform.position, target.Position) > target.arrivalDistance * landingRange;
             StartCoroutine(Descend(target));
             return true;
         }
 
+        /// <summary>Back to orbit at once (the self-test and the reels; K flies the climb).</summary>
         public bool TakeOff()
         {
             if (Current != State.OnSurface) return false;
-            StartCoroutine(Ascend());
+            StopAutopilot(null);
+            if (Seamless(Body)) LeaveNow();
+            else StartCoroutine(Ascend());
+            return true;
+        }
+
+        /// <summary>K on the ground: the climb to orbit, flown (an asteroid's: the fade).</summary>
+        public bool Climb()
+        {
+            if (Current != State.OnSurface) return false;
+            if (Seamless(Body)) StartCoroutine(AutoClimb());
+            else StartCoroutine(Ascend());
             return true;
         }
 
@@ -299,6 +333,9 @@ namespace CarrierGame.Demo
         /// destroyed down there and has already come back at its respawn point).</summary>
         void BackToSpace(bool moveShip)
         {
+            // (the system back where it was, if it was moved out of the way)
+            OrbitalSystem.Instance?.Park(false);
+            ScaledSpace.Active = true;
             // (the water's own look first, so the space look goes back over it)
             if (TryGetComponent(out Seafaring sf)) sf.End();
             Sea.Clear();
@@ -362,13 +399,14 @@ namespace CarrierGame.Demo
 
         readonly Dictionary<WarpPoint, SurfaceWorld> worlds = new Dictionary<WarpPoint, SurfaceWorld>();
 
-        /// <summary>The surface of a body: its size is the body's (an asteroid field's: one of
-        /// its big rocks), times surfaceScale.</summary>
+        /// <summary>The surface of a body: a planet's or moon's is the body itself, its real size
+        /// (the ground seen from orbit, PlanetTerrain, is the same ground); an asteroid field's is
+        /// one of its big rocks, times surfaceScale.</summary>
         public SurfaceWorld WorldFor(WarpPoint body)
         {
             if (worlds.TryGetValue(body, out var w)) return w;
-            float r = body.kind == WarpPoint.Kind.AsteroidField ? Mathf.Max(800f, body.bodyRadius * 0.3f) : Mathf.Max(500f, body.bodyRadius);
-            w = new SurfaceWorld(body.surface, body.displayName, r * surfaceScale, body.hostile);
+            float r = body.kind == WarpPoint.Kind.AsteroidField ? Mathf.Max(800f, body.bodyRadius * 0.3f) * surfaceScale : Mathf.Max(500f, body.bodyRadius);
+            w = new SurfaceWorld(body.surface, body.displayName, r, body.hostile);
             // the bases seen on it from orbit are on its surface too, in the same places
             foreach (var b in WarpPoint.All)
                 if (b != null && b.landsOn == body && body.kind != WarpPoint.Kind.AsteroidField)
@@ -426,7 +464,7 @@ namespace CarrierGame.Demo
         Material skyMat;
         StarLight starLight;
 
-        void ApplyLook(Look look)
+        void ApplyLook(Look look, Quaternion? sunOverride = null)
         {
             var sun = RenderSettings.sun;
             var cam = Camera.main;
@@ -444,7 +482,7 @@ namespace CarrierGame.Demo
                 reflections = RenderSettings.reflectionIntensity,
             };
             if (starLight != null) starLight.enabled = false;
-            Quaternion sunRot = Quaternion.Euler(look.sunElevation, look.sunAzimuth, 0f);
+            Quaternion sunRot = sunOverride ?? Quaternion.Euler(look.sunElevation, look.sunAzimuth, 0f);
             if (!look.space && kit.sky != null)
             {
                 skyMat = new Material(kit.sky);
@@ -524,7 +562,12 @@ namespace CarrierGame.Demo
                 }
                 if (!carrier.Destroyed)
                 {
-                    if (carrier.transform.position.y > Surface.HighestGround + ceiling) { TakeOff(); return; }
+                    if (Seamless(Body))
+                    {
+                        // climbed out of it: back to the air over the planet
+                        if (carrier.transform.position.y > Surface.Center.y + HandoffFor(World) + 1000f && carrier.ClimbRate > 0f) { HandUp(); return; }
+                    }
+                    else if (carrier.transform.position.y > Surface.HighestGround + ceiling) { TakeOff(); return; }
                     // after the ship has moved this frame (this runs after its controller), before
                     // the camera follows it (in LateUpdate), so the camera never lags a correction
                     KeepAboveGround();
@@ -532,15 +575,17 @@ namespace CarrierGame.Demo
                     carrier.safeImpact = 12f;
                 }
             }
-            if (Current == State.InSpace) candidate = Candidate(out candidateWhy);
+            PulseUpdate();
+            if (Current == State.InSpace) { FlyDown(); candidate = Candidate(out candidateWhy); }
             if (InputFocus.PanelUp) return;   // a panel has the keys
             if (Current == State.InSpace && Docking.WantsKey) return;   // K docks (or undocks) here
             var k = Keyboard.current;
             var pad = Gamepad.current;
             bool press = (k != null && k.kKey.wasPressedThisFrame) || (pad != null && !carrier.HasMissiles && pad.leftShoulder.wasPressedThisFrame);
             if (!press || carrier.Destroyed) return;
+            if (Autopilot) { StopAutopilot("Auto-pilot off"); return; }
             if (Current == State.InSpace) Land();
-            else if (Current == State.OnSurface) TakeOff();
+            else if (Current == State.OnSurface) Climb();
         }
 
         void LateUpdate()
@@ -713,14 +758,33 @@ namespace CarrierGame.Demo
                         Surface.LatLon(carrier.transform.position, out float la, out float lo);
                         where = $"  <color=#9aa4b0>{LatLonText(la, lo)}  explored {Surface.Explored.Count}/{World.AreaCount}</color>";
                     }
-                    return $"Surface  {Body?.displayName}  {state}{where}  <color=#9aa4b0>{key} take off</color>";
+                    string auto = Autopilot ? $"  <color=#ffd9a0>auto-pilot: {AutopilotStage}</color>" : "";
+                    return $"Surface  {Body?.displayName}  {state}{where}{auto}  <color=#9aa4b0>{key} {(Autopilot ? "auto-pilot off" : "climb to orbit")}</color>";
                 }
             }
+            string flight = FlightText();
             var body = candidate;
             string why = candidateWhy;
-            if (body == null || Docking.WantsKey) return null;
-            return why == "" ? $"Land  <color=#7ee08a>{key} land on {body.displayName}</color>"
-                             : $"Land  <color=#ff6050>{body.displayName}: {why}</color>";
+            if (Autopilot) return $"{flight}  <color=#ffd9a0>auto-lander: {AutopilotStage}</color>  <color=#9aa4b0>{key} off</color>";
+            if (body == null || Docking.WantsKey) return flight;
+            string land = why == "" ? $"<color=#7ee08a>{key} land on {body.displayName}</color>"
+                                    : $"<color=#ff6050>{body.displayName}: {why}</color>";
+            return flight != null ? $"{flight}  {land}" : $"Land  {land}";
+        }
+
+        /// <summary>Height, air and cruise over the body the ship is by (null far from any).</summary>
+        string FlightText()
+        {
+            var pf = PlanetFlight.Instance;
+            if (pf == null || pf.Body == null || pf.Altitude > pf.Body.bodyRadius * 3f) return null;
+            float a = pf.Altitude;
+            string alt = a >= 10000f ? $"{a / 1000f:F0} km" : $"{a:F0} m";
+            string air = pf.Density > 0.0005f ? $"  air {pf.Density * 100f:F0}%" : "";
+            string heat = pf.Heat > 0.1f ? $"  <color=#ff9050>hull heating {pf.Heat * 100f:F0}%</color>" : "";
+            string cruise = pf.Cruising ? $"  <color=#bfe6ff>cruise {pf.TopSpeed / 1000f:F1} km/s</color>"
+                          : pf.Cruise && pf.CruiseBlockedBy != "" ? $"  <color=#ff6050>cruise: {pf.CruiseBlockedBy}</color>"
+                          : "  <color=#9aa4b0>O cruise</color>";
+            return $"{pf.Body.displayName}  alt {alt}{air}{heat}{cruise}";
         }
 
         void OnGUI()

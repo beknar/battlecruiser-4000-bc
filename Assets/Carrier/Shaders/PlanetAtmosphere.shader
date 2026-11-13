@@ -30,6 +30,7 @@ Shader "Carrier/PlanetAtmosphere"
             struct Varyings { float4 positionCS : SV_POSITION; float3 positionWS : TEXCOORD0; float3 normalWS : TEXCOORD1; };
 
             float4 _CarrierStarPos;
+            float4 _CarrierLightDir;    // per renderer (ScaledSpace): toward the star from where the planet really is
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _Color;
@@ -54,7 +55,8 @@ Shader "Carrier/PlanetAtmosphere"
                 float rim = pow(1.0 - saturate(dot(n, viewDir)), _RimPower);
                 // lit from the system's star where there is one, otherwise by the main light
                 Light sun = GetMainLight();
-                float3 toStar = _CarrierStarPos.w > 0.5 ? normalize(_CarrierStarPos.xyz - i.positionWS) : sun.direction;
+                float3 toStar = _CarrierLightDir.w > 0.5 ? _CarrierLightDir.xyz
+                              : _CarrierStarPos.w > 0.5 ? normalize(_CarrierStarPos.xyz - i.positionWS) : sun.direction;
                 float day = saturate(dot(n, toStar) * 0.8 + 0.35);
                 float glow = rim * lerp(_NightLevel, 1.0, day) * _Strength;
                 return half4(_Color.rgb * glow, 1);

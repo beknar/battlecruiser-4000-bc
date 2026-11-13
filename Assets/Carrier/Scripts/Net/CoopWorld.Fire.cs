@@ -40,8 +40,10 @@ namespace CarrierGame.Demo
             if (!On || p.damage <= 0f) return;          // a shown shot (no damage) isn't news
             string src = SourceOf(p.owner);
             if (src == null || !Budget(src)) return;
-            Vector3 pos = ToNet(p.transform.position), d = p.transform.forward;
-            Client.Send(new FireMsg { src = src, k = CoopWire.Shot, pf = BaseName(p.name), x = pos.x, y = pos.y, z = pos.z, dx = d.x, dy = d.y, dz = d.z });
+            var np = ToNet(p.transform.position);
+            Double3 pos = np.p;
+            Vector3 d = p.transform.forward;
+            Client.Send(new FireMsg { src = src, k = CoopWire.Shot, pf = BaseName(p.name), rf = np.rf, x = pos.x, y = pos.y, z = pos.z, dx = d.x, dy = d.y, dz = d.z });
             ShotsSent++;
         }
 
@@ -52,8 +54,10 @@ namespace CarrierGame.Demo
             if (!On || m.damage <= 0f) return;
             string src = SourceOf(m.owner);
             if (src == null) return;
-            Vector3 pos = ToNet(m.transform.position), d = m.transform.forward;
-            Client.Send(new FireMsg { src = src, k = CoopWire.Missile, pf = BaseName(m.name), tg = IdOf(m.target), x = pos.x, y = pos.y, z = pos.z, dx = d.x, dy = d.y, dz = d.z });
+            var np = ToNet(m.transform.position);
+            Double3 pos = np.p;
+            Vector3 d = m.transform.forward;
+            Client.Send(new FireMsg { src = src, k = CoopWire.Missile, pf = BaseName(m.name), tg = IdOf(m.target), rf = np.rf, x = pos.x, y = pos.y, z = pos.z, dx = d.x, dy = d.y, dz = d.z });
             ShotsSent++;
         }
 
@@ -114,7 +118,7 @@ namespace CarrierGame.Demo
         {
             var ship = Resolve(m.src);
             if (ship == null || (me != null && ship == me.transform)) return;
-            Vector3 pos = FromNet(new Vector3(m.x, m.y, m.z)), dir = new Vector3(m.dx, m.dy, m.dz);
+            Vector3 pos = FromNet(m.rf, new Double3(m.x, m.y, m.z)), dir = new Vector3(m.dx, m.dy, m.dz);
             if (dir.sqrMagnitude < 1e-6f) dir = ship.forward;
             switch (m.k)
             {

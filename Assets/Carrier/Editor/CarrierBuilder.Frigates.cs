@@ -28,6 +28,16 @@ namespace Carrier.EditorTools
         class FrigateSpec
         {
             public string id, displayName, role, description, prefab, model, texture, hardpoints, shipName, shipClass;
+            /// <summary>Frigate (left out), Destroyer or Cruiser.</summary>
+            public string category;
+            /// <summary>Built at a shipyard before it can be flown.</summary>
+            public bool buildable;
+            /// <summary>No bow beam (the destroyers).</summary>
+            public bool noMainGun;
+            /// <summary>The missile magazine (0: no missiles), fired from the hardpoints' cells.</summary>
+            public int missiles;
+            /// <summary>The hardpoints' mounts (by index) that get ball-mounted guns.</summary>
+            public int[] mounts;
             public float maxSpeed, acceleration, turnRate, pitchRate, maxPitch, elevatorSpeed, elevatorAcceleration;
             public float hull, shield, shieldRecharge;
             public float gunInterval, gunRange, gunYawSpeed, gunDamage, boltSpeed;
@@ -49,9 +59,14 @@ namespace Carrier.EditorTools
             public V[] muzzles;
         }
 
+        // a ball mount's place on the hull and the way it faces
+        [Serializable] class HullMount { public float[] pos, up; public string side; }
+
         [Serializable]
         class ModelHP
         {
+            public HullMount[] mounts;
+            public V[] cells;
             public string id;
             public float length;
             public ModelTurret[] turrets;
@@ -103,6 +118,7 @@ namespace Carrier.EditorTools
             roster.frigates = made.Select(m => new FrigateRoster.Entry
             {
                 id = m.spec.id, displayName = m.spec.displayName, role = m.spec.role, description = m.spec.description, prefab = m.prefab,
+                category = string.IsNullOrEmpty(m.spec.category) ? FrigateRoster.Frigate : m.spec.category, buildable = m.spec.buildable,
             }).ToArray();
             if (fresh) AssetDatabase.CreateAsset(roster, path);
             else EditorUtility.SetDirty(roster);

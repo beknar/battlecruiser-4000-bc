@@ -54,6 +54,8 @@ namespace CarrierGame.Demo
         // damage
         public float a;
         public int kd;
+        // a message on the comms channel
+        public string text;
         // the self-test's bot
         public string note;
         public string[] ids;

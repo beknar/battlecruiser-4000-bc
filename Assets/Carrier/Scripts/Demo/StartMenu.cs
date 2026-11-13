@@ -39,6 +39,16 @@ namespace CarrierGame.Demo
         }
 
         FrigateRoster roster;
+        /// <summary>The ships offered: every frigate, and the destroyers and cruiser the player has
+        /// built (all of them in the reels and tests).</summary>
+        FrigateRoster.Entry[] offered = new FrigateRoster.Entry[0];
+
+        int IndexOf(string id)
+        {
+            for (int i = 0; i < offered.Length; i++)
+                if (string.Equals(offered[i].id, id, System.StringComparison.OrdinalIgnoreCase)) return i;
+            return -1;
+        }
         int selected;
         bool paused;
         float savedScale = 1f, stickRepeat;
@@ -71,12 +81,14 @@ namespace CarrierGame.Demo
             roster = FrigateRoster.Get();
             if (roster == null || roster.frigates.Length == 0 || IsOpen || !InputFocus.Take(InputFocus.Panel.StartMenu)) return;
             openedFrame = Time.frameCount;
-            selected = Mathf.Max(0, roster.IndexOf(string.IsNullOrEmpty(PlayerFrigate.Flying) ? FrigateChoice.Current : PlayerFrigate.Flying));
-            stats = new FrigateStats[roster.frigates.Length];
+            IndustryDirector.LoadSaved();
+            offered = System.Array.FindAll(roster.frigates, e => e != null && (!e.buildable || LaunchArgs.Automated || Hud.ReelMode || IndustryLedger.Owns(e.id)));
+            selected = Mathf.Max(0, IndexOf(string.IsNullOrEmpty(PlayerFrigate.Flying) ? FrigateChoice.Current : PlayerFrigate.Flying));
+            stats = new FrigateStats[offered.Length];
             best = new FrigateStats();
             for (int i = 0; i < stats.Length; i++)
             {
-                var s = stats[i] = FrigateStats.Of(roster.frigates[i].prefab);
+                var s = stats[i] = FrigateStats.Of(offered[i].prefab);
                 best.speed = Mathf.Max(best.speed, s.speed);
                 best.turnRate = Mathf.Max(best.turnRate, s.turnRate);
                 best.hull = Mathf.Max(best.hull, s.hull);
@@ -88,6 +100,7 @@ namespace CarrierGame.Demo
                 best.slots = Mathf.Max(best.slots, s.slots);
                 best.crew = Mathf.Max(best.crew, s.crew);
                 best.mining = Mathf.Max(best.mining, s.mining);
+                best.missiles = Mathf.Max(best.missiles, s.missiles);
             }
             // (in co-op the game goes on, as with the pause menu: the others are still playing)
             paused = !LiveSwap && !CoopClient.Active;
@@ -116,7 +129,11 @@ namespace CarrierGame.Demo
         /// <summary>Fly the chosen frigate with the chosen captain.</summary>
         public void Launch()
         {
-            var e = roster.frigates[selected];
+            var e = offered[selected];
+            // a ship built at a yard comes out of its berth; choosing a frigate sends the one
+            // commanded until now back to its yard
+            if (e.buildable) IndustryLedger.Command(e.id);
+            else IndustryLedger.ReleaseCommand();
             FrigateChoice.Set(e.id);
             FrigateChoice.Chosen = true;
             if (CoopClient.Active) CoopClient.Instance.SendCaptain();
@@ -135,8 +152,8 @@ namespace CarrierGame.Demo
 
         void Choose(int i)
         {
-            if (roster == null || roster.frigates.Length == 0) return;
-            selected = (i + roster.frigates.Length) % roster.frigates.Length;
+            if (offered.Length == 0) return;
+            selected = (i + offered.Length) % offered.Length;
             SoundFX.Ui(Sfx.UiClear);
         }
 
@@ -251,7 +268,7 @@ namespace CarrierGame.Demo
             if (previewOf != selected)
             {
                 if (previewModel != null) Destroy(previewModel);
-                previewModel = ModelOf(roster.frigates[selected].prefab);
+                previewModel = ModelOf(offered[selected].prefab);
                 previewModel.transform.position = PreviewAt;
                 previewOf = selected;
             }
@@ -284,16 +301,16 @@ namespace CarrierGame.Demo
             float w = Mathf.Min(Screen.width - pad * 2f, 1500f * s), h = Mathf.Min(Screen.height - pad * 2f, 860f * s);
             var panel = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
             Hud.Panel(panel);
-            GUI.Label(new Rect(panel.x, panel.y + pad * 0.6f, w, 40f * s), "CHOOSE YOUR FRIGATE AND CAPTAIN", Hud.Text(26, true, TextAnchor.MiddleCenter));
+            GUI.Label(new Rect(panel.x, panel.y + pad * 0.6f, w, 40f * s), "CHOOSE YOUR SHIP AND CAPTAIN", Hud.Text(26, true, TextAnchor.MiddleCenter));
 
             // the frigates, down the left
             float top = panel.y + pad * 0.6f + 56f * s, listW = Mathf.Min(360f * s, w * 0.3f);
             // (as many as there are frigates, in the room above the captains)
-            float rowH = Mathf.Min(74f * s, h * 0.62f / Mathf.Max(1, roster.frigates.Length) - 8f * s);
+            float rowH = Mathf.Min(74f * s, h * 0.62f / Mathf.Max(1, offered.Length) - 8f * s);
             rowRects.Clear();
-            for (int i = 0; i < roster.frigates.Length; i++)
+            for (int i = 0; i < offered.Length; i++)
             {
-                var e = roster.frigates[i];
+                var e = offered[i];
                 var r = new Rect(panel.x + pad, top + i * (rowH + 8f * s), listW, rowH);
                 rowRects.Add(r);
                 bool sel = i == selected;
@@ -314,7 +331,7 @@ namespace CarrierGame.Demo
             float bx = pic.xMax + pad, bw = panel.xMax - pad - bx, by = top;
             if (bw < 220f * s) { bx = rx; bw = rw; by = pic.yMax + 10f * s; }
             // (eleven bars, and the description under them, above the captains' row)
-            const int bars = 11;
+            const int bars = 12;
             float room = panel.yMax - pad - 38f * s - 96f * s - 26f * s - 100f * s - by;
             float bh = Mathf.Clamp(room / bars - 4f * s, 14f * s, 26f * s);
             void Bar(string label, float v, float max, string value)
@@ -331,9 +348,10 @@ namespace CarrierGame.Demo
             Bar("Turning", st.turnRate, best.turnRate, $"{st.turnRate:F0}°/s");
             Bar("Hull", st.hull, best.hull, $"{st.hull:F0}");
             Bar("Shield", st.shield, best.shield, $"{st.shield:F0}");
-            Bar("Guns", st.gunDps, best.gunDps, $"{st.turrets} × {st.barrels / Mathf.Max(1, st.turrets)}");
+            Bar("Guns", st.gunDps, best.gunDps, $"{st.turrets} turrets");
             Bar("Point defence", st.ciws, best.ciws, $"{st.ciws} CIWS");
-            Bar("Main gun", st.beamDamage, best.beamDamage, $"{st.beamCharge:F0} s charge");
+            Bar("Main gun", st.beamDamage, best.beamDamage, st.mainGuns > 0 ? $"{st.beamCharge:F0} s charge" : "none");
+            Bar("Missiles", st.missiles, best.missiles, st.missiles > 0 ? $"{st.missiles}" : "none");
             Bar("Cargo", st.cargo, best.cargo, $"{st.cargo:F0} t");
             Bar("Part slots", st.slots, best.slots, $"{st.slots} slots");
             Bar("Crew", st.crew, best.crew, $"{st.crew}");
@@ -341,7 +359,7 @@ namespace CarrierGame.Demo
             float dy = Mathf.Max(pic.yMax, by) + 12f * s;
             var desc = Hud.Text(15, false);
             desc.wordWrap = true;
-            GUI.Label(new Rect(rx, dy, rw, 90f * s), roster.frigates[selected].description, desc);
+            GUI.Label(new Rect(rx, dy, rw, 90f * s), offered[selected].description, desc);
             desc.wordWrap = false;
 
             // the captains, along the bottom

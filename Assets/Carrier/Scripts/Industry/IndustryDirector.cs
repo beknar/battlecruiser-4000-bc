@@ -50,23 +50,28 @@ namespace CarrierGame
 
         void Awake() => Instance = this;
 
+        /// <summary>Read the save, the first time it is asked for in a run (the level's director
+        /// does as it starts; the ship chosen for the level, which may be one built at a shipyard,
+        /// needs it sooner).</summary>
+        public static void LoadSaved()
+        {
+            if (loaded) return;
+            loaded = true;
+            var d = IndustrySave.NewGame ? null : IndustrySave.Read();
+            if (d == null) return;
+            IndustryLedger.Restore(d.sites, d.fittings);
+            IndustryLedger.RestorePeople(d.pools, d.crews);
+            IndustryLedger.RestoreFleet(d.berthed, d.commanded);
+            WorldState.Restore(d.world);
+            heldContents = d.hold;
+            heldCredits = d.credits;
+            haveHeld = true;
+            Debug.Log($"[Industry] loaded {IndustrySave.LastPath}: {d.sites.Count} sites, {d.hold.Count} kinds aboard, {d.credits:N0} cr, {d.berthed?.Count ?? 0} ships berthed");
+        }
+
         void Start()
         {
-            if (!loaded)
-            {
-                loaded = true;
-                var d = IndustrySave.NewGame ? null : IndustrySave.Read();
-                if (d != null)
-                {
-                    IndustryLedger.Restore(d.sites, d.fittings);
-                    IndustryLedger.RestorePeople(d.pools, d.crews);
-                    WorldState.Restore(d.world);
-                    heldContents = d.hold;
-                    heldCredits = d.credits;
-                    haveHeld = true;
-                    Debug.Log($"[Industry] loaded {IndustrySave.LastPath}: {d.sites.Count} sites, {d.hold.Count} kinds aboard, {d.credits:N0} cr");
-                }
-            }
+            LoadSaved();
             IndustryLedger.Finished += OnFinished;
             IndustryLedger.Changed += Dirty;
             Attach(carrier);
@@ -198,6 +203,7 @@ namespace CarrierGame
             Remember();
             var (sites, fitted) = IndustryLedger.Snapshot();
             var (pools, crews) = IndustryLedger.PeopleSnapshot();
+            var (berthed, commanded) = IndustryLedger.FleetSnapshot();
             var d = new IndustrySave.Data
             {
                 sites = sites,
@@ -205,6 +211,8 @@ namespace CarrierGame
                 pools = pools,
                 crews = crews,
                 world = WorldState.Snapshot(),
+                berthed = berthed,
+                commanded = commanded,
                 hold = heldContents ?? new List<Stock.Entry>(),
                 credits = heldCredits,
             };
@@ -214,6 +222,12 @@ namespace CarrierGame
         void OnFinished(string site, string item, float amount)
         {
             var table = IndustryTable.Get();
+            if (table.Ship(item) != null)
+            {
+                var e = FrigateRoster.Get()?.Find(item);
+                Notices.Post($"{site}: the {e?.displayName ?? item} is built and berthed: take command at the shipyard");
+                return;
+            }
             Notices.Post($"{site}: {table.Amount(item, amount)} of {table.Name(item).ToLower()} ready");
         }
     }

@@ -14,7 +14,8 @@ namespace CarrierGame
         public float Progress => total > 0f ? Mathf.Clamp01(1f - left / total) : 1f;
     }
 
-    /// <summary>One site's storage and its two production lines (the refinery's and the factory's).</summary>
+    /// <summary>One site's storage and its production lines (the refinery's, the factory's and,
+    /// where there is one, the shipyard's).</summary>
     [Serializable]
     public class SiteState
     {
@@ -22,11 +23,21 @@ namespace CarrierGame
         public Stock stock = new Stock();
         public List<IndustryJob> refining = new List<IndustryJob>();
         public List<IndustryJob> building = new List<IndustryJob>();
+        public List<IndustryJob> shipyard = new List<IndustryJob>();
+    }
+
+    /// <summary>A ship built at a shipyard (a destroyer or the cruiser, by its class) and where it
+    /// is berthed.</summary>
+    [Serializable]
+    public class BuiltShip
+    {
+        public string id, site;
     }
 
     /// <summary>
-    /// The state of the industry: each site's storage and queues, and what each frigate has had
-    /// fitted. It outlives the level (a restart keeps it) and is saved to disk (IndustrySave).
+    /// The state of the industry: each site's storage and queues, what each frigate has had
+    /// fitted, and the ships the player has built: berthed at their shipyards, or the one they
+    /// are in command of. It outlives the level (a restart keeps it) and is saved to disk (IndustrySave).
     /// A job takes its inputs from the site's storage when it is queued (cancelling it puts them
     /// back), runs for its recipe's seconds of game time, and puts what it makes into the same
     /// storage. A site's refinery and factory each work through their own queue, one job at a time,
@@ -36,12 +47,18 @@ namespace CarrierGame
     {
         /// <summary>Jobs waiting at one line, at most.</summary>
         public const int QueueLimit = 12;
+        /// <summary>Ships on a shipyard's slips at once, at most.</summary>
+        public const int YardLimit = 2;
 
         static readonly Dictionary<string, SiteState> sites = new Dictionary<string, SiteState>();
         static readonly Dictionary<string, List<string>> fittings = new Dictionary<string, List<string>>();
         // the recruits waiting at each place that recruits, and each frigate class's crew aboard
         static readonly Dictionary<string, float> pools = new Dictionary<string, float>();
         static readonly Dictionary<string, float> crews = new Dictionary<string, float>();
+        // the ships built: berthed at their shipyards, and the one the player commands (its class
+        // and the shipyard it goes back to when the player flies another)
+        static readonly List<BuiltShip> berthed = new List<BuiltShip>();
+        static BuiltShip commanded;
 
         /// <summary>How much faster than game time the lines run (the self-test speeds them up).</summary>
         public static float SpeedUp = 1f;
@@ -58,6 +75,8 @@ namespace CarrierGame
             fittings.Clear();
             pools.Clear();
             crews.Clear();
+            berthed.Clear();
+            commanded = null;
             SpeedUp = 1f;
             Finished = null;
             Changed = null;
@@ -140,6 +159,7 @@ namespace CarrierGame
             {
                 any |= Run(s, s.refining, false, dt);
                 any |= Run(s, s.building, true, dt);
+                any |= RunYard(s, dt);
             }
             // (the recruiting places' pools refill, whole people at a time as far as anyone sees)
             foreach (var p in CrewTable.Get().places)
@@ -171,6 +191,153 @@ namespace CarrierGame
                 Finished?.Invoke(s.name, job.recipe, made);
             }
             return done;
+        }
+
+        // ------------------------------------------------------------ shipyards and the ships built
+
+        /// <summary>The ships berthed at shipyards.</summary>
+        public static IReadOnlyList<BuiltShip> Berthed => berthed;
+        /// <summary>The built ship the player commands (its class), or "" when flying a frigate.</summary>
+        public static string Commanded => commanded != null ? commanded.id : "";
+
+        /// <summary>The player has a ship of this class: berthed, or in command of it.</summary>
+        public static bool Owns(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return false;
+            if (commanded != null && string.Equals(commanded.id, id, StringComparison.OrdinalIgnoreCase)) return true;
+            foreach (var b in berthed) if (string.Equals(b.id, id, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        /// <summary>A ship of this class is on a shipyard's slips.</summary>
+        public static bool Building(string id)
+        {
+            foreach (var s in sites.Values)
+                foreach (var j in s.shipyard)
+                    if (string.Equals(j.recipe, id, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        /// <summary>Whether `site` could lay down a ship of class `id` now, and if not why. A player
+        /// has one ship of each class at most.</summary>
+        public static bool CanQueueShip(string site, string id, out string why)
+        {
+            var table = IndustryTable.Get();
+            var spec = table.Site(site);
+            var recipe = table.Ship(id);
+            why = "";
+            if (spec == null) why = "not an industrial site";
+            else if (!spec.shipyard) why = "no shipyard here";
+            else if (recipe == null) why = "no such ship";
+            else if (Owns(id)) why = "you already have one";
+            else if (Building(id)) why = "one is already being built";
+            else if (Site(site).shipyard.Count >= YardLimit) why = "the slips are full";
+            else
+            {
+                var stock = Site(site).stock;
+                foreach (var i in recipe.inputs)
+                    if (!stock.Has(i.item, i.tonnes))
+                    {
+                        why = $"needs {table.Amount(i.item, i.tonnes)} of {table.Name(i.item).ToLower()} in storage (has {table.Amount(i.item, stock.Amount(i.item))})";
+                        break;
+                    }
+            }
+            return why == "";
+        }
+
+        /// <summary>Lay down a ship: its parts and materials leave storage now.</summary>
+        public static bool QueueShip(string site, string id, out string why)
+        {
+            if (!CanQueueShip(site, id, out why)) return false;
+            var recipe = IndustryTable.Get().Ship(id);
+            var s = Site(site);
+            foreach (var i in recipe.inputs) s.stock.Take(i.item, i.tonnes);
+            s.shipyard.Add(new IndustryJob { recipe = recipe.id, left = recipe.seconds, total = recipe.seconds });
+            Changed?.Invoke();
+            return true;
+        }
+
+        /// <summary>Stop building a ship (the last one by default): its parts go back into storage.</summary>
+        public static bool CancelShip(string site, int index = -1)
+        {
+            var s = Site(site);
+            if (s.shipyard.Count == 0) return false;
+            if (index < 0 || index >= s.shipyard.Count) index = s.shipyard.Count - 1;
+            var job = s.shipyard[index];
+            s.shipyard.RemoveAt(index);
+            var recipe = IndustryTable.Get().Ship(job.recipe);
+            if (recipe != null) foreach (var i in recipe.inputs) s.stock.Add(i.item, i.tonnes);
+            Changed?.Invoke();
+            return true;
+        }
+
+        static bool RunYard(SiteState s, float dt)
+        {
+            bool done = false;
+            while (dt > 0f && s.shipyard.Count > 0)
+            {
+                var job = s.shipyard[0];
+                float step = Mathf.Min(dt, job.left);
+                job.left -= step;
+                dt -= step;
+                if (job.left > 1e-4f) break;
+                s.shipyard.RemoveAt(0);
+                Launch(job.recipe, s.name);
+                done = true;
+                Finished?.Invoke(s.name, job.recipe, 1f);
+            }
+            return done;
+        }
+
+        /// <summary>A ship is finished: it is berthed at its yard, with nobody aboard yet (its crew
+        /// comes over from the ship the player commands, or is recruited).</summary>
+        public static void Launch(string id, string site)
+        {
+            berthed.Add(new BuiltShip { id = id, site = site });
+            if (CrewOf(id) == null) crews[id] = 0f;
+            Changed?.Invoke();
+        }
+
+        /// <summary>Take command of a ship of class `id` berthed at `site` (anywhere when null).
+        /// The ship commanded until now (if it was a built one) is berthed in its place, at that
+        /// yard (or, from anywhere, at its own). False if there is no such ship.</summary>
+        public static bool Command(string id, string site = null)
+        {
+            if (commanded != null && string.Equals(commanded.id, id, StringComparison.OrdinalIgnoreCase)) return true;
+            int i = berthed.FindIndex(b => string.Equals(b.id, id, StringComparison.OrdinalIgnoreCase) && (site == null || b.site == site));
+            if (i < 0) return false;
+            var ship = berthed[i];
+            berthed.RemoveAt(i);
+            if (commanded != null) berthed.Add(new BuiltShip { id = commanded.id, site = site ?? commanded.site });
+            commanded = ship;
+            Changed?.Invoke();
+            return true;
+        }
+
+        /// <summary>The player flies a frigate again: the ship commanded (if a built one) goes back
+        /// to its berth (at `site`, or the yard it came from).</summary>
+        public static void ReleaseCommand(string site = null)
+        {
+            if (commanded == null) return;
+            berthed.Add(new BuiltShip { id = commanded.id, site = site ?? commanded.site });
+            commanded = null;
+            Changed?.Invoke();
+        }
+
+        /// <summary>The ships built, to save: those berthed and the one commanded.</summary>
+        public static (List<BuiltShip> berthed, BuiltShip commanded) FleetSnapshot()
+        {
+            var b = new List<BuiltShip>();
+            foreach (var x in berthed) b.Add(new BuiltShip { id = x.id, site = x.site });
+            return (b, commanded != null ? new BuiltShip { id = commanded.id, site = commanded.site } : null);
+        }
+
+        public static void RestoreFleet(List<BuiltShip> savedBerthed, BuiltShip savedCommanded)
+        {
+            berthed.Clear();
+            commanded = null;
+            if (savedBerthed != null) foreach (var b in savedBerthed) if (b != null && !string.IsNullOrEmpty(b.id)) berthed.Add(b);
+            if (savedCommanded != null && !string.IsNullOrEmpty(savedCommanded.id)) commanded = savedCommanded;
         }
 
         // ------------------------------------------------------------ crew
@@ -246,7 +413,7 @@ namespace CarrierGame
             foreach (var kv in fittings) fs.Add(new IndustrySave.Fitting { frigate = kv.Key, parts = new List<string>(kv.Value) });
             // (a site with nothing stored and nothing queued needn't be saved)
             var kept = new List<SiteState>();
-            foreach (var s in sites.Values) if (s.stock.items.Count > 0 || s.refining.Count > 0 || s.building.Count > 0) kept.Add(s);
+            foreach (var s in sites.Values) if (s.stock.items.Count > 0 || s.refining.Count > 0 || s.building.Count > 0 || s.shipyard.Count > 0) kept.Add(s);
             return (kept, fs);
         }
 
@@ -281,6 +448,7 @@ namespace CarrierGame
                     s.stock.items ??= new List<Stock.Entry>();
                     s.refining ??= new List<IndustryJob>();
                     s.building ??= new List<IndustryJob>();
+                    s.shipyard ??= new List<IndustryJob>();
                     sites[s.name] = s;
                 }
             if (fitted != null)
@@ -295,6 +463,8 @@ namespace CarrierGame
             fittings.Clear();
             pools.Clear();
             crews.Clear();
+            berthed.Clear();
+            commanded = null;
             Changed?.Invoke();
         }
     }

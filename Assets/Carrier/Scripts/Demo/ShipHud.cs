@@ -64,6 +64,15 @@ namespace CarrierGame.Demo
         // ------------------------------------------------------------ the controls box
 
         string keyHelp, padHelp;
+        // (the ship the lists were made for: another ship, taken command of, has other systems)
+        object helpFor;
+
+        void HelpFor(CarrierController carrier)
+        {
+            if (ReferenceEquals(helpFor, carrier)) return;
+            helpFor = carrier;
+            keyHelp = padHelp = null;
+        }
 
         static bool OnWeb => LaunchArgs.OnWeb;
         /// <summary>The text for here, or for a browser: it has no system fonts to fall back on,
@@ -76,10 +85,11 @@ namespace CarrierGame.Demo
             get
             {
                 var carrier = Carrier;
+                HelpFor(carrier);
                 return keyHelp ??= string.Join("\n", new[]
                 {
                     carrier.HasHangar ? "1 fighters   2 drones   3 dropships" : null,
-                    (carrier.HasMissiles ? "M missile salvo   " : "") + "F fire guns   G auto-fire on/off",
+                    (carrier.HasMissiles ? (demo.Warp != null ? "4 missile salvo   " : "M missile salvo   ") : "") + "F fire guns   G auto-fire on/off",
                     demo.MainGun != null ? "B main gun: charge (fires after 10 s)" : null,
                     carrier.HasHangar ? "Q wing attack   E escort   R return to carrier" : null,
                     "W/S throttle   A/D turn",
@@ -106,6 +116,7 @@ namespace CarrierGame.Demo
             get
             {
                 var carrier = Carrier;
+                HelpFor(carrier);
                 return padHelp ??= string.Join("\n", new[]
                 {
                     "<b>Gamepad</b>",
@@ -116,10 +127,10 @@ namespace CarrierGame.Demo
                     carrier.HasHangar ? null : "LT/RT elevator thrusters down/up",
                     carrier.HasHangar ? "A wing attack   X escort" : null,
                     "Y next target   B stop targeting",
-                    "RB fire guns" + (carrier.HasMissiles ? "   LB missile salvo" : "") + (demo.MainGun != null && !carrier.HasHangar ? "   X main gun" : ""),
+                    "RB fire guns" + (carrier.HasMissiles ? (PlanetLanding.Instance != null ? "   LB missiles (with a target)" : "   LB missile salvo") : "") + (demo.MainGun != null && !carrier.HasHangar ? "   X main gun" : ""),
                     "L3 auto-fire on/off" + (carrier.HasHangar ? "   R3 camera: carrier / craft" : ""),
                     demo.Warp != null ? "R3 system map: mini-warp" : null,
-                    PlanetLanding.Instance != null && !carrier.HasMissiles ? (Docking.Instance != null ? "LB land / take off, dock / undock" : "LB land / take off (in orbit)") : null,
+                    PlanetLanding.Instance != null ? (Docking.Instance != null ? "LB land / take off, dock / undock" : "LB land / take off (in orbit)") + (carrier.HasMissiles ? " (no target)" : "") : null,
                     demo.Laser != null ? "Back+A mining laser   Back+Y mineral scan" : null,
                     demo.Laser != null ? "Back+X cargo hold   Back+B jettison" : null,
                     IndustryPanel.Instance != null ? "Back+RB refinery / factory screen" : null,

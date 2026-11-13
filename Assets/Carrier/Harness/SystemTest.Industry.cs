@@ -248,6 +248,43 @@ namespace CarrierGame.Demo
             Check(saved && back != null && yardBack != null && fitBack != null && fitBack.parts.Contains("CargoPod"),
                   $"the game saved ({IndustrySave.Saves} saves to {Path.GetFileName(IndustrySave.TestPath)}): {back?.sites.Count ?? 0} sites, " +
                   $"fitted {(fitBack != null ? string.Join(", ", fitBack.parts) : "-")}, {back?.credits ?? 0f:N0} cr");
+            // ---- the shipyard: a destroyer laid down at the deep yard, built, and taken command of
+            // (its parts put straight into the yard's storage: building them all takes a long time)
+            yield return DockAt("Kestrel Deep Yard", r => ok = r);
+            Check(ok, "docks at the Kestrel Deep Yard again, for its shipyard");
+            if (ok)
+            {
+                var yard = IndustryLedger.Site("Kestrel Deep Yard").stock;
+                foreach (var i in table.Ship("Rapier").inputs) yard.Add(i.item, i.tonnes);
+                panel.Show(IndustryPanel.Page.Shipyard);
+                Check(panel.Current == IndustryPanel.Page.Shipyard, $"the yard's shipyard page ({panel.Current})");
+                panel.SelectItem("Rapier");
+                yield return Key(kb, K.Enter);
+                Check(IndustryLedger.Building("Rapier") && yard.Amount("HullFrame") < 1f, "a Rapier laid down, its parts taken from storage");
+                Shot("i_shipyard_slips");
+                IndustryLedger.SpeedUp = 400f;
+                yield return Wait(() => IndustryLedger.Owns("Rapier"), 20f);
+                IndustryLedger.SpeedUp = 40f;
+                Check(IndustryLedger.Berthed.Any(b => b.id == "Rapier" && b.site == "Kestrel Deep Yard") && (IndustryLedger.CrewOf("Rapier") ?? -1f) == 0f,
+                      "built and berthed at the yard, nobody aboard yet");
+                string came = FrigateClass.Of(cc);
+                var crew0 = cc.GetComponent<Crew>();
+                int aboard0 = crew0 != null ? crew0.Aboard : 0;
+                panel.SelectItem("*berth:Rapier");
+                yield return Key(kb, K.Enter);
+                yield return new WaitForSeconds(1.5f);
+                var crew1 = cc.GetComponent<Crew>();
+                int want = Mathf.Min(aboard0, crew1 != null ? crew1.complement : 0);
+                Check(PlayerFrigate.Flying == "Rapier" && FrigateClass.Of(cc) == "Rapier" && demo.carrier == cc && dock.carrier == cc && IndustryLedger.Commanded == "Rapier",
+                      $"in command of the Rapier, swapped in at the berth (came in the {came}; flying {FrigateClass.Of(cc)})");
+                Check(crew1 != null && crew1.Aboard == want, $"the crew came across: {crew1?.Aboard ?? 0} of {crew1?.complement ?? 0} aboard (had {aboard0})");
+                Check(cc.missiles != null && cc.missiles.Stock == cc.missiles.magazine && demo.MainGun == null, $"missiles ({cc.missiles?.Stock ?? 0}) and no main gun");
+                Shot("i_shipyard_rapier");
+                saved = director.Save();
+                back = IndustrySave.Read(IndustrySave.TestPath);
+                Check(saved && back != null && back.commanded != null && back.commanded.id == "Rapier",
+                      $"saved in command of the Rapier ({back?.commanded?.id ?? "-"}, {back?.berthed?.Count ?? 0} berthed)");
+            }
             IndustryLedger.SpeedUp = 1f;
             Log($"{(passed == checks ? "PASS" : "FAIL")}: the industry ({passed} of {checks})");
         }

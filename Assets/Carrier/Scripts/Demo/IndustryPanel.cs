@@ -22,8 +22,8 @@ namespace CarrierGame.Demo
     {
         public CarrierController carrier;
 
-        public enum Page { Storage, Refine, Build, Fit, Crew }
-        static readonly Page[] Pages = { Page.Storage, Page.Refine, Page.Build, Page.Fit, Page.Crew };
+        public enum Page { Storage, Refine, Build, Fit, Crew, Shipyard }
+        static readonly Page[] Pages = { Page.Storage, Page.Refine, Page.Build, Page.Fit, Page.Crew, Page.Shipyard };
 
         public static IndustryPanel Instance { get; private set; }
         public static bool IsOpen => InputFocus.Has(InputFocus.Panel.Industry);
@@ -52,6 +52,9 @@ namespace CarrierGame.Demo
         // the crew page's rows: recruit one, ten, or as many as the complement is short
         const string RecruitOne = "*r1", RecruitTen = "*r10", RecruitAll = "*rall";
         const int Recruit = 9;
+        // the shipyard's rows: a ship to build (its class), or one berthed here ("*berth:" and its class)
+        const string Berth = "*berth:";
+        const int TakeCommand = 10;
 
         void Awake() => Instance = this;
         void OnDestroy()
@@ -159,11 +162,17 @@ namespace CarrierGame.Demo
                     rows.Add(RecruitTen);
                     rows.Add(RecruitAll);
                     break;
+                case Page.Shipyard:
+                    if (spec == null || !spec.shipyard) break;
+                    foreach (var b in IndustryLedger.Berthed) if (b.site == Site.siteName) rows.Add(Berth + b.id);
+                    foreach (var sh in Table.ships) rows.Add(sh.id);
+                    break;
                 case Page.Fit:
                     if (spec == null || !spec.CanFit) break;
                     var fit = Fittings;
                     foreach (var p in Table.parts)
-                        if ((fit != null && fit.IsFitted(p.id)) || stock.Amount(p.id) >= 1f || (hold != null && hold.Amount(p.id) >= 1f)) rows.Add(p.id);
+                        if (p.structural) continue;
+                        else if ((fit != null && fit.IsFitted(p.id)) || stock.Amount(p.id) >= 1f || (hold != null && hold.Amount(p.id) >= 1f)) rows.Add(p.id);
                     break;
             }
             selected = Mathf.Clamp(selected, 0, Mathf.Max(0, rows.Count - 1));
@@ -181,6 +190,7 @@ namespace CarrierGame.Demo
                 case Page.Refine: return spec.CanRefine;
                 case Page.Build: return spec.CanBuild;
                 case Page.Fit: return spec.CanFit;
+                case Page.Shipyard: return spec.shipyard;
             }
             return true;
         }
@@ -237,6 +247,27 @@ namespace CarrierGame.Demo
                         else Say($"Loaded {Table.Amount(id, got)} of {Table.Name(id).ToLower()}" + (got < want - 1e-3f ? " (the hold is full)" : ""));
                     }
                     break;
+                case QueueOne when Current == Page.Shipyard:
+                    {
+                        var e = FrigateRoster.Get()?.Find(id);
+                        if (IndustryLedger.QueueShip(Site.siteName, id, out string why))
+                        {
+                            Say($"Laid down the {e?.displayName ?? id}: its parts are on the slips");
+                            SoundFX.Ui(Sfx.UiLock);
+                        }
+                        else Say($"Can't build the {e?.displayName ?? id}: {why}", true);
+                    }
+                    break;
+                case CancelLast when Current == Page.Shipyard:
+                    {
+                        int i = Site.State.shipyard.FindLastIndex(j => j.recipe == id);
+                        if (i >= 0 && IndustryLedger.CancelShip(Site.siteName, i)) Say("Stopped: its parts are back in storage");
+                        else Say("Not being built here", true);
+                    }
+                    break;
+                case TakeCommand:
+                    TakeCommandOf(id.StartsWith(Berth) ? id.Substring(Berth.Length) : id);
+                    return;
                 case QueueOne:
                 case QueueFive:
                     {
@@ -299,6 +330,33 @@ namespace CarrierGame.Demo
 
         static float Step(string id) => Table.Part(id) != null ? 1f : 10f;
 
+        /// <summary>Take command of a ship berthed here: the crew come across with the captain (as
+        /// many as it needs, up to all of them), the ship flown until now stays behind (berthed
+        /// here, if it was one built at a yard), and the new one is swapped in where it lies.</summary>
+        void TakeCommandOf(string id)
+        {
+            var e = FrigateRoster.Get()?.Find(id);
+            if (e == null || e.prefab == null) { Say("No such ship", true); return; }
+            if (carrier == null || carrier.Destroyed) { Say("Not while the ship is out of action", true); return; }
+            string old = PlayerFrigate.Flying;
+            if (string.Equals(old, e.id, System.StringComparison.OrdinalIgnoreCase)) { Say($"You are in command of the {e.displayName}", true); return; }
+            var oldCrew = CrewAboard;
+            float aboard = oldCrew != null ? oldCrew.Current : 0f;
+            int complement = e.prefab.TryGetComponent(out Crew c) ? c.complement : 0;
+            float had = IndustryLedger.CrewOf(e.id) ?? 0f;
+            float move = Mathf.Clamp(complement - had, 0f, aboard);
+            // (a frigate isn't berthed: it can be flown again from the start menu, any time)
+            if (!IndustryLedger.Command(e.id, Site.siteName)) { Say($"No {e.displayName} berthed here", true); return; }
+            IndustryLedger.SetCrew(old, aboard - move);
+            IndustryLedger.SetCrew(e.id, had + move);
+            FrigateChoice.Set(e.id);
+            Close();
+            SoundFX.Ui(Sfx.UiLock);
+            PlayerFrigate.SwapTo(e.id);
+            Notices.Post($"In command of the {e.displayName}: {Mathf.RoundToInt(move)} crew came across, {Mathf.RoundToInt(had + move)} of {complement} aboard" +
+                         (had + move < complement ? " (recruit the rest)" : ""));
+        }
+
         /// <summary>Act on the selected row (for the self-test).</summary>
         public void ActOnSelected(int action) => Act(SelectedId, action);
         public static int Action(string name)
@@ -314,6 +372,7 @@ namespace CarrierGame.Demo
                 case "fit": return FitToggle;
                 case "cancel": return CancelLast;
                 case "recruit": return Recruit;
+                case "command": return TakeCommand;
             }
             return 0;
         }
@@ -364,7 +423,7 @@ namespace CarrierGame.Demo
                 }
                 if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame || k.spaceKey.wasPressedThisFrame) Primary(id, shift);
                 if (k.backspaceKey.wasPressedThisFrame || k.deleteKey.wasPressedThisFrame)
-                    if (Current == Page.Refine || Current == Page.Build) Act(id, CancelLast);
+                    if (Current == Page.Refine || Current == Page.Build || Current == Page.Shipyard) Act(id, CancelLast);
             }
             if (pad != null)
             {
@@ -392,6 +451,7 @@ namespace CarrierGame.Demo
                     if (pad.buttonWest.wasPressedThisFrame) Act(id, QueueFive);
                     if (pad.buttonNorth.wasPressedThisFrame) Act(id, CancelLast);
                 }
+                else if (Current == Page.Shipyard && pad.buttonNorth.wasPressedThisFrame) Act(id, CancelLast);
                 if (pad.buttonSouth.wasPressedThisFrame) Primary(id, false);
             }
             var mouse = Mouse.current;
@@ -440,6 +500,9 @@ namespace CarrierGame.Demo
                     break;
                 case Page.Crew:
                     Act(id, Recruit);
+                    break;
+                case Page.Shipyard:
+                    Act(id, id != null && id.StartsWith(Berth) ? TakeCommand : QueueOne);
                     break;
             }
         }
@@ -499,7 +562,7 @@ namespace CarrierGame.Demo
 
             // the pages
             float ty = panel.y + 80f * s;
-            float tw = 150f * s;
+            float tw = Mathf.Min(150f * s, (W - pad * 2f - 140f * s) / Pages.Length - 6f * s);
             for (int i = 0; i < Pages.Length; i++)
             {
                 var r = new Rect(panel.x + pad + i * (tw + 6f * s), ty, tw, 34f * s);
@@ -514,7 +577,7 @@ namespace CarrierGame.Demo
 
             // the list on the left, the selected row's details on the right
             float top = ty + 46f * s, bottom = panel.yMax - pad - 28f * s;
-            bool queues = Current == Page.Refine || Current == Page.Build;
+            bool queues = Current == Page.Refine || Current == Page.Build || Current == Page.Shipyard;
             float listBottom = queues ? bottom - 150f * s : bottom;
             var list = new Rect(panel.x + pad, top, W * 0.6f - pad, listBottom - top);
             var detail = new Rect(list.xMax + pad, top, panel.xMax - pad - (list.xMax + pad), bottom - top);
@@ -537,6 +600,7 @@ namespace CarrierGame.Demo
                 case Page.Refine:
                 case Page.Build: return padUsed ? "A queue one   X queue five   Y cancel last   B close" : "Enter queue one   Shift+Enter five   Backspace cancel   U / Esc close";
                 case Page.Crew: return padUsed ? "A recruit   B close" : "Enter recruit   U / Esc close   K leave";
+                case Page.Shipyard: return padUsed ? "A build / take command   Y stop building   B close" : "Enter build / take command   Backspace stop building   U / Esc close";
                 default: return padUsed ? "A fit / take off   B close" : "Enter fit / take off   U / Esc close";
             }
         }
@@ -552,6 +616,7 @@ namespace CarrierGame.Demo
             if (rows.Count == 0)
             {
                 string why = Current == Page.Fit ? "No parts here to fit: build them in BUILD, or bring them in the hold."
+                           : Current == Page.Shipyard ? "No ships are built here."
                                                  : Current == Page.Storage ? "Nothing aboard or in storage." : "Nothing can be made here.";
                 GUI.Label(new Rect(area.x, area.y, area.width, 40f * s), $"<color=#9aa4b0>{why}</color>", Hud.Text(14, false, TextAnchor.MiddleLeft));
                 return;
@@ -592,6 +657,7 @@ namespace CarrierGame.Demo
                 Button(new Rect(r.xMax - 96f * s, r.y + 7f * s, 90f * s, r.height - 14f * s), "Store", id, StoreAll, s);
                 return;
             }
+            if (Current == Page.Shipyard) { DrawShipRow(r, id, sel, s); return; }
             var icon = IndustryTable.Icon(id);
             var ir = new Rect(x, r.y + 2f * s, r.height - 4f * s, r.height - 4f * s);
             if (icon != null) GUI.DrawTexture(ir, icon, ScaleMode.ScaleToFit);
@@ -656,6 +722,61 @@ namespace CarrierGame.Demo
             }
         }
 
+        /// <summary>A shipyard row: a ship berthed here (take command of it), or a class to build.</summary>
+        void DrawShipRow(Rect r, string id, bool sel, float s)
+        {
+            float x = r.x + 10f * s;
+            var roster = FrigateRoster.Get();
+            if (id.StartsWith(Berth))
+            {
+                string cls = id.Substring(Berth.Length);
+                var b = roster?.Find(cls);
+                int complement = b != null && b.prefab != null && b.prefab.TryGetComponent(out Crew c) ? c.complement : 0;
+                int aboard = Mathf.RoundToInt(IndustryLedger.CrewOf(cls) ?? 0f);
+                GUI.Label(new Rect(x, r.y + 1f * s, r.width * 0.6f, r.height * 0.55f), $"{b?.displayName ?? cls}  <color=#7ee08a>berthed here</color>", Hud.Text(15, sel, TextAnchor.MiddleLeft));
+                GUI.Label(new Rect(x, r.y + r.height * 0.5f, r.width * 0.7f, r.height * 0.5f), $"<color=#9aa4b0>{b?.role}  ·  crew aboard {aboard} of {complement}</color>", Hud.Text(12, false, TextAnchor.MiddleLeft));
+                bool flying = string.Equals(PlayerFrigate.Flying, cls, System.StringComparison.OrdinalIgnoreCase);
+                Button(new Rect(r.xMax - 130f * s, r.y + 7f * s, 124f * s, r.height - 14f * s), "Take command", id, TakeCommand, s, !flying);
+                return;
+            }
+            var t = Table;
+            var recipe = t.Ship(id);
+            var e = roster?.Find(id);
+            GUI.Label(new Rect(x, r.y + 1f * s, r.width * 0.5f, r.height * 0.55f), $"{e?.displayName ?? id}  <color=#9aa4b0>{e?.role}</color>", Hud.Text(15, sel, TextAnchor.MiddleLeft));
+            if (recipe != null)
+                GUI.Label(new Rect(x, r.y + r.height * 0.5f, r.width - (x - r.x) - 140f * s, r.height * 0.5f), Inputs(recipe.inputs, Site.State.stock), Hud.Text(12, false, TextAnchor.MiddleLeft));
+            string state = IndustryLedger.Owns(id) ? "<color=#7ee08a>yours</color>"
+                         : IndustryLedger.Building(id) ? "<color=#ffc04d>on the slips</color>"
+                         : recipe != null ? $"<color=#9aa4b0>{recipe.seconds / 60f:0.#} min</color>" : "";
+            GUI.Label(new Rect(r.xMax - 250f * s, r.y, 110f * s, r.height * 0.55f), state, Hud.Text(12, false, TextAnchor.MiddleRight));
+            bool can = IndustryLedger.CanQueueShip(Site.siteName, id, out _);
+            Button(new Rect(r.xMax - 130f * s, r.y + 7f * s, 124f * s, r.height - 14f * s), can ? "Build" : "<color=#8a94a0>Build</color>", id, QueueOne, s, can);
+        }
+
+        /// <summary>The shipyard page's details: the ship selected, its numbers and what it needs.</summary>
+        void DrawShipDetail(Rect area, string id, float s)
+        {
+            float pad = 12f * s;
+            string cls = id.StartsWith(Berth) ? id.Substring(Berth.Length) : id;
+            var e = FrigateRoster.Get()?.Find(cls);
+            if (e == null) return;
+            var st = FrigateStats.Of(e.prefab);
+            var sb = new System.Text.StringBuilder();
+            sb.Append($"<b>{e.displayName.ToUpper()}</b>  <color=#9aa4b0>{e.category}  ·  {e.role}</color>\n\n");
+            sb.Append(e.description).Append("\n\n");
+            sb.Append($"Speed {st.speed:F0} m/s  ·  turning {st.turnRate:F0}°/s\n");
+            sb.Append($"Hull {st.hull:F0}  ·  shield {st.shield:F0}\n");
+            sb.Append($"{st.turrets} turrets ({st.barrels} barrels)  ·  {st.ciws} CIWS\n");
+            sb.Append(st.mainGuns > 0 ? $"Main gun: {st.beamDamage:F0} damage, {st.beamCharge:F0} s to charge\n" : "No main gun\n");
+            sb.Append(st.missiles > 0 ? $"{st.missiles} missiles, {st.missileCells} launch cells\n" : "");
+            sb.Append($"Hold {st.cargo:F0} t  ·  {st.slots} part slots\n");
+            sb.Append($"<b>Crew {st.crew}</b>  <color=#9aa4b0>(they come across from the ship you command; recruit the rest)</color>");
+            var style = Hud.Text(13, false, TextAnchor.UpperLeft);
+            style.wordWrap = true;
+            GUI.Label(new Rect(area.x + pad, area.y + pad, area.width - pad * 2f, area.height - pad * 2f), sb.ToString(), style);
+            style.wordWrap = false;
+        }
+
         void Button(Rect r, string label, string id, int action, float s, bool ready = true)
         {
             buttons.Add((r, id, action));
@@ -674,7 +795,7 @@ namespace CarrierGame.Demo
                 if (sb.Length > 0) sb.Append("  ");
                 bool have = stock.Has(i.item, i.tonnes);
                 sb.Append(have ? "<color=#9ad0a0>" : "<color=#d08070>");
-                sb.Append($"{t.Name(i.item)} {i.tonnes:0.##} t");
+                sb.Append($"{t.Name(i.item)} {t.Amount(i.item, i.tonnes)}");
                 sb.Append("</color>");
             }
             return sb.ToString();
@@ -710,6 +831,7 @@ namespace CarrierGame.Demo
             string id = SelectedId;
             float y = area.y + pad;
             if (Current == Page.Crew) { DrawCrew(area, s); return; }
+            if (Current == Page.Shipyard) { if (id != null) DrawShipDetail(area, id, s); return; }
             if (Current == Page.Fit || (Current != Page.Storage && id == null))
             {
                 DrawShip(new Rect(area.x + pad, area.yMax - 270f * s, area.width - pad * 2f, 260f * s), s);
@@ -816,12 +938,13 @@ namespace CarrierGame.Demo
 
         void DrawQueue(Rect area, float s)
         {
-            bool build = Current == Page.Build;
-            var q = build ? Site.State.building : Site.State.refining;
+            bool build = Current == Page.Build, yard = Current == Page.Shipyard;
+            var q = yard ? Site.State.shipyard : build ? Site.State.building : Site.State.refining;
             Hud.Fill(area, new Color(0f, 0f, 0f, 0.3f));
             var t = Table;
+            string title = yard ? "ON THE SLIPS" : build ? "FACTORY QUEUE" : "REFINERY QUEUE";
             GUI.Label(new Rect(area.x + 8f * s, area.y + 4f * s, area.width, 20f * s),
-                      $"{(build ? "FACTORY" : "REFINERY")} QUEUE  <color=#9aa4b0>{q.Count} of {IndustryLedger.QueueLimit}</color>", Hud.Text(13, true, TextAnchor.UpperLeft));
+                      $"{title}  <color=#9aa4b0>{q.Count} of {(yard ? IndustryLedger.YardLimit : IndustryLedger.QueueLimit)}</color>", Hud.Text(13, true, TextAnchor.UpperLeft));
             float y = area.y + 28f * s, rowH = 22f * s;
             int shown = Mathf.FloorToInt((area.height - 30f * s) / rowH);
             for (int i = 0; i < q.Count && i < shown; i++)
@@ -833,7 +956,7 @@ namespace CarrierGame.Demo
                     Hud.Fill(r, new Color(1f, 1f, 1f, 0.06f));
                     Hud.Fill(new Rect(r.x, r.y, r.width * j.Progress, r.height), new Color(0.35f, 0.65f, 1f, 0.45f));
                 }
-                string name = t.Name(j.recipe);
+                string name = yard ? FrigateRoster.Get()?.Find(j.recipe)?.displayName ?? j.recipe : t.Name(j.recipe);
                 string when = i == 0 ? $"{j.left / Mathf.Max(0.01f, IndustryLedger.SpeedUp):F0} s left" : "waiting";
                 GUI.Label(r, $"  {name}  <color=#9aa4b0>{when}</color>", Hud.Text(12, i == 0, TextAnchor.MiddleLeft));
                 y += rowH;

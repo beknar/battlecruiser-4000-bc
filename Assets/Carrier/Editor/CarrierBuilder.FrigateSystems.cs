@@ -378,7 +378,7 @@ namespace Carrier.EditorTools
 
             LogDeckMap(root, hullCol);
             AddCiws(root, hullCol, p);
-            AddMainGun(root, hullCol);
+            if (!fs.noMainGun) AddMainGun(root, hullCol);
             AddShield(root, LocalBounds(hull.transform));
             var miningLaser = AddMiningGear(root, hullCol);
 
@@ -392,7 +392,9 @@ namespace Carrier.EditorTools
             var gun = root.GetComponentInChildren<MainBeam>();
             if (gun != null) fittings.Add(gun.transform);
             fittings.Add(miningLaser);
-            MakeBreakable(root, hull, fs.prefab, 14, true, fittings.ToArray());
+            // (more pieces for a bigger ship: 14 for a frigate, up to 24 for a cruiser)
+            float length = LocalBounds(hull.transform).size.z;
+            MakeBreakable(root, hull, fs.prefab, Mathf.Clamp(Mathf.RoundToInt(length / 15f), 14, 24), true, fittings.ToArray());
             var br = root.GetComponent<ShipBreakup>();
             if (br != null)
             {
@@ -535,12 +537,23 @@ namespace Carrier.EditorTools
 
         static void AddMainGun(GameObject root, MeshCollider hullCol)
         {
-            // the bow: the frontmost point of the hull along the centreline
-            float bestZ = float.MinValue, bestY = 0f;
-            for (float y = -16f; y <= 6f; y += 1f)
+            // the bow: the frontmost point of the hull along the centreline (searched over the
+            // hull's height, from well ahead of it)
+            Physics.SyncTransforms();
+            var hb = new Bounds(Vector3.zero, new Vector3(50f, 22f, 180f));
+            if (hullCol != null)
             {
-                var from = root.transform.TransformPoint(new Vector3(0f, y, 300f));
-                if (hullCol != null && hullCol.Raycast(new Ray(from, -root.transform.forward), out var hit, 600f))
+                hb = new Bounds(root.transform.InverseTransformPoint(hullCol.bounds.center), Vector3.zero);
+                hb.Encapsulate(root.transform.InverseTransformPoint(hullCol.bounds.min));
+                hb.Encapsulate(root.transform.InverseTransformPoint(hullCol.bounds.max));
+            }
+            float ahead = Mathf.Max(300f, hb.max.z + 100f);
+            float bestZ = float.MinValue, bestY = 0f;
+            float yLo = Mathf.Min(-16f, hb.min.y), yHi = Mathf.Max(6f, hb.max.y), yStep = Mathf.Max(1f, (yHi - yLo) / 40f);
+            for (float y = yLo; y <= yHi; y += yStep)
+            {
+                var from = root.transform.TransformPoint(new Vector3(0f, y, ahead));
+                if (hullCol != null && hullCol.Raycast(new Ray(from, -root.transform.forward), out var hit, ahead * 2f))
                 {
                     float z = root.transform.InverseTransformPoint(hit.point).z;
                     if (z > bestZ) { bestZ = z; bestY = y; }

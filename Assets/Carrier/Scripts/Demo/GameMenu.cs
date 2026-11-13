@@ -14,14 +14,16 @@ namespace CarrierGame.Demo
     /// </summary>
     public class GameMenu : MonoBehaviour
     {
-        /// <summary>The pause menu is up, or the co-op panel or the start menu (which also take
-        /// the keys and mouse): the game itself takes no input.</summary>
-        public static bool IsOpen => open || InputFocus.Has(InputFocus.Panel.CoopPanel) || InputFocus.Has(InputFocus.Panel.StartMenu);
+        /// <summary>The pause menu is up, or the co-op panel, the start menu or the comms line
+        /// (CoopChat) being typed into (which also take the keys and mouse): the game itself takes no input.</summary>
+        public static bool IsOpen => open || InputFocus.Has(InputFocus.Panel.CoopPanel) || InputFocus.Has(InputFocus.Panel.StartMenu)
+                                     || InputFocus.Has(InputFocus.Panel.Chat);
         static bool open => InputFocus.Has(InputFocus.Panel.PauseMenu);
         bool paused;
         int openedFrame = -10;
         /// <summary>Closed this frame or the last (so the key that closed it isn't also read by the game).</summary>
-        public static bool JustClosed => InputFocus.JustReleased(InputFocus.Panel.PauseMenu) || InputFocus.JustReleased(InputFocus.Panel.StartMenu);
+        public static bool JustClosed => InputFocus.JustReleased(InputFocus.Panel.PauseMenu) || InputFocus.JustReleased(InputFocus.Panel.StartMenu)
+                                         || InputFocus.JustReleased(InputFocus.Panel.Chat);
 
         // (no frigate here: the frigate is chosen at the start of the game, on the start menu,
         // and kept for the game: its crew, parts and hold go with it)

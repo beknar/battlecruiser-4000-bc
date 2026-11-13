@@ -300,7 +300,7 @@ namespace CarrierGame.Demo
             string bearing = cc.target != null ? cc.GunsBearing() : "";
             Light(ref lx, y, "GUNS", cc.target == null ? Dim : bearing.Length > 0 ? Green : Amber, cc.mainTurrets != null && cc.mainTurrets.Length > 0 && cc.mainTurrets[0] != null && !cc.mainTurrets[0].autoFire ? "HOLD" : null);
             if (ciws != null) Light(ref lx, y, "CIWS", ciws.EngagedTarget != null ? (flash ? Red : Amber) : Dim, null);
-            if (cc.HasMissiles && cc.missiles != null) Light(ref lx, y, $"MSL {cc.missiles.ReadyCells}", cc.missiles.ReadyCells > 0 ? Green : Dim, null);
+            if (cc.HasMissiles && cc.missiles != null) Light(ref lx, y, cc.missiles.Stock >= 0 ? $"MSL {cc.missiles.ReadyCells}/{cc.missiles.Stock}" : $"MSL {cc.missiles.ReadyCells}", cc.missiles.ReadyCells > 0 ? Green : Dim, null);
             if (cc.HasHangar) Light(ref lx, y, $"WING {cc.Wing.Count}", cc.Wing.Count > 0 ? Cyan : Dim, null);
             if (demo.Laser != null) Light(ref lx, y, "LASER", demo.Laser.Cutting ? Amber : demo.Laser.On ? Cyan : Dim, null);
             y += 20f * s + 6f * s;

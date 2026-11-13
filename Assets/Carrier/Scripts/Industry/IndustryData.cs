@@ -37,6 +37,19 @@ namespace CarrierGame
         public float mass, seconds, value;
         public Ingredient[] inputs;
         public PartEffect[] effects;
+        /// <summary>A section of a ship (a hull frame, a bridge...), built for a shipyard: it can't
+        /// be fitted to a ship as a part.</summary>
+        public bool structural;
+    }
+
+    /// <summary>A ship a shipyard can build (a destroyer or the cruiser, by its roster id), and what
+    /// goes into it: parts by the count (the ingredient's tonnes) and materials by the tonne.</summary>
+    [Serializable]
+    public class ShipRecipe
+    {
+        public string id;
+        public float seconds;
+        public Ingredient[] inputs;
     }
 
     /// <summary>An industrial installation: where it is and what it can refine and build.</summary>
@@ -45,6 +58,8 @@ namespace CarrierGame
     {
         public string name, where, body, description;
         public string[] refines, builds;
+        /// <summary>It has a shipyard: destroyers and cruisers are built here, and berth here.</summary>
+        public bool shipyard;
 
         public bool Refines(string id) => Has(refines, id);
         public bool Builds(string id) => Has(builds, id);
@@ -69,7 +84,7 @@ namespace CarrierGame
     /// <summary>
     /// Everything the industry knows (Resources/Data/industry.json): the refined materials and
     /// how they're refined from minerals, the ship parts and what they're built from and do, and
-    /// the industrial sites. Items are named by id: a mineral by its Mineral name ("Iron"), a
+    /// the industrial sites, and the ships the shipyards build. Items are named by id: a mineral by its Mineral name ("Iron"), a
     /// refined material or a part by its id. Raw and refined items are counted in tonnes, parts
     /// one by one (each part weighs its `mass`).
     /// </summary>
@@ -79,6 +94,7 @@ namespace CarrierGame
         public RefinedSpec[] refined;
         public PartSpec[] parts;
         public SiteSpec[] sites;
+        public ShipRecipe[] ships;
 
         public const string Resource = "Data/industry";
         /// <summary>The numbers a part can change on a frigate.</summary>
@@ -88,6 +104,7 @@ namespace CarrierGame
         static IndustryTable loaded;
         [NonSerialized] Dictionary<string, RefinedSpec> refinedById;
         [NonSerialized] Dictionary<string, PartSpec> partsById;
+        [NonSerialized] Dictionary<string, ShipRecipe> shipsById;
         static readonly Dictionary<string, Mineral> MineralsByName = new Dictionary<string, Mineral>();
 
         /// <summary>The table, read the first time it is asked for.</summary>
@@ -105,6 +122,9 @@ namespace CarrierGame
             t.refined ??= new RefinedSpec[0];
             t.parts ??= new PartSpec[0];
             t.sites ??= new SiteSpec[0];
+            t.ships ??= new ShipRecipe[0];
+            t.shipsById = new Dictionary<string, ShipRecipe>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sh in t.ships) t.shipsById[sh.id] = sh;
             t.refinedById = new Dictionary<string, RefinedSpec>();
             foreach (var r in t.refined) t.refinedById[r.id] = r;
             t.partsById = new Dictionary<string, PartSpec>();
@@ -114,6 +134,8 @@ namespace CarrierGame
 
         public RefinedSpec Refined(string id) => id != null && refinedById.TryGetValue(id, out var r) ? r : null;
         public PartSpec Part(string id) => id != null && partsById.TryGetValue(id, out var p) ? p : null;
+        /// <summary>The shipyard recipe for a ship class (null if it isn't built).</summary>
+        public ShipRecipe Ship(string id) => id != null && shipsById.TryGetValue(id, out var r) ? r : null;
 
         public SiteSpec Site(string name)
         {

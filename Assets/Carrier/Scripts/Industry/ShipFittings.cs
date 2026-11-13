@@ -140,7 +140,7 @@ namespace CarrierGame
         public bool CanFit(string id, out string why)
         {
             var p = IndustryTable.Get().Part(id);
-            why = p == null ? "not a ship part" : fitted.Contains(id) ? "already fitted" : Free == 0 ? $"all {slots} slots are taken" : "";
+            why = p == null ? "not a ship part" : p.structural ? "a ship's section, for a shipyard: not fitted" : fitted.Contains(id) ? "already fitted" : Free == 0 ? $"all {slots} slots are taken" : "";
             return why == "";
         }
 

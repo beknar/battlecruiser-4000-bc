@@ -19,8 +19,13 @@ pivot (the housing turns about its foot, the barrels about their breech), and th
 where each pivot is, which way the turret faces at rest and which way is up for it, and the barrels'
 muzzles. A turret without separate barrels gets muzzles at the front of the housing.
 
-Writes <models_dir>/Frigate_<id>.fbx (objects Hull, <turret>_Yaw, <turret>_Pitch),
-<models_dir>/Frigate_<id>_BaseColor.png and <data_dir>/frigate_<id>_hardpoints.json.
+The spec's "frigates" and "ships" lists are both converted. A ship may give a "prefix" for its
+files (default "Frigate"): writes <models_dir>/<Prefix>_<id>.fbx (objects Hull, <turret>_Yaw,
+<turret>_Pitch), <models_dir>/<Prefix>_<id>_BaseColor.png and <data_dir>/<prefix>_<id>_hardpoints.json.
+
+A ship may also list "extra_mounts" (where the scene builder adds ball-mounted guns: a point on
+the hull and the side it faces, port, starboard, top or keel) and "missile_cells" (points on the
+deck where missile launch cells go); both are passed on in the hardpoints, in Unity's frame.
 """
 import bpy, bmesh, json, math, os, sys
 from mathutils import Matrix, Vector
@@ -323,7 +328,8 @@ def convert(f):
     os.makedirs(DATA, exist_ok=True)
     mat = hull.data.materials[0] if hull.data.materials else None
     img = next((n.image for n in mat.node_tree.nodes if n.type == "TEX_IMAGE" and n.image), None) if mat and mat.use_nodes else None
-    tex = os.path.join(MODELS, f"Frigate_{f['id']}_BaseColor.png")
+    pre = f.get("prefix", "Frigate")
+    tex = os.path.join(MODELS, f"{pre}_{f['id']}_BaseColor.png")
     if img:
         img.filepath_raw = tex
         img.file_format = "PNG"
@@ -335,7 +341,7 @@ def convert(f):
         if o.type == "MESH":
             o.select_set(True)
     bpy.context.view_layer.objects.active = hull
-    fbx = os.path.join(MODELS, f"Frigate_{f['id']}.fbx")
+    fbx = os.path.join(MODELS, f"{pre}_{f['id']}.fbx")
     bpy.ops.export_scene.fbx(filepath=fbx, use_selection=True, object_types={"MESH"},
                              apply_unit_scale=True, apply_scale_options="FBX_SCALE_ALL",
                              axis_forward="-Z", axis_up="Y", bake_space_transform=True,
@@ -346,12 +352,17 @@ def convert(f):
     hlo, hhi = bounds(hull)
     hp = {"id": f["id"], "length": f["length"], "turrets": turrets, "engines": engines, "ciws": ciws,
           "bounds_size": [round(hhi.x - hlo.x, 2), round(hhi.z - hlo.z, 2), round(hhi.y - hlo.y, 2)]}
-    with open(os.path.join(DATA, f"frigate_{f['id'].lower()}_hardpoints.json"), "w") as fh:
+    sides = {"port": (0, -1, 0), "starboard": (0, 1, 0), "top": (0, 0, 1), "keel": (0, 0, -1)}
+    if f.get("extra_mounts"):
+        hp["mounts"] = [{"pos": unity(m["pos"]), "up": unity_dir(sides[m["side"]]), "side": m["side"]} for m in f["extra_mounts"]]
+    if f.get("missile_cells"):
+        hp["cells"] = [{"pos": unity(c)} for c in f["missile_cells"]]
+    with open(os.path.join(DATA, f"{pre.lower()}_{f['id'].lower()}_hardpoints.json"), "w") as fh:
         json.dump(hp, fh, indent=1)
     print("HARDPOINTS", f["id"], json.dumps(hp)[:600])
 
 
 spec = json.load(open(SPEC))
-for f in spec["frigates"]:
+for f in spec.get("frigates", []) + spec.get("ships", []):
     if not ONLY or f["id"] in ONLY:
         convert(f)

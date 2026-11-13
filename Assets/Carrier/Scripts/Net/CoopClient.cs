@@ -136,7 +136,8 @@ namespace CarrierGame.Demo
                 Send(new HelloMsg
                 {
                     v = Protocol, name = MyName, level = SceneManager.GetActiveScene().name,
-                    client = LaunchArgs.OnWeb ? (SystemInfo.graphicsDeviceType.ToString().Contains("WebGPU") ? "web (WebGPU)" : "web (WebGL)") : Application.platform.ToString(),
+                    // (an AI player says so: other bots know not to follow it)
+                    client = CoopBot.Enabled ? CoopBot.ClientName : LaunchArgs.OnWeb ? (SystemInfo.graphicsDeviceType.ToString().Contains("WebGPU") ? "web (WebGPU)" : "web (WebGL)") : Application.platform.ToString(),
                     captain = Captain.Index, clock = LocalOrbitClock(),
                 });
                 Status = "saying hello...";

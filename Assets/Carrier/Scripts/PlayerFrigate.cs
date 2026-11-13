@@ -29,6 +29,16 @@ namespace CarrierGame
             Flying = FrigateClass.Of(ship);
             var roster = FrigateRoster.Get();
             var entry = roster != null ? roster.Find(FrigateChoice.Current) : null;
+            // a destroyer or cruiser only once it has been built (the tests and reels fly any)
+            if (entry != null && entry.buildable && !LaunchArgs.Automated && !Demo.Hud.ReelMode)
+            {
+                IndustryDirector.LoadSaved();
+                if (!IndustryLedger.Owns(entry.id))
+                {
+                    Debug.Log($"[PlayerFrigate] the {entry.displayName} hasn't been built: flying the starting frigate");
+                    entry = null;
+                }
+            }
             if (entry == null || entry.prefab == null || string.Equals(entry.id, Flying, StringComparison.OrdinalIgnoreCase)) return;
             var swapped = Swap(ship, entry.prefab);
             if (swapped == null) return;

@@ -128,6 +128,38 @@ and red (`Tools/Blender/recolour_frigate.py`, kept in `ai models/retextured`), a
 the game with their turrets cut out of the hull (`Tools/Blender/convert_frigates.py`, from
 `Tools/Blender/frigates_spec.json`).
 
+### Destroyers and the cruiser
+
+Five destroyers and a heavy cruiser can be flown once they have been built at a shipyard (see
+[Shipyards](#shipyards-destroyers-and-the-cruiser)). Until then the start menu doesn't offer
+them; afterwards it offers the ones the player has.
+
+- **Destroyers** are tougher than any frigate but slower. They have no bow main gun. They carry
+  more turrets (their own, plus ball mounts on the hull), fewer CIWS mounts (one or two), and a
+  limited stock of missiles fired from launch cells on the deck.
+- **The cruiser** is tougher than any destroyer and has more turrets. It has the bow main gun,
+  six CIWS mounts and missiles.
+- **Crews.** Destroyers need a bigger crew than any frigate (350 to 460), and the cruiser needs
+  the most (800). A new ship comes off the slips empty. Taking command of it brings the crew
+  across from the ship you were flying, as many as it needs, and the rest are recruited.
+- **Missiles.** Each missile fired is one fewer in the magazine. The magazine is refilled when
+  the ship docks at a station or lands at a site. Fire them with 4 (M in a level without a warp
+  drive) or LB with a target. The ship's console shows the ready cells and the missiles left.
+
+| Ship | Kind | Turrets | CIWS | Main gun | Missiles (cells) | Hull / shield | Speed, turn | Crew |
+|---|---|---|---|---|---|---|---|---|
+| Halberd | Missile destroyer | 8: a quad mount, four twins, 3 ball mounts | 2 | none | 24 (6) | 12000 / 10000 | 108 m/s, 12°/s | 380 |
+| Rapier | Fast destroyer | 7: a single, a triple and two twins, 3 ball mounts | 1 | none | 12 (4) | 11000 / 9500 | 112 m/s, 13°/s | 360 |
+| Claymore | Gun destroyer | 8: three heavy singles, 5 ball mounts | 2 | none | 12 (6) | 13000 / 10500 | 105 m/s, 11°/s | 420 |
+| Bulwark | Heavy destroyer | 8: four twins, 4 flank mounts | 2 | none | 16 (4) | 15000 / 12000 | 100 m/s, 10°/s | 460 |
+| Stiletto | Strike destroyer | 7: one big dorsal turret, 6 ball mounts | 1 | none | 20 (8) | 11500 / 9000 | 110 m/s, 12°/s | 350 |
+| Sovereign | Heavy cruiser | 12: eight twins, 4 ball mounts | 6 | 3200/s, 16 s charge | 32 (8) | 26000 / 20000 | 90 m/s, 8°/s | 800 |
+
+The six were AI-made models (`ai models/destroyer1.glb` to `destroyer5.glb`, `cruiser1.glb`),
+repainted like the frigates and turned to lie bow first along the axis with
+`Tools/Blender/align_glb.py`. They were then converted by `convert_frigates.py` (the `ships` in
+`frigates_spec.json`), which also gives where their ball mounts and missile cells go.
+
 ### The Sentinel
 
 - **Handling.** Faster than a carrier and slower than fighters and drones: top speed 150 m/s,
@@ -618,7 +650,7 @@ fitted to the frigate to make it better. All of it is in
     from Deepcut Station), with a landing pad on the rock: docking there sets the frigate down
     on the pad.
 - **The site's screen** opens by itself on arriving (docked, or landed on the pad), and U
-  (Back + RB on the pad) opens and closes it. It has four pages:
+  (Back + RB on the pad) opens and closes it. It has up to six pages:
   - **Storage**: move ore, refined materials and parts between the hold and the site's
     storage. Each site keeps its own storage, with no limit; the frigate's hold is what is
     limited, so materials have to be carried from a refinery to a factory.
@@ -627,6 +659,9 @@ fitted to the frigate to make it better. All of it is in
   - **Build**: queue factory jobs, refined materials into parts.
   - **Fit**: fit parts from storage (or the hold) to the frigate, or take them off again (they
     go back into storage). Each part can be fitted once, and each frigate has so many slots.
+  - **Crew**: recruit, where the place recruits.
+  - **Shipyard**, where there is one: build destroyers and the cruiser, and take command of
+    the ships berthed there (see below).
 - **Jobs take time** (20 to 45 s a batch to refine, 80 to 180 s a part), one at a time on each
   line, the refinery's and the factory's. They go on while the frigate is away.
 - **The frigates differ in what they carry and fit:**
@@ -701,15 +736,54 @@ tank, pipe, window and pad textures made by `Tools/Textures/make_industry_textur
 | <img src="Assets/Carrier/Resources/Industry/Icons/ReactorCore.png" width="64"> | Reactor core | A shielded reactor vessel with a glowing core window and coolant pipes | 2 t reactor fuel rods, 8 t superalloy ingots, 8 t coolant | 25 t | 180 s | beam charge time −20% | 3,200 cr |
 | <img src="Assets/Carrier/Resources/Industry/Icons/MiningHead.png" width="64"> | Mining laser head | A laser emitter head with a diamond aperture and heat fins | 0.04 t diamond optics, 3 t copper wire, 2 t coolant, 4 t steel plate | 6 t | 90 s | mining rate +50% | 2,000 cr |
 
+**Ship sections** (built at a factory for a shipyard; never fitted):
+
+| | Section | Looks like | Built from | Weighs | Time | Value |
+|---|---|---|---|---|---|---|
+| <img src="Assets/Carrier/Resources/Industry/Icons/HullFrame.png" width="64"> | Hull frame section | Two deep ring frames joined by stringers over a keel beam | 80 t steel plate, 30 t titanium billets, 10 t superalloy ingots | 120 t | 240 s | 9,000 cr |
+| <img src="Assets/Carrier/Resources/Industry/Icons/TurretMount.png" width="64"> | Turret mount | A training ring and bearing race on a deck plate, with its drive | 10 t steel plate, 6 t superalloy ingots, 4 t copper wire, 1 t rare-earth magnets | 20 t | 150 s | 5,200 cr |
+| <img src="Assets/Carrier/Resources/Industry/Icons/MissileCells.png" width="64"> | Missile cell block | Four vertical launch cells in a frame, their hatches shut | 12 t steel plate, 5 t superalloy ingots, 4 t copper wire, 1 t fusion fuel pellets | 25 t | 160 s | 6,000 cr |
+| <img src="Assets/Carrier/Resources/Industry/Icons/BridgeModule.png" width="64"> | Bridge module | A command block with armoured windows and a sensor mast | 15 t aluminium sheet, 6 t armour glass, 3 t silicon wafers, 0.4 t precious conductors, 6 t copper wire | 30 t | 200 s | 9,500 cr |
+| <img src="Assets/Carrier/Resources/Industry/Icons/CrewQuarters.png" width="64"> | Crew quarters | A habitation block of berths, galleys and an airlock, for forty | 25 t aluminium sheet, 10 t steel plate, 4 t coolant, 4 t carbon-fibre rolls | 35 t | 120 s | 2,500 cr |
+
 **The sites:**
 
-| Site | Where | Refines | Builds and fits |
-|---|---|---|---|
-| Ochre Foundry | on a planet (pad): Ochre | everything | everything |
-| Mnemos Works | on a moon (pad): Mnemos | everything | everything |
-| Jovara Gas Works | in orbit (docked): Jovara | carbon-fibre rolls, coolant, fusion fuel pellets, silicon wafers | - |
-| Kestrel Deep Yard | in deep space (docked) | - | everything |
-| Belt Smelter | on an asteroid (pad): Inner Belt | steel plate, titanium billets, aluminium sheet, copper wire, superalloy ingots, rare-earth magnets, precious conductors, reactor fuel rods, armour glass, diamond optics | - |
+| Site | Where | Refines | Builds and fits | Shipyard |
+|---|---|---|---|---|
+| Ochre Foundry | on a planet (pad): Ochre | everything | everything | yes |
+| Mnemos Works | on a moon (pad): Mnemos | everything | everything | yes |
+| Jovara Gas Works | in orbit (docked): Jovara | carbon-fibre rolls, coolant, fusion fuel pellets, silicon wafers | - | - |
+| Kestrel Deep Yard | in deep space (docked) | - | everything | yes |
+| Belt Smelter | on an asteroid (pad): Inner Belt | steel plate, titanium billets, aluminium sheet, copper wire, superalloy ingots, rare-earth magnets, precious conductors, reactor fuel rods, armour glass, diamond optics | hull frame sections, turret mounts, crew quarters | yes |
+| Steropes Heavy Industries | on a moon (pad): Steropes | everything | everything | yes |
+| Ochre Orbital Works | in orbit (docked): Ochre | steel plate, titanium billets, aluminium sheet, copper wire, superalloy ingots, rare-earth magnets, armour glass | everything | yes |
+
+### Shipyards: destroyers and the cruiser
+
+Every site with a shipyard builds the destroyers and the cruiser: in deep space (Kestrel Deep
+Yard), in orbit (Ochre Orbital Works), on a planet (Ochre Foundry), on moons (Mnemos Works,
+Steropes Heavy Industries) and on an asteroid (Belt Smelter). The site's **Shipyard** page lists
+the ships. A ship is built from parts and sections (built at a factory) and steel, all in that
+site's storage. Laying one down takes them out of storage (stopping it puts them back). It
+then takes 9 to 20 minutes on the slips, two ships at a time, while the player is away.
+
+- A finished ship is berthed at its yard, with nobody aboard. The player can have one of each
+  class.
+- **Take command** of a berthed ship on the Shipyard page. It is swapped in where the frigate
+  lies, and the crew come across. The ship flown until then stays behind: a built one is
+  berthed at that yard, and a frigate can be chosen again from the start menu.
+- The start menu offers the frigates and the built ships. Choosing a frigate sends the ship
+  commanded until then back to its yard.
+- The ships built, where each is berthed and the one commanded are saved with the rest.
+
+| Ship | Built from | Time |
+|---|---|---|
+| Halberd | 4 hull frame section, 8 turret mount, 2 missile cell block, 1 bridge module, 10 crew quarters, 1 reactor core, 2 fusion thruster, 1 shield emitter, 2 armour plating, 1 fire-control computer, 150 t steel plate | 10 min |
+| Rapier | 4 hull frame section, 7 turret mount, 1 missile cell block, 1 bridge module, 9 crew quarters, 1 reactor core, 2 fusion thruster, 1 shield emitter, 2 armour plating, 1 vectoring jets, 120 t steel plate | 9 min |
+| Claymore | 4 hull frame section, 8 turret mount, 1 missile cell block, 1 bridge module, 11 crew quarters, 1 reactor core, 2 fusion thruster, 1 shield emitter, 2 armour plating, 1 rail barrels, 160 t steel plate | 10 min |
+| Bulwark | 4 hull frame section, 8 turret mount, 2 missile cell block, 1 bridge module, 12 crew quarters, 1 reactor core, 2 fusion thruster, 1 shield emitter, 2 armour plating, 2 armour plating, 200 t steel plate | 11 min |
+| Stiletto | 4 hull frame section, 7 turret mount, 2 missile cell block, 1 bridge module, 9 crew quarters, 1 reactor core, 2 fusion thruster, 1 shield emitter, 2 armour plating, 1 fire-control computer, 120 t steel plate | 9.33333 min |
+| Sovereign | 8 hull frame section, 12 turret mount, 2 missile cell block, 1 bridge module, 20 crew quarters, 2 reactor core, 3 fusion thruster, 2 shield emitter, 4 armour plating, 2 capacitor bank, 1 beam focusing lens, 1 fire-control computer, 400 t steel plate, 100 t titanium billets | 20 min |
 
 ### Crew and the settlements
 
@@ -775,6 +849,7 @@ Ochre Foundry, Mnemos Works and the Kestrel Deep Yard.
 | Roll left / right | Q / E (frigates without a hangar) | D-pad ← / → |
 | Elevator thrusters up / down | Space / Ctrl | RT / LT |
 | Fire side guns | F | RB |
+| Missile salvo at the target (destroyers, the cruiser) | 4 (M without a warp drive) | LB (with a target) |
 | Auto-fire on/off | G | L3 |
 | Charge main gun (again to cancel) | B | X |
 | Next target / stop targeting | T / X (or click a ship) | Y / B |
@@ -954,6 +1029,77 @@ dotnet publish -c Release -r linux-x64 -o ../../../Builds/CoopServer/linux-x64
 
 Each build is a single self-contained file (about 47 MB) plus `coopserver.json`. On Linux,
 `chmod +x CoopServer` first.
+
+### Co-op comms and AI wingman
+
+**Comms.** In a co-op game, press **Enter** to open a line at the top left. Type a message, then
+press **Enter** to send it to everyone in your level, or **Esc** to drop it. The last few
+messages show under it and fade after about 20 seconds. Each message from someone else also
+goes to the captain's notices. The server passes chat on like any other game message (type
+`chat`, field `text`, 240 characters at most), so it needs no change.
+
+**The AI wingman.** Any copy of the Star System game can join as an AI player. Start it with
+`-coopbot`:
+
+```
+StarSystem.exe -coopbot -connect <address>:<port> -name Wingman [-frigate Lancer] [-botport 7781] [-batchmode -nographics]
+```
+
+- It needs no window. It flies the starting frigate unless given another, and never touches
+  your save.
+- It greets the players, then forms up on the first one to join. If that player warps far
+  away, it warps after them.
+- It fights any enemy that comes within 6 km, then goes back to its order.
+- Its pilot flies through the same controls a player uses: the autopilot inputs, the throttle,
+  the target, the guns, the bow beam, missiles, the warp drive and docking.
+
+To give it orders, start a message with its name (`Wingman, ...` or `@Wingman ...`). `all
+ships`, `everyone` or `wingmen` reaches every bot. It answers each order on the channel.
+
+| Order | What it does |
+| --- | --- |
+| `follow me` or `follow <name>` | Forms up on that player. `escort` and `form up on` do the same. |
+| `regroup` | Forms up on whoever said it. |
+| `hold` | Stops where it is. |
+| `attack [target]` | Fights that target, or the nearest enemy. |
+| `warp to <place>` | Warps there, then holds. |
+| `dock` | Docks at the station it is at. |
+| `status` | Reports its hull, shield, missiles, what it is doing and where it is. |
+| `help` | Lists these orders. |
+
+It also says when it starts a fight, when the target is destroyed, when it arrives, and when it
+can't do what it was told.
+
+**An AI at the controls.** The bot game answers a small HTTP API on this machine only
+(`127.0.0.1`, port `-botport`, 7781 by default):
+
+- `GET /status`: its ship, its order and what it is doing, what is near it, and the players.
+- `GET /messages?after=N`: the comms channel after message N, marked by who each message was to.
+- `GET /destinations`: the places to warp to, nearest first.
+- `POST /say {"text"}`: sends a message on the channel.
+- `POST /order {"order","target"}`: gives an order.
+- `POST /quit`: closes the game.
+
+`Tools/CoopAI/coop_ai_mcp.py` turns that API into an MCP server over stdio. It needs no
+packages. Its tools are `status`, `read_messages`, `say`, `order`, `destinations`,
+`launch_bot` (starts the bot game headless and connects it) and `stop_bot`. Claude or any MCP
+client can then fly the wingman and talk to the players:
+
+```
+claude mcp add coop-ai -- python "<repo>/Tools/CoopAI/coop_ai_mcp.py"
+```
+
+The environment variables `COOP_BOT_API` and `COOP_GAME_EXE` point it at another port or
+build. See `Tools/CoopAI/README.md`.
+
+**Tests.**
+- `Tools/Tests/test_coop_ai_mcp.py` (in the tools stage) tests the MCP server without the game:
+  its JSON-RPC, and its tools against a stand-in for the API.
+- The test runner's `aibot` stage starts a server and the bot game headless. A test player
+  (`Tools/CoopAI/aibot_test.py`) then checks:
+  - that the bot greets it and follows it;
+  - its orders by name, the API, and the MCP server against the live bot;
+  - that it quits when told.
 
 ### Testing co-op
 

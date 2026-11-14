@@ -26,7 +26,7 @@ namespace CarrierGame.Demo
 
         bool saidLinedUp;
         float nextLook;
-        float wantYaw;     // the turn wanted, in degrees off the heading
+        float wantHeading;     // the heading wanted (degrees), as of the last look
 
         // ------------------------------------------------------------ the menu
 
@@ -111,6 +111,10 @@ namespace CarrierGame.Demo
             if (ship.target == null || (ship.target.TryGetComponent(out Health th) && th.Dead)) { StopLineUp("Line-up off: no target"); return; }
             if (demo.PilotFlying) { StopLineUp("Line-up off: you have the helm"); return; }
             if (!Modes.Is(ModeOfPlay.Combat)) { StopLineUp(); return; }
+            // (not through a warp, a landing or a climb, nor while the comms line is typed into:
+            // the ship isn't the pilot's to take back then)
+            if ((demo.Warp != null && demo.Warp.Current != WarpDrive.State.Ready) || PlanetLanding.Busy || Docking.Busy
+                || InputFocus.Has(InputFocus.Panel.Chat) || SystemMap.IsOpen || IndustryPanel.IsOpen) { StopLineUp(); return; }
             Vector3 target = ship.target.position;
             var gun = demo.MainGun;
             bool bow = gun != null && gun.Current != MainBeam.State.Idle;
@@ -124,18 +128,28 @@ namespace CarrierGame.Demo
             if (Time.time >= nextLook)
             {
                 nextLook = Time.time + 0.25f;
-                wantYaw = BestTurn(ship, target, out int bearing, out int guns);
+                // (a heading to steer for, rather than a turn: the turn is worked out again every
+                // frame from it, so the ship settles on it instead of overshooting)
+                wantHeading = ship.Heading + BestTurn(ship, target, out int bearing, out int guns);
                 Bearing = bearing;
                 Guns = guns;
-                if (!saidLinedUp && guns > 0 && bearing > 0 && Mathf.Abs(wantYaw) < 6f)
-                {
-                    saidLinedUp = true;
-                    Notices.Post($"Lined up: {bearing} of {guns} guns bear on {Wingman.NameOf(ship.target)}");
-                }
             }
-            demo.autoRudder = Mathf.Clamp(wantYaw / 15f, -1f, 1f);
-            // (level, unless none can bear from any heading: then the nose goes after it too)
-            demo.autoPitch = Bearing == 0 ? ShipAutopilot.BowOn(ship, target).y : Mathf.Clamp(-ship.Pitch / 5f, -1f, 1f);
+            float turn = Mathf.DeltaAngle(ship.Heading, wantHeading);
+            if (!saidLinedUp && Guns > 0 && Bearing > 0 && Mathf.Abs(turn) < 6f)
+            {
+                saidLinedUp = true;
+                Notices.Post($"Lined up: {Bearing} of {Guns} guns bear on {Wingman.NameOf(ship.target)}");
+            }
+            if (Bearing == 0)
+            {
+                // none can bear from any heading (out of their reach): the bow goes after it
+                Vector2 v = ShipAutopilot.BowOn(ship, target);
+                demo.autoRudder = v.x;
+                demo.autoPitch = v.y;
+                return;
+            }
+            demo.autoRudder = Mathf.Clamp(turn / 15f, -1f, 1f);
+            demo.autoPitch = Mathf.Clamp(-ship.Pitch / 5f, -1f, 1f);
         }
 
         /// <summary>The turn (degrees off the heading, about the ship's up) that brings the most of

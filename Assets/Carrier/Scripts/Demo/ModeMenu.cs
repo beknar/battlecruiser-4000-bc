@@ -33,9 +33,13 @@ namespace CarrierGame.Demo
     /// <summary>
     /// A mode's menu (Tab, or Back + Y on the pad): a list to choose from, over the game, which
     /// goes on while it is open. The ship can still be flown (bar the nose up/down, whose keys
-    /// and D-pad choose in the list), and the mode's own keys still work. Up/down choose, Enter
-    /// (A) acts on the row, a click picks and acts, Tab or Esc (B) closes it. Its rows are looked
-    /// at again a few times a second, so distances and states stay current.
+    /// and D-pad choose in the list), and the mode's own direct keys still work (the guns, the
+    /// targets, the scan...); what opens or does something else (landing and docking, the map,
+    /// cruise, a strike, a site's screen, the comms line) waits till it is closed, as some of
+    /// those keys are the menu's own (K lands at a point of interest). Up/down choose, Enter (A)
+    /// acts on the row, a click picks and acts, Tab or Esc (B) closes it; P (Start) closes it and
+    /// pauses. Its rows are looked at again a few times a second, so distances and states stay
+    /// current.
     /// </summary>
     public class ModeMenu : MonoBehaviour
     {
@@ -166,7 +170,8 @@ namespace CarrierGame.Demo
             if (pad != null)
             {
                 bool back = pad.selectButton.isPressed;
-                if (pad.buttonEast.wasPressedThisFrame || (back && pad.buttonNorth.wasPressedThisFrame)) { Close(); return; }
+                // (B alone: Back + B is landing or docking, which waits)
+                if ((!back && pad.buttonEast.wasPressedThisFrame) || (back && pad.buttonNorth.wasPressedThisFrame)) { Close(); return; }
                 if (!back)
                 {
                     float y = pad.dpad.ReadValue().y;

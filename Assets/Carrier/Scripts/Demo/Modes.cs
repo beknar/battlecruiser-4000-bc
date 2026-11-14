@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace CarrierGame.Demo
@@ -12,22 +13,28 @@ namespace CarrierGame.Demo
     /// Back + Y): the combat mode's targets, the mining mode's deposits, the navigation mode's
     /// points of interest, the services a site offers, the fleet. Every mode is in real time: the
     /// game never stops for one, nor for its menu. Some modes are taken up by themselves: the
-    /// system map is navigation, arriving at a site is services.
+    /// system map is navigation while it is open, a site services while the ship is there; each
+    /// goes back to the mode before when it is done (one inside another unwinding in turn), unless
+    /// the player has chosen a mode since. A level starts in combat mode.
     /// </summary>
     public static class Modes
     {
         public static readonly ModeOfPlay[] All = { ModeOfPlay.Combat, ModeOfPlay.Mining, ModeOfPlay.Navigation, ModeOfPlay.Services, ModeOfPlay.Fleet };
 
         public static ModeOfPlay Current { get; private set; } = ModeOfPlay.Combat;
-        /// <summary>The mode before the last one taken up by itself (services, on arriving at a
-        /// site): it goes back to it on leaving.</summary>
-        public static ModeOfPlay Before { get; private set; } = ModeOfPlay.Combat;
 
-        /// <summary>Raised when the mode changes (the new one).</summary>
-        public static event Action<ModeOfPlay> Changed;
+        // the modes taken up by themselves, and the mode each was taken up from (latest last)
+        static readonly List<(ModeOfPlay taken, ModeOfPlay before)> auto = new List<(ModeOfPlay, ModeOfPlay)>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { Current = ModeOfPlay.Combat; Before = ModeOfPlay.Combat; Changed = null; }
+        static void ResetStatics() => Reset();
+
+        /// <summary>Combat mode, nothing to go back to (a level starting, or starting again).</summary>
+        public static void Reset()
+        {
+            Current = ModeOfPlay.Combat;
+            auto.Clear();
+        }
 
         public static bool Is(ModeOfPlay m) => Current == m;
 
@@ -59,23 +66,33 @@ namespace CarrierGame.Demo
             }
         }
 
-        /// <summary>Change mode (the player's choice, or `auto`: taken up by itself, to go back
-        /// from with Return). Closes the old mode's menu.</summary>
+        /// <summary>Change mode: the player's choice (which forgets the modes taken up by
+        /// themselves), or `auto`, taken up by itself, to go back from with Return. Closes the old
+        /// mode's menu.</summary>
         public static void Set(ModeOfPlay m, bool auto = false)
         {
+            if (auto) Modes.auto.Add((m, Current));
+            else Modes.auto.Clear();
             if (m == Current) return;
-            if (auto) Before = Current;
             Current = m;
             ModeMenu.Close();
             if (!auto) SoundFX.Ui(Sfx.UiLock);
             Notices.Post($"{Name(m)} mode: {Blurb(m)}");
-            Changed?.Invoke(m);
         }
 
-        /// <summary>Back to the mode before one taken up by itself (leaving a site).</summary>
+        /// <summary>Done with a mode taken up by itself (the map closed, the site left): back to
+        /// the mode it was taken up from, if the game is still in it.</summary>
         public static void Return(ModeOfPlay from)
         {
-            if (Current == from && Before != from) Set(Before, false);
+            int i = auto.FindLastIndex(a => a.taken == from);
+            if (i < 0) return;
+            var before = auto[i].before;
+            auto.RemoveAt(i);
+            if (Current != from) return;
+            // (and if the one before was itself taken up by something now done, further back)
+            Current = before;
+            ModeMenu.Close();
+            Notices.Post($"{Name(before)} mode: {Blurb(before)}");
         }
 
         /// <summary>The next mode (+1) or the one before (-1).</summary>

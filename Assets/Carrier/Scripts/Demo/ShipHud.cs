@@ -89,9 +89,17 @@ namespace CarrierGame.Demo
         /// and the built-in font has no arrows.</summary>
         static string W(string native, string web) => OnWeb ? web : native;
 
-        /// <summary>The modes, the one the player is in picked out.</summary>
+        static string modeBar;
+        static ModeOfPlay modeBarFor;
+        static bool modeBarPad;
+
+        /// <summary>The modes, the one the player is in picked out (made again only when the mode
+        /// or the controls in use change).</summary>
         static string ModeBar(bool pad)
         {
+            if (modeBar != null && modeBarFor == Modes.Current && modeBarPad == pad) return modeBar;
+            modeBarFor = Modes.Current;
+            modeBarPad = pad;
             var sb = new System.Text.StringBuilder();
             sb.Append($"<b><color=#ffc070>{Modes.Name(Modes.Current)} MODE</color></b>   ");
             foreach (var m in Modes.All)
@@ -100,7 +108,7 @@ namespace CarrierGame.Demo
                 string item = pad ? name : $"{Modes.Number(m)} {name}";
                 sb.Append(m == Modes.Current ? $"<b>{item}</b>  " : $"<color=#8a95a3>{item}</color>  ");
             }
-            return sb.ToString().TrimEnd();
+            return modeBar = sb.ToString().TrimEnd();
         }
 
         const string Rule = "<color=#55606e>----------</color>";

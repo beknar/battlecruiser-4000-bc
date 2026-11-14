@@ -56,6 +56,23 @@ namespace CarrierGame.Demo
             }
             Shot("modes_combat");
 
+            // ---- modes taken up by themselves unwind in turn: mining, a site (services), the map
+            // open there (navigation); the map closed: services; the site left: mining
+            Modes.Set(ModeOfPlay.Mining);
+            Modes.Set(ModeOfPlay.Services, auto: true);
+            Modes.Set(ModeOfPlay.Navigation, auto: true);
+            Modes.Return(ModeOfPlay.Navigation);
+            var afterMap = Modes.Current;
+            Modes.Return(ModeOfPlay.Services);
+            Check(afterMap == ModeOfPlay.Services && Modes.Is(ModeOfPlay.Mining),
+                  $"modes taken up by themselves unwind in turn: the map closed, {Modes.Name(afterMap)}; the site left, {Modes.Name(Modes.Current)}");
+            // and a mode the player chose meanwhile stays
+            Modes.Set(ModeOfPlay.Services, auto: true);
+            Modes.Set(ModeOfPlay.Fleet);
+            Modes.Return(ModeOfPlay.Services);
+            Check(Modes.Is(ModeOfPlay.Fleet), $"a mode chosen meanwhile stays when the site is left ({Modes.Name(Modes.Current)})");
+            yield return Key(kb, K.Digit1);
+
             // ---- a mode's keys work only in it: V scans in mining mode, not in combat mode
             var sensor = demo.Sensor;
             if (sensor != null)

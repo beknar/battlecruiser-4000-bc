@@ -180,8 +180,9 @@ namespace CarrierGame.Demo
         {
             // (with a mode's menu open, Esc and Tab are its: they close it)
             bool listUp = ModeMenu.IsOpen || ModeMenu.JustClosed;
-            // P too: in a browser at full screen, the first Esc only leaves full screen
-            if ((k.escapeKey.wasPressedThisFrame && !listUp) || k.pKey.wasPressedThisFrame) { Menu.Open(); return; }
+            // P too: in a browser at full screen, the first Esc only leaves full screen (with a
+            // mode's menu open, Esc is the menu's, and P closes it and pauses)
+            if ((k.escapeKey.wasPressedThisFrame && !listUp) || k.pKey.wasPressedThisFrame) { ModeMenu.Close(); Menu.Open(); return; }
             if (k.hKey.wasPressedThisFrame) hud.ToggleHelp();
             if (k.equalsKey.wasPressedThisFrame || k.numpadPlusKey.wasPressedThisFrame) Hud.ChangeTextSize(+1);
             if (k.minusKey.wasPressedThisFrame || k.numpadMinusKey.wasPressedThisFrame) Hud.ChangeTextSize(-1);
@@ -245,7 +246,8 @@ namespace CarrierGame.Demo
                 case ModeOfPlay.Services:
                     // (the site's own screen: docked at it, or on its pad)
                     var site = IndustryPanel.Instance;
-                    if (site != null && site.Here() != null) { site.Open(); return; }
+                    if (site != null && site.Here() != null && site.Open()) return;
+                    if (Docking.Docked || PlanetLanding.OnSurface) { NotFitted("Services: nothing is offered here"); return; }
                     NotFitted(PadSupport.UsingPad ? "Services: dock at a station or land on a site's pad first (Back + B)"
                                                   : "Services: dock at a station or land on a site's pad first (K)");
                     return;
@@ -378,7 +380,7 @@ namespace CarrierGame.Demo
         void PadControls(Gamepad p)
         {
             bool back = p.selectButton.isPressed;
-            if (p.startButton.wasPressedThisFrame) { Menu.Open(); return; }
+            if (p.startButton.wasPressedThisFrame) { ModeMenu.Close(); Menu.Open(); return; }
             bool listUp = ModeMenu.IsOpen || ModeMenu.JustClosed;
 
             if (back)
@@ -522,31 +524,21 @@ namespace CarrierGame.Demo
             else carrier.OrderWing(Craft.Order.Attack);
         }
 
-        public void NextTarget()
-        {
-            var targets = Targets.All;
-            if (targets.Count == 0) return;
-            // the next target in the list that isn't still hiding in an ambush, and is within range
-            for (int tries = 0; tries < targets.Count; tries++)
-            {
-                targetIndex = carrier.target == null && tries == 0 ? targetIndex % targets.Count : (targetIndex + 1) % targets.Count;
-                var t = targets[targetIndex];
-                if (t == null || CombatPilot.IsHidden(t)) continue;
-                if (!TargetDisplay.InRange(t, carrier.transform.position)) continue;
-                Select(t);
-                return;
-            }
-            NoTarget();
-        }
+        public void NextTarget() => CycleTarget(+1);
 
         /// <summary>The target before this one in the list (Shift+T).</summary>
-        public void PreviousTarget()
+        public void PreviousTarget() => CycleTarget(-1);
+
+        /// <summary>The next (or previous) target in the list that isn't still hiding in an
+        /// ambush and is within range; with none chosen yet, the one at the list's place first.</summary>
+        void CycleTarget(int dir)
         {
             var targets = Targets.All;
             if (targets.Count == 0) return;
             for (int tries = 0; tries < targets.Count; tries++)
             {
-                targetIndex = (targetIndex - 1 + targets.Count) % targets.Count;
+                targetIndex = carrier.target == null && tries == 0 ? (targetIndex % targets.Count + targets.Count) % targets.Count
+                                                                   : (targetIndex + dir + targets.Count) % targets.Count;
                 var t = targets[targetIndex];
                 if (t == null || CombatPilot.IsHidden(t)) continue;
                 if (!TargetDisplay.InRange(t, carrier.transform.position)) continue;

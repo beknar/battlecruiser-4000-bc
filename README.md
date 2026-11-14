@@ -3,11 +3,14 @@
 A space combat demo made in Unity 6 (6000.6, URP). You fly a 180 m frigate against cruisers,
 drones, fighters and capital ships. The frigate carries side guns, close-in point defence, a bow
 beam that charges for 10 seconds and a hex shield. Every ship comes apart before it explodes.
-There are three games: Carrier Demo (open space), Asteroid Ambush and Star System. In Star
-System the frigate can also land on the planets, moons and asteroid fields and fly all the way
-round them, and mine asteroids, comets and planets for 27 different minerals. Star System also
-runs in a web browser. All of them play with keyboard and mouse or an Xbox 360 / XInput
-gamepad.
+The game is Star System, a whole star system at its real size. The frigate can also land on its
+planets, moons and asteroid fields and fly all the way round them, and mine asteroids, comets and
+planets for 27 different minerals. It runs on Windows and in a web browser, with keyboard and
+mouse or an Xbox 360 / XInput gamepad.
+
+The two earlier games, Carrier Demo (open space) and Asteroid Ambush, are
+[deprecated](#deprecated-games-carrier-demo-and-asteroid-ambush): Star System has everything
+they had.
 
 ## Downloads and demo reels
 
@@ -16,21 +19,24 @@ file is also on the [release page](https://github.com/beknar/battlecruiser-4000-
 
 | Game | Download | Demo reel |
 |---|---|---|
-| Carrier Demo (open space) | [battlecruiser-4000-bc-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-windows.zip) (79 MB) | [60 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-demo-reel.mp4) (72 MB) |
-| Asteroid Ambush | [battlecruiser-4000-bc-asteroid-ambush-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-windows.zip) (82 MB) | [76 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-reel.mp4) (93 MB) |
 | Star System | [battlecruiser-4000-bc-star-system-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-windows.zip) (96 MB) | [214 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4) (290 MB) |
 | Star System: mining, combat, landing and mini-warps | The Star System downloads above | [5 min 10 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-features-reel.mp4) (382 MB) |
 | Star System: orbits, stations and launch systems | The Star System downloads above | [3 min 29 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-orbits-reel.mp4) (157 MB) |
 | Star System, web version | [battlecruiser-4000-bc-star-system-web.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-web.zip) (58 MB) | See [The web version](#the-web-version) |
 
-### Carrier Demo
+Carrier Demo and Asteroid Ambush are deprecated. Their last downloads stay on the release page,
+but they are no longer built or updated:
+[Carrier Demo](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-windows.zip)
+and [Asteroid Ambush](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-windows.zip).
+
+### Carrier Demo (deprecated)
 
 [![The frigate's bow beam hitting the cruiser (click to download the demo reel)](docs/demo-reel-thumb.jpg)](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-demo-reel.mp4)
 
 The reel shows the side guns, CIWS against drones, the cruiser's cannons, missiles and beam hitting
 the shield, the 10-second bow beam with its deep charge and fire sound, and ships breaking apart.
 
-### Asteroid Ambush
+### Asteroid Ambush (deprecated)
 
 [![The frigate skimming the big asteroid toward the gas giant (click to download the demo reel)](docs/asteroid-ambush-thumb.jpg)](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-asteroid-ambush-reel.mp4)
 
@@ -291,9 +297,10 @@ The game began with a carrier. Its prefab, and its fighters, drones and dropship
 built; its hull lives on as the enemy dreadnought. The code for a ship with a hangar (launching
 craft and giving wing orders) is still there but no ship uses it now.
 
-### Second game: Asteroid Ambush
+### Second game: Asteroid Ambush (deprecated)
 
-A separate build (`AsteroidAmbush.exe`) set in an asteroid field near a gas giant.
+A separate build (`AsteroidAmbush.exe`) set in an asteroid field near a gas giant. Deprecated:
+see [Deprecated games](#deprecated-games-carrier-demo-and-asteroid-ambush).
 
 - **The field.** The frigate starts at one end of a 3 km asteroid. Around it are about 230
   smaller rocks, a boulder, and the drifting wreck of a bigger ship of the frigate's class with
@@ -445,8 +452,8 @@ system to travel around.
     1,500 in the biggest, and far more in a moon or a comet's nucleus. Restarting the level
     fills every deposit again.
 
-  The frigate has the same gear in the other two games. In Asteroid Ambush the rocks can be
-  mined too.
+  The frigate has the same gear in the two deprecated games. In Asteroid Ambush the rocks can
+  be mined too.
 - **Stations, bases and installations.** Each one is a warp destination of its own.
 
   | Place | What it is |
@@ -934,10 +941,11 @@ In the web version, use the page's Full screen button rather than F11.
 1. Open the project in Unity 6000.6.
 2. Run **Tools > Carrier > Build Everything** to generate the materials, prefabs and scene.
 3. Run one of these:
-   - **Tools > Carrier > Build Windows Demo** for `../Builds/CarrierDemo/CarrierDemo.exe`;
-   - **Tools > Carrier > Build Asteroid Ambush** for `../Builds/AsteroidAmbush/AsteroidAmbush.exe`;
    - **Tools > Carrier > Build Star System** for `../Builds/StarSystem/StarSystem.exe`;
    - **Tools > Carrier > Build Star System (Web)** for `../Builds/StarSystemWeb/`.
+
+   The deprecated games are under **Tools > Carrier > Deprecated**, for
+   `../Builds/CarrierDemo/CarrierDemo.exe` and `../Builds/AsteroidAmbush/AsteroidAmbush.exe`.
 
 The Windows players use DirectX 11, which is the stable choice on hybrid AMD + NVIDIA laptops.
 
@@ -961,8 +969,8 @@ WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use
 
 ## Co-op
 
-Up to seven players can fly together in any of the three games, on Windows or in the web
-version, through a small server that any of them (or a machine elsewhere) runs.
+Up to seven players can fly together in Star System, on Windows or in the web version (and in
+the two deprecated games), through a small server that any of them (or a machine elsewhere) runs.
 
 ### Joining a game
 
@@ -1185,7 +1193,7 @@ The games run one at a time, in a 1280x720 window.
 - **Regression tests.** Each report is compared with its baseline in `Tools/Tests/baselines`:
   - **Self-test reports:** every check must pass, and no check or verdict in the baseline may
     disappear.
-  - **Autotest reports (Carrier Demo and Asteroid Ambush):** these have no verdict of their
+  - **Autotest reports (the deprecated Carrier Demo and Asteroid Ambush):** these have no verdict of their
     own. Every line must keep its shape (with the numbers masked, since combat varies), and a
     set of facts must hold, for example:
     - no shot misses its aim or hits the frigate;
@@ -1206,7 +1214,7 @@ The games run one at a time, in a 1280x720 window.
 | `unity` | the game's Edit mode and Play mode tests |
 | `build` | the builds (with `--build`) |
 | `serverproc` | the server program, end to end |
-| `autotest` | the Carrier Demo and Asteroid Ambush autotests |
+| `autotest` | the deprecated Carrier Demo and Asteroid Ambush autotests: run only when named (`--only autotest --build`) |
 | `hud`, `ships`, `water`, `industry`, `crew`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
 | `web` | the web build's co-op test |
 
@@ -1230,7 +1238,7 @@ Each part can also be run alone:
 - `-industrysave <file>`: save the game there instead of the player's data folder. Automated
   runs (tests, reels) save only where they are told to, so they never touch the player's save.
   `-newgame` plays without the save: it neither reads it nor writes over it.
-- `CarrierDemo.exe -autotest <dir>`: runs the scripted self-test and writes a report and screenshots
+- `CarrierDemo.exe -autotest <dir>` (deprecated game): runs the scripted self-test and writes a report and screenshots
   to `<dir>`. The test covers:
   - handling, attitude and elevators;
   - gun arcs, plus checks that no shot misses its aim or hits the ship's own hull;
@@ -1374,6 +1382,22 @@ The web version has two test modes, added to the page address:
   `Tools/WebTest/padtest.sh` runs this in headless Chrome with a stand-in Xbox 360 controller,
   in five layouts (standard, Linux wired, Linux wireless, a third-party pad and macOS). It
   renders in software, so the GPU isn't used.
+
+## Deprecated games: Carrier Demo and Asteroid Ambush
+
+The first two games, Carrier Demo (the frigate against a cruiser and drones in open space) and
+Asteroid Ambush (an ambush in an asteroid field), are deprecated. Star System has everything
+they had: the same frigates and weapons, fights in open space, and ambushes in its asteroid
+fields, along with everything else. Only Star System is built and shipped now, for Windows
+(`StarSystem.zip`) and the web (`StarSystemWeb.zip`).
+
+- Their last downloads stay on the
+  [release page](https://github.com/beknar/battlecruiser-4000-bc/releases/tag/demo-reel-2026-11-03),
+  but are no longer updated.
+- Their scenes and code are still in the project, and **Tools > Carrier > Deprecated** builds
+  them.
+- The test suite no longer builds or tests them unless asked: `run_tests.py --only autotest
+  --build` builds them and runs their autotests.
 
 ## Missing third-party assets
 

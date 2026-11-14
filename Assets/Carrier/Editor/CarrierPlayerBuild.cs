@@ -7,8 +7,9 @@ using UnityEngine;
 
 namespace Carrier.EditorTools
 {
-    /// <summary>Builds the games: three Windows (64-bit) executables (the open-space demo, the
-    /// asteroid-field ambush and the star system) and the star system for web browsers. Each is
+    /// <summary>Builds the games: the star system for Windows (64-bit) and for web browsers, and
+    /// the two deprecated games (the open-space demo and the asteroid-field ambush: the star
+    /// system has everything they had; they are built only on request now). Each is
     /// a Profile run the same way: the same checks, a fresh folder, a report in its log, and the
     /// project put back as it was (its product name, and the active platform).</summary>
     public static class CarrierPlayerBuild
@@ -51,10 +52,10 @@ namespace Carrier.EditorTools
             Target = BuildTarget.WebGL, Configure = Web,
         };
 
-        [MenuItem("Tools/Carrier/Build Windows Demo")]
+        [MenuItem("Tools/Carrier/Deprecated/Build Windows Demo (Carrier Demo)")]
         public static void Build() => Run(Demo);
 
-        [MenuItem("Tools/Carrier/Build Asteroid Ambush")]
+        [MenuItem("Tools/Carrier/Deprecated/Build Asteroid Ambush")]
         public static void BuildAsteroids() => Run(Asteroids);
 
         [MenuItem("Tools/Carrier/Build Star System")]

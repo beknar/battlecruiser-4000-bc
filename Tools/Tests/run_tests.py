@@ -9,9 +9,12 @@ Stages, in order (--quick runs the ones marked *):
   server *     the co-op server's unit and integration tests (dotnet test Server/CoopServer.Tests)
   unity *      the game's Edit mode and Play mode tests (Unity in batch mode, no graphics;
                the Unity editor must be closed)
-  build        build the four game versions (only with --build; the editor must be closed)
+  build        build the game: Star System for Windows, and for the web with the web stage
+               (only with --build; the editor must be closed)
   serverproc * the co-op server program, end to end (Tools/CoopTest/server_test.py)
-  autotest *   CarrierDemo and AsteroidAmbush -autotest, compared with their baselines
+  autotest     deprecated: CarrierDemo and AsteroidAmbush -autotest, compared with their baselines.
+               Not run unless named (--only autotest --build): the two games are deprecated, as
+               Star System has everything they had, and they are no longer built otherwise
   hud *        Star System -systemtest -hudtest (the ship's console and the captain)
   ships        -shiptest -frigate <id> for each frigate (put in, its weapons fire, the start menu)
   water        -watertest: Pelagia's sea (afloat, under, out again, roll, the sea forces)
@@ -61,7 +64,9 @@ EXE = ".exe" if WINDOWS else ""
 
 STAGES = ["tools", "server", "unity", "build", "serverproc", "autotest", "hud", "ships", "water", "industry", "crew", "stream", "approach", "strike", "coop",
           "aibot", "web", "system", "land", "orbit", "station"]
-QUICK = ["tools", "server", "unity", "serverproc", "autotest", "hud", "coop"]
+QUICK = ["tools", "server", "unity", "serverproc", "hud", "coop"]
+# stages of the deprecated games (Carrier Demo, Asteroid Ambush): run only when named with --only
+DEPRECATED = ["autotest"]
 # Star System self-tests: stage -> (extra arguments, time limit in seconds)
 SELFTESTS = {
     "hud": (["-hudtest"], 900),
@@ -329,7 +334,10 @@ class Runner:
         self.tidy(before, st)
 
     def build(self, st):
-        wanted = ["CarrierDemo", "AsteroidAmbush", "StarSystem"] + (["StarSystemWeb"] if "web" in self.stages else [])
+        # (the deprecated games only for their own stage)
+        wanted = (["CarrierDemo", "AsteroidAmbush"] if "autotest" in self.stages else []) + ["StarSystem"]
+        if "web" in self.stages:
+            wanted.append("StarSystemWeb")
         before = self.git_dirty()
         for name in wanted:
             log = self.out / f"build_{name}.log"
@@ -512,7 +520,7 @@ class Runner:
 
     def main(self):
         a = self.args
-        stages = [s.strip() for s in a.only.split(",")] if a.only else QUICK if a.quick else [s for s in STAGES if s != "build"]
+        stages = [s.strip() for s in a.only.split(",")] if a.only else QUICK if a.quick else [s for s in STAGES if s != "build" and s not in DEPRECATED]
         if a.build:
             stages = stages + ["build"]
         skip = [s.strip() for s in a.skip.split(",")] if a.skip else []

@@ -41,6 +41,10 @@ namespace CarrierGame.Demo
         /// <summary>The line to type into is open.</summary>
         public static bool Typing => Instance != null && Instance.typing;
 
+        /// <summary>The clock the lines fade by: real time, or in a reel the game's (which runs at
+        /// the reel's frame rate however long each frame takes to save).</summary>
+        static double Now => Hud.ReelMode ? Time.timeAsDouble : Time.realtimeSinceStartupAsDouble;
+
         bool typing;
         int openedFrame;
         string draft = "";
@@ -100,7 +104,7 @@ namespace CarrierGame.Demo
         {
             text = Clean(text);
             if (text.Length == 0) return;
-            var line = new Line { seq = ++LastSeq, time = Time.realtimeSinceStartupAsDouble, from = from, name = name ?? "", text = text };
+            var line = new Line { seq = ++LastSeq, time = Now, from = from, name = name ?? "", text = text };
             Lines.Add(line);
             if (Lines.Count > Kept) Lines.RemoveAt(0);
             if (CoopClient.Instance == null || from != CoopClient.Instance.MyId) Notices.Post($"{line.name}: {text}");
@@ -153,7 +157,7 @@ namespace CarrierGame.Demo
             input.fontSize = Mathf.RoundToInt(18 * s);
             float x = 16 * s, w = 560 * s, y = 150 * s, lh = 24 * s;
             // the last six, each fading out 20 to 26 s after it came (all of them while typing)
-            double now = Time.realtimeSinceStartupAsDouble;
+            double now = Now;
             float Alpha(Line l) => typing ? 1f : Mathf.Clamp01((26f - (float)(now - l.time)) / 6f);
             int shown = 0;
             for (int i = Lines.Count - 1; i >= 0 && shown < 6 && Alpha(Lines[i]) > 0f; i--) shown++;

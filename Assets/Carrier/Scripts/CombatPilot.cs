@@ -53,6 +53,20 @@ namespace CarrierGame
         /// <summary>Down on a planet: the world height to keep above at a point (null in space).</summary>
         public static System.Func<Vector3, float> FloorAt;
 
+        // "Up" as the players' ships have it here: out from a planet near it, the system's own
+        // further off, and on a surface the world's (so it banks and circles in the same plane as
+        // the ship it fights, and its deck guns can bear); looked at again now and then
+        Vector3 up = Vector3.up;
+        float nextUpLook;
+
+        void LookUp(Vector3 pos)
+        {
+            if (FloorAt != null) { up = Vector3.up; return; }
+            if (Time.time < nextUpLook) return;
+            nextUpLook = Time.time + 0.5f;
+            up = Demo.PlanetFlight.UpAt(pos, Demo.PlanetFlight.NearestBody(pos, out _), out _);
+        }
+
         [Header("Cover")]
         [Tooltip("Hide when the hull falls below this fraction.")]
         public float hideBelow = 0.35f;
@@ -218,6 +232,7 @@ namespace CarrierGame
             Retarget();
             float dt = Time.deltaTime;
             Vector3 pos = transform.position;
+            LookUp(pos);
             Vector3 desired = transform.forward;
             float wantSpeed = cruiseSpeed;
 
@@ -325,7 +340,7 @@ namespace CarrierGame
             }
             if (desired.sqrMagnitude > 1e-4f)
             {
-                var want = Quaternion.LookRotation(desired, Vector3.up);
+                var want = Quaternion.LookRotation(desired, up);
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, want, turnRate * dt);
             }
             speed = Mathf.MoveTowards(speed, wantSpeed, acceleration * dt);
@@ -348,7 +363,7 @@ namespace CarrierGame
             if (to.magnitude < breakOffDistance)
             {
                 // break off past the target and out to one side, then turn back in
-                Vector3 side = Vector3.Cross(to.normalized, Random.value < 0.5f ? Vector3.up : Vector3.right).normalized;
+                Vector3 side = Vector3.Cross(to.normalized, Random.value < 0.5f ? up : Vector3.right).normalized;
                 extendPoint = tp + (to.normalized * 0.6f + side + Random.insideUnitSphere * 0.4f).normalized * extendDistance;
                 extendUntil = Time.time + 7f;
                 extending = true;
@@ -362,11 +377,14 @@ namespace CarrierGame
         Vector3 StandOff(Vector3 pos, float dt, ref float wantSpeed)
         {
             Vector3 tp = target.position;
-            Vector3 flat = Vector3.ProjectOnPlane(pos - tp, Vector3.up);
-            if (flat.sqrMagnitude < 1f) flat = Vector3.forward;
-            // aim for a point a few degrees round the circle, so it keeps circling
-            Vector3 dir = Quaternion.AngleAxis(circleSpeed * 3f, Vector3.up) * flat.normalized;
-            Vector3 goal = tp + dir * standoff + Vector3.up * Mathf.Clamp(pos.y - tp.y, -400f, 400f);
+            Vector3 flat = Vector3.ProjectOnPlane(pos - tp, up);
+            if (flat.sqrMagnitude < 1f) flat = Vector3.ProjectOnPlane(Vector3.forward, up);
+            // aim for a point a few degrees round the circle, so it keeps circling; and from further
+            // off, further round, so it comes in at an angle with its broadside guns bearing rather
+            // than nose on, where a big ship's turrets can't fire past its own bow
+            float far = Mathf.Clamp01((flat.magnitude - standoff) / Mathf.Max(1f, standoff));
+            Vector3 dir = Quaternion.AngleAxis(circleSpeed * 3f + far * 50f * Mathf.Sign(circleSpeed == 0f ? 1f : circleSpeed), up) * flat.normalized;
+            Vector3 goal = tp + dir * standoff + up * Mathf.Clamp(Vector3.Dot(pos - tp, up), -400f, 400f);
             Vector3 to = goal - pos;
             wantSpeed = Mathf.Lerp(cruiseSpeed * 0.35f, cruiseSpeed, Mathf.Clamp01(to.magnitude / 800f));
             return to;

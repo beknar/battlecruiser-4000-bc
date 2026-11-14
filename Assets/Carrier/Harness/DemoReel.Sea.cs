@@ -58,12 +58,21 @@ namespace CarrierGame.Demo
             Arm();
             var surface = landing.Surface;
 
-            // ---- the sea forces and an island base near by
-            var units = FindObjectsByType<GroundUnit>(FindObjectsSortMode.None).Where(u => u != null && u.Alive).ToArray();
-            var seaBase = units.Where(u => u.name == "Sea Base").OrderBy(u => Vector3.Distance(u.transform.position, cc.transform.position)).FirstOrDefault();
-            var island = units.Where(u => !u.sonar && (u.name == "Ground Battery" || u.name == "Missile Site") && u.transform.position.y > Sea.Level + 2f)
-                              .OrderBy(u => seaBase != null ? Vector3.Distance(u.transform.position, seaBase.transform.position) : Vector3.Distance(u.transform.position, cc.transform.position))
+            // ---- the sea forces and an island base near by (the ground is built as the ship comes
+            // down, and its forces with it: a few seconds for them to be there, off camera)
+            yield return FadeOut(0.3f);
+            GroundUnit seaBase = null, island = null;
+            for (float forcesBy = Time.time + 8f; ; )
+            {
+                var units = FindObjectsByType<GroundUnit>(FindObjectsSortMode.None).Where(u => u != null && u.Alive).ToArray();
+                seaBase = units.Where(u => u.name == "Sea Base").OrderBy(u => Vector3.Distance(u.transform.position, cc.transform.position)).FirstOrDefault();
+                var sb = seaBase;
+                island = units.Where(u => !u.sonar && (u.name == "Ground Battery" || u.name == "Missile Site") && u.transform.position.y > Sea.Level + 2f)
+                              .OrderBy(u => sb != null ? Vector3.Distance(u.transform.position, sb.transform.position) : Vector3.Distance(u.transform.position, cc.transform.position))
                               .FirstOrDefault();
+                if ((island != null && seaBase != null) || Time.time > forcesBy) break;
+                yield return Wait(0.5f);
+            }
             Note($"  {e.displayName}: island guns {(island != null ? island.name : "none")}, sea base {(seaBase != null ? "found" : "none")}");
 
             // ---- onto the sea, in sight of the island
@@ -71,7 +80,6 @@ namespace CarrierGame.Demo
             Vector3 water = SeaNear(surface, islandAt, 1500f, 2600f);
             Vector3 toIsland = islandAt - water;
             toIsland.y = 0f;
-            yield return FadeOut(0.3f);
             Place(new Vector3(water.x, Sea.Level + 170f, water.z), new Vector3(islandAt.x, Sea.Level + 170f, islandAt.z));
             Shot(501 + index * 10, cc.transform, demo.ShipViewOffset, D * 0.75f, cc.Heading + 115f, 6f, 4f);
             yield return Wait(0.2f);

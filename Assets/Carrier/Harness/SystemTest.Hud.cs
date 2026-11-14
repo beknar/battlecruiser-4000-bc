@@ -196,7 +196,7 @@ namespace CarrierGame.Demo
             yield return new WaitForSecondsRealtime(0.3f);
             Shot("h12_menu");
             bool clicked = Captain.Index == pick;
-            int saved = PlayerPrefs.GetInt("captain", -1);
+            int saved = PlayerPrefs.GetInt(Captain.PrefKey, -1);
             // and with the keys: right arrow on the Captain row
             int rows = 0;
             while (menu != null && menu.SelectedLabel.StartsWith("Captain") == false && rows++ < 8) yield return Key(kb, UnityEngine.InputSystem.Key.DownArrow);

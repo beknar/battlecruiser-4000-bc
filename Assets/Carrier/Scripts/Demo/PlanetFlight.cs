@@ -99,6 +99,26 @@ namespace CarrierGame.Demo
             return best;
         }
 
+        /// <summary>The ship's "up" at a point: out from the body near it (blending to the system's
+        /// up further out), and how far it is blended in.</summary>
+        public static Vector3 UpAt(Vector3 p, WarpPoint body, out float blend)
+        {
+            blend = 0f;
+            if (body == null) return Vector3.up;
+            float r = body.bodyRadius;
+            blend = 1f - SurfaceWorld.Smooth(r * 0.6f, r * 1.6f, Vector3.Distance(p, body.Position) - r);
+            return blend > 0f ? Vector3.Slerp(Vector3.up, (p - body.Position).normalized, blend).normalized : Vector3.up;
+        }
+
+        /// <summary>Turn the ship's "up" to where it is now at once, as after a warp, rather than
+        /// gradually: for a ship put somewhere new without one (the reels' jumps).</summary>
+        public void SnapUp()
+        {
+            if (ship == null || ship.Destroyed || PlanetLanding.Busy) return;
+            Vector3 target = UpAt(ship.transform.position, NearestBody(ship.transform.position, out _), out _);
+            if (Vector3.Angle(ship.Up, target) > 0.001f) ship.SetUpFrame(Quaternion.FromToRotation(ship.Up, target) * ship.upFrame);
+        }
+
         void Update()
         {
             if (ship == null) return;
@@ -112,15 +132,8 @@ namespace CarrierGame.Demo
             Density = Body != null ? DensityAt(Body, Altitude) : 0f;
 
             // ---- up: out from the body, turned to gradually
-            Vector3 target = Vector3.up;
-            UpBlend = 0f;
-            if (Body != null)
-            {
-                float r = Body.bodyRadius;
-                UpBlend = 1f - SurfaceWorld.Smooth(r * 0.6f, r * 1.6f, Altitude);
-                Vector3 radial = (p - Body.Position).normalized;
-                if (UpBlend > 0f) target = Vector3.Slerp(Vector3.up, radial, UpBlend).normalized;
-            }
+            Vector3 target = UpAt(p, Body, out float blend);
+            UpBlend = blend;
             if (!inSpace) target = Vector3.up;
             Vector3 up = ship.Up;
             // (moored at a berth or on a pad: it stays as it is; in a warp, or just out of one, it

@@ -179,6 +179,8 @@ namespace CarrierGame
         struct Far { public int frame; public Double3 off; }
         readonly Dictionary<Transform, Far> far = new Dictionary<Transform, Far>();
         readonly List<Transform> nearAgain = new List<Transform>();
+        // come near again this frame: already put exactly where they are, so not carried as well
+        readonly HashSet<Transform> placedNow = new HashSet<Transform>();
         /// <summary>Free things kept far off, in doubles (for the self-test).</summary>
         public int FarCount => far.Count;
 
@@ -478,7 +480,12 @@ namespace CarrierGame
                 if (moved.sqrMagnitude > 1e-6f) Tell(t.gameObject, moved, moved.sqrMagnitude > 1e6f);
                 if (now.sqrMagnitude < FarLimit * FarLimit * 0.81f) nearAgain.Add(t);
             }
-            foreach (var t in nearAgain) far.Remove(t);
+            placedNow.Clear();
+            foreach (var t in nearAgain)
+            {
+                far.Remove(t);
+                if (t != null) placedNow.Add(t);
+            }
 
             CarriedLastFrame = 0;
             // now and then, forget the roots that have gone (shots, wrecks)
@@ -497,7 +504,10 @@ namespace CarrierGame
             {
                 if (go == null || IsPutBy(go)) continue;
                 var t = go.transform;
-                if (t == system || t == me || t == cam || t == transform || frames.Contains(t) || far.ContainsKey(t)) continue;
+                // (what came near again this frame is where it should be already: moving it by its
+                // frame's motion as well would leave it that much out, all of a warp's last step or a
+                // jump's whole way)
+                if (t == system || t == me || t == cam || t == transform || frames.Contains(t) || far.ContainsKey(t) || placedNow.Contains(t)) continue;
                 Vector3 p = t.position;
                 if (AtSurface(p)) continue;          // a planet's surface (it has its own origin)
                 int i = -1;

@@ -38,10 +38,12 @@ namespace CarrierGame
         }
 
         /// <summary>Remember the player's choice (and fly it from now on this run, whatever was
-        /// given at launch).</summary>
+        /// given at launch). A test, a reel or an AI player only flies it: the player's own choice
+        /// is left as it was.</summary>
         public static void Set(string id)
         {
             picked = id ?? "";
+            if (LaunchArgs.Automated) return;
             try { PlayerPrefs.SetString(Pref, id ?? ""); PlayerPrefs.Save(); } catch { }
         }
     }

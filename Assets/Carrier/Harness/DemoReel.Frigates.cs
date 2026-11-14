@@ -93,9 +93,10 @@ namespace CarrierGame.Demo
             sysDrive = cc.GetComponent<WarpDrive>();
         }
 
-        /// <summary>A frigate close up, its turrets tracking and firing on a target drone that
-        /// circles it.</summary>
-        IEnumerator Showcase(int index, FrigateRoster.Entry e)
+        /// <summary>A ship close up, its turrets tracking and firing on a target drone that
+        /// circles it (and a missile salvo at it, from a ship that carries them); `first` and
+        /// `second` seconds on each of the two shots.</summary>
+        IEnumerator Showcase(int index, FrigateRoster.Entry e, float first = 5f, float second = 4.5f)
         {
             Repair();
             Place(cc.transform.position, cc.transform.position + cc.transform.forward * 1000f);
@@ -119,14 +120,24 @@ namespace CarrierGame.Demo
             SideGuns(true);
             Shot(300 + index * 2, cc.transform, demo.ShipViewOffset, D * 0.48f, heading + 145f, 14f, 6f);
             var st = FrigateStats.Of(cc.gameObject);
-            Caption(e.displayName.ToUpperInvariant(), $"{e.role}: {st.turrets} turrets, {st.ciws} CIWS, {st.speed:F0} m/s", 6f);
+            Caption(e.displayName.ToUpperInvariant(), ShipLine(e, st), first + 1f);
             yield return FadeIn(0.3f);
-            yield return Wait(5f);
+            yield return Wait(first);
             Shot(301 + index * 2, cc.transform, demo.ShipViewOffset, D * 0.42f, heading + 55f, 8f, -5f);
-            yield return Wait(4.5f);
+            int salvo = 0;
+            if (cc.HasMissiles && cc.missiles.Stock != 0)
+            {
+                int before = cc.missiles.Stock;
+                demo.FireMissiles();
+                yield return Wait(1.5f);
+                salvo = before - cc.missiles.Stock;
+                yield return Wait(Mathf.Max(0f, second - 1.5f));
+            }
+            else yield return Wait(second);
             var fired = cc.mainTurrets.Where(x => x != null && x.ShotsFired > 0).Select(x => x.Label);
             var dh = drone.GetComponent<Health>();
-            Note($"  the {e.displayName}: turrets that fired: {string.Join(", ", fired)}; {dh.Hits} hits on the drone");
+            Note($"  the {e.displayName}: turrets that fired: {string.Join(", ", fired)}; {dh.Hits} hits on the drone" +
+                 (salvo > 0 ? $"; a salvo of {salvo} missiles ({cc.missiles.Stock} left)" : ""));
             SideGuns(false);
             cc.SetTarget(null);
             perFrame = null;

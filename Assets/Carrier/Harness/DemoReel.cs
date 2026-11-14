@@ -74,7 +74,7 @@ namespace CarrierGame.Demo
             if (sysMap != null) seconds = 260f;     // ends a few seconds after the cruiser dies (see SystemShots)
             if (Features && sysMap != null)
             {
-                seconds = 900f;                     // a cap: the shot list ends it
+                seconds = 1800f;                    // a cap: the shot list ends it
                 StartCoroutine(All ? AllReel() : Orbits ? OrbitReel() : Frigates ? FrigateReel() : SeaReel ? SeaShowReel() : FeatureReel());
             }
             Log($"screen {Screen.width}x{Screen.height}, gfx {SystemInfo.graphicsDeviceType}, audio {AudioSettings.outputSampleRate} Hz {AudioSettings.speakerMode}, {seconds:F0} s");

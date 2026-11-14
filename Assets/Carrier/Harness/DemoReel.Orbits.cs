@@ -95,14 +95,25 @@ namespace CarrierGame.Demo
 
         // ---------------------------------------------------- orbits
 
+        /// <summary>The orbit clock back to where it would be without the time-lapse (off camera):
+        /// the system as it was laid out, so the rest of the reel finds things where they were put
+        /// (the capital ships wait on the way in from Thalassa).</summary>
+        void UndoTimeLapse(double clock0, float at0)
+        {
+            orbitSys.timeLapse = 1f;
+            orbitSys.ContinueFrom(clock0 + (Time.timeSinceLevelLoad - at0));
+        }
+
         IEnumerator MapTimeLapse()
         {
+            double clock0 = orbitSys.Time;
+            float at0 = Time.timeSinceLevelLoad;
             sysMap.Open();
             sysMap.Select(WP("Thalassa"));
             yield return Wait(0.4f);
             yield return FadeIn();
-            Caption("ORBITS", "Every planet, moon and comet on its Kepler orbit, here sped up 200 times", 6f);
-            yield return TimeLapse(200f, 2f);
+            Caption("ORBITS", $"Every planet, moon and comet on its Kepler orbit, here sped up {MapLapse:N0} times", 6f);
+            yield return TimeLapse(MapLapse, 2f);
             yield return Wait(4.5f);
             sysMap.Select(WP("Thalassa Highport"));
             Caption("ORBITS", "The five Lagrange points of Thalassa and Jovara go round with them", 5f);
@@ -112,25 +123,49 @@ namespace CarrierGame.Demo
             yield return Wait(4f);
             Note($"map time-lapse: orbit clock {orbitSys.Time:F0} s at {R:F1} s into the reel");
             yield return FadeOut();
-            orbitSys.timeLapse = 1f;
+            UndoTimeLapse(clock0, at0);
             Clear();
         }
+
+        /// <summary>How much faster the orbits go on the map: Cinder's year (8 days) in about
+        /// ten seconds, the outer planets a little way round.</summary>
+        const float MapLapse = 60000f;
+
+        /// <summary>Hours and minutes, for a caption.</summary>
+        static string Span(double seconds) => seconds >= 5400.0 ? $"{seconds / 3600.0:F0} hours" : $"{seconds / 60.0:F0} minutes";
 
         IEnumerator MoonTimeLapse()
         {
             var thalassa = WP("Thalassa");
-            if (thalassa == null) yield break;
+            var selene = WP("Selene");
+            if (thalassa == null || selene == null) yield break;
             Jump(thalassa);
             yield return Wait(1f);
-            // high over Thalassa with the star behind the camera: Selene going round
-            Shot(410, thalassa.transform, Vector3.zero, 62000f, SunBehind(thalassa.Position, 30f), 48f, 0f);
-            orbitSys.timeLapse = 30f;
+            double clock0 = orbitSys.Time;
+            float at0 = Time.timeSinceLevelLoad;
+            // far out over Thalassa with the star behind the camera, Selene's whole orbit in view
+            // (thousands of kilometres out: ScaledSpace draws the bodies for this camera)
+            float a = Vector3.Distance(selene.Position, thalassa.Position);
+            var orbit = OrbitalSystem.OrbitOf(selene.transform);
+            double period = orbit != null ? orbit.Period : 18.0 * 3600.0;
+            // about two thirds of the way round in the eight seconds shown, at a round number
+            float rate = (float)(0.65 * period / 8.0);
+            float mag = Mathf.Pow(10f, Mathf.Floor(Mathf.Log10(rate)));
+            rate = Mathf.Round(rate / mag) * mag;
+            // (looking along the star's light, a little from above and to one side: the lit face)
+            var star = WP("Kestrel");
+            Vector3 light = star != null ? (thalassa.Position - star.Position).normalized : Vector3.forward;
+            Vector3 across = Vector3.Cross(Vector3.up, light).normalized;
+            ShotAlong(410, thalassa.transform, Vector3.zero, (light * 0.8f + Vector3.down * 0.5f + across * 0.3f).normalized, a * 2.4f, 0f);
+            orbitSys.timeLapse = rate * 0.25f;
             yield return FadeIn();
-            Caption("ORBITS", "Selene goes round Thalassa every 23 minutes: here 120 times faster", 6f);
-            yield return TimeLapse(120f, 1.5f);
+            Caption("ORBITS", $"Selene goes round Thalassa every {Span(period)}, {a / 1000f:N0} km out: here {rate:N0} times faster", 6f);
+            Note($"Selene: {a / 1000f:F0} km from Thalassa, period {period / 3600.0:F1} h, shown {rate:N0}x");
+
+            yield return TimeLapse(rate, 1.5f);
             yield return Wait(7f);
             yield return FadeOut();
-            orbitSys.timeLapse = 1f;
+            UndoTimeLapse(clock0, at0);
             Clear();
         }
 
@@ -149,13 +184,15 @@ namespace CarrierGame.Demo
             Vector3 side = Vector3.Cross(Vector3.up, look).normalized;
             ShotAlong(450, keeper.transform, Vector3.zero, (look + side * 0.55f - Vector3.up * 0.25f).normalized, 1500f, 1.5f);
             yield return FadeIn();
-            Caption("LAGRANGE POINT L1", "27.6 km sunward of Thalassa: an unstable balance between the star's pull and the planet's", 5.5f);
-            // drifting off: it fires its thrusters to get back
+            Caption("LAGRANGE POINT L1", $"{Vector3.Distance(keeper.transform.position, thalassa.Position) / 1000f:N0} km sunward of Thalassa: an unstable balance between the star's pull and the planet's", 5.5f);
+            // drifting off: it fires its thrusters to get back (at the real size the drift takes
+            // days to grow, so it is shown just past the point where it burns)
             int burns = keeper.Burns;
-            keeper.Nudge(keeper.tolerance * 0.995f);
             yield return Wait(5.5f);
-            Caption("LAGRANGE POINT L1", "It drifts off, faster and faster, so the observatory fires its thrusters to stay", 4.5f);
-            yield return Wait(4.5f);
+            Caption("LAGRANGE POINT L1", "Left alone it drifts off, faster and faster, so the observatory fires its thrusters to stay", 4.5f);
+            yield return Wait(0.8f);
+            keeper.Nudge(keeper.tolerance * 1.02f);
+            yield return Wait(3.7f);
             Note($"L1: {keeper.Burns - burns} burns while watching");
             yield return FadeOut();
             Clear();
@@ -203,7 +240,13 @@ namespace CarrierGame.Demo
             Vector3 look = (-t.forward + t.right * 0.45f - t.up * 0.3f).normalized;
             ShotAlong(420, t, Vector3.zero, look, 3600f, 1.2f);
             yield return FadeIn();
-            Caption("THALASSA HIGHPORT", "In geostationary orbit, 10 km out: Thalassa turns once in 11 minutes, and so does the station", 6f);
+            var home = WP("Thalassa");
+            float up = home != null ? (Vector3.Distance(t.position, home.Position) - home.bodyRadius) / 1000f : 0f;
+            // (the planet's own turning: the station is carried round with it)
+            var turn = home != null ? home.GetComponent<Drift>() : null;
+            double day = turn != null && turn.spin.magnitude > 0f ? 360.0 / turn.spin.magnitude : 6.0 * 3600.0;
+            Caption("THALASSA HIGHPORT", $"In geostationary orbit, {up:N0} km up: Thalassa turns once in {Span(day)}, and so does the station", 6f);
+            Note($"Highport {up:F0} km up, Thalassa's day {day / 3600.0:F1} h");
             yield return Wait(6.5f);
 
             // a climber on the tether
@@ -373,7 +416,7 @@ namespace CarrierGame.Demo
             if (demo.MainGun != null && demo.MainGun.Current == MainBeam.State.Idle) demo.ChargeMainGun();
             yield return Wait(5f);
             // from beside the frigate, the fire going both ways
-            Shot(shot + 1, cc.transform, demo.ShipViewOffset, D * 2.4f, Bearing(cc.transform.position, gun.transform.position) + 80f, 12f, 2f);
+            Shot(shot + 1, cc.transform, demo.ShipViewOffset, D * 2.4f, FrameBearing(cc.transform.position, gun.transform.position) + 80f, 12f, 2f);
             yield return Wait(5f);
             yield return FadeOut();
             SideGuns(false);
@@ -423,7 +466,7 @@ namespace CarrierGame.Demo
                 Note($"at {name}: {group.childCount} buildings");
                 yield return Wait(5.5f);
                 // the frigate over it
-                Shot(481 + n * 2, cc.transform, demo.ShipViewOffset, D * 2.2f, Bearing(cc.transform.position, middle) - 30f, 12f, 3f);
+                Shot(481 + n * 2, cc.transform, demo.ShipViewOffset, D * 2.2f, FrameBearing(cc.transform.position, middle) - 30f, 12f, 3f);
                 yield return Wait(4f);
                 yield return FadeOut();
                 perFrame = null;
@@ -442,7 +485,7 @@ namespace CarrierGame.Demo
             Jump(home);
             yield return Wait(1f);
             cc.throttle = 0.12f;
-            Shot(499, cc.transform, demo.ShipViewOffset, D * 1.6f, Bearing(cc.transform.position, home.Position) + 160f, 8f, 3f);
+            Shot(499, cc.transform, demo.ShipViewOffset, D * 1.6f, FrameBearing(cc.transform.position, home.Position) + 160f, 8f, 3f);
             orbitSys.timeLapse = 40f;
             yield return FadeIn();
             float t0 = Time.time;

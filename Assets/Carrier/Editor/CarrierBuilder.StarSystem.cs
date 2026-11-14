@@ -460,24 +460,31 @@ namespace Carrier.EditorTools
             }
             EncounterGroup BattleGroup(string groupName, WarpPoint at, float towardBody, (GameObject prefab, string name, Action<CombatPilot> setup, float respawn)[] ships)
             {
-                Vector3 arrive = at.ArrivalPoint(wThalassa.Position);
-                Vector3 toBody = (at.Position - arrive).normalized;
-                Vector3 station = arrive + toBody * towardBody;
-                Vector3 side = Vector3.Cross(Vector3.up, toBody).normalized;
+                // on station on the way in from Thalassa (and, as the planets go round, on the way in
+                // of whatever warp the player makes for it: PostedOnApproach)
+                var g = new GameObject(groupName).AddComponent<EncounterGroup>();
+                var post = g.gameObject.AddComponent<PostedOnApproach>();
+                post.at = at;
+                post.towardBody = towardBody;
+                post.Station(wThalassa.Position, out Vector3 station, out Vector3 toBody, out _);
                 var pilots = new List<CombatPilot>();
+                var slots = new List<Vector3>();
                 for (int i = 0; i < ships.Length; i++)
                 {
-                    // the flagship ahead, escorts either side and a little behind it
-                    Vector3 pos = i == 0 ? station : station + side * (i % 2 == 1 ? 1100f : -1100f) + toBody * 500f + Vector3.up * (i % 2 == 1 ? 120f : -120f);
+                    // the flagship ahead, escorts either side and a little behind it (x across, y
+                    // up, z along the way in, from the station)
+                    Vector3 slot = i == 0 ? Vector3.zero : new Vector3(i % 2 == 1 ? 1100f : -1100f, i % 2 == 1 ? 120f : -120f, 500f);
+                    slots.Add(slot);
+                    Vector3 pos = post.SlotPosition(wThalassa.Position, slot, out _);
                     var s = ships[i];
                     var go = Enemy(s.prefab, s.name, s.name, pos, pos - toBody * 1000f, s.setup, 180f);
                     go.GetComponent<Health>().respawnDelay = s.respawn;
                     pilots.Add(go.GetComponent<CombatPilot>());
                 }
-                var g = new GameObject(groupName).AddComponent<EncounterGroup>();
                 g.groupName = groupName;
                 g.pilots = pilots.ToArray();
                 g.spotRange = 9000f;
+                post.slots = slots.ToArray();
                 Log($"{groupName}: {ships.Length} ships on station {Vector3.Distance(station, at.Position) / 1000f:F1} km from {at.displayName}, " +
                     $"{towardBody / 1000f:F1} km ahead of the arrival point");
                 return g;

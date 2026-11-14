@@ -61,7 +61,8 @@ namespace CarrierGame.Demo
         public string[] ids;
     }
 
-    [Serializable] class HelloMsg { public string t = CoopWire.Hello; public int v; public string name, level, client; public int captain; public double clock; }
+    // (key: the server's API key the player joins with, CoopKey; none for an open server)
+    [Serializable] class HelloMsg { public string t = CoopWire.Hello; public int v; public string name, level, client, key; public int captain; public double clock; }
     [Serializable] class LevelMsg { public string t = CoopWire.Level; public string level; public double clock; }
     [Serializable] class CaptainMsg { public string t = CoopWire.Captain; public int captain; }
     [Serializable] class PingMsg { public string t = CoopWire.Ping; public double c; }

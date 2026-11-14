@@ -5,7 +5,8 @@ namespace CarrierGame.Demo
 {
     /// <summary>
     /// Co-op on screen. When the game starts it asks: play alone, or join a co-op game (a name,
-    /// the server's address and port, remembered for next time)? The same panel is in the pause
+    /// the server's address and port, and the API key its owner gave you, remembered for next
+    /// time: CoopKey)? The same panel is in the pause
     /// menu (Co-op). While connected, a small panel at the top of the screen lists the players,
     /// who is hosting, and the connection's round trip.
     ///
@@ -20,7 +21,7 @@ namespace CarrierGame.Demo
         public static bool IsOpen => InputFocus.Has(InputFocus.Panel.CoopPanel);
         static bool offered;
 
-        string playerName, address, port;
+        string playerName, address, port, apiKey, keyName;
         bool paused;
         float savedScale = 1f;
         float openedAt;
@@ -41,12 +42,14 @@ namespace CarrierGame.Demo
                 else if (address.Length == 0) address = HostOf(LaunchArgs.PageUrl);
                 playerName = LaunchArgs.PageOption("name") ?? playerName;
             }
+            LoadKey();
             // -connect address:port [-name name]: straight in
             string connect = LaunchArgs.ValueOf("-connect") ?? (LaunchArgs.PageHas("connect") ? JoinAddress(address, port) : null);
             if (connect != null)
             {
                 SplitAddress(connect, ref address, ref port);
                 playerName = LaunchArgs.ValueOf("-name") ?? playerName;
+                LoadKey();
                 if (!CoopClient.Active && (CoopClient.Instance == null || !CoopClient.Instance.Connecting)) Connect();
                 offered = true;
                 return;
@@ -54,6 +57,13 @@ namespace CarrierGame.Demo
             // the start menu comes first, and offers this once it is done
             if (StartMenu.WillOpen) return;
             Offer();
+        }
+
+        /// <summary>The key kept for the name in the panel (in the web version each name has its own).</summary>
+        void LoadKey()
+        {
+            apiKey = CoopKey.For(playerName);
+            keyName = playerName;
         }
 
         /// <summary>Ask once a run whether to play with others (not in tests or reels).</summary>
@@ -132,7 +142,8 @@ namespace CarrierGame.Demo
                 PlayerPrefs.Save();
             }
             catch { }
-            CoopClient.Connect(address, p, playerName);
+            CoopKey.Keep(playerName, apiKey);
+            CoopClient.Connect(address, p, playerName, apiKey);
         }
 
         void Update()
@@ -161,7 +172,7 @@ namespace CarrierGame.Demo
             GUI.depth = -200;
             float s = Hud.S;
             Hud.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0.01f, 0.03f, 0.6f));
-            float w = 520f * s, h = 380f * s, pad = 22f * s, row = 40f * s;
+            float w = 520f * s, h = 440f * s, pad = 22f * s, row = 40f * s;
             panel = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
             Hud.Fill(panel, new Color(0.03f, 0.05f, 0.1f, 0.96f));
             Hud.Fill(new Rect(panel.x, panel.y, w, Mathf.Max(2f, 3f * s)), new Color(1f, 0.72f, 0.3f));
@@ -181,7 +192,16 @@ namespace CarrierGame.Demo
             y += row;
             GUI.Label(new Rect(panel.x + pad, y, lw, row - 8f * s), "Port", Hud.Text(16, false, TextAnchor.MiddleLeft));
             port = GUI.TextField(new Rect(fx, y, 110f * s, row - 8f * s), port ?? "7777", 5, field);
-            y += row + 6f * s;
+            y += row;
+            // (the web version keeps a key for each name: another name, its key)
+            if (CoopKey.PerName && playerName != keyName) LoadKey();
+            GUI.Label(new Rect(panel.x + pad, y, lw, row - 8f * s), "API key", Hud.Text(16, false, TextAnchor.MiddleLeft));
+            apiKey = GUI.PasswordField(new Rect(fx, y, fw, row - 8f * s), apiKey ?? "", '•', 80, field);
+            y += row - 8f * s;
+            GUI.Label(new Rect(fx, y, fw, 18f * s), CoopKey.PerName ? "From the server's owner. Kept for this name, in this browser"
+                                                                       : "From the server's owner. Kept for next time",
+                      Hud.Text(11, false, TextAnchor.MiddleLeft));
+            y += 26f * s;
 
             // what is happening
             var client = CoopClient.Instance;

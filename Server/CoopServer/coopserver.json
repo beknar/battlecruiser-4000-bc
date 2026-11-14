@@ -1,6 +1,6 @@
 {
-  // Battlecruiser 4000 BC co-op server settings. Saved changes to "allow" and "maxPlayers" take
-  // effect at once; the others need a restart. Anything given on the command line wins.
+  // Battlecruiser 4000 BC co-op server settings. Saved changes to "allow", "maxPlayers" and
+  // "requireKey" take effect at once; the others need a restart. Anything given on the command line wins.
 
   // the address to listen on: 0.0.0.0 is every network, 127.0.0.1 this computer only
   "bind": "0.0.0.0",
@@ -10,6 +10,13 @@
   // who may connect: single IPs or CIDR ranges, IPv4 or IPv6. An empty list lets anyone connect.
   // For example: [ "127.0.0.1", "::1", "192.168.1.0/24" ]
   "allow": [],
+
+  // each player, and each AI player, needs one of this server's API keys to join. Make one with
+  // 'newkey <name>' (or 'newaikey <name>') in the server's console, or CoopServer --new-key <name>.
+  // false lets in anyone the allow-list does, without a key.
+  "requireKey": true,
+  // where the keys are kept (only their hashes), next to this file unless a full path
+  "keysFile": "coopkeys.json",
 
   // a .pfx certificate, to serve wss:// (a web page served over https may only connect to wss://)
   "certificate": null,

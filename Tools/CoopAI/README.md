@@ -24,7 +24,7 @@ Two environment variables change where it looks. Add them with `-e NAME=value` b
 
 | Tool | What it does |
 | --- | --- |
-| `launch_bot` | Starts the bot game (headless by default) and connects it to a server (`server` is `host:port`, default `127.0.0.1:7777`), with a `name` and a `ship` class. Give it 20 to 60 s to load. |
+| `launch_bot` | Starts the bot game (headless by default) and connects it to a server (`server` is `host:port`, default `127.0.0.1:7777`), with a `name`, a `ship` class and the `apikey` the server issued for it (`CoopServer --new-key Wingman --ai`; default `COOP_KEY` from the MCP server's environment). Give it 20 to 60 s to load. |
 | `status` | The ship: hull, shield, crew, missiles, speed, warp, docked or landed. Also the pilot's order and what it is doing, what is near it (enemies first), and the players. |
 | `read_messages` | The comms channel since the last read (or since `after`). Messages addressed to the bot are marked `to_me`. |
 | `say` | Sends a message to every player in the bot's level. |
@@ -43,7 +43,7 @@ while I mine?" into `order goto`.
 The bot game's API is plain HTTP with JSON, so a script can use it directly:
 
 ```
-StarSystem.exe -coopbot -connect 127.0.0.1:7777 -name Wingman -botport 7781 -batchmode -nographics
+StarSystem.exe -coopbot -connect 127.0.0.1:7777 -name Wingman -apikey <key> -botport 7781 -batchmode -nographics
 curl http://127.0.0.1:7781/status
 curl -X POST -d "{\"order\":\"follow\",\"target\":\"Ann\"}" http://127.0.0.1:7781/order
 ```

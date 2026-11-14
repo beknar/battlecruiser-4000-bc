@@ -52,7 +52,7 @@ namespace CarrierGame.Demo
             cc.throttle = 0.3f;
 
             // on to the server; the wingmen follow us into the level
-            CoopClient.Connect(host, port, "Kestrel 1");
+            CoopClient.Connect(host, port, "Kestrel 1", CoopKey.Given);
             float until = Time.realtimeSinceStartup + 20f;
             var world = CoopWorld.Instance;
             int shown = 0;

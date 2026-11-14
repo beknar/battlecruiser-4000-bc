@@ -110,6 +110,10 @@ def t_launch_bot(args):
     server = str(args.get("server") or "127.0.0.1:7777")
     port = urllib.parse.urlparse(API).port or 7781
     cmd = [exe, "-coopbot", "-connect", server, "-name", str(args.get("name") or "Wingman"), "-botport", str(port)]
+    # (the server's API key for this AI player: given, or COOP_KEY in this server's environment)
+    key = str(args.get("apikey") or os.environ.get("COOP_KEY", "")).strip()
+    if key:
+        cmd += ["-apikey", key]
     if args.get("ship"):
         cmd += ["-frigate", str(args["ship"])]
     if args.get("headless", True):
@@ -118,7 +122,7 @@ def t_launch_bot(args):
         cmd += ["-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", "720"]
     cmd += ["-logFile", os.path.join(os.path.dirname(os.path.abspath(exe)), "coopbot.log")]
     bot_process = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return {"ok": True, "pid": bot_process.pid, "command": cmd,
+    return {"ok": True, "pid": bot_process.pid, "command": [c if c != key else key[:9] + "..." for c in cmd] if key else cmd,
             "note": "give it 20-60 s to load and connect, then call status"}
 
 
@@ -163,7 +167,9 @@ TOOLS = [
       "name": {"type": "string", "description": "the bot's name in the game (default Wingman)"},
       "ship": {"type": "string", "description": "the frigate to fly: Sentinel (the default), Lancer, Warden, Talon or Vanguard. A destroyer or the cruiser only once built at a shipyard and taken command of in that game's save"},
       "headless": {"type": "boolean", "description": "no window (default true)"},
-      "game": {"type": "string", "description": "path to the game's executable"}}, [], t_launch_bot),
+      "game": {"type": "string", "description": "path to the game's executable"},
+      "apikey": {"type": "string", "description": "the API key the co-op server issued for this AI player "
+                                                  "(CoopServer --new-key <name> --ai); default COOP_KEY from the environment"}}, [], t_launch_bot),
     ("stop_bot", "Close the bot game started by launch_bot.", {}, [], t_stop_bot),
 ]
 

@@ -23,7 +23,7 @@ import websockets
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "CoopTest"))
-from protocol import PROTOCOL  # noqa: E402
+from protocol import PROTOCOL, hello  # noqa: E402
 
 API = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else "http://127.0.0.1:7781"
 URL = sys.argv[2] if len(sys.argv) > 2 else "ws://127.0.0.1:7792/coop"
@@ -131,7 +131,7 @@ async def main():
     level = s.get("level", "StarSystem")
 
     async with websockets.connect(URL, max_size=4 * 1024 * 1024) as ws:
-        await ws.send(json.dumps({"t": "hello", "v": PROTOCOL, "name": ME, "level": level, "client": "tester", "captain": 0, "clock": 0}))
+        await ws.send(json.dumps(hello(name=ME, level=level, client="tester", captain=0, clock=0)))
         me = Player(ws)
         reader = asyncio.create_task(me.run())
         try:

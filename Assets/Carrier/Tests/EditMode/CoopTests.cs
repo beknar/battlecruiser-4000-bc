@@ -83,10 +83,18 @@ namespace CarrierGame.Tests
         [Test]
         public void AHelloCarriesWhatTheServerReads()
         {
-            string json = JsonUtility.ToJson(new HelloMsg { v = CoopClient.Protocol, name = "Tester", level = "StarSystem", client = "WindowsPlayer", captain = 2, clock = 12.5 });
-            foreach (var field in new[] { "\"t\":\"hello\"", $"\"v\":{CoopClient.Protocol}", "\"name\":\"Tester\"", "\"level\":\"StarSystem\"", "\"client\":\"WindowsPlayer\"", "\"captain\":2", "\"clock\":12.5" })
+            string json = JsonUtility.ToJson(new HelloMsg { v = CoopClient.Protocol, name = "Tester", level = "StarSystem", client = "WindowsPlayer", key = "bc4k_abc", captain = 2, clock = 12.5 });
+            foreach (var field in new[] { "\"t\":\"hello\"", $"\"v\":{CoopClient.Protocol}", "\"name\":\"Tester\"", "\"level\":\"StarSystem\"", "\"client\":\"WindowsPlayer\"", "\"key\":\"bc4k_abc\"", "\"captain\":2", "\"clock\":12.5" })
                 StringAssert.Contains(field, json);
         }
+
+        [TestCase("bc4k_0123456789abcdef", "bc4k_0123••••••••••••")]
+        [TestCase("  bc4k_0123456789abcdef  ", "bc4k_0123••••••••••••")]
+        [TestCase("short", "•••••")]
+        [TestCase("", "")]
+        [TestCase(null, "")]
+        public void AnAPIKeyIsShownOnlyByItsFirstCharacters(string key, string shown) =>
+            Assert.That(CoopKey.Masked(key), Is.EqualTo(shown));
 
         [Test]
         public void AWelcomeIsRead()

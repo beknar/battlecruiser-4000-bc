@@ -17,7 +17,8 @@ namespace CoopServer;
 /// - anything else is passed on with "from" added: to one player ("to": id), to the room's host
 ///   ("toHost": true), or to everyone else in the sender's room.
 /// The server keeps a clock (seconds since it started) and each room's epoch, so every game in
-/// a room can run its orbits on the same time.
+/// a room can run its orbits on the same time. Unless the server is open, a hello must carry one
+/// of its API keys ("key"), or the player is turned away.
 /// </summary>
 public sealed class Hub
 {
@@ -44,6 +45,9 @@ public sealed class Hub
         public string Client = "";
         public int Captain;
         public string Address = "";
+        /// <summary>Who the API key it came with was made for ("" on an open server).</summary>
+        public string KeyName = "";
+        public bool KeyAi;
         public double JoinedAt;
         public WebSocket Ws = null!;
         /// <summary>Ends the connection (from anywhere: it is run on the thread pool, never
@@ -102,6 +106,21 @@ public sealed class Hub
                 Log($"{from}: protocol {v} refused");
                 return;
             }
+            ApiKeys.Entry? key = null;
+            if (cfg.RequireKey)
+            {
+                string? given = Str(hello["key"]);
+                key = cfg.Keys.Check(given);
+                if (key == null)
+                {
+                    bool none = string.IsNullOrWhiteSpace(given);
+                    await Reject(ws, none
+                        ? "this server needs an API key: ask its owner for one, and enter it in the co-op panel"
+                        : "that API key isn't one of this server's (it may have been revoked): ask its owner for a new one");
+                    Log($"{from}: {(none ? "no API key" : "an API key it doesn't know")}, refused");
+                    return;
+                }
+            }
             string? full = null;
             lock (gate)
             {
@@ -113,6 +132,8 @@ public sealed class Hub
                     Client = Clean(Str(hello["client"]), "?"),
                     Captain = Int(hello["captain"]) ?? 0,
                     Address = from,
+                    KeyName = key?.Name ?? "",
+                    KeyAi = key?.Ai ?? false,
                     JoinedAt = Now,
                     Ws = ws,
                     Session = cts,
@@ -126,7 +147,7 @@ public sealed class Hub
                 return;
             }
             writer = Task.Run(() => Writer(me, cts.Token));
-            Log($"{me.Name} (#{me.Id}, {me.Client}) joined from {from}: {Count}/{cfg.MaxPlayers} players");
+            Log($"{me.Name} (#{me.Id}, {me.Client}) joined from {from}{(key != null ? $" with {(key.Ai ? "the AI key" : "the key")} for {key.Name}" : "")}: {Count}/{cfg.MaxPlayers} players");
             Join(me, Clean(Str(hello["level"]), "?"), Num(hello["clock"]) ?? 0.0, true);
 
             while (!cts.IsCancellationRequested && ws.State == WebSocketState.Open)
@@ -341,13 +362,13 @@ public sealed class Hub
         {
             var sb = new StringBuilder();
             sb.AppendLine($"Battlecruiser 4000 BC co-op server: {players.Count} of {cfg.MaxPlayers} players, up {TimeSpan.FromSeconds(Now):hh\\:mm\\:ss}");
-            sb.AppendLine($"allowed: {cfg.AllowList}");
+            sb.AppendLine($"allowed: {cfg.AllowList}; {cfg.KeyRule}");
             foreach (var r in rooms.Values)
             {
                 sb.AppendLine($"  {r.Level}: {r.Members.Count} player(s), orbit clock {Now - r.Epoch:F0} s");
                 foreach (int id in r.Members)
                     if (players.TryGetValue(id, out var p))
-                        sb.AppendLine($"    #{p.Id} {p.Name} ({p.Client}){(r.Host == p.Id ? "  host" : "")}");
+                        sb.AppendLine($"    #{p.Id} {p.Name} ({p.Client}){(p.KeyName.Length > 0 ? $", {(p.KeyAi ? "AI key" : "key")}: {p.KeyName}" : "")}{(r.Host == p.Id ? "  host" : "")}");
             }
             return sb.ToString();
         }

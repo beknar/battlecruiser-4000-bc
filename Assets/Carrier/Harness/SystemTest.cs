@@ -405,12 +405,23 @@ namespace CarrierGame.Demo
             Log($"capital ships: dreadnought {(dread != null ? "present" : "MISSING")} ({dreadTurrets.Length} turrets, hull {(dreadHealth != null ? dreadHealth.Current : 0f):F0}), " +
                 $"battle group {(fleet != null ? fleet.pilots.Length : 0)} ships, corsair patrol {(patrol != null ? patrol.pilots.Length : 0)} ships, " +
                 $"dreadnought visible before the fight {dread != null && !CombatPilot.IsHidden(dread.transform)}");
+            // ten days on: the planets have moved, the way in from Thalassa has turned, and the
+            // battle group must have moved onto it to be met there
+            var orbitClock = OrbitalSystem.Instance;
+            if (orbitClock != null) orbitClock.ContinueFrom(orbitClock.Time + 10.0 * 86400.0);
+            yield return new WaitForSeconds(0.5f);
+            var post = fleet != null ? fleet.GetComponent<PostedOnApproach>() : null;
+            int moves0 = post != null ? post.Moves : 0;
             yield return Key(kb, UnityEngine.InputSystem.Key.M);
             for (int i = 0; i < 60 && map.Selected?.displayName != "Glacis"; i++) yield return Key(kb, UnityEngine.InputSystem.Key.Tab);
             yield return Warp(() => Key(kb, UnityEngine.InputSystem.Key.Enter), "keyboard Enter", "c0", false);
+            float dreadKm = dread != null ? Vector3.Distance(cc.transform.position, dread.transform.position) / 1000f : -1f;
             if (dread != null)
-                Log($"  the dreadnought is {Vector3.Distance(cc.transform.position, dread.transform.position) / 1000f:F1} km away, " +
+                Log($"  the dreadnought is {dreadKm:F1} km away, " +
                     $"{Vector3.Angle(cc.transform.forward, dread.transform.position - cc.transform.position):F0} deg off the bow");
+            bool onTheWayIn = post != null && post.Moves > moves0 && dreadKm > 0f && dreadKm < 15f;
+            Log(onTheWayIn ? $"PASS: capital ships on the way in, ten days on ({dreadKm:F1} km ahead)"
+                           : $"FAIL: capital ships on the way in, ten days on (the dreadnought {dreadKm:F1} km off; moved {(post != null ? post.Moves - moves0 : 0)}x)");
             float fightUntil = Time.time + 15f;
             while (Time.time < fightUntil && (fleet == null || !fleet.Active)) yield return null;
             Log($"  battle group attacking: {fleet != null && fleet.Active} after {15f - (fightUntil - Time.time):F1} s");
@@ -449,6 +460,12 @@ namespace CarrierGame.Demo
             float dreadTook = dreadHealth != null ? dreadHealth.TotalDamage : 0f;
             Log($"  after 40 s: dreadnought turrets fired {turretShots}, escort turrets fired {escortShots}; frigate shield {shield0:F0} -> lowest {shieldLow:F0}, " +
                 $"hull {hull0:F0} -> {health.Current:F0}; bow gun charged {charged}x; dreadnought took {dreadTook:F0} of {(dreadHealth != null ? dreadHealth.maxHealth : 0f):F0}");
+            foreach (var e in fleet != null ? fleet.pilots.Where(pl => pl != null).ToArray() : new CombatPilot[0])
+            {
+                Log($"  {e.name}: {Vector3.Distance(e.transform.position, cc.transform.position) / 1000f:F1} km off, {e.Current}, alive {e.Alive}");
+                var guns = e.GetComponentsInChildren<CarrierTurret>();
+                Log($"    turrets bearing on the frigate: {guns.Count(t => t.CanBear(cc.transform.position))} of {guns.Length}");
+            }
             bool fought = fleet != null && fleet.Active && turretShots > 0 && escortShots > 0 && (shieldLow < shield0 || health.Current < hull0) && dreadTook > 0f;
             Log(fought ? "PASS: capital ship battle (both sides hit)" : "FAIL: capital ship battle");
             Log($"  warp during the fight: {(drive.CanWarp(out string fw) ? "allowed" : "locked: " + fw)}");

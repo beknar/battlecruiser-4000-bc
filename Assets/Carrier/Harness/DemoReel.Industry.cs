@@ -21,6 +21,21 @@ namespace CarrierGame.Demo
             Vector3 way = st.berth != null ? st.berth.forward : st.transform.forward;
             Place(berth + way * 900f + Vector3.up * 120f, berth);
             yield return Wait(0.8f);
+            // (off camera, until it may dock: arriving can count as under fire for a moment, from
+            // brushing the yard, or a strike somewhere on the world clock)
+            string why = "";
+            for (float wait = Time.time + 15f; Time.time < wait; )
+            {
+                if (dock.Candidate(out why) == st && why == "") break;
+                yield return null;
+            }
+            var near = dock.Candidate(out why);
+            if (near != st)
+            {
+                Note($"docking at {st.displayName}: {(near != null ? near.displayName + " is the place in range" : "nowhere in range")}");
+                yield break;
+            }
+            if (why != "") Note($"docking at {st.displayName}: {why}");
             LookPast(shot, st.transform.position, D * 2.2f, 26f, 12f, 1.5f);
             yield return FadeIn();
             Caption(title, sub, 5f);
@@ -91,7 +106,7 @@ namespace CarrierGame.Demo
             panel.SelectItem("*all");
             panel.ActOnSelected(IndustryPanel.Action("storeAll"));
             panel.Show(IndustryPanel.Page.Build);
-            Caption("BUILDING", "Thirteen ship parts: armour, shield emitters, fusion thrusters, rail barrels, a cargo pod...", 5f);
+            Caption("BUILDING", "Ship parts: armour, shield emitters, fusion thrusters, rail barrels, a cargo pod... and sections for the shipyards", 5f);
             panel.SelectItem("CargoPod");
             yield return Wait(1.5f);
             panel.ActOnSelected(IndustryPanel.Action("queue"));
@@ -122,7 +137,7 @@ namespace CarrierGame.Demo
             Place(colony.BerthPosition + colony.transform.right * 2200f + Vector3.up * 300f, colony.transform.position);
             cc.throttle = 0.6f;
             yield return Wait(1f);
-            Shot(610, cc.transform, demo.ShipViewOffset, D * 1.5f, Bearing(cc.transform.position, colony.transform.position) + 150f, 8f, 2f);
+            Shot(610, cc.transform, demo.ShipViewOffset, D * 1.5f, FrameBearing(cc.transform.position, colony.transform.position) + 150f, 8f, 2f);
             yield return FadeIn();
             Caption("CREW", $"Every frigate has its crew: the {PlayerFrigate.Flying} {crew.complement}. Hull damage kills them", 5f);
             yield return Wait(2f);
@@ -207,7 +222,7 @@ namespace CarrierGame.Demo
                 Caption(title, sub, 6f);
                 Note($"at {name}: {group.childCount} pieces");
                 yield return Wait(5.5f);
-                Shot(631 + n * 2, cc.transform, demo.ShipViewOffset, D * 2.4f, Bearing(cc.transform.position, group.position) - 30f, 12f, 3f);
+                Shot(631 + n * 2, cc.transform, demo.ShipViewOffset, D * 2.4f, FrameBearing(cc.transform.position, group.position) - 30f, 12f, 3f);
                 yield return Wait(4f);
                 yield return FadeOut();
                 perFrame = null;

@@ -95,11 +95,26 @@ namespace CarrierGame.Demo
         {
             Clear();
             cc.transform.position = pos;
-            Vector3 d = facing - pos;
+            // (the attitude is in the ship's up frame: by a planet, "up" is out from it, turned to
+            // at once here, as after a warp, so the camera and the facing are right from the start)
+            if (PlanetFlight.Instance != null) PlanetFlight.Instance.SnapUp();
+            Vector3 d = Quaternion.Inverse(cc.upFrame) * (facing - pos);
             cc.SetAttitude(Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg, Mathf.Atan2(d.y, new Vector2(d.x, d.z).magnitude) * Mathf.Rad2Deg);
             cc.SetMotion(0f);
             cc.throttle = 0f;
             if (spawn) cc.SetSpawn(pos, cc.transform.rotation);
+        }
+
+        /// <summary>A point `distance` from a body's centre on its sunlit side (a little round from
+        /// straight under the star, for a terminator in the picture): planets are their real size
+        /// now, and the night side is dark.</summary>
+        Vector3 DaySide(WarpPoint body, float distance)
+        {
+            var star = WP("Kestrel");
+            Vector3 toStar = star != null ? (star.Position - body.Position).normalized : Vector3.forward;
+            Vector3 side = Vector3.Cross(Vector3.up, toStar);
+            side = side.sqrMagnitude > 1e-4f ? side.normalized : Vector3.right;
+            return body.Position + (toStar * 0.8f + side * 0.6f + Vector3.up * 0.15f).normalized * distance;
         }
 
         /// <summary>To where a warp from `from` (or from here) would drop the ship.</summary>
@@ -124,7 +139,8 @@ namespace CarrierGame.Demo
         /// <summary>The camera behind the ship, looking past it at a point.</summary>
         void LookPast(int index, Vector3 p, float distance, float extraYaw = 0f, float pitch = float.NaN, float spin = 0f)
         {
-            Vector3 d = p - cc.transform.position;
+            // (in the ship's own up frame, as the camera turns: by a planet, "up" is out from it)
+            Vector3 d = Quaternion.Inverse(cc.upFrame) * (p - cc.transform.position);
             float yaw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg + extraYaw;
             float pt = float.IsNaN(pitch) ? Mathf.Clamp(-Mathf.Atan2(d.y, new Vector2(d.x, d.z).magnitude) * Mathf.Rad2Deg * 0.7f + 6f, -35f, 45f) : pitch;
             Shot(index, cc.transform, demo.ShipViewOffset, distance, yaw, pt, spin);
@@ -133,6 +149,8 @@ namespace CarrierGame.Demo
         /// <summary>The camera on a target, looking along `look`.</summary>
         void ShotAlong(int index, Transform target, Vector3 offset, Vector3 look, float distance, float spin = 0f)
         {
+            // (on the ship, the camera turns in its up frame: by a planet, "up" is out from it)
+            if (target == cc.transform) look = Quaternion.Inverse(cc.upFrame) * look;
             float yaw = Mathf.Atan2(look.x, look.z) * Mathf.Rad2Deg;
             float pitch = -Mathf.Atan2(look.y, new Vector2(look.x, look.z).magnitude) * Mathf.Rad2Deg;
             Shot(index, target, offset, distance, yaw, pitch, spin);
@@ -217,6 +235,7 @@ namespace CarrierGame.Demo
         IEnumerator Intro()
         {
             var home = WP("Thalassa");
+            Place(DaySide(home, home.arrivalDistance), home.Position);
             cc.throttle = 0.15f;
             LookPast(300, home.Position, D * 2.2f, 25f, float.NaN, 3f);
             yield return Wait(1f);
@@ -279,9 +298,9 @@ namespace CarrierGame.Demo
 
             // the ship from ahead, the beam reaching out, the cargo list filling
             demo.ToggleManifest();
-            Shot(204, cc.transform, demo.ShipViewOffset, D * 1.5f, Bearing(rock.Position, me) - 35f, 12f, 3f);
+            Shot(204, cc.transform, demo.ShipViewOffset, D * 1.5f, FrameBearing(rock.Position, me) - 35f, 12f, 3f);
             int out0 = laser.DepositsMinedOut;
-            float until = Time.time + 30f;
+            float until = Time.time + 14f;
             bool onRock = false;
             while (laser.DepositsMinedOut == out0 && Time.time < until)
             {
@@ -336,7 +355,7 @@ namespace CarrierGame.Demo
             Caption("MINING", "Water ice, frozen gases and deuterium from the nucleus", 5f);
             yield return Wait(5f);
             Vector3 me = cc.transform.position;
-            Shot(212, cc.transform, demo.ShipViewOffset, D * 1.4f, Bearing(me, nucleus.Position) - 30f, 9f, 2f);
+            Shot(212, cc.transform, demo.ShipViewOffset, D * 1.4f, FrameBearing(me, nucleus.Position) - 30f, 9f, 2f);
             yield return Wait(4f);
             yield return FadeOut();
             Clear();
@@ -388,7 +407,7 @@ namespace CarrierGame.Demo
 
             // the cargo list: what it has brought aboard from three kinds of body
             demo.ToggleManifest();
-            Shot(223, cc.transform, demo.ShipViewOffset, D * 1.5f, Bearing(cc.transform.position, vp) + 30f, 22f, 2f);
+            Shot(223, cc.transform, demo.ShipViewOffset, D * 1.5f, FrameBearing(cc.transform.position, vp) + 30f, 22f, 2f);
             yield return Wait(4.5f);
             Note($"hold: {demo.Cargo.Used:F0} t worth {demo.Cargo.Value:N0} cr");
             yield return FadeOut();
@@ -477,6 +496,8 @@ namespace CarrierGame.Demo
             Repair();
             // as if from Thalassa: the battle group waits on that way in
             Jump(glacis, WP("Thalassa").Position);
+            yield return null;
+            yield return null;
             // (the planets have moved since the group took up its post on that line: come in on
             // the dreadnought from the arrival side, 8 km out)
             Vector3 toShip = cc.transform.position - dread.position;
@@ -506,7 +527,7 @@ namespace CarrierGame.Demo
             Shot(231, dread, Vector3.zero, 2600f, AwayFromStar(bd + 150f, bd - 150f, 9f), 9f, 3f);
             yield return Wait(5f);
             // the frigate's shield taking hits
-            Shot(232, cc.transform, demo.ShipViewOffset, D * 1.3f, Bearing(dread.position, cc.transform.position) + 35f, 10f, 2f);
+            Shot(232, cc.transform, demo.ShipViewOffset, D * 1.3f, FrameBearing(dread.position, cc.transform.position) + 35f, 10f, 2f);
             yield return Wait(4f);
 
             // the bow gun on the dreadnought
@@ -533,6 +554,7 @@ namespace CarrierGame.Demo
                 yield return Wait(1.5f);
             }
             Note($"the dreadnought took {(dh != null ? dh.TotalDamage - took0 : 0f):F0}; frigate hull {hullF.Current:F0}, shield {(shieldF != null ? shieldF.Fraction : 0f):P0}");
+            cc.SetTarget(null);      // (the scenes after it have nothing to aim at)
             Shot(236, cc.transform, demo.ShipViewOffset, D * 1.4f, cc.Heading + 60f, 16f, 6f);
             float t0 = Time.time;
             var steer = perFrame;
@@ -560,7 +582,14 @@ namespace CarrierGame.Demo
             yield return Wait(1.5f);
             bool down = landing.Land() || landing.LandOn(home);
             Note($"landing on Thalassa: {down}");
-            yield return WaitLanding(PlanetLanding.State.OnSurface, 60f);
+            // (the flight down from orbit is a minute or more: the start of it, then a cut)
+            yield return Wait(3.5f);
+            if (down)
+            {
+                yield return FadeOut(0.4f);
+                yield return WaitLanding(PlanetLanding.State.OnSurface, 150f);
+                yield return FadeIn(0.4f);
+            }
             var site = landing.Site;
             if (site != null)
             {
@@ -701,7 +730,14 @@ namespace CarrierGame.Demo
                 }
                 while (sysDrive.Current != WarpDrive.State.Ready) yield return null;
                 perFrame = null;
-                // the place, beyond the ship
+                // the place, beyond the ship (home: on its sunlit side, for the ending)
+                if (name == "Thalassa")
+                {
+                    yield return FadeOut(0.3f);
+                    Place(DaySide(to, to.arrivalDistance), to.Position);
+                    yield return Wait(0.5f);
+                    yield return FadeIn(0.3f);
+                }
                 LookPast(290, to.Position, D * 2f, 18f, float.NaN, 2.5f);
                 Caption(name.ToUpper(), sub, 3.8f);
                 yield return Wait(name == "Thalassa" ? 2.5f : 3.6f);

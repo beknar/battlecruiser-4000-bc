@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
@@ -77,14 +78,16 @@ namespace CarrierGame
             var go = Instantiate(prefab, oldGo.transform.position, oldGo.transform.rotation, holder.transform);
             go.name = oldGo.name;
             go.layer = oldGo.layer;
+            var copied = new List<MonoBehaviour>();
             foreach (var c in oldGo.GetComponents<MonoBehaviour>())
             {
                 if (c == null || go.GetComponent(c.GetType()) != null) continue;
                 var added = (MonoBehaviour)go.AddComponent(c.GetType());
                 JsonUtility.FromJsonOverwrite(JsonUtility.ToJson(c), added);
+                copied.Add(added);
             }
             var cc = go.GetComponent<CarrierController>();
-            Repoint(oldGo, go);
+            Repoint(oldGo, go, copied);
             go.transform.SetParent(oldGo.transform.parent, true);
             if (go.transform.parent == null && oldGo.scene.IsValid() && go.scene != oldGo.scene)
                 UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, oldGo.scene);
@@ -119,7 +122,9 @@ namespace CarrierGame
             return fieldsOf[t] = list.ToArray();
         }
 
-        static void Repoint(GameObject oldRoot, GameObject newRoot)
+        /// <summary>(and the behaviours copied across onto the new ship, whose references came
+        /// with them: PlanetFlight's own ship, say, which would otherwise still be the old one)</summary>
+        static void Repoint(GameObject oldRoot, GameObject newRoot, List<MonoBehaviour> copied)
         {
             var map = new Dictionary<UnityEngine.Object, UnityEngine.Object>();
             UnityEngine.Object Counterpart(UnityEngine.Object o)
@@ -140,9 +145,11 @@ namespace CarrierGame
                 return map[o] = result;
             }
 
-            foreach (var b in FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            var behaviours = FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+                .Where(b => b != null && !b.transform.IsChildOf(oldRoot.transform) && !b.transform.IsChildOf(newRoot.transform))
+                .Concat(copied.Where(b => b != null));
+            foreach (var b in behaviours)
             {
-                if (b == null || b.transform.IsChildOf(oldRoot.transform) || b.transform.IsChildOf(newRoot.transform)) continue;
                 foreach (var f in ReferenceFields(b.GetType()))
                 {
                     if (typeof(UnityEngine.Object).IsAssignableFrom(f.FieldType) || f.FieldType.IsInterface)

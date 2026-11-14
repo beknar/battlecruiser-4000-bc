@@ -69,12 +69,14 @@ namespace CarrierGame.Demo
             cc = demo != null ? demo.carrier : null;
             cam = demo != null ? demo.orbitCamera : null;
             if (cc == null || cam == null) { Log("no demo controller in scene"); Application.Quit(); yield break; }
+            // every reel with the same captain, Yuki Tanaka (automated runs no longer read the saved one)
+            Captain.Index = 2;
             if (AmbushDirector.Instance != null) seconds = 76f;
             sysMap = FindAnyObjectByType<SystemMap>();
             if (sysMap != null) seconds = 260f;     // ends a few seconds after the cruiser dies (see SystemShots)
             if (Features && sysMap != null)
             {
-                seconds = 900f;                     // a cap: the shot list ends it
+                seconds = 1800f;                    // a cap: the shot list ends it
                 StartCoroutine(All ? AllReel() : Orbits ? OrbitReel() : Frigates ? FrigateReel() : SeaReel ? SeaShowReel() : FeatureReel());
             }
             Log($"screen {Screen.width}x{Screen.height}, gfx {SystemInfo.graphicsDeviceType}, audio {AudioSettings.outputSampleRate} Hz {AudioSettings.speakerMode}, {seconds:F0} s");

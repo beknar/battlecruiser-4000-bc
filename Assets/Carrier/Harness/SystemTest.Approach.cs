@@ -126,6 +126,9 @@ namespace CarrierGame.Demo
             }
             float orbit = oc.arrivalDistance - oc.bodyRadius;
             Check(!landing.Autopilot && pf.Altitude > orbit * 0.9f, $"back in orbit {pf.Altitude / 1000f:F0} km up (orbit {orbit / 1000f:F0} km) {Time.time - t0:F0} s after K");
+            // (the ground built ahead is hidden while in space: never the ship itself)
+            int shipHidden = cc.GetComponentsInChildren<Renderer>(true).Count(r => r.forceRenderingOff);
+            Check(shipHidden == 0, $"the ship is drawn after the climb ({shipHidden} of its renderers switched off)");
             Shot("ap_ochre_orbit_again");
 
             // ---- by hand, onto a moon with no air

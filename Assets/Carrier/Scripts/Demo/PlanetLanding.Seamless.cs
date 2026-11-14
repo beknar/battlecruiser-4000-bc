@@ -157,6 +157,7 @@ namespace CarrierGame.Demo
             focus = null;
             preparedFor = null;
             Surface.Follow(tr);
+            Surface.Hidden = false;         // (in view from now on: the ship is down on it)
             carrier.SetUpFrame(Quaternion.identity);
             tr.position = pos;
             carrier.TakeAttitude(Quaternion.LookRotation(fwd, shipUp));

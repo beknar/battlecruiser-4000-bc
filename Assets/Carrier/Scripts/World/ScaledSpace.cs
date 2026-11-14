@@ -21,8 +21,10 @@ namespace CarrierGame
     {
         /// <summary>Bodies nearer than this (m) are drawn where they are.</summary>
         public static float Near = 500000f;
-        /// <summary>However far a body is, it is drawn nearer than this (m): inside the camera's reach.</summary>
-        public static float Far = 1100000f;
+        /// <summary>However far a body is, it is drawn nearer than this (m): well inside the camera's
+        /// reach. (Drawn back as far as 1,100 km, an opaque planet came out at the same depth as
+        /// the sky behind it, and the sky was drawn over it: only a planet's atmosphere showed.)</summary>
+        public static float Far = 700000f;
         /// <summary>Off while the frigate is down on a surface (the system isn't in view there).</summary>
         public static bool Active = true;
 

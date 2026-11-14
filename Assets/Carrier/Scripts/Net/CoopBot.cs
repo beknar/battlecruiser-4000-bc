@@ -89,7 +89,8 @@ namespace CarrierGame.Demo
 
         string Me => CoopClient.Instance != null && CoopClient.Instance.MyName.Length > 0 ? CoopClient.Instance.MyName : "Wingman";
 
-        static bool IsBot(CoopPlayer p) => p.client == ClientName || p.client == "bot";
+        /// <summary>An AI player, a test bot or a scripted wingman (the reel's): never a leader to form up on.</summary>
+        static bool IsBot(CoopPlayer p) => p.client == ClientName || p.client == "bot" || p.client == "wingman";
 
         void Update()
         {

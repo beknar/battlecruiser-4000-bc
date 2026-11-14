@@ -264,6 +264,7 @@ namespace CarrierGame.Demo
             // (what has been explored and destroyed on it: the world's memory, saved with the game)
             var mem = WorldState.Body(body.displayName);
             Surface = PlanetSurface.Create(w, kit, carrier.transform, SiteCenter, u, v, mem.explored, mem.destroyed, skyPlanet);
+            Surface.Hidden = Current == State.InSpace;     // (not drawn for a frame first)
             CombatPilot.FloorAt = Surface.FloorAt;
             bool web = Application.platform == RuntimePlatform.WebGLPlayer;
             yield return Surface.Preload(SiteCenter, web ? 2600f : 5500f, web ? 20f : 10f);
@@ -602,6 +603,9 @@ namespace CarrierGame.Demo
         void Update()
         {
             if (carrier == null) return;
+            // the ground built ahead (or still kept after climbing out) isn't drawn till the ship
+            // is down on it: from over a planet it can be in view, out in the sky
+            if (Surface != null) Surface.Hidden = Current == State.InSpace;
             // (craters made while down on a body: its ground built with them, back in space)
             if (scarsWaiting.Count > 0 && !Busy)
             {

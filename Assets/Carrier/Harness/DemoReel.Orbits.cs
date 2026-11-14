@@ -356,7 +356,9 @@ namespace CarrierGame.Demo
                 yield return FadeIn();
                 Caption(title, sub, ls.trackTime + 3.5f);
                 yield return Wait(ls.trackTime + 3.8f);
-                Note($"{name}: {ls.Launched - launched} launched while watching; track {ls.TrackLength:F0} m, {ls.exitSpeed:F0} m/s off the end");
+                var raised = ls.GetComponentInParent<RaiseToGround>();
+                Note($"{name}: {ls.Launched - launched} launched while watching; track {ls.TrackLength:F0} m, {ls.exitSpeed:F0} m/s off the end" +
+                     (raised != null ? $"; raised {raised.Raised:F0} m onto the ground (the track {raised.WorstBuried:F0} m under it at worst, as built)" : ""));
                 yield return FadeOut();
                 Clear();
                 n++;

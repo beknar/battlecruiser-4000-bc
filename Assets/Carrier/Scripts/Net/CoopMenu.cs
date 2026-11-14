@@ -22,6 +22,8 @@ namespace CarrierGame.Demo
         static bool offered;
 
         string playerName, address, port, apiKey, keyName;
+        // the key as it was loaded for keyName (one typed or pasted since is never replaced)
+        string loadedKey = "";
         bool paused;
         float savedScale = 1f;
         float openedAt;
@@ -62,7 +64,7 @@ namespace CarrierGame.Demo
         /// <summary>The key kept for the name in the panel (in the web version each name has its own).</summary>
         void LoadKey()
         {
-            apiKey = CoopKey.For(playerName);
+            apiKey = loadedKey = CoopKey.For(playerName);
             keyName = playerName;
         }
 
@@ -193,13 +195,19 @@ namespace CarrierGame.Demo
             GUI.Label(new Rect(panel.x + pad, y, lw, row - 8f * s), "Port", Hud.Text(16, false, TextAnchor.MiddleLeft));
             port = GUI.TextField(new Rect(fx, y, 110f * s, row - 8f * s), port ?? "7777", 5, field);
             y += row;
-            // (the web version keeps a key for each name: another name, its key)
-            if (CoopKey.PerName && playerName != keyName) LoadKey();
+            // (the web version keeps a key for each name: another name, its key, unless a key has
+            // been typed or pasted in since, which is kept whatever the name)
+            if (CoopKey.PerName && playerName != keyName)
+            {
+                if (apiKey == loadedKey) LoadKey();
+                else keyName = playerName;
+            }
             GUI.Label(new Rect(panel.x + pad, y, lw, row - 8f * s), "API key", Hud.Text(16, false, TextAnchor.MiddleLeft));
             apiKey = GUI.PasswordField(new Rect(fx, y, fw, row - 8f * s), apiKey ?? "", '•', 80, field);
             y += row - 8f * s;
-            GUI.Label(new Rect(fx, y, fw, 18f * s), CoopKey.PerName ? "From the server's owner. Kept for this name, in this browser"
-                                                                       : "From the server's owner. Kept for next time",
+            string kept = CoopKey.Masked(apiKey);
+            GUI.Label(new Rect(fx, y, fw, 18f * s), (kept.Length > 0 ? kept + "   " : "") +
+                      (CoopKey.PerName ? "From the server's owner. Kept for this name, in this browser" : "From the server's owner. Kept for next time"),
                       Hud.Text(11, false, TextAnchor.MiddleLeft));
             y += 26f * s;
 

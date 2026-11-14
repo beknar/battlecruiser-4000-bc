@@ -69,9 +69,13 @@ if (Array.IndexOf(args, "--revoke-key") is int rk && rk >= 0)
 {
     string? which = rk + 1 < args.Length ? args[rk + 1] : null;
     if (which == null) { Console.Error.WriteLine("CoopServer: --revoke-key needs a key's name or its first characters"); return 1; }
-    int n = cfg.Keys.Revoke(which);
-    Console.WriteLine(n > 0 ? $"revoked {n} key{(n == 1 ? "" : "s")}" : $"no key for '{which}'");
-    return n > 0 ? 0 : 1;
+    try
+    {
+        var gone = cfg.Keys.Revoke(which, out string why);
+        Console.WriteLine(gone.Count > 0 ? $"revoked {gone.Count} key{(gone.Count == 1 ? "" : "s")} (a running server drops the players using it)" : why);
+        return gone.Count > 0 ? 0 : 1;
+    }
+    catch (Exception e) { Console.Error.WriteLine($"CoopServer: {e.Message}"); return 1; }
 }
 
 var builder = WebApplication.CreateSlimBuilder();
@@ -116,7 +120,7 @@ app.Map("/coop", async (HttpContext ctx) =>
 app.MapGet("/", (HttpContext ctx) =>
 {
     if (!cfg.AllowList.Allows(ctx.Connection.RemoteIpAddress)) return Results.StatusCode(403);
-    return Results.Text(hub.Status());
+    return Results.Text(hub.Status(owner: false));
 });
 
 // the config file: re-read the allow-list and player limit whenever it is saved
@@ -159,6 +163,8 @@ if (cfg.Path != null)
     catch (Exception e) { Log($"config: can't watch the settings file ({e.Message}); checking it every 2 s instead"); }
     poller = new Timer(_ => ReloadIfChanged(), null, 2000, 2000);
 }
+// a key revoked from beside the server (--revoke-key) or in the file: its players are dropped
+var revoker = new Timer(_ => { try { hub.DropRevoked(); } catch (Exception e) { Log($"keys: {e.Message}"); } }, null, 3000, 3000);
 
 // console commands (when there is a console to read)
 _ = Task.Run(() =>
@@ -173,7 +179,7 @@ _ = Task.Run(() =>
             string verb = (sp < 0 ? cmd : cmd[..sp]).ToLowerInvariant(), rest = sp < 0 ? "" : cmd[(sp + 1)..].Trim();
             switch (verb)
             {
-                case "status": Console.Write(hub.Status()); break;
+                case "status": Console.Write(hub.Status(owner: true)); break;
                 case "reload": Log($"config: {cfg.Reload()}"); break;
                 case "keys": Console.Write(KeyList(cfg.Keys)); break;
                 case "newkey":
@@ -183,8 +189,13 @@ _ = Task.Run(() =>
                     catch (Exception e) { Console.WriteLine($"can't save the key: {e.Message}"); }
                     break;
                 case "revoke":
-                    int n = cfg.Keys.Revoke(rest);
-                    Console.WriteLine(n > 0 ? $"revoked {n} key{(n == 1 ? "" : "s")} (players already on stay on)" : $"no key for '{rest}'");
+                    try
+                    {
+                        var gone = cfg.Keys.Revoke(rest, out string why);
+                        Console.WriteLine(gone.Count > 0 ? $"revoked {gone.Count} key{(gone.Count == 1 ? "" : "s")}" : why);
+                        if (gone.Count > 0) hub.DropRevoked();
+                    }
+                    catch (Exception e) { Console.WriteLine(e.Message); }
                     break;
                 case "quit": case "exit": app.Lifetime.StopApplication(); return;
                 case "": break;
@@ -206,4 +217,5 @@ try { await app.RunAsync(); }
 catch (IOException e) { Console.Error.WriteLine($"CoopServer: can't listen on port {cfg.Port}: {e.Message}"); return 2; }
 watcher?.Dispose();
 poller?.Dispose();
+revoker.Dispose();
 return 0;

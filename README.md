@@ -1053,10 +1053,17 @@ CoopServer --revoke-key <name|key>      revoke a key, then exit
     once: give it to the player, who pastes it into the game's co-op panel. An AI player is
     started with `-apikey <key>`.
   - `--list-keys` (`keys` in the console) lists them, and `--revoke-key Alice` (`revoke Alice`)
-    revokes one, by its name or its first characters. A key made or revoked works at once, even
-    while the server runs; players already on stay on.
-  - The keys are kept in `coopkeys.json` next to the settings (`keysFile`, or `--keys`). Only
-    each key's hash is stored, never the key itself.
+    revokes one, by its name, the whole key, or its first characters (as many as the list shows,
+    or more; a start that more than one key shares revokes none). A key made or revoked counts at
+    once, even while the server runs: within a few seconds the players using a revoked key are
+    told and disconnected.
+  - The keys are kept in `coopkeys.json` next to the settings (`keysFile`; `--keys <file>` on the
+    command line is from the folder it is run in). Only each key's hash is stored, never the key
+    itself. The file is changed under a lock, so a key made or revoked beside a running server
+    can't be undone by it. If the file can't be read (it was hand-edited and broken), no one gets
+    in and no key can be made or revoked until it is mended, so the keys in it aren't lost.
+  - The status page shows who is on, but not whose key each came with (anyone the allow-list
+    lets in can read it); the console's `status` does.
   - A new server has no keys, so no one can join until one is made: its console says so.
   - `"requireKey": false` (or `--open`) lets in anyone the allow-list does, without a key.
 - **Live changes.** Saved changes to the file's `allow`, `maxPlayers` and `requireKey` take

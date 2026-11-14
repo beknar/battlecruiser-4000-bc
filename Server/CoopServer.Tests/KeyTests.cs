@@ -47,7 +47,7 @@ public sealed class KeyTests : IAsyncDisposable
         string file = File.ReadAllText(KeysPath);
         Assert.DoesNotContain(key, file);                                 // never the key itself
         Assert.Contains(ApiKeys.HashOf(key), file);
-        Assert.Contains(key[..(ApiKeys.Prefix.Length + 4)], file);        // its first characters, to tell it apart
+        Assert.Contains(key[..(ApiKeys.Prefix.Length + ApiKeys.StartsLength)], file);   // its first characters, to tell it apart
     }
 
     [Fact]
@@ -66,13 +66,14 @@ public sealed class KeyTests : IAsyncDisposable
     {
         var keys = new ApiKeys(KeysPath);
         string a = keys.Issue("Alice", false), b = keys.Issue("Bob", false), c = keys.Issue("Cleo", false);
-        Assert.Equal(1, keys.Revoke("alice"));
+        Assert.Single(keys.Revoke("alice", out _));
         Assert.Null(keys.Check(a));
-        Assert.Equal(1, keys.Revoke(b[..(ApiKeys.Prefix.Length + 4)]));
+        Assert.Single(keys.Revoke(b[..(ApiKeys.Prefix.Length + ApiKeys.StartsLength + 3)], out _));   // more of it than the list shows
         Assert.Null(keys.Check(b));
-        Assert.Equal(1, keys.Revoke(c));
+        Assert.Single(keys.Revoke(c, out _));
         Assert.Null(keys.Check(c));
-        Assert.Equal(0, keys.Revoke("nobody"));
+        Assert.Empty(keys.Revoke("nobody", out string why));
+        Assert.Contains("no key", why);
         Assert.Equal(0, keys.Count);
     }
 
@@ -84,18 +85,71 @@ public sealed class KeyTests : IAsyncDisposable
         var cli = new ApiKeys(KeysPath);
         string key = cli.Issue("Dana", false);
         Assert.Equal("Dana", server.Check(key)?.Name);
-        cli.Revoke("Dana");
+        cli.Revoke("Dana", out _);
         Assert.Null(server.Check(key));
     }
 
     [Fact]
-    public void ABrokenFileLetsNoOneIn()
+    public void ABrokenFileLetsNoOneInAndIsntWrittenOver()
     {
         var keys = new ApiKeys(KeysPath);
         string key = keys.Issue("Eve", false);
-        File.WriteAllText(KeysPath, "{ this isn't json");
+        string broken = "{ this isn't json, and Eve's key is in it";
+        File.WriteAllText(KeysPath, broken);
         Assert.Null(keys.Check(key));
         Assert.NotNull(keys.Error);
+        // making or revoking a key now would lose the others: refused, the file left as it is
+        Assert.Throws<IOException>(() => keys.Issue("Frank", false));
+        Assert.Throws<IOException>(() => keys.Revoke("Eve", out _));
+        Assert.Equal(broken, File.ReadAllText(KeysPath));
+    }
+
+    [Fact]
+    public void AFileInUseForAMomentKeepsTheKeysReadLast()
+    {
+        var keys = new ApiKeys(KeysPath);
+        string key = keys.Issue("Gina", false);
+        var other = new ApiKeys(KeysPath);
+        other.Issue("Hal", false);                                         // (the file changed)
+        using (new FileStream(KeysPath, FileMode.Open, FileAccess.Read, FileShare.None))
+            Assert.Equal("Gina", keys.Check(key)?.Name);                   // can't be read: the keys read last
+        Assert.Equal(2, keys.Count);                                      // and read once it can be
+    }
+
+    [Fact]
+    public void AnEntryWithNoHashIsPassedOver()
+    {
+        var keys = new ApiKeys(KeysPath);
+        string key = keys.Issue("Ivy", false);
+        string text = File.ReadAllText(KeysPath).Replace("\"keys\": [", "\"keys\": [ null, { \"name\": \"broken\", \"hash\": null },");
+        File.WriteAllText(KeysPath, text);
+        Assert.Equal("Ivy", keys.Check(key)?.Name);
+        Assert.Null(keys.Check("bc4k_" + new string('0', 40)));
+    }
+
+    [Fact]
+    public void AStartNoKeyHasRevokesNone()
+    {
+        var keys = new ApiKeys(KeysPath);
+        keys.Issue("Jo", false);
+        keys.Issue("Kit", false);
+        Assert.Empty(keys.Revoke(ApiKeys.Prefix + "zzzzzzzz", out string why));
+        Assert.Contains("no key", why);
+        Assert.Equal(2, keys.Count);
+    }
+
+    [Fact]
+    public void KeysGivenOnTheCommandLineAreFromTheFolderItRunsIn()
+    {
+        string cwd = Directory.GetCurrentDirectory();
+        try
+        {
+            Directory.SetCurrentDirectory(dir);
+            var cfg = ServerConfig.Load(new[] { "--config", Path.Combine(dir, "missing.json"), "--keys", "here.json" }, out var error);
+            Assert.Null(error);
+            Assert.Equal(Path.Combine(dir, "here.json"), cfg.Keys.Path);
+        }
+        finally { Directory.SetCurrentDirectory(cwd); }
     }
 
     [Fact]
@@ -186,22 +240,31 @@ public sealed class KeyTests : IAsyncDisposable
         var c = await Hello(hub, "Wingman", key);
         await c.Next("welcome");
         Assert.Equal(1, hub.Count);
-        string status = hub.Status();
+        string status = hub.Status(owner: true);
         Assert.Contains("AI key: wingman bot", status);
         Assert.DoesNotContain(key, status);
+        // the status page (anyone the allow-list lets in) doesn't say whose keys
+        string page = hub.Status(owner: false);
+        Assert.DoesNotContain("wingman bot", page);
+        Assert.DoesNotContain("issued", page);
     }
 
     [Fact]
-    public async Task ARevokedKeyLetsNoOneElseIn()
+    public async Task ARevokedKeyLetsNoOneInAndDropsThoseOn()
     {
         var hub = NewHub(true, out var cfg);
         string key = cfg.Keys.Issue("Alice", false);
         var a = await Hello(hub, "Alice", key);
         await a.Next("welcome");
-        cfg.Keys.Revoke("Alice");
+        cfg.Keys.Revoke("Alice", out _);
         var b = await Hello(hub, "Alice again", key);
         await b.Next("reject");
-        Assert.Equal(1, hub.Count);                                        // the one already on stays on
+        // the one already on is dropped, told why
+        Assert.Equal(1, hub.DropRevoked());
+        var told = await a.Next("reject");
+        Assert.Contains("revoked", (string?)told["why"]);
+        for (int i = 0; i < 40 && hub.Count > 0; i++) await Task.Delay(50);
+        Assert.Equal(0, hub.Count);
     }
 
     [Fact]

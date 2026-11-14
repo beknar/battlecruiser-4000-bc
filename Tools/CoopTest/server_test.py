@@ -22,7 +22,7 @@ import asyncio, json, subprocess, sys, time, urllib.request
 
 import websockets
 
-from protocol import PROTOCOL, KEY
+from protocol import PROTOCOL, KEY, hello as hello_msg
 
 HOST, PORT = sys.argv[1], int(sys.argv[2])
 if "--key" in sys.argv:
@@ -51,11 +51,11 @@ async def recv_until(ws, t, timeout=3.0):
 
 async def join(name, level="TestLevel", v=PROTOCOL, key=None):
     ws = await websockets.connect(URL)
-    hello = {"t": "hello", "v": v, "name": name, "level": level, "client": "test", "captain": 0, "clock": 12.5}
-    key = KEY if key is None else key
-    if key:
-        hello["key"] = key
-    await ws.send(json.dumps(hello))
+    # (the hello the bots send, with this test's key, or the one given: "" for none)
+    msg = hello_msg(v=v, name=name, level=level, client="test", captain=0, clock=12.5, key=KEY if key is None else key)
+    if not msg["key"]:
+        del msg["key"]
+    await ws.send(json.dumps(msg))
     return ws
 
 

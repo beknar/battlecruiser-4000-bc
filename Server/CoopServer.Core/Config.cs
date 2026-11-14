@@ -54,10 +54,16 @@ public sealed class ServerConfig
         if (Arg(args, "--cert") is string c) cfg.Certificate = c;
         if (Arg(args, "--cert-password") is string cp) cfg.CertificatePassword = cp;
         if (args.Contains("--open")) { cfg.RequireKey = false; cfg.openFromArgs = true; }
-        if (Arg(args, "--keys") is string k) cfg.KeysFile = k;
-        // (relative to the settings file's folder, or the program's without one)
-        string baseDir = cfg.Path != null ? System.IO.Path.GetDirectoryName(cfg.Path)! : AppContext.BaseDirectory;
-        cfg.Keys = new ApiKeys(System.IO.Path.GetFullPath(System.IO.Path.Combine(baseDir, cfg.KeysFile)));
+        // (on the command line: from the folder it is run in, as any path given there; in the
+        // settings file: from the file's folder, or the program's without one)
+        string keysPath;
+        if (Arg(args, "--keys") is string k) { cfg.KeysFile = k; keysPath = System.IO.Path.GetFullPath(k); }
+        else
+        {
+            string baseDir = cfg.Path != null ? System.IO.Path.GetDirectoryName(cfg.Path)! : AppContext.BaseDirectory;
+            keysPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(baseDir, cfg.KeysFile));
+        }
+        cfg.Keys = new ApiKeys(keysPath);
         if (cfg.Keys.Error != null) { error = cfg.Keys.Error; return cfg; }
         if (cfg.MaxPlayers < 1) { error = "--max-players must be at least 1"; return cfg; }
         if (cfg.Port < 1 || cfg.Port > 65535) { error = "--port must be 1 to 65535"; return cfg; }

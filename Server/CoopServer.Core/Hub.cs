@@ -45,8 +45,9 @@ public sealed class Hub
         public string Client = "";
         public int Captain;
         public string Address = "";
-        /// <summary>Who the API key it came with was made for ("" on an open server).</summary>
-        public string KeyName = "";
+        /// <summary>Who the API key it came with was made for ("" on an open server), and the
+        /// key's hash (to drop the player if it is revoked).</summary>
+        public string KeyName = "", KeyHash = "";
         public bool KeyAi;
         public double JoinedAt;
         public WebSocket Ws = null!;
@@ -133,6 +134,7 @@ public sealed class Hub
                     Captain = Int(hello["captain"]) ?? 0,
                     Address = from,
                     KeyName = key?.Name ?? "",
+                    KeyHash = key?.Hash ?? "",
                     KeyAi = key?.Ai ?? false,
                     JoinedAt = Now,
                     Ws = ws,
@@ -355,20 +357,41 @@ public sealed class Hub
         }
     }
 
-    /// <summary>A line for the status page and the console.</summary>
-    public string Status()
+    /// <summary>Drop the players whose API key has been revoked (made with --revoke-key, or
+    /// in the console, or deleted from the file): told why, then disconnected. Returns how many.</summary>
+    public int DropRevoked()
+    {
+        if (!cfg.RequireKey) return 0;
+        var gone = new List<Player>();
+        lock (gate)
+            foreach (var p in players.Values)
+                if (p.KeyHash.Length > 0 && !cfg.Keys.Has(p.KeyHash)) gone.Add(p);
+        foreach (var p in gone)
+        {
+            Log($"{p.Name} (#{p.Id}): the API key for {p.KeyName} was revoked, disconnected");
+            Send(p, new JsonObject { ["t"] = CoopWire.Reject, ["why"] = "your API key was revoked: ask the server's owner for a new one" });
+            var session = p.Session;
+            if (session != null) ThreadPool.QueueUserWorkItem(_ => { Thread.Sleep(300); try { session.Cancel(); } catch (ObjectDisposedException) { } });
+        }
+        return gone.Count;
+    }
+
+    /// <summary>A line for the status page and the console. `owner`: the console's, which says
+    /// whose key each player came with and how many keys there are (the status page, open to
+    /// anyone the allow-list lets in, doesn't).</summary>
+    public string Status(bool owner = false)
     {
         lock (gate)
         {
             var sb = new StringBuilder();
             sb.AppendLine($"Battlecruiser 4000 BC co-op server: {players.Count} of {cfg.MaxPlayers} players, up {TimeSpan.FromSeconds(Now):hh\\:mm\\:ss}");
-            sb.AppendLine($"allowed: {cfg.AllowList}; {cfg.KeyRule}");
+            sb.AppendLine(owner ? $"allowed: {cfg.AllowList}; {cfg.KeyRule}" : $"allowed: {cfg.AllowList}; {(cfg.RequireKey ? "an API key needed" : "open")}");
             foreach (var r in rooms.Values)
             {
                 sb.AppendLine($"  {r.Level}: {r.Members.Count} player(s), orbit clock {Now - r.Epoch:F0} s");
                 foreach (int id in r.Members)
                     if (players.TryGetValue(id, out var p))
-                        sb.AppendLine($"    #{p.Id} {p.Name} ({p.Client}){(p.KeyName.Length > 0 ? $", {(p.KeyAi ? "AI key" : "key")}: {p.KeyName}" : "")}{(r.Host == p.Id ? "  host" : "")}");
+                        sb.AppendLine($"    #{p.Id} {p.Name} ({p.Client}){(owner && p.KeyName.Length > 0 ? $", {(p.KeyAi ? "AI key" : "key")}: {p.KeyName}" : "")}{(r.Host == p.Id ? "  host" : "")}");
             }
             return sb.ToString();
         }

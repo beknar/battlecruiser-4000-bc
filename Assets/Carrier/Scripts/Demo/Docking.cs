@@ -203,7 +203,7 @@ namespace CarrierGame.Demo
             if (InputFocus.PanelUp) return;   // a panel has the keys
             var k = Keyboard.current;
             var pad = Gamepad.current;
-            bool press = (k != null && k.kKey.wasPressedThisFrame) || (pad != null && !CarrierDemoInput.PadFiresMissiles(carrier) && pad.leftShoulder.wasPressedThisFrame);
+            bool press = (k != null && k.kKey.wasPressedThisFrame) || CarrierDemoInput.PadLandPressed(pad);
             if (!press) return;
             if (Current == State.Free && candidate != null) Dock();
             else if (Current == State.Docked) Undock();
@@ -212,7 +212,7 @@ namespace CarrierGame.Demo
         /// <summary>The HUD's docking line (null when there is nothing to say).</summary>
         public string HudText()
         {
-            string key = PadSupport.UsingPad && Gamepad.current != null ? "LB" : "K";
+            string key = PadSupport.UsingPad && Gamepad.current != null ? "Back+B" : "K";
             switch (Current)
             {
                 case State.Docking: return $"Dock  <color=#bfe6ff>docking at {At?.displayName}</color>";

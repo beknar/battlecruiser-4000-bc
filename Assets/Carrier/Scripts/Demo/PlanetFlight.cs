@@ -125,7 +125,8 @@ namespace CarrierGame.Demo
             float dt = Time.deltaTime;
             bool inSpace = !PlanetLanding.Busy;
             var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (inSpace && kb != null && kb.oKey.wasPressedThisFrame && !InputFocus.PanelUp) ToggleCruise();
+            // (O in navigation mode; X on the pad, through CarrierDemoInput)
+            if (inSpace && kb != null && kb.oKey.wasPressedThisFrame && !InputFocus.PanelUp && Modes.Is(ModeOfPlay.Navigation)) ToggleCruise();
             Vector3 p = ship.transform.position;
             Body = inSpace ? NearestBody(p, out float alt) : null;
             Altitude = Body != null ? Vector3.Distance(p, Body.Position) - Body.bodyRadius : float.PositiveInfinity;

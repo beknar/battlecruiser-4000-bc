@@ -4,8 +4,10 @@ using UnityEngine.InputSystem;
 namespace CarrierGame.Demo
 {
     /// <summary>Keyboard, mouse and gamepad (Xbox 360 / XInput) controls for the player's ship,
-    /// and the actions they trigger (also driven by the self-tests and reels). It sets the level
-    /// up around itself as it wakes (GameSession: the HUD, co-op, the pause menu).</summary>
+    /// and the actions they trigger (also driven by the self-tests and reels). Flying is the same
+    /// in every mode of play; the other keys are the mode's own (Modes: 1-5, or Back + LB/RB on
+    /// the pad), and Tab (Back + Y) opens the mode's menu. It sets the level up around itself as
+    /// it wakes (GameSession: the HUD, co-op, the pause menu).</summary>
     public class CarrierDemoInput : MonoBehaviour
     {
         public CarrierController carrier;
@@ -71,12 +73,14 @@ namespace CarrierGame.Demo
             PadSupport.Track(pad, k, Mouse.current);
             // the pause menu has the keys, mouse and pad while it is open
             if (GameMenu.IsOpen || GameMenu.JustClosed) return;
+            // and the comms line being typed into has the keys (the ship flies on as it was)
+            bool chatting = InputFocus.Has(InputFocus.Panel.Chat) || InputFocus.JustReleased(InputFocus.Panel.Chat);
 
             // the system map has the keys and the pad while it is open; the warp drive flies the
             // ship while it is charging or in warp
             bool warpFlying = (warp != null && warp.Current != WarpDrive.State.Ready) || PlanetLanding.Transitioning;
             // (and so has an industrial site's screen)
-            bool panel = SystemMap.IsOpen || SystemMap.JustClosed || IndustryPanel.IsOpen || IndustryPanel.JustClosed;
+            bool panel = SystemMap.IsOpen || SystemMap.JustClosed || IndustryPanel.IsOpen || IndustryPanel.JustClosed || chatting;
             if (panel || warpFlying)
             {
                 WatchDestruction();
@@ -95,6 +99,8 @@ namespace CarrierGame.Demo
             }
 
             float turn = 0f, throttleRate = 0f, pitch = 0f, lift = 0f, roll = 0f;
+            // (a mode's menu takes the up/down arrows and the D-pad's up/down to choose with)
+            bool listUp = ModeMenu.IsOpen;
             if (k != null)
             {
                 KeyboardControls(k);
@@ -102,8 +108,8 @@ namespace CarrierGame.Demo
                 else if (k.dKey.isPressed) turn = 1f;
                 if (k.wKey.isPressed) throttleRate += 1f;
                 if (k.sKey.isPressed) throttleRate -= 1f;
-                if (k.upArrowKey.isPressed) pitch += 1f;           // nose up
-                if (k.downArrowKey.isPressed) pitch -= 1f;         // nose down
+                if (k.upArrowKey.isPressed && !listUp) pitch += 1f;           // nose up
+                if (k.downArrowKey.isPressed && !listUp) pitch -= 1f;         // nose down
                 if (k.spaceKey.isPressed) lift += 1f;              // elevator thrusters up
                 if (k.leftCtrlKey.isPressed || k.rightCtrlKey.isPressed) lift -= 1f;
                 if (!carrier.HasHangar)                            // Q/E roll (a carrier's are its wing's orders)
@@ -123,8 +129,8 @@ namespace CarrierGame.Demo
                 {
                     if (!pad.selectButton.isPressed)
                     {
-                        if (pad.dpad.up.isPressed) pitch = 1f;
-                        else if (pad.dpad.down.isPressed) pitch = -1f;
+                        if (pad.dpad.up.isPressed && !listUp) pitch = 1f;
+                        else if (pad.dpad.down.isPressed && !listUp) pitch = -1f;
                         if (pad.dpad.left.isPressed) roll = -1f;
                         else if (pad.dpad.right.isPressed) roll = 1f;
                     }
@@ -172,41 +178,82 @@ namespace CarrierGame.Demo
 
         void KeyboardControls(Keyboard k)
         {
-            // P too: in a browser at full screen, the first Esc only leaves full screen
-            if (k.escapeKey.wasPressedThisFrame || k.pKey.wasPressedThisFrame) { Menu.Open(); return; }
+            // (with a mode's menu open, Esc and Tab are its: they close it)
+            bool listUp = ModeMenu.IsOpen || ModeMenu.JustClosed;
+            // P too: in a browser at full screen, the first Esc only leaves full screen (with a
+            // mode's menu open, Esc is the menu's, and P closes it and pauses)
+            if ((k.escapeKey.wasPressedThisFrame && !listUp) || k.pKey.wasPressedThisFrame) { ModeMenu.Close(); Menu.Open(); return; }
             if (k.hKey.wasPressedThisFrame) hud.ToggleHelp();
             if (k.equalsKey.wasPressedThisFrame || k.numpadPlusKey.wasPressedThisFrame) Hud.ChangeTextSize(+1);
             if (k.minusKey.wasPressedThisFrame || k.numpadMinusKey.wasPressedThisFrame) Hud.ChangeTextSize(-1);
             if (k.f11Key.wasPressedThisFrame && !LaunchArgs.OnWeb) GameSession.ToggleFullScreen();   // in a browser, F11 is the browser's
             if (k.nKey.wasPressedThisFrame) ToggleMute();
-            if (carrier.Destroyed) return;   // nothing to fly or fight with until it respawns
 
-            if (k.digit1Key.wasPressedThisFrame) LaunchFighters();
-            if (k.digit2Key.wasPressedThisFrame) LaunchDrones();
-            if (k.digit3Key.wasPressedThisFrame) LaunchDropships();
-            // (with a warp drive, M is the system map: 4 fires them anywhere)
-            if ((k.mKey.wasPressedThisFrame && warp == null) || k.digit4Key.wasPressedThisFrame) FireMissiles();
+            // the modes: 1-5, and the mode's menu (Tab)
+            if (k.digit1Key.wasPressedThisFrame) Modes.Set(ModeOfPlay.Combat);
+            if (k.digit2Key.wasPressedThisFrame) Modes.Set(ModeOfPlay.Mining);
+            if (k.digit3Key.wasPressedThisFrame) Modes.Set(ModeOfPlay.Navigation);
+            if (k.digit4Key.wasPressedThisFrame) Modes.Set(ModeOfPlay.Services);
+            if (k.digit5Key.wasPressedThisFrame) Modes.Set(ModeOfPlay.Fleet);
+            if (k.tabKey.wasPressedThisFrame && !listUp) OpenModeMenu();
+            if (carrier.Destroyed) return;   // nothing to fly or fight with until it respawns
+            if (k.lKey.wasPressedThisFrame) LevelOff();
+
+            switch (Modes.Current)
+            {
+                case ModeOfPlay.Combat: CombatKeys(k); break;
+                case ModeOfPlay.Mining: MiningKeys(k); break;
+            }
+        }
+
+        /// <summary>The combat mode's keys: the guns, the main gun, missiles, targeting, lining
+        /// up (the kinetic strike's Y is read by KineticStrike, in this mode).</summary>
+        void CombatKeys(Keyboard k)
+        {
             if (k.fKey.wasPressedThisFrame) FireGuns();
             if (k.gKey.wasPressedThisFrame) ToggleAutoFire();
-            if (k.qKey.wasPressedThisFrame && carrier.HasHangar) WingAttack();
-            if (k.eKey.wasPressedThisFrame && carrier.HasHangar) WingEscort();
-            if (k.rKey.wasPressedThisFrame) WingReturn();
-
-            // targeting: T cycles, a click picks a ship, X stops targeting
-            if (k.tKey.wasPressedThisFrame) NextTarget();
+            if (k.bKey.wasPressedThisFrame) ChargeMainGun();
+            if (k.rKey.wasPressedThisFrame) FireMissiles();
+            // (with the menu open, C acts on the row chosen: CombatMode.Keys)
+            if (k.cKey.wasPressedThisFrame && !ModeMenu.IsOpen && !ModeMenu.JustClosed) Combat?.ToggleLineUp();
+            // targeting: T cycles (Shift+T back), a click picks a ship, X stops targeting
+            if (k.tKey.wasPressedThisFrame) { if (k.shiftKey.isPressed) PreviousTarget(); else NextTarget(); }
             if (k.xKey.wasPressedThisFrame || k.backspaceKey.wasPressedThisFrame) ClearTarget();
             var mouse = Mouse.current;
             if (mouse != null && mouse.leftButton.wasPressedThisFrame) PickAt(mouse.position.ReadValue());
+        }
 
-            if (k.cKey.wasPressedThisFrame) CycleCamera();
-            if (k.lKey.wasPressedThisFrame) LevelOff();
-            if (k.bKey.wasPressedThisFrame) ChargeMainGun();
-
-            // mining: Z laser, V scan, I cargo list, J jettison
+        /// <summary>The mining mode's keys: the laser, the scan, the hold.</summary>
+        void MiningKeys(Keyboard k)
+        {
             if (k.zKey.wasPressedThisFrame) ToggleMiningLaser();
             if (k.vKey.wasPressedThisFrame) MineralScan();
             if (k.iKey.wasPressedThisFrame) ToggleManifest();
             if (k.jKey.wasPressedThisFrame) Jettison();
+        }
+
+        CombatMode combat;
+        /// <summary>The combat mode's menu and line-up (on this object).</summary>
+        public CombatMode Combat => combat != null ? combat : (combat = GetComponent<CombatMode>());
+
+        /// <summary>The menu of the mode the player is in (Tab, Back + Y).</summary>
+        public void OpenModeMenu()
+        {
+            IMenuSource src = null;
+            switch (Modes.Current)
+            {
+                case ModeOfPlay.Combat: src = Combat; break;
+                case ModeOfPlay.Services:
+                    // (the site's own screen: docked at it, or on its pad)
+                    var site = IndustryPanel.Instance;
+                    if (site != null && site.Here() != null && site.Open()) return;
+                    if (Docking.Docked || PlanetLanding.OnSurface) { NotFitted("Services: nothing is offered here"); return; }
+                    NotFitted(PadSupport.UsingPad ? "Services: dock at a station or land on a site's pad first (Back + B)"
+                                                  : "Services: dock at a station or land on a site's pad first (K)");
+                    return;
+            }
+            if (src == null) { NotFitted($"{Modes.Name(Modes.Current)} mode has no menu yet"); return; }
+            ModeMenu.Toggle(src);
         }
 
         // ------------------------------------------------------------ main gun, shield, CIWS
@@ -321,18 +368,26 @@ namespace CarrierGame.Demo
 
         bool backCombo;
 
-        /// <summary>Xbox 360 layout. Back acts when released, so it can also be held for
-        /// combinations (Back + D-pad up/down = text size). Start opens the pause menu.</summary>
+        /// <summary>The pad held Back and pressed B this frame: land or take off, dock or undock
+        /// (read by PlanetLanding and Docking, in every mode).</summary>
+        public static bool PadLandPressed(Gamepad p) => p != null && p.selectButton.isPressed && p.buttonEast.wasPressedThisFrame;
+
+        /// <summary>Xbox 360 layout. Flying is the same in every mode (left stick, D-pad, triggers),
+        /// and so is Back with another button: D-pad up/down text size, left/right zoom, LB/RB the
+        /// mode, Y the mode's menu, A level off, B land or dock. Back alone (on release) shows or
+        /// hides the controls; Start opens the pause menu; R3 the system map. The face buttons and
+        /// shoulders are the mode's own.</summary>
         void PadControls(Gamepad p)
         {
             bool back = p.selectButton.isPressed;
-            if (p.startButton.wasPressedThisFrame) { Menu.Open(); return; }
+            if (p.startButton.wasPressedThisFrame) { ModeMenu.Close(); Menu.Open(); return; }
+            bool listUp = ModeMenu.IsOpen || ModeMenu.JustClosed;
 
             if (back)
             {
                 if (p.dpad.up.wasPressedThisFrame) { Hud.ChangeTextSize(+1); backCombo = true; }
                 if (p.dpad.down.wasPressedThisFrame) { Hud.ChangeTextSize(-1); backCombo = true; }
-                // Back + D-pad left/right: zoom the camera (on a frigate's pad, left/right roll the ship)
+                // Back + D-pad left/right: zoom the camera (left/right alone roll the ship)
                 if (GunshipPad && orbitCamera != null)
                 {
                     float z = (p.dpad.left.isPressed ? 1f : 0f) - (p.dpad.right.isPressed ? 1f : 0f);
@@ -343,39 +398,49 @@ namespace CarrierGame.Demo
                         backCombo = true;
                     }
                 }
-                // Back + A/Y/X/B: mining laser, scan, cargo list, jettison
-                if (!carrier.Destroyed && Laser != null)
-                {
-                    if (p.buttonSouth.wasPressedThisFrame) { ToggleMiningLaser(); backCombo = true; }
-                    if (p.buttonNorth.wasPressedThisFrame) { MineralScan(); backCombo = true; }
-                    if (p.buttonWest.wasPressedThisFrame) { ToggleManifest(); backCombo = true; }
-                    if (p.buttonEast.wasPressedThisFrame) { Jettison(); backCombo = true; }
-                }
-            }
-            else if (GunshipPad)
-            {
-                // D-pad up/down pitch the nose and left/right roll the ship (read in Update)
-            }
-            else
-            {
-                if (p.dpad.up.wasPressedThisFrame) LaunchFighters();
-                if (p.dpad.right.wasPressedThisFrame) LaunchDrones();
-                if (p.dpad.down.wasPressedThisFrame) LaunchDropships();
-                if (p.dpad.left.wasPressedThisFrame) WingReturn();
+                if (p.leftShoulder.wasPressedThisFrame) { Modes.Step(-1); backCombo = true; }
+                if (p.rightShoulder.wasPressedThisFrame) { Modes.Step(+1); backCombo = true; }
+                if (p.buttonNorth.wasPressedThisFrame) { if (!listUp) OpenModeMenu(); backCombo = true; }
+                if (p.buttonSouth.wasPressedThisFrame) { if (!carrier.Destroyed) LevelOff(); backCombo = true; }
+                if (p.buttonEast.wasPressedThisFrame) backCombo = true;     // (land or dock: PlanetLanding, Docking)
             }
             if (p.selectButton.wasReleasedThisFrame) { if (!backCombo) hud.ToggleHelp(); backCombo = false; }
-            if (carrier.Destroyed || (back && Laser != null)) return;   // with Back held, the face buttons are the mining controls
-
-            if (p.buttonSouth.wasPressedThisFrame) { if (GunshipPad) LevelOff(); else WingAttack(); }   // A
-            if (p.buttonEast.wasPressedThisFrame) ClearTarget();          // B
-            if (p.buttonWest.wasPressedThisFrame) { if (GunshipPad) ChargeMainGun(); else WingEscort(); }   // X
-            if (p.buttonNorth.wasPressedThisFrame) NextTarget();          // Y
-            if (p.rightShoulder.wasPressedThisFrame) FireGuns();          // RB
-            // LB: missiles at the target; without missiles or a target, landing and docking have it
-            if (p.leftShoulder.wasPressedThisFrame && (Landing == null || MissilesOnPad)) FireMissiles();
-            if (p.leftStickButton.wasPressedThisFrame) ToggleAutoFire();  // L3
             if (p.rightStickButton.wasPressedThisFrame && warp == null) CycleCamera();    // R3 (the system map, with a warp drive)
-            // right stick orbits and LT/RT zoom: handled by OrbitCamera
+            if (carrier.Destroyed || back) return;
+
+            switch (Modes.Current)
+            {
+                case ModeOfPlay.Combat: CombatPad(p, listUp); break;
+                case ModeOfPlay.Mining: MiningPad(p, listUp); break;
+                case ModeOfPlay.Navigation: NavigationPad(p, listUp); break;
+                case ModeOfPlay.Services: if (!listUp && p.buttonSouth.wasPressedThisFrame) OpenModeMenu(); break;   // A
+            }
+            // right stick orbits: handled by OrbitCamera
+        }
+
+        void CombatPad(Gamepad p, bool listUp)
+        {
+            // (A and B are a menu's while it is open)
+            if (!listUp && p.buttonSouth.wasPressedThisFrame) Combat?.ToggleLineUp();     // A
+            if (!listUp && p.buttonEast.wasPressedThisFrame) ClearTarget();               // B
+            if (p.buttonWest.wasPressedThisFrame && !listUp) ChargeMainGun();            // X
+            if (p.buttonNorth.wasPressedThisFrame) NextTarget();                          // Y
+            if (p.rightShoulder.wasPressedThisFrame) FireGuns();                          // RB
+            if (p.leftShoulder.wasPressedThisFrame) FireMissiles();                       // LB
+            if (p.leftStickButton.wasPressedThisFrame) ToggleAutoFire();                  // L3
+        }
+
+        void NavigationPad(Gamepad p, bool listUp)
+        {
+            if (p.buttonWest.wasPressedThisFrame && PlanetFlight.Instance != null && !PlanetLanding.Busy) PlanetFlight.Instance.ToggleCruise();   // X
+        }
+
+        void MiningPad(Gamepad p, bool listUp)
+        {
+            if (!listUp && p.buttonSouth.wasPressedThisFrame) ToggleMiningLaser();       // A
+            if (!listUp && p.buttonEast.wasPressedThisFrame) Jettison();                 // B
+            if (p.buttonNorth.wasPressedThisFrame) MineralScan();                         // Y
+            if (p.rightShoulder.wasPressedThisFrame) ToggleManifest();                    // RB
         }
 
         // ------------------------------------------------------------ actions (keys, pad and the auto test)
@@ -427,12 +492,6 @@ namespace CarrierGame.Demo
             Notices.Post(on ? "Main guns: auto-fire ON" : "Main guns: auto-fire OFF");
         }
 
-        /// <summary>The pad's LB fires missiles (not landing or docking): the ship has missiles left and a target.</summary>
-        public bool MissilesOnPad => PadFiresMissiles(carrier);
-
-        /// <summary>The rule for a ship (for landing and docking, which have LB otherwise).</summary>
-        public static bool PadFiresMissiles(CarrierController c) =>
-            c != null && c.HasMissiles && c.target != null && c.missiles.Stock != 0;
 
         float nextRearm;
 
@@ -465,14 +524,21 @@ namespace CarrierGame.Demo
             else carrier.OrderWing(Craft.Order.Attack);
         }
 
-        public void NextTarget()
+        public void NextTarget() => CycleTarget(+1);
+
+        /// <summary>The target before this one in the list (Shift+T).</summary>
+        public void PreviousTarget() => CycleTarget(-1);
+
+        /// <summary>The next (or previous) target in the list that isn't still hiding in an
+        /// ambush and is within range; with none chosen yet, the one at the list's place first.</summary>
+        void CycleTarget(int dir)
         {
             var targets = Targets.All;
             if (targets.Count == 0) return;
-            // the next target in the list that isn't still hiding in an ambush, and is within range
             for (int tries = 0; tries < targets.Count; tries++)
             {
-                targetIndex = carrier.target == null && tries == 0 ? targetIndex % targets.Count : (targetIndex + 1) % targets.Count;
+                targetIndex = carrier.target == null && tries == 0 ? (targetIndex % targets.Count + targets.Count) % targets.Count
+                                                                   : (targetIndex + dir + targets.Count) % targets.Count;
                 var t = targets[targetIndex];
                 if (t == null || CombatPilot.IsHidden(t)) continue;
                 if (!TargetDisplay.InRange(t, carrier.transform.position)) continue;
@@ -552,7 +618,7 @@ namespace CarrierGame.Demo
         void NoTarget()
         {
             SoundFX.Ui(Sfx.UiError);
-            Notices.Post(PadSupport.UsingPad ? "No target: press Y to pick one" : "No target: press T or click a ship");
+            Notices.Post(PadSupport.UsingPad ? "No target: press Y to pick one (combat mode)" : "No target: press T or click a ship (combat mode, 1)");
         }
 
         /// <summary>Target the hostile under (or nearest to) the mouse click.</summary>

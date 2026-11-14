@@ -71,7 +71,8 @@ namespace CarrierGame.Demo
             }
             if (InputFocus.PanelUp) return;
             var kb = Keyboard.current;
-            if (kb != null && kb.yKey.wasPressedThisFrame) Fire();
+            // (Y in combat mode)
+            if (kb != null && kb.yKey.wasPressedThisFrame && Modes.Is(ModeOfPlay.Combat)) Fire();
         }
 
         /// <summary>The HUD's line (null when there is nothing to strike from here).</summary>

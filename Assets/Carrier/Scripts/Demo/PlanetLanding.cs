@@ -644,7 +644,7 @@ namespace CarrierGame.Demo
             if (Current == State.InSpace && Docking.WantsKey) return;   // K docks (or undocks) here
             var k = Keyboard.current;
             var pad = Gamepad.current;
-            bool press = (k != null && k.kKey.wasPressedThisFrame) || (pad != null && !CarrierDemoInput.PadFiresMissiles(carrier) && pad.leftShoulder.wasPressedThisFrame);
+            bool press = (k != null && k.kKey.wasPressedThisFrame) || CarrierDemoInput.PadLandPressed(pad);
             if (!press || carrier.Destroyed) return;
             if (Autopilot) { StopAutopilot("Auto-pilot off"); return; }
             if (Current == State.InSpace) Land();
@@ -806,7 +806,7 @@ namespace CarrierGame.Demo
         /// <summary>The HUD's landing line(s) (null when there is nothing to say).</summary>
         public string HudText()
         {
-            string key = PadSupport.UsingPad && Gamepad.current != null ? "LB" : "K";
+            string key = PadSupport.UsingPad && Gamepad.current != null ? "Back+B" : "K";
             switch (Current)
             {
                 case State.Descending: return $"Land  <color=#ffd9a0>descending to {Body?.displayName}</color>";

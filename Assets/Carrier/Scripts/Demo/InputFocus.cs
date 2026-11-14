@@ -10,7 +10,9 @@ namespace CarrierGame.Demo
     /// </summary>
     public static class InputFocus
     {
-        public enum Panel { None, PauseMenu, CoopPanel, SystemMap, StartMenu, Industry, Chat }
+        /// <summary>(ModeMenu: a mode's menu, over a game that goes on: the ship is still flown,
+        /// bar the keys the list takes.)</summary>
+        public enum Panel { None, PauseMenu, CoopPanel, SystemMap, StartMenu, Industry, Chat, ModeMenu }
 
         /// <summary>The panel that has the input (None: the game has it).</summary>
         public static Panel Holder { get; private set; }

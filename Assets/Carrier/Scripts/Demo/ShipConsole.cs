@@ -405,7 +405,7 @@ namespace CarrierGame.Demo
                 bool pad = PadSupport.UsingPad && Gamepad.current != null;
                 string what = PlanetLanding.OnSurface ? "veins" : "deposits";
                 if (sensor.Sweeping) lines.Add("Sensor  <color=#bfe6ff>scanning</color>");
-                else if (sensor.Traces > 0) lines.Add($"Sensor  traces of {sensor.Traces} {what} within {sensor.Range / 1000f:F0} km  <color={dim}>{(pad ? "Back+Y" : "V")} scan</color>");
+                else if (sensor.Traces > 0) lines.Add($"Sensor  traces of {sensor.Traces} {what} within {sensor.Range / 1000f:F0} km  <color={dim}>{(pad ? "Y" : "V")} scan in mining mode</color>");
             }
             if (SoundFX.Muted) lines.Add($"<color={dim}>sound off</color>");
             return lines;

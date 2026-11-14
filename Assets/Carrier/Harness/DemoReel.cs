@@ -69,6 +69,8 @@ namespace CarrierGame.Demo
             cc = demo != null ? demo.carrier : null;
             cam = demo != null ? demo.orbitCamera : null;
             if (cc == null || cam == null) { Log("no demo controller in scene"); Application.Quit(); yield break; }
+            // every reel with the same captain, Yuki Tanaka (automated runs no longer read the saved one)
+            Captain.Index = 2;
             if (AmbushDirector.Instance != null) seconds = 76f;
             sysMap = FindAnyObjectByType<SystemMap>();
             if (sysMap != null) seconds = 260f;     // ends a few seconds after the cruiser dies (see SystemShots)

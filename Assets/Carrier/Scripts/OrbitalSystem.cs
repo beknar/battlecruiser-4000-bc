@@ -156,6 +156,8 @@ namespace CarrierGame
         int[] parentOf = new int[0];
         readonly Dictionary<Orbit, int> index = new Dictionary<Orbit, int>();
         readonly HashSet<Transform> frames = new HashSet<Transform>();
+        /// <summary>Is this one of the orbits' frames (a planet and what goes round with it)?</summary>
+        public bool IsFrame(Transform t) => frames.Contains(t);
         Double3 origin;
         WarpDrive drive;
         readonly List<(Transform t, float r)> reaches = new List<(Transform, float)>();

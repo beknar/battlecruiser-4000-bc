@@ -504,7 +504,8 @@ system to travel around.
   ships within 30 km. The capital ship groups at Cinder and Glacis wait on the way in, a few
   kilometres past where a warp drops the ship, straight ahead and a little below it. The planets go round
   over days and weeks, so the way in from anywhere turns with them. Whenever the warp drive
-  charges for the planet, a group lying in wait out of sight moves onto that warp's way in.
+  charges for the planet, or for a base on it or a place in orbit close by, a group lying in
+  wait out of sight moves onto that warp's way in.
 - **Capital ships.**
 
   | Ship | Length | Hull | Weapons |

@@ -63,7 +63,7 @@ namespace CarrierGame.Demo
 
             // 6-14: the cruiser's cannon shells and missiles on the shield, seen from its side
             if (Cue(6f)) Shot(1, cc.transform, demo.ShipViewOffset, d * 1.25f, FrameBearing(cruiser.position, me) + 40f, 10f, 0f);
-            if (shot == 1) cam.yaw = Mathf.LerpAngle(cam.yaw, Bearing(cruiser.position, me) + 40f, Time.deltaTime);
+            if (shot == 1) cam.yaw = Mathf.LerpAngle(cam.yaw, FrameBearing(cruiser.position, me) + 40f, Time.deltaTime);
             if (Cue(5.5f) || Cue(9f)) cruiserGuns?.FireBurstNow();
             if (Cue(5f)) cruiserGuns?.FireSalvoNow();
 
@@ -100,7 +100,7 @@ namespace CarrierGame.Demo
                 Log($"  cruiser beam charging: {charging}");
                 Shot(3, cc.transform, demo.ShipViewOffset, d * 1.15f, FrameBearing(me, cruiser.position) + 35f, 9f, 0f);
             }
-            if (shot == 3) cam.yaw = Mathf.LerpAngle(cam.yaw, Bearing(me, cruiser.position) + 35f, Time.deltaTime);
+            if (shot == 3) cam.yaw = Mathf.LerpAngle(cam.yaw, FrameBearing(me, cruiser.position) + 35f, Time.deltaTime);
 
             // 30-46: the bow gun: charging (close on the bow), firing (chase cam), hitting (on the cruiser)
             if (Cue(30f))

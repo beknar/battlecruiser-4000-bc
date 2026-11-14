@@ -61,7 +61,8 @@ namespace CarrierGame
 
         void LookUp(Vector3 pos)
         {
-            if (FloorAt != null) { up = Vector3.up; return; }
+            // (down on the surface, near its site: the surface is built ahead while still in space)
+            if (FloorAt != null && (pos - Demo.PlanetLanding.SiteCenter).sqrMagnitude < 200000f * 200000f) { up = Vector3.up; return; }
             if (Time.time < nextUpLook) return;
             nextUpLook = Time.time + 0.5f;
             up = Demo.PlanetFlight.UpAt(pos, Demo.PlanetFlight.NearestBody(pos, out _), out _);
@@ -232,7 +233,8 @@ namespace CarrierGame
             Retarget();
             float dt = Time.deltaTime;
             Vector3 pos = transform.position;
-            LookUp(pos);
+            // (not wanted by one lying still in wait: it would be a look through every warp point for nothing)
+            if (Current != State.Lurk || loiterRadius > 0f || !AtHome) LookUp(pos);
             Vector3 desired = transform.forward;
             float wantSpeed = cruiseSpeed;
 
@@ -246,9 +248,9 @@ namespace CarrierGame
                     // on patrol: circle the place
                     AtHome = true;
                     Vector3 off = pos - lurkPoint;
-                    off.y = 0f;
+                    off = Vector3.ProjectOnPlane(off, up);
                     if (off.sqrMagnitude < 1f) off = transform.right;
-                    Vector3 next = lurkPoint + Quaternion.Euler(0f, 25f, 0f) * off.normalized * loiterRadius;
+                    Vector3 next = lurkPoint + Quaternion.AngleAxis(25f, up) * off.normalized * loiterRadius;
                     Steer(pos, next - pos, cruiseSpeed * 0.45f, dt);
                     return;
                 }
@@ -383,7 +385,7 @@ namespace CarrierGame
             // off, further round, so it comes in at an angle with its broadside guns bearing rather
             // than nose on, where a big ship's turrets can't fire past its own bow
             float far = Mathf.Clamp01((flat.magnitude - standoff) / Mathf.Max(1f, standoff));
-            Vector3 dir = Quaternion.AngleAxis(circleSpeed * 3f + far * 50f * Mathf.Sign(circleSpeed == 0f ? 1f : circleSpeed), up) * flat.normalized;
+            Vector3 dir = Quaternion.AngleAxis(circleSpeed * 3f + far * 50f * Mathf.Sign(circleSpeed), up) * flat.normalized;
             Vector3 goal = tp + dir * standoff + up * Mathf.Clamp(Vector3.Dot(pos - tp, up), -400f, 400f);
             Vector3 to = goal - pos;
             wantSpeed = Mathf.Lerp(cruiseSpeed * 0.35f, cruiseSpeed, Mathf.Clamp01(to.magnitude / 800f));

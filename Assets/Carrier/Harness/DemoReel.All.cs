@@ -49,7 +49,6 @@ namespace CarrierGame.Demo
             orbitSys = OrbitalSystem.Instance;
             if (hullF != null) hullF.cannotDie = true;     // the reel must not end in a wreck
             SideGuns(false);
-            Captain.Index = 2;                              // Yuki Tanaka, as in the other reels
             bool coop = ReelCoopServer() != null;
             introLine = "Star System: ships, orbits, real-size worlds, mining, industry, shipyards, crew, settlements, combat, orbital strikes, landing, the sea" +
                         (coop ? " and co-op" : "");

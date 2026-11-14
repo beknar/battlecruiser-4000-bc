@@ -73,8 +73,9 @@ namespace CarrierGame.Demo
             new System.Collections.Generic.List<(string, string, float)>();
         public const float LettersPerSecond = 48f;
         string lastEvent = "";
-        // urgent news she was mid-line for: said as soon as she can, while it still shows
-        string urgentWaiting;
+        // urgent news she was mid-line for: said as soon as she can, if still news (even if
+        // something newer shows by then: a missile warning is not lost to a kill a moment later)
+        readonly System.Collections.Generic.List<(string ev, float at)> urgentWaiting = new System.Collections.Generic.List<(string, float)>();
         bool greeted;
         float nextIdle;
         readonly System.Collections.Generic.Dictionary<string, float> lastSaid = new System.Collections.Generic.Dictionary<string, float>();
@@ -163,7 +164,8 @@ namespace CarrierGame.Demo
             else if (Time.time < reactionUntil) { m = reaction; ev = reactionEv; why = reactionWhy; }
             else { reactionPrio = -1; Steady(cc, out m, out ev, out why); }
             Set(m, ev, why);
-            if (urgentWaiting != null && (urgentWaiting != lastEvent || Speak(urgentWaiting, false))) urgentWaiting = null;
+            urgentWaiting.RemoveAll(u => Time.time - u.at > 3f);
+            if (urgentWaiting.Count > 0 && Speak(urgentWaiting[0].ev, false)) urgentWaiting.RemoveAt(0);
 
             // taking command as the level starts
             if (!greeted && Time.timeSinceLevelLoad > 2f && !cc.Destroyed) { greeted = true; Speak(Ev.ReportingForDuty, true); }
@@ -187,8 +189,8 @@ namespace CarrierGame.Demo
             if (ev != lastEvent)
             {
                 lastEvent = ev;
-                urgentWaiting = null;
-                if (!Ev.Idle(ev) && !Speak(ev, false) && Ev.Urgent.Contains(ev)) urgentWaiting = ev;
+                if (!Ev.Idle(ev) && !Speak(ev, false) && Ev.Urgent.Contains(ev) && !urgentWaiting.Exists(u => u.ev == ev))
+                    urgentWaiting.Add((ev, Time.time));
             }
             if (m == Mood) return;
             Mood = m;
@@ -271,8 +273,8 @@ namespace CarrierGame.Demo
             missilesSeen = ShipConsole.MissilesInbound;
             if (hostilesSeen == 0 && ShipConsole.HostilesNear > 0) React(Mood.Alarmed, 4, 1.6f, Ev.Contact);
             hostilesSeen = ShipConsole.HostilesNear;
-            // (above the main gun firing: the main gun makes most kills, while its own reaction still shows)
-            if (ShipConsole.Kills > killsSeen) React(Mood.Smile, 7, 2.4f, Ev.TargetDestroyed);
+            // (as high as the main gun firing: the main gun makes most kills, while its own reaction still shows)
+            if (ShipConsole.Kills > killsSeen) React(Mood.Smile, 6, 2.4f, Ev.TargetDestroyed);
             killsSeen = ShipConsole.Kills;
 
             // our own fire

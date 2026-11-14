@@ -36,6 +36,9 @@ namespace CarrierGame.Demo
             // the console in the bottom-left corner, and the captain on it
             go.AddComponent<CaptainPortrait>().demo = demo;
             go.AddComponent<ShipConsole>().demo = demo;
+            // the modes of play: their menu, and the combat mode's
+            go.AddComponent<ModeMenu>();
+            go.AddComponent<CombatMode>().demo = demo;
             return hud;
         }
 
@@ -44,9 +47,13 @@ namespace CarrierGame.Demo
 
         public void ToggleHelp() => showHelp = !showHelp;
 
+        /// <summary>The controls box's text for the keyboard or the pad (for the self-test).</summary>
+        public string HelpText(bool pad) => Carrier == null ? "" : pad ? PadHelp : KeyHelp;
+
         /// <summary>A panel covers this point (GUI coordinates): a click there isn't on a ship.</summary>
         public bool Covers(Vector2 gui) =>
-            helpRect.Contains(gui) || ShipConsole.Rect.Contains(gui) || (display != null && display.PanelRect.Contains(gui)) || MiningDisplay.ManifestRect.Contains(gui);
+            helpRect.Contains(gui) || ShipConsole.Rect.Contains(gui) || (display != null && display.PanelRect.Contains(gui)) || MiningDisplay.ManifestRect.Contains(gui)
+            || ModeMenu.Area.Contains(gui);
 
         // ------------------------------------------------------------ messages
 
@@ -64,13 +71,16 @@ namespace CarrierGame.Demo
         // ------------------------------------------------------------ the controls box
 
         string keyHelp, padHelp;
-        // (the ship the lists were made for: another ship, taken command of, has other systems)
+        // (the ship and the mode the lists were made for: another ship, taken command of, has
+        // other systems; another mode, other keys)
         object helpFor;
+        ModeOfPlay helpMode;
 
         void HelpFor(CarrierController carrier)
         {
-            if (ReferenceEquals(helpFor, carrier)) return;
+            if (ReferenceEquals(helpFor, carrier) && helpMode == Modes.Current) return;
             helpFor = carrier;
+            helpMode = Modes.Current;
             keyHelp = padHelp = null;
         }
 
@@ -79,35 +89,69 @@ namespace CarrierGame.Demo
         /// and the built-in font has no arrows.</summary>
         static string W(string native, string web) => OnWeb ? web : native;
 
-        /// <summary>The controls list, leaving out systems this ship doesn't have.</summary>
+        /// <summary>The modes, the one the player is in picked out.</summary>
+        static string ModeBar(bool pad)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append($"<b><color=#ffc070>{Modes.Name(Modes.Current)} MODE</color></b>   ");
+            foreach (var m in Modes.All)
+            {
+                string name = Modes.Name(m).Substring(0, 1) + Modes.Name(m).Substring(1).ToLowerInvariant();
+                string item = pad ? name : $"{Modes.Number(m)} {name}";
+                sb.Append(m == Modes.Current ? $"<b>{item}</b>  " : $"<color=#8a95a3>{item}</color>  ");
+            }
+            return sb.ToString().TrimEnd();
+        }
+
+        const string Rule = "<color=#55606e>----------</color>";
+
+        /// <summary>The controls list for the mode the player is in, leaving out systems this ship
+        /// doesn't have, then the keys that are the same in every mode.</summary>
         string KeyHelp
         {
             get
             {
                 var carrier = Carrier;
                 HelpFor(carrier);
-                return keyHelp ??= string.Join("\n", new[]
+                if (keyHelp != null) return keyHelp;
+                var lines = new System.Collections.Generic.List<string> { ModeBar(false) };
+                switch (Modes.Current)
                 {
-                    carrier.HasHangar ? "1 fighters   2 drones   3 dropships" : null,
-                    (carrier.HasMissiles ? (demo.Warp != null ? "4 missile salvo   " : "M missile salvo   ") : "") + "F fire guns   G auto-fire on/off",
-                    demo.MainGun != null ? "B main gun: charge (fires after 10 s)" : null,
-                    carrier.HasHangar ? "Q wing attack   E escort   R return to carrier" : null,
-                    "W/S throttle   A/D turn",
-                    OnWeb ? "Up/Down arrows nose up/down   L level off" : "↑/↓ nose up/down   L level off",
-                    carrier.HasHangar ? null : "Q/E roll left/right",
-                    "Space/Ctrl elevator thrusters up/down",
-                    "T next target   click a ship to target",
-                    "X stop targeting",
-                    carrier.HasHangar ? "C camera: carrier / craft" : null,
-                    "Right-drag orbit   mouse wheel zoom",
-                    demo.Warp != null ? "M system map: mini-warp" : null,
-                    PlanetLanding.Instance != null ? (Docking.Instance != null ? "K land / take off, dock / undock" : "K land / take off (in orbit)") : null,
-                    demo.Laser != null ? "Z mining laser   V mineral scan" : null,
-                    demo.Laser != null ? "I cargo hold   J jettison cheapest ore" : null,
-                    IndustryPanel.Instance != null ? "U refinery / factory (docked or on its pad)" : null,
-                    "H hide help   +/- text size   N sound",
-                    OnWeb ? "F11 full screen   Esc or P menu" : "F11 window   Esc or P menu",
-                }.Where(l => l != null));
+                    case ModeOfPlay.Combat:
+                        lines.Add("F fire guns   G auto-fire on/off" + (carrier.HasMissiles ? "   R missile salvo" : ""));
+                        if (demo.MainGun != null) lines.Add("B main gun: charge (fires after 10 s)");
+                        lines.Add("T next target (Shift+T back)   click a ship");
+                        lines.Add("X stop targeting   C line up on the target");
+                        if (KineticStrike.Instance != null) lines.Add("Y kinetic strike from orbit");
+                        lines.Add("Tab the targets in range");
+                        break;
+                    case ModeOfPlay.Mining:
+                        if (demo.Laser == null) { lines.Add("<i>No mining gear on this ship</i>"); break; }
+                        lines.Add("Z mining laser on/off   V mineral scan");
+                        lines.Add("I cargo hold   J jettison cheapest ore");
+                        break;
+                    case ModeOfPlay.Navigation:
+                        if (demo.Warp != null) lines.Add("M system map: warp");
+                        if (PlanetFlight.Instance != null) lines.Add("O cruise on/off (the higher, the faster)");
+                        break;
+                    case ModeOfPlay.Services:
+                        lines.Add("Tab or U the station's or base's services");
+                        lines.Add("(docked, or landed on its pad)");
+                        break;
+                    case ModeOfPlay.Fleet:
+                        lines.Add("<i>No other ships yet: build one at a shipyard</i>");
+                        break;
+                }
+                lines.Add(Rule);
+                lines.Add("W/S throttle   A/D turn   Q/E roll");
+                lines.Add(OnWeb ? "Up/Down arrows nose up/down   L level off" : "↑/↓ nose up/down   L level off");
+                lines.Add("Space/Ctrl elevator thrusters up/down");
+                lines.Add("Right-drag orbit   mouse wheel zoom");
+                if (demo.Warp != null && Modes.Current != ModeOfPlay.Navigation) lines.Add("M system map");
+                if (PlanetLanding.Instance != null) lines.Add(Docking.Instance != null ? "K land / take off, dock / undock" : "K land / take off (in orbit)");
+                lines.Add("H hide help   +/- text size   N sound");
+                lines.Add(OnWeb ? "F11 full screen   Esc or P menu" : "F11 window   Esc or P menu");
+                return keyHelp = string.Join("\n", lines);
             }
         }
 
@@ -117,26 +161,42 @@ namespace CarrierGame.Demo
             {
                 var carrier = Carrier;
                 HelpFor(carrier);
-                return padHelp ??= string.Join("\n", new[]
+                if (padHelp != null) return padHelp;
+                var lines = new System.Collections.Generic.List<string> { ModeBar(true), "Back+LB/RB mode   Back+Y this mode's menu" };
+                switch (Modes.Current)
                 {
-                    "<b>Gamepad</b>",
-                    "Left stick  throttle / turn",
-                    carrier.HasHangar ? "Right stick  orbit camera   LT/RT zoom" : W("Right stick  orbit camera   Back + D-pad ←/→ zoom", "Right stick  orbit camera   Back + D-pad left/right zoom"),
-                    carrier.HasHangar ? W("D-pad  ↑ fighters  → drones  ↓ dropships  ← return", "D-pad  up fighters  right drones  down dropships  left return")
-                                      : W("D-pad ↑/↓ nose up/down   ←/→ roll   A level off", "D-pad up/down nose, left/right roll   A level off"),
-                    carrier.HasHangar ? null : "LT/RT elevator thrusters down/up",
-                    carrier.HasHangar ? "A wing attack   X escort" : null,
-                    "Y next target   B stop targeting",
-                    "RB fire guns" + (carrier.HasMissiles ? (PlanetLanding.Instance != null ? "   LB missiles (with a target)" : "   LB missile salvo") : "") + (demo.MainGun != null && !carrier.HasHangar ? "   X main gun" : ""),
-                    "L3 auto-fire on/off" + (carrier.HasHangar ? "   R3 camera: carrier / craft" : ""),
-                    demo.Warp != null ? "R3 system map: mini-warp" : null,
-                    PlanetLanding.Instance != null ? (Docking.Instance != null ? "LB land / take off, dock / undock" : "LB land / take off (in orbit)") + (carrier.HasMissiles ? " (no target)" : "") : null,
-                    demo.Laser != null ? "Back+A mining laser   Back+Y mineral scan" : null,
-                    demo.Laser != null ? "Back+X cargo hold   Back+B jettison" : null,
-                    IndustryPanel.Instance != null ? "Back+RB refinery / factory screen" : null,
-                    "Back hide help   Start menu",
-                    W("Back + D-pad ↑↓ text size", "Back + D-pad up/down text size"),
-                }.Where(l => l != null));
+                    case ModeOfPlay.Combat:
+                        lines.Add("RB fire guns" + (carrier.HasMissiles ? "   LB missile salvo" : "") + "   L3 auto-fire");
+                        if (demo.MainGun != null) lines.Add("X main gun: charge");
+                        lines.Add("Y next target   B stop targeting");
+                        lines.Add("A line up on the target");
+                        break;
+                    case ModeOfPlay.Mining:
+                        if (demo.Laser == null) { lines.Add("<i>No mining gear on this ship</i>"); break; }
+                        lines.Add("A mining laser on/off   Y mineral scan");
+                        lines.Add("RB cargo hold   B jettison cheapest ore");
+                        break;
+                    case ModeOfPlay.Navigation:
+                        if (demo.Warp != null) lines.Add("R3 system map: warp");
+                        if (PlanetFlight.Instance != null) lines.Add("X cruise on/off");
+                        break;
+                    case ModeOfPlay.Services:
+                        lines.Add("A the station's or base's services");
+                        break;
+                    case ModeOfPlay.Fleet:
+                        lines.Add("<i>No other ships yet: build one at a shipyard</i>");
+                        break;
+                }
+                lines.Add(Rule);
+                lines.Add("Left stick  throttle / turn");
+                lines.Add(W("D-pad ↑/↓ nose   ←/→ roll   Back+A level off", "D-pad up/down nose, left/right roll   Back+A level off"));
+                lines.Add("LT/RT elevator thrusters down/up");
+                lines.Add(W("Right stick  orbit camera   Back + D-pad ←/→ zoom", "Right stick  orbit camera   Back + D-pad left/right zoom"));
+                if (demo.Warp != null && Modes.Current != ModeOfPlay.Navigation) lines.Add("R3 system map");
+                if (PlanetLanding.Instance != null) lines.Add(Docking.Instance != null ? "Back+B land / take off, dock / undock" : "Back+B land / take off");
+                lines.Add("Back hide help   Start menu");
+                lines.Add(W("Back + D-pad ↑↓ text size", "Back + D-pad up/down text size"));
+                return padHelp = string.Join("\n", lines);
             }
         }
 
@@ -154,7 +214,7 @@ namespace CarrierGame.Demo
             {
                 // the controls (the ship's state is on the console, bottom left)
                 var style = Hud.Text(showHelp ? 18 : 16);
-                string text = showHelp ? (pad ? PadHelp : KeyHelp) : (pad ? "<i>Back: show controls</i>" : "<i>H show controls</i>");
+                string text = showHelp ? (pad ? PadHelp : KeyHelp) : ModeBar(pad) + (pad ? "\n<i>Back: show controls</i>" : "\n<i>H show controls</i>");
                 var content = new GUIContent(text);
                 Vector2 sz = style.CalcSize(content);
                 helpRect = new Rect(pad2, pad2, sz.x + pad2 * 2f, sz.y + pad2 * 2f);

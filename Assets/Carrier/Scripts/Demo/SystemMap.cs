@@ -67,7 +67,13 @@ namespace CarrierGame.Demo
             if (!IsOpen) return;
             InputFocus.Release(InputFocus.Panel.SystemMap);
             SoundFX.Ui(Sfx.UiClear);
+            // (back to the mode it was opened from)
+            if (switchedMode) Modes.Return(ModeOfPlay.Navigation);
+            switchedMode = false;
         }
+
+        // the map opened from another mode, which it goes back to when it closes
+        bool switchedMode;
 
         public void Toggle() { if (IsOpen) Close(); else Open(); }
 
@@ -161,6 +167,8 @@ namespace CarrierGame.Demo
                 // no warping from the surface (or on the way down or up)
                 if (PlanetLanding.Busy) { if (PlanetLanding.OnSurface) Notices.Post("Take off before using the system map"); return; }
                 Open();
+                // (the map is navigation's)
+                if (IsOpen && !Modes.Is(ModeOfPlay.Navigation)) { Modes.Set(ModeOfPlay.Navigation, auto: true); switchedMode = true; }
                 return;
             }
             Layout();

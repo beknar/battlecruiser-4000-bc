@@ -392,18 +392,28 @@ namespace CarrierGame.Demo
 
         // ------------------------------------------------------------ input
 
+        IndustrySite wasAt;
+
         void Update()
         {
             var here = Here();
             if (IsOpen && here != Site) { Close(); return; }
             if (here == null) offeredAt = null;
+            // (arriving at a site is services mode; leaving it, back to the mode before)
+            if (here != wasAt)
+            {
+                if (here != null && !Hud.ReelMode) Modes.Set(ModeOfPlay.Services, auto: true);
+                else if (here == null) Modes.Return(ModeOfPlay.Services);
+                wasAt = here;
+            }
             var k = Keyboard.current;
             var pad = Gamepad.current;
             if (!IsOpen)
             {
-                // it opens by itself once on arriving; after that U (Back + RB)
+                // it opens by itself once on arriving; after that U or Tab in services mode (A on
+                // the pad: CarrierDemoInput)
                 if (here == null || InputFocus.PanelUp) return;
-                bool ask = (k != null && k.uKey.wasPressedThisFrame) || (pad != null && pad.selectButton.isPressed && pad.rightShoulder.wasPressedThisFrame);
+                bool ask = k != null && k.uKey.wasPressedThisFrame && Modes.Is(ModeOfPlay.Services);
                 // (by itself only where there's work: an industrial site, or a place that recruits
                 // when the crew is short)
                 bool worth = here.Spec != null || (here.Recruits && CrewAboard is Crew c && c.Missing > 0);

@@ -70,6 +70,8 @@ namespace CarrierGame.Demo
             t.approachOnly = LaunchArgs.Switch("approachtest");
             // -striketest (or ?striketest): only the strikes from orbit
             t.strikeOnly = LaunchArgs.Switch("striketest");
+            // -modestest (or ?modestest): only the modes of play
+            t.modesOnly = LaunchArgs.Switch("modestest");
             // -cooptest (or ?cooptest), with -connect address:port (?server=...&connect): co-op with
             // the scripted second player (Tools/CoopTest/bot.py); -coopquick (?coopquick) skips the
             // part at Corsair Haven
@@ -168,6 +170,13 @@ namespace CarrierGame.Demo
                 if (!web) Application.Quit();
                 yield break;
             }
+            if (modesOnly)
+            {
+                yield return ModesTest(kb);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
             if (strikeOnly)
             {
                 yield return StrikeTest(kb);
@@ -227,6 +236,7 @@ namespace CarrierGame.Demo
             if (mineOnly)
             {
                 yield return MiningTest(kb);
+                yield return Key(kb, UnityEngine.InputSystem.Key.Digit1);   // (back to combat mode)
                 Log("done");
                 if (!web) Application.Quit();
                 yield break;
@@ -393,6 +403,7 @@ namespace CarrierGame.Demo
 
             // ---------------------------------------------------------------- mining
             yield return MiningTest(kb);
+            yield return Key(kb, UnityEngine.InputSystem.Key.Digit1);   // (back to combat mode)
             // back to Thalassa: the capital ships wait on the way in from there
             yield return WarpTo(kb, "Thalassa", "n9");
 

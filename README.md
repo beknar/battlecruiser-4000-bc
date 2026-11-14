@@ -424,11 +424,11 @@ system to travel around.
   A trail of debris, lumps of ice and grit shed by the nucleus, lies along the start of the
   dust tail. Iskra, close to the star, has tails 60 km long; Mirren's are shorter and fainter.
 - **Mining.** The frigate carries a mining laser, a mineral sensor and a cargo hold.
-  - **Mineral sensor** (V). It always picks up traces of the deposits within range: 12 km in
+  - **Mineral sensor** (V in mining mode, Y on the pad). It always picks up traces of the deposits within range: 12 km in
     space, 5 km on a planet's surface. A scan sends out a pulse that sweeps out to full range in
     2 seconds. Each deposit it finds is marked on screen for a minute, with its main minerals,
     how many tonnes are left and how far it is.
-  - **Mining laser** (Z). A turret under the bow cuts ore out of the nearest deposit within
+  - **Mining laser** (Z in mining mode, A on the pad). A turret under the bow cuts ore out of the nearest deposit within
     1.5 km and draws it back aboard in a stream of glowing grit, 8 tonnes a second. When a
     deposit is mined out it moves on to the next one in reach; a small rock (under 80 m
     across) breaks up. It passes over a deposit it can't get a clear line to, and stops when
@@ -473,7 +473,7 @@ system to travel around.
   | Selene Base | A colony on the surface of Selene: domes, habitats, a control tower and tanks round a landing pad |
   | Cinder Fortress | The corsairs' stronghold on the surface of Cinder (hostile) |
 
-  - **Docking** (K, LB on the pad). Within 1.6 km of the berth at the Highport, Deepcut, the
+  - **Docking** (K, Back + B on the pad). Within 1.6 km of the berth at the Highport, Deepcut, the
     shipyard or the L5 depot, and out of combat, K brings the frigate in to it. (Farther out,
     K lands on the planet or moon nearby, as before.) There it is repaired, hull
     and shield, and where there is a market (all but the shipyard) the whole hold is sold. The
@@ -488,7 +488,7 @@ system to travel around.
     by Selene Base's landing pad, or 2.6 km from the fortress, facing it. On the ground they are
     bigger, with two rings of buildings. The fortress has a ring of gun batteries and missile
     sites, tanks, and a gunship and fighters on its pad.
-- **System map.** M (R3 on the pad) opens a top-down chart of every place the frigate can go,
+- **System map.** M (R3 on the pad), in any mode, opens a top-down chart of every place the frigate can go,
   with their orbits and the frigate's own position and heading. Stations and installations are
   small squares, bases and Lagrange points diamonds. For the chosen destination it shows what
   it is, the distance and how long the trip will take. Pick a place and warp from the map.
@@ -549,7 +549,7 @@ system to travel around.
   with no break:
   - **Up** is out from the body near it. The ship flies level over the ground wherever it is
     on the planet, and the camera's horizon turns with it.
-  - **Cruise** (O): out of combat and more than 6 km from a station, the top speed grows with
+  - **Cruise** (O in navigation mode, X on the pad): out of combat and more than 6 km from a station, the top speed grows with
     the height above the ground (up to 15 km/s high over a planet). It slows near the ground
     and in thick air.
   - **The air** thickens toward the ground. Too fast in thick air, the hull heats up, shakes
@@ -562,7 +562,7 @@ system to travel around.
     (2.2 km on an airless moon) the ship goes over to it: the same place, height, heading and
     speed, under the same sun, through a wisp of cloud. Climbing back above it returns the
     ship to the air over the planet. The rest of the system is moved out of sight meanwhile.
-  - **The auto-lander.** In orbit, out of combat, K (LB on the pad) flies the frigate down
+  - **The auto-lander.** In orbit, out of combat, K (Back + B on the pad) flies the frigate down
     through the air to the nearest landing pad (or a few kilometres from a hostile fortress)
     and sets it down. On the ground, K flies it back up to orbit. Any steering takes the
     controls back.
@@ -576,7 +576,7 @@ system to travel around.
     from space alike;
   - it is all kept and saved with the world (`WorldState`).
 
-  **The frigate's kinetic strike** (Y): over a planet or moon, from space, it drops a tungsten rod
+  **The frigate's kinetic strike** (Y in combat mode): over a planet or moon, from space, it drops a tungsten rod
   on the nearest ground forces within 30 km of the point below (a fortress, a battery, tanks), or
   on the ground straight down. The rod falls for a few seconds, a white streak glowing in the air,
   and lands in a flash and a shock ring that spread for kilometres: everything within 450 m is
@@ -664,8 +664,8 @@ fitted to the frigate to make it better. All of it is in
   - **Belt Smelter**, a metal smelter on a rock at the edge of the Inner Belt (across the belt
     from Deepcut Station), with a landing pad on the rock: docking there sets the frigate down
     on the pad.
-- **The site's screen** opens by itself on arriving (docked, or landed on the pad), and U
-  (Back + RB on the pad) opens and closes it. It has up to six pages:
+- **The site's screen** opens by itself on arriving (docked, or landed on the pad), which puts
+  the game in services mode, and Tab or U (A on the pad) in services mode opens it again. It has up to six pages:
   - **Storage**: move ore, refined materials and parts between the hold and the site's
     storage. Each site keeps its own storage, with no limit; the frigate's hold is what is
     limited, so materials have to be carried from a refinery to a factory.
@@ -827,7 +827,7 @@ Thalassa L1 Observatory). The rules and every place's people are in
   crew and the efficiency.
 - **Installations too.** A hostile base loses crew as its guns are hit, and its guns fire less
   often for it. It gets reinforcements slowly. The target panel shows a target's crew.
-- **Recruiting.** At the bigger friendly places, the site's screen (U, or Back + RB) has a CREW
+- **Recruiting.** At the bigger friendly places, the site's screen (services mode: Tab or U, A on the pad) has a CREW
   page: recruit one, ten, or as many as the frigate is short, at 250 cr each. Each place has a
   pool of people willing to sign on, which refills slowly in game time. The pools and the crew
   aboard are saved with the game.
@@ -857,34 +857,80 @@ Ochre Foundry, Mnemos Works and the Kestrel Deep Yard.
 
 ## Controls
 
+There are too many things to do for a key each, so the game has **modes of play**: combat,
+mining, navigation, services and fleet. Flying the ship, the camera and the menus are the same in
+every mode; the other keys are the mode's own, so the same key can do different things in
+different modes. Every mode is played in real time: the game never stops for one, nor for its
+menu (only the pause menu stops it).
+
+- **Changing mode.** 1 to 5 on the keyboard (Back + LB / RB on the pad). The controls box in the
+  top-left corner shows the mode, its keys, and the keys every mode shares (H, or Back, hides it).
+- **The mode's menu.** Tab (Back + Y) opens a list over the game: the combat mode's targets,
+  and in later modes their own lists. Choose with ↑/↓ (D-pad), act with Enter (A) or a
+  click, close with Tab or Esc (B). The ship can still be flown while it is open.
+- **Modes taken up by themselves.** The system map is navigation while it is open, and closing
+  it (or warping from it) goes back to the mode before. Docking at a station or landing on a
+  site's pad is services, and leaving it goes back to the mode before.
+
+**In every mode**
+
 | Action | Keyboard / mouse | Xbox 360 pad |
 |---|---|---|
 | Throttle / turn | W/S, A/D | Left stick |
 | Nose up / down | ↑ / ↓ | D-pad ↑ / ↓ |
-| Level off (nose and roll) | L | A |
-| Roll left / right | Q / E (frigates without a hangar) | D-pad ← / → |
+| Roll left / right | Q / E | D-pad ← / → |
 | Elevator thrusters up / down | Space / Ctrl | RT / LT |
-| Fire side guns | F | RB |
-| Missile salvo at the target (destroyers, the cruiser) | 4 (M without a warp drive) | LB (with a target) |
-| Auto-fire on/off | G | L3 |
-| Charge main gun (again to cancel) | B | X |
-| Next target / stop targeting | T / X (or click a ship) | Y / B |
+| Level off (nose and roll) | L | Back + A |
+| Mode: combat, mining, navigation, services, fleet | 1, 2, 3, 4, 5 | Back + LB / RB (previous / next) |
+| The mode's menu | Tab | Back + Y |
+| System map (opens in navigation mode) | M | R3 |
+| Land / take off, dock / undock | K | Back + B |
 | Orbit camera / zoom | Right-drag / mouse wheel | Right stick / Back + D-pad ← → |
 | Help / text size | H / + − | Back / Back + D-pad ↑↓ |
 | Sound on/off | N | (pause menu) |
 | Pause menu: resume, restart, sound, captain, quit | Esc or P | Start |
-| Choose the captain (pause menu) | ← / → on Captain, or click her portrait | D-pad ← / → |
 | Window / full screen | F11 | |
-| System map (Star System) | M | R3 |
-| Auto-land / climb to orbit, dock / undock (Star System) | K | LB |
-| Cruise on/off (Star System) | O | |
-| Kinetic strike from orbit (Star System) | Y | |
-| Mining laser on/off | Z | Back + A |
-| Mineral scan | V | Back + Y |
-| Cargo hold list / jettison the cheapest ore | I / J | Back + X / Back + B |
-| Industrial site's screen (docked, or on its pad) | U | Back + RB |
-| In the site's screen: pages / choose / load, store / act / cancel a job / close | Tab or Q E / ↑↓ / ← → (Shift for all) / Enter / Backspace / U or Esc | LB RB / D-pad ↑↓ / D-pad ← →, X, Y / A / Y / B |
+
+**Combat mode (1)**
+
+| Action | Keyboard / mouse | Xbox 360 pad |
+|---|---|---|
+| Fire side guns | F | RB |
+| Missile salvo at the target (destroyers, the cruiser) | R | LB |
+| Auto-fire on/off | G | L3 |
+| Charge main gun (again to cancel) | B | X |
+| Next / previous target, or click a ship | T / Shift+T | Y |
+| Stop targeting | X | B |
+| Line up on the target, until the guns bear (again, or steer, to stop) | C | A |
+| Kinetic strike from orbit | Y | |
+| Menu: the targets in range, nearest first (Enter targets one, C lines up on it) | Tab | Back + Y |
+
+**Mining mode (2)**
+
+| Action | Keyboard / mouse | Xbox 360 pad |
+|---|---|---|
+| Mining laser on/off | Z | A |
+| Mineral scan | V | Y |
+| Cargo hold list / jettison the cheapest ore | I / J | RB / B |
+
+**Navigation mode (3)**
+
+| Action | Keyboard / mouse | Xbox 360 pad |
+|---|---|---|
+| System map: warp | M | R3 |
+| Cruise on/off | O | X |
 | On the map: choose a place / warp / close | Click, arrows or Tab / WARP, double-click or Enter / M or Esc | Left stick, D-pad or LB/RB / A / B |
+
+**Services mode (4)**
+
+| Action | Keyboard / mouse | Xbox 360 pad |
+|---|---|---|
+| The site's screen (docked, or on its pad; it opens by itself on arriving) | Tab or U | A |
+| In the site's screen: pages / choose / load, store / act / cancel a job / close | Tab or Q E / ↑↓ / ← → (Shift for all) / Enter / Backspace / U or Esc | LB RB / D-pad ↑↓ / D-pad ← →, X, Y / A / Y / B |
+
+**Fleet mode (5)** is for the player's other ships.
+
+**In the pause menu**, choose the captain with ← / → on Captain, or click her portrait (D-pad ← / → on the pad).
 
 In the web version, use the page's Full screen button rather than F11.
 
@@ -1265,7 +1311,7 @@ The games run one at a time, in a 1280x720 window.
 | `build` | the builds (with `--build`) |
 | `serverproc` | the server program, end to end |
 | `autotest` | the deprecated Carrier Demo and Asteroid Ambush autotests: run only when named (`--only autotest --build`) |
-| `hud`, `ships`, `water`, `industry`, `crew`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
+| `hud`, `modes`, `ships`, `water`, `industry`, `crew`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
 | `web` | the web build's co-op test |
 
 `--quick` runs `tools`, `server`, `unity`, `serverproc`, `autotest`, `hud` and `coop`.
@@ -1380,6 +1426,12 @@ Each part can also be run alone:
   Port Ochre, the frigate's rod on Cinder Fortress (Y) destroying its ground forces, landing there
   to find them gone and the crater in the ground, the rubble at Port Ochre, the ion satellite
   destroyed and striking no more, and the save holding the craters and the satellites' clocks.
+  Add `-modestest` (or `?modestest` on the web) to test the modes of play: a game starts in
+  combat mode; 1 to 5 change mode, each with its keys in the controls box; a mode's keys work
+  in it and not in another (V scans in mining mode, not in combat); services away from a site
+  says to dock or land; the combat menu opens over a game that goes on, lists the targets in
+  range and targets the one chosen; lining up (C) turns the ship until its guns bear, and
+  steering takes the helm back.
   Add `-approachtest` (or `?approachtest` on the web) to test the real-size system and flying
   down to it: the planets' sizes and distances, the world drawn round the frigate after a warp
   of millions of kilometres, the far bodies drawn nearer, Ochre's ground seen from orbit, the

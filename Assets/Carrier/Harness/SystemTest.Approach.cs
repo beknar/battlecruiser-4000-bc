@@ -134,6 +134,8 @@ namespace CarrierGame.Demo
             // ---- by hand, onto a moon with no air
             yield return WarpTo(kb, "Selene", "ap_selene");
             yield return new WaitForSeconds(1f);
+            // (cruise is the navigation mode's: 3, then O)
+            yield return Key(kb, K.Digit3);
             if (!pf.Cruise) yield return Key(kb, K.O);
             demo.autoPitch = -1f;
             cc.throttle = 1f;
@@ -155,6 +157,7 @@ namespace CarrierGame.Demo
             Shot("ap_selene_up");
             cc.throttle = 0.2f;
             if (pf.Cruise) yield return Key(kb, K.O);
+            yield return Key(kb, K.Digit1);
 
             if (hull != null) hull.cannotDie = false;
             Log($"{(passed == checks ? "PASS" : "FAIL")}: flying down to the worlds ({passed} of {checks})");

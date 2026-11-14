@@ -131,6 +131,9 @@ namespace CarrierGame.Demo
             var sensor = demo.Sensor;
             var hold = demo.Cargo;
             if (laser == null || sensor == null || hold == null) { Log("FAIL: mining (no mining gear on the frigate)"); yield break; }
+            // the mining keys are the mining mode's (2)
+            yield return Key(kb, UnityEngine.InputSystem.Key.Digit2);
+            Log($"  2: {Modes.Name(Modes.Current)} mode");
             Log($"mining: laser {laser.range / 1000f:F1} km, {laser.rate:F0} t/s; hold {hold.capacity:F0} t; sensor {sensor.spaceRange / 1000f:F0} km in space, " +
                 $"{sensor.surfaceRange / 1000f:F0} km on a surface; {MineralDeposit.All.Count} bodies with minerals");
             Log("  kinds: " + string.Join(", ", MineralDeposit.All.GroupBy(d => d.Label).OrderByDescending(g => g.Count()).Select(g => $"{g.Count()} {g.Key}")));

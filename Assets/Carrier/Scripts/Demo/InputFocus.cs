@@ -10,7 +10,9 @@ namespace CarrierGame.Demo
     /// </summary>
     public static class InputFocus
     {
-        public enum Panel { None, PauseMenu, CoopPanel, SystemMap, StartMenu, Industry, Chat }
+        /// <summary>(ModeMenu: a mode's menu, over a game that goes on: the ship is still flown,
+        /// bar the keys the list takes.)</summary>
+        public enum Panel { None, PauseMenu, CoopPanel, SystemMap, StartMenu, Industry, Chat, ModeMenu }
 
         /// <summary>The panel that has the input (None: the game has it).</summary>
         public static Panel Holder { get; private set; }
@@ -44,5 +46,10 @@ namespace CarrierGame.Demo
 
         /// <summary>A panel has the input, or has only just let go of it: the game reads none.</summary>
         public static bool PanelUp => Holder != Panel.None || Time.frameCount - releasedFrame <= 1;
+
+        /// <summary>As PanelUp, but a mode's menu doesn't count (the game goes on being played
+        /// under it): a panel that stops the ship being flown is up.</summary>
+        public static bool BlockingPanelUp => (Holder != Panel.None && Holder != Panel.ModeMenu)
+                                              || (Time.frameCount - releasedFrame <= 1 && released != Panel.ModeMenu);
     }
 }

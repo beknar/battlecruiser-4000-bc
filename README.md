@@ -398,7 +398,7 @@ system to travel around.
 
   | Structure | Where, and why there |
   |---|---|
-  | Space elevator | Thalassa turns once in 11 minutes, so its geostationary orbit is 10 km out. A tether runs from a sea platform on the equator up to the Highport there, and on to a counterweight, with climbers riding it |
+  | Space elevator | Thalassa turns once in 6 hours, so its geostationary orbit is 400 km up (720 km from its centre). A tether runs from a sea platform on the equator up to the Highport there, and on to a counterweight, with climbers riding it |
   | Launch loop | Thalassa: a cable loop held up 350 m over the sea between two stations 4.5 km apart; payloads ride the top and are let go |
   | StarTram | Ochre: a maglev tube along the desert, then rising 900 m out of the thin air, tethered down |
   | Spin launcher | Ochre: a vacuum centrifuge whose arm whirls a payload up and lets it go into a launch tube |
@@ -501,7 +501,10 @@ system to travel around.
   | Glacis | Dreadnought battle group: a dreadnought and two escort destroyers |
 
   The map marks the planets with capital ships on station as hostile. Enemy markers show for
-  ships within 30 km.
+  ships within 30 km. The capital ship groups at Cinder and Glacis wait on the way in, a few
+  kilometres past where a warp drops the ship, straight ahead and a little below it. The planets go round
+  over days and weeks, so the way in from anywhere turns with them. Whenever the warp drive
+  charges for the planet, a group lying in wait out of sight moves onto that warp's way in.
 - **Capital ships.**
 
   | Ship | Length | Hull | Weapons |
@@ -1334,11 +1337,26 @@ Each part can also be run alone:
   (about 310 s: mining, combat, landing and mini-warps), `-orbits` for the orbits and stations
   reel (about 210 s), `-frigates` for the start menu and the five frigates, `-sea` for the sea
   reel (about 200 s: each frigate comes down from orbit onto Pelagia's sea, sails in on an island
-  base, dives on a torpedo base and launches out of the water), or `-all` for everything in one reel. That includes the ship's console and
-  the captain, refining, building and fitting a part on the sites' screen, the crew (losses,
-  the frigate slowed, recruiting), the ten settlements and a run on Pelagia's sea. Add `-reelcoop <address>:<port>` to `-all` for its co-op scene: two scripted
-  wingmen (`Tools/CoopTest/wingman.py <server url> <name> <right,up,forward>`, started first,
-  named `Kestrel 2` and `Kestrel 3`) wait on that server and fly in formation with the frigate.
+  base, dives on a torpedo base and launches out of the water), or `-all` for everything in one reel. That includes:
+  - the ship's console and the captain
+  - every ship on the start menu, each frigate close up, and the cruiser and destroyers firing
+    missile salvoes
+  - the real-size worlds and the auto-lander flying down from orbit to a pad
+  - refining, building and fitting a part on the sites' screen, and a cruiser laid down and built
+    at the Kestrel Deep Yard's shipyard, then taken command of
+  - the crew (losses, the frigate slowed, recruiting) and the ten settlements
+  - the orbital strikes (the ion satellite over Port Ochre, a kinetic rod on Cinder Fortress, and
+    Port Ochre's ruins)
+  - a run on Pelagia's sea
+
+  Add `-reelcoop <address>:<port>` to `-all` for its co-op scene: two scripted wingmen
+  (`Tools/CoopTest/wingman.py <server url> <name> <right,up,forward>`, started first, named
+  `Kestrel 2` and `Kestrel 3`) wait on that server and fly in formation with the frigate. With
+  `-reelbot` as well, the scene goes on to the AI wingman: start a bot game (`StarSystem.exe
+  -batchmode -nographics -coopbot -connect <address>:<port> -name Wingman`) once the reel's game
+  has joined, so the reel's game hosts. The reel holds the bot where it is, brings the frigate up
+  behind it, and orders it on the comms channel. `-reelscenes Intro,ShipsMenu,...` records only
+  the scenes named (the names in `DemoReel.All.cs`), to try them out.
   Join the frames and sound with ffmpeg:
 
   ```

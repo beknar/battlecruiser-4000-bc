@@ -73,6 +73,8 @@ namespace CarrierGame.Demo
             new System.Collections.Generic.List<(string, string, float)>();
         public const float LettersPerSecond = 48f;
         string lastEvent = "";
+        // urgent news she was mid-line for: said as soon as she can, while it still shows
+        string urgentWaiting;
         bool greeted;
         float nextIdle;
         readonly System.Collections.Generic.Dictionary<string, float> lastSaid = new System.Collections.Generic.Dictionary<string, float>();
@@ -161,6 +163,7 @@ namespace CarrierGame.Demo
             else if (Time.time < reactionUntil) { m = reaction; ev = reactionEv; why = reactionWhy; }
             else { reactionPrio = -1; Steady(cc, out m, out ev, out why); }
             Set(m, ev, why);
+            if (urgentWaiting != null && (urgentWaiting != lastEvent || Speak(urgentWaiting, false))) urgentWaiting = null;
 
             // taking command as the level starts
             if (!greeted && Time.timeSinceLevelLoad > 2f && !cc.Destroyed) { greeted = true; Speak(Ev.ReportingForDuty, true); }
@@ -184,7 +187,8 @@ namespace CarrierGame.Demo
             if (ev != lastEvent)
             {
                 lastEvent = ev;
-                if (!Ev.Idle(ev)) Speak(ev, false);
+                urgentWaiting = null;
+                if (!Ev.Idle(ev) && !Speak(ev, false) && Ev.Urgent.Contains(ev)) urgentWaiting = ev;
             }
             if (m == Mood) return;
             Mood = m;
@@ -267,7 +271,8 @@ namespace CarrierGame.Demo
             missilesSeen = ShipConsole.MissilesInbound;
             if (hostilesSeen == 0 && ShipConsole.HostilesNear > 0) React(Mood.Alarmed, 4, 1.6f, Ev.Contact);
             hostilesSeen = ShipConsole.HostilesNear;
-            if (ShipConsole.Kills > killsSeen) React(Mood.Smile, 5, 2.4f, Ev.TargetDestroyed);
+            // (above the main gun firing: the main gun makes most kills, while its own reaction still shows)
+            if (ShipConsole.Kills > killsSeen) React(Mood.Smile, 7, 2.4f, Ev.TargetDestroyed);
             killsSeen = ShipConsole.Kills;
 
             // our own fire
@@ -324,20 +329,21 @@ namespace CarrierGame.Demo
 
         // ------------------------------------------------------------------ speech
 
-        /// <summary>Say a line about `ev`, if it is her turn to speak.</summary>
-        void Speak(string ev, bool idle)
+        /// <summary>Say a line about `ev`, if it is her turn to speak. False only if she is still
+        /// busy with another line (it may be tried again).</summary>
+        bool Speak(string ev, bool idle)
         {
             var cc = demo != null ? demo.carrier : null;
-            if (cc == null || CaptainLines.CountFor(ev) == 0) return;
+            if (cc == null || CaptainLines.CountFor(ev) == 0) return true;
             bool urgent = Ev.Urgent.Contains(ev);
             float sinceLine = Time.time - QuoteAt;
             float sinceSame = lastSaid.TryGetValue(ev, out float t) ? Time.time - t : 999f;
             // still saying the last line (unless this can't wait), or said this kind of thing just now
             float busy = Quote.Length / LettersPerSecond + 1.2f;
-            if (!idle && sinceLine < (urgent ? 1.5f : Mathf.Max(4.5f, busy))) return;
-            if (sinceSame < (urgent ? 5f : 12f)) return;
+            if (!idle && sinceLine < (urgent ? 1.5f : Mathf.Max(4.5f, busy))) return false;
+            if (sinceSame < (urgent ? 5f : 12f)) return true;
             string line = CaptainLines.Pick(ev, Blank);
-            if (line == null) return;
+            if (line == null) return true;
             Quote = line;
             QuoteEvent = ev;
             QuoteAt = Time.time;
@@ -346,6 +352,7 @@ namespace CarrierGame.Demo
             if (Said.Count > 300) Said.RemoveAt(0);
             talkUntil = Time.time + line.Length / LettersPerSecond + 0.25f;
             nextIdle = Mathf.Max(nextIdle, Time.time + 20f);
+            return true;
         }
 
         /// <summary>Fill in a blank in a line: the captain, the ship, where it is, how many hostiles.</summary>

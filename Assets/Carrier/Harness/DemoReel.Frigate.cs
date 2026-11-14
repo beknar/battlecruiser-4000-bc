@@ -24,6 +24,14 @@ namespace CarrierGame.Demo
             return Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
         }
 
+        /// <summary>A bearing for a camera on the ship: in its own up frame, as the camera turns (by
+        /// a planet, "up" is out from it).</summary>
+        float FrameBearing(Vector3 from, Vector3 to)
+        {
+            Vector3 d = Quaternion.Inverse(cc.upFrame) * (to - from);
+            return Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
+        }
+
         /// <summary>The frigate's weapons and shield: cannon shells and missiles on the shield,
         /// a CIWS mount shooting a drone, the cruiser's beam on the shield, the bow gun charging,
         /// firing and killing the cruiser, then everything at once on a drone. The side guns hold
@@ -54,7 +62,7 @@ namespace CarrierGame.Demo
             if (shot == 0) cam.distance = Mathf.Lerp(d * 1.7f, d * 1.1f, Smooth(t / 6f));
 
             // 6-14: the cruiser's cannon shells and missiles on the shield, seen from its side
-            if (Cue(6f)) Shot(1, cc.transform, demo.ShipViewOffset, d * 1.25f, Bearing(cruiser.position, me) + 40f, 10f, 0f);
+            if (Cue(6f)) Shot(1, cc.transform, demo.ShipViewOffset, d * 1.25f, FrameBearing(cruiser.position, me) + 40f, 10f, 0f);
             if (shot == 1) cam.yaw = Mathf.LerpAngle(cam.yaw, Bearing(cruiser.position, me) + 40f, Time.deltaTime);
             if (Cue(5.5f) || Cue(9f)) cruiserGuns?.FireBurstNow();
             if (Cue(5f)) cruiserGuns?.FireSalvoNow();
@@ -90,7 +98,7 @@ namespace CarrierGame.Demo
                 Pick(0);
                 bool charging = cruiserGuns != null && cruiserGuns.ChargeBeamNow();
                 Log($"  cruiser beam charging: {charging}");
-                Shot(3, cc.transform, demo.ShipViewOffset, d * 1.15f, Bearing(me, cruiser.position) + 35f, 9f, 0f);
+                Shot(3, cc.transform, demo.ShipViewOffset, d * 1.15f, FrameBearing(me, cruiser.position) + 35f, 9f, 0f);
             }
             if (shot == 3) cam.yaw = Mathf.LerpAngle(cam.yaw, Bearing(me, cruiser.position) + 35f, Time.deltaTime);
 

@@ -38,7 +38,10 @@ namespace CarrierGame.Demo
             new Info("raman", "Priya Raman", "Captain", new Rect(0.323f, 0.295f, 0.366f, 0.157f), new Rect(0.375f, 0.469f, 0.261f, 0.165f)),
         };
 
-        const string PrefKey = "captain";
+        /// <summary>Where the choice is kept: the player's, or for the tests, reels and AI players
+        /// one of their own (which leaves the player's alone; they always start from the first
+        /// captain, whatever an earlier run left there).</summary>
+        public static string PrefKey => LaunchArgs.Automated ? "captain (automated)" : "captain";
         static int current = -1;
 
         /// <summary>Raised when the player picks another captain.</summary>
@@ -52,7 +55,8 @@ namespace CarrierGame.Demo
                 if (current < 0)
                 {
                     int saved = 0;
-                    try { saved = PlayerPrefs.GetInt(PrefKey, 0); } catch { }
+                    if (!LaunchArgs.Automated)
+                        try { saved = PlayerPrefs.GetInt(PrefKey, 0); } catch { }
                     current = Mathf.Clamp(saved, 0, Roster.Length - 1);
                 }
                 return current;

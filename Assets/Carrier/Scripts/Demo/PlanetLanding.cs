@@ -602,6 +602,9 @@ namespace CarrierGame.Demo
         void Update()
         {
             if (carrier == null) return;
+            // the ground built ahead (or still kept after climbing out) isn't drawn till the ship
+            // is down on it: from over a planet it can be in view, out in the sky
+            if (Surface != null) Surface.Hidden = Current == State.InSpace;
             // (craters made while down on a body: its ground built with them, back in space)
             if (scarsWaiting.Count > 0 && !Busy)
             {

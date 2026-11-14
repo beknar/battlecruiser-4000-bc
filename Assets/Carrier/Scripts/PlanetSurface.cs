@@ -148,6 +148,7 @@ namespace CarrierGame
 
         void OnDestroy()
         {
+            ShowAll();      // (what it hid near its centre, back on: it may outlive the surface)
             foreach (var j in jobs.Values) j.cancelled = true;
             jobs.Clear();
             foreach (var j in ready) j.Release();

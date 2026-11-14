@@ -9,8 +9,11 @@ namespace CarrierGame.Demo
     /// The co-op scene of the reel of everything: -reelcoop &lt;host:port&gt; points it at a co-op
     /// server where two scripted wingmen (Tools/CoopTest/wingman.py) are waiting. The game joins
     /// first (so it hosts, and runs the enemies as usual), the wingmen come in as guests and fly
-    /// in formation with the frigate past Jovara, and fire a volley ahead; then the game leaves
-    /// and carries on alone. Without -reelcoop the scene is left out.
+    /// in formation with the frigate past Jovara, and fire a volley ahead. Then, with -reelbot,
+    /// the AI wingman: another game run as an AI player (-coopbot, no window), started by the
+    /// reel's runner once this game hosts, is ordered on the comms channel (its status, follow
+    /// me, a warp away). Then the game leaves and carries on alone. Without -reelcoop the scene
+    /// is left out.
     /// </summary>
     public partial class DemoReel
     {
@@ -90,9 +93,95 @@ namespace CarrierGame.Demo
             Note($"co-op: {CoopWorld.Instance?.ShotsShown ?? 0} of the wingmen's shots shown");
             CoopNote("bye");
             yield return Wait(0.3f);
+            demo.autoRudder = null;
+            if (LaunchArgs.Has("-reelbot")) yield return AiWingman();
             CoopClient.Disconnect();
             yield return Wait(0.5f);
             Clear();
+            cc.throttle = 0f;
+        }
+
+        /// <summary>The AI wingman: found wherever it came into the level and held there (off
+        /// camera), the frigate brought up behind it; then ordered on the comms channel: its
+        /// status, follow me (it forms up on the wing), and a warp away.</summary>
+        IEnumerator AiWingman()
+        {
+            var client = CoopClient.Instance;
+            var world = CoopWorld.Instance;
+            if (client == null || world == null) yield break;
+            Note("co-op: waiting for the AI wingman");
+            CoopPlayer bot = null;
+            RemotePlayer ship = null;
+            bool held = false;
+            float until = Time.realtimeSinceStartup + 300f;
+            while (Time.realtimeSinceStartup < until && CoopClient.Active)
+            {
+                bot = client.Players.FirstOrDefault(p => p != null && p.id != client.MyId && p.client == CoopBot.ClientName);
+                // (after its hello on the channel: before that it isn't flying yet, and its own
+                // first order to itself, to form up on a player, would follow the hold)
+                if (bot != null && !held && CoopChat.Lines.Any(l => l.from == bot.id))
+                {
+                    yield return new WaitForSecondsRealtime(1f);
+                    held = CoopChat.Say($"{bot.name}, hold");
+                    Note($"co-op: {bot.name} is here (#{bot.id}); told to hold");
+                    yield return new WaitForSecondsRealtime(5f);       // (a warp it had started charging goes ahead)
+                }
+                ship = bot != null ? world.RemoteOf(bot.id) : null;
+                if (held && ship != null && !ship.Hidden)
+                {
+                    // still where it is (not in a warp) over a couple of seconds
+                    Vector3 p0 = ship.transform.position;
+                    yield return new WaitForSecondsRealtime(2f);
+                    if (ship != null && !ship.Hidden && Vector3.Distance(p0, ship.transform.position) < 600f) break;
+                }
+                yield return null;
+            }
+            if (bot == null || ship == null || ship.Hidden || !held) { Note($"co-op: no AI wingman to show (here {bot != null}, held {held})"); yield break; }
+            string name = bot.name;
+
+            // in behind it and off to one side, facing the same way
+            Vector3 bp = ship.transform.position, f = ship.transform.forward;
+            f.y = 0f;
+            f = f.sqrMagnitude > 0.01f ? f.normalized : Vector3.forward;
+            Vector3 right = Vector3.Cross(Vector3.up, f);
+            Place(bp - f * 750f + right * 260f + Vector3.up * 60f, bp + f * 3000f + right * 260f);
+            yield return Wait(1.5f);
+            if (ship == null) { Note($"co-op: {name} left"); yield break; }
+            Note($"co-op: {name} {Vector3.Distance(cc.transform.position, ship.transform.position):F0} m ahead, near {WarpPoint.Nearest(cc.transform.position)?.displayName}");
+            LookPast(495, ship.transform.position, D * 1.5f, 14f, 8f, 0.5f);
+            cam.offset = ClearOfCaption(cam.yaw, D * 1.5f);
+            yield return FadeIn();
+            Caption("AI WINGMAN", $"{name} is an AI player: another copy of the game, flying its own ship and taking orders on the comms channel", 6f);
+            yield return Wait(1f);
+            CoopChat.Say($"{name}, status");
+            yield return Wait(4f);
+            CoopChat.Say($"{name}, follow me");
+            cc.throttle = 0.3f;
+            yield return Wait(1.5f);
+
+            // the two ships: it turning in and closing up on the wing
+            float yaw = cc.Heading - 130f;
+            Shot(496, cc.transform, ClearOfCaption(yaw, D * 2.2f), D * 2.2f, yaw, 12f, 1f);
+            Caption("MCP SERVER", "Its HTTP API, wrapped as an MCP server, lets Claude or any AI client fly it and talk to the players", 6f);
+            yield return Wait(7f);
+            if (ship == null) { Note($"co-op: {name} left"); yield return FadeOut(); yield break; }
+            Note($"co-op: {name} {Vector3.Distance(cc.transform.position, ship.transform.position):F0} m off after 'follow me'");
+
+            // and away: a warp to the farther of the Highport and Jovara
+            var a = WP("Thalassa Highport");
+            var b = WP("Jovara");
+            var dest = a == null ? b : b == null ? a
+                : Vector3.Distance(ship.transform.position, a.Position) > Vector3.Distance(ship.transform.position, b.Position) ? a : b;
+            if (dest != null)
+            {
+                CoopChat.Say($"{name}, warp to {dest.displayName}");
+                Shot(497, ship.transform, Vector3.zero, 700f, Bearing(cc.transform.position, ship.transform.position) + 120f, 10f, 2f);
+                Caption("ORDERS", "Follow, hold, attack, warp to a place, dock, regroup, status: from a player in chat, or from an AI through the API", 6f);
+                yield return Wait(6f);
+            }
+            yield return FadeOut();
+            int said = CoopChat.Lines.Count(l => l.from == bot.id);
+            Note($"co-op: {name} said {said} lines: {string.Join(" | ", CoopChat.Lines.Where(l => l.from == bot.id).Select(l => l.text))}");
             cc.throttle = 0f;
         }
     }

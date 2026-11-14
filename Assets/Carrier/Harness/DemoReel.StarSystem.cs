@@ -272,7 +272,7 @@ namespace CarrierGame.Demo
                         if (un != null && un.Alive && un.TryGetComponent(out PadLaunch pl) && pl.Launched) { lifted = un.transform; break; }
                 follow = lifted;
                 if (lifted) Shot(122, lifted, Vector3.zero, 80f, lifted.eulerAngles.y + 20f, 8f, 0f);
-                else Shot(123, cc.transform, demo.ShipViewOffset, d * 1.3f, Bearing(tp, me) + 200f, 8f, 0f);
+                else Shot(123, cc.transform, demo.ShipViewOffset, d * 1.3f, FrameBearing(tp, me) + 200f, 8f, 0f);
                 Log($"{T,5:F1}s   {(lifted ? $"a {lifted.name} lifting off its pad" : "no pad launch yet")}; frigate hull {myHull?.Current:F0}");
             }
             if (shot == 122 && follow != null)
@@ -281,7 +281,7 @@ namespace CarrierGame.Demo
                 cam.pitch = Mathf.Lerp(cam.pitch, 8f, Time.deltaTime);
             }
             // the frigate under fire, from beyond the battery
-            if (Cue(phaseAt + 17f)) Shot(123, cc.transform, demo.ShipViewOffset, d * 1.4f, Bearing(tp, me) + 200f, 10f, 3f);
+            if (Cue(phaseAt + 17f)) Shot(123, cc.transform, demo.ShipViewOffset, d * 1.4f, FrameBearing(tp, me) + 200f, 10f, 3f);
             // the bow gun on the battery, once it's in sight: charging, firing, hitting
             if (!groundBeam && beamDoneAt < 0f && s >= 22f && gTarget && gun && gun.Current == MainBeam.State.Idle &&
                 ((inSight && range < 2200f) || s > 38f))

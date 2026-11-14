@@ -40,8 +40,8 @@ namespace CarrierGame.Demo
 
         FrigateRoster roster;
         /// <summary>The ships offered: every frigate, and the destroyer or cruiser the player is in
-        /// command of (all of them in the reels and tests). A ship berthed at a yard is taken command
-        /// of there, where its crew can come across.</summary>
+        /// command of (FrigateRoster.MayStartIn; all of them in the self-tests). A ship berthed at a
+        /// yard is taken command of there, where its crew can come across.</summary>
         FrigateRoster.Entry[] offered = new FrigateRoster.Entry[0];
 
         int IndexOf(string id)
@@ -83,8 +83,7 @@ namespace CarrierGame.Demo
             if (roster == null || roster.frigates.Length == 0 || IsOpen || !InputFocus.Take(InputFocus.Panel.StartMenu)) return;
             openedFrame = Time.frameCount;
             IndustryDirector.LoadSaved();
-            offered = System.Array.FindAll(roster.frigates, e => e != null && (!e.buildable || LaunchArgs.Automated || Hud.ReelMode
-                || string.Equals(IndustryLedger.Commanded, e.id, System.StringComparison.OrdinalIgnoreCase)));
+            offered = System.Array.FindAll(roster.frigates, FrigateRoster.MayStartIn);
             selected = Mathf.Max(0, IndexOf(string.IsNullOrEmpty(PlayerFrigate.Flying) ? FrigateChoice.Current : PlayerFrigate.Flying));
             stats = new FrigateStats[offered.Length];
             best = new FrigateStats();
@@ -149,6 +148,10 @@ namespace CarrierGame.Demo
         /// <summary>The frigate highlighted (for the reel, which steps through them).</summary>
         public int Selected => selected;
         public void Select(int i) => Choose(i);
+
+        /// <summary>How many ships it offers (while open), and each (for the reel).</summary>
+        public int OfferedCount => offered.Length;
+        public FrigateRoster.Entry OfferedAt(int i) => offered[i];
 
         void Choose(int i)
         {

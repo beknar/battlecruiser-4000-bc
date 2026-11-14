@@ -30,15 +30,11 @@ namespace CarrierGame
             Flying = FrigateClass.Of(ship);
             var roster = FrigateRoster.Get();
             var entry = roster != null ? roster.Find(FrigateChoice.Current) : null;
-            // a destroyer or cruiser only the one in command (the tests and reels fly any)
-            if (entry != null && entry.buildable && !LaunchArgs.Automated && !Demo.Hud.ReelMode)
+            // a destroyer or cruiser only the one in command (the self-tests fly any)
+            if (entry != null && !FrigateRoster.MayStartIn(entry))
             {
-                IndustryDirector.LoadSaved();
-                if (!string.Equals(IndustryLedger.Commanded, entry.id, StringComparison.OrdinalIgnoreCase))
-                {
-                    Debug.Log($"[PlayerFrigate] not in command of a {entry.displayName}: flying the starting frigate");
-                    entry = null;
-                }
+                Debug.Log($"[PlayerFrigate] not in command of a {entry.displayName}: flying the starting frigate");
+                entry = null;
             }
             if (entry == null || entry.prefab == null || string.Equals(entry.id, Flying, StringComparison.OrdinalIgnoreCase)) return;
             var swapped = Swap(ship, entry.prefab);

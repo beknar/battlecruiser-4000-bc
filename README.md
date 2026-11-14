@@ -138,9 +138,11 @@ the game with their turrets cut out of the hull (`Tools/Blender/convert_frigates
 
 ### Destroyers and the cruiser
 
-Five destroyers and a heavy cruiser can be flown once they have been built at a shipyard (see
+Every game starts in a frigate. Five destroyers and a heavy cruiser can be flown once they have
+been built at a shipyard and taken command of (see
 [Shipyards](#shipyards-destroyers-and-the-cruiser)). Until then the start menu doesn't offer
-them; afterwards it offers the one the player commands.
+them, and nor does `-frigate`; afterwards it offers the one the player commands. That holds for
+AI players and the reels too: only the self-tests may start in any ship.
 
 - **Destroyers** are tougher than any frigate but slower. They have no bow main gun. They carry
   more turrets (their own, plus ball mounts on the hull), fewer CIWS mounts (one or two), and a
@@ -1240,8 +1242,9 @@ Each part can also be run alone:
 ## Command-line modes
 
 - `-frigate <id>` (or `?frigate=<id>` on the web), with any game: fly that frigate (Sentinel,
-  Lancer, Warden or Talon) without the start menu. The tests fly the Sentinel unless told
-  otherwise.
+  Lancer, Warden, Talon or Vanguard) without the start menu. A destroyer or the cruiser is flown
+  only if the save has it built and in command; otherwise the game starts in the Sentinel. The
+  self-tests fly the Sentinel unless told otherwise, and may be given any ship.
 - `-industrysave <file>`: save the game there instead of the player's data folder. Automated
   runs (tests, reels) save only where they are told to, so they never touch the player's save.
   `-newgame` plays without the save: it neither reads it nor writes over it.

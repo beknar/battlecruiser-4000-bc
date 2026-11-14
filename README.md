@@ -978,13 +978,24 @@ the two deprecated games), through a small server that any of them (or a machine
 
 ### Joining a game
 
-When the game starts it asks whether to play alone or join a co-op game, with your name and
-the server's address and port (remembered for next time). The same panel is under **Co-op** in
-the pause menu. While you're connected, a panel at the top of the screen lists the players,
-who is hosting, and the round trip to the server.
+When the game starts it asks whether to play alone or join a co-op game, with your name, the
+server's address and port, and your **API key**. The same panel is under **Co-op** in the pause
+menu. While you're connected, a panel at the top of the screen lists the players, who is
+hosting, and the round trip to the server.
 
-To skip the question, start the game with `-connect <address>:<port> [-name <name>]`, or open
-the web version with `?server=<address>:<port>&name=<name>&connect`.
+- **The API key.** A server lets in only players with one of its keys, unless its owner has
+  opened it to everyone. Ask the owner for a key (see [Running the server](#running-the-server))
+  and paste it into the panel. It shows only its first characters there.
+- **Kept for next time.** The Windows version keeps one key with the rest of the panel. The web
+  version keeps a key for each player name, in that browser, so people sharing a browser each
+  keep their own: typing another name brings up that name's key.
+- **Turned away.** Without a key, or with one the server doesn't know (or has revoked), the panel
+  says so.
+
+To skip the question, start the game with `-connect <address>:<port> [-name <name>] [-apikey
+<key>]`, or open the web version with `?server=<address>:<port>&name=<name>&connect`. A key given
+with `-apikey` (or `&apikey=<key>` in the page address, for automated tests) is used but not
+kept.
 
 ### What is shared
 
@@ -1023,7 +1034,10 @@ else installed when built as below.
 ```
 CoopServer [--port 7777] [--bind 0.0.0.0] [--max-players 7]
            [--allow 192.168.1.0/24,10.0.0.5] [--config coopserver.json]
-           [--cert server.pfx --cert-password secret]
+           [--cert server.pfx --cert-password secret] [--keys coopkeys.json] [--open]
+CoopServer --new-key <name> [--ai]      make an API key, then exit
+CoopServer --list-keys                  list the keys made, then exit
+CoopServer --revoke-key <name|key>      revoke a key, then exit
 ```
 
 - **Settings.** They are in `coopserver.json` next to the program, and anything given on the
@@ -1032,10 +1046,31 @@ CoopServer [--port 7777] [--bind 0.0.0.0] [--max-players 7]
   IPv4 or IPv6. Anyone else is refused with HTTP 403. An empty list lets anyone in.
 - **Players.** `maxPlayers` (or `--max-players`) is how many can be on at once: seven by
   default. A `coopserver.json` kept from an older copy keeps its own number (4 in those).
-- **Live changes.** Saved changes to the file's `allow` and `maxPlayers` take effect at once,
-  without a restart.
-- **Console.** While the server runs, type `status` for who is on, `reload` to re-read the
-  settings, or `quit`.
+- **API keys.** Every player, and every AI player, needs one of the server's keys to join.
+  Without one, the server turns them away.
+  - Make a key with `CoopServer --new-key Alice` (add `--ai` for an AI player), or type
+    `newkey Alice` (`newaikey Wingman`) in the console of a running server. The key is printed
+    once: give it to the player, who pastes it into the game's co-op panel. An AI player is
+    started with `-apikey <key>`.
+  - `--list-keys` (`keys` in the console) lists them, and `--revoke-key Alice` (`revoke Alice`)
+    revokes one, by its name, the whole key, or its first characters (as many as the list shows,
+    or more; a start that more than one key shares revokes none). A key made or revoked counts at
+    once, even while the server runs: within a few seconds the players using a revoked key are
+    told and disconnected.
+  - The keys are kept in `coopkeys.json` next to the settings (`keysFile`; `--keys <file>` on the
+    command line is from the folder it is run in). Only each key's hash is stored, never the key
+    itself. The file is changed under a lock, so a key made or revoked beside a running server
+    can't be undone by it. If the file can't be read (it was hand-edited and broken), no one gets
+    in and no key can be made or revoked until it is mended, so the keys in it aren't lost.
+  - The status page shows who is on, but not whose key each came with (anyone the allow-list
+    lets in can read it); the console's `status` does.
+  - A new server has no keys, so no one can join until one is made: its console says so.
+  - `"requireKey": false` (or `--open`) lets in anyone the allow-list does, without a key.
+- **Live changes.** Saved changes to the file's `allow`, `maxPlayers` and `requireKey` take
+  effect at once, without a restart.
+- **Console.** While the server runs, type `status` for who is on (and whose key each player
+  joined with), `newkey <name>`, `newaikey <name>`, `keys`, `revoke <name|key>`, `reload` to
+  re-read the settings, or `quit`.
 - **Status page.** `http://<server>:<port>/` shows the same status to allowed addresses.
 - **Web players.** A web page served over https can only connect to `wss://`, so give the
   server a certificate (`--cert`), or put it behind a proxy that has one. A page served over
@@ -1139,16 +1174,22 @@ several km/s millions of kilometres out, each game drawing them where its own cl
 or from the star in open space, in doubles. Games and servers of protocol 1 can't play with it,
 so servers need rebuilding (above).
 
-- `Tools/CoopTest/server_test.py <host> <port> [--allowtest <settings file>]` tests a running
-  server:
+- The Python bots and test players join with the API key in `COOP_KEY` (an environment
+  variable). The test suite makes a key for each one with the server's `--new-key`, so every
+  co-op stage goes through the key check.
+- `Tools/CoopTest/server_test.py <host> <port> [--key <key>] [--allowtest <settings file>]
+  [--keytest <server program> <keys file>]` tests a running server:
   - as many players as the server takes (seven by default; it needs to take at least four)
     get in, and one more is turned away;
   - messages reach the right players, and the server's own messages can't be forged;
   - the host hands over when it leaves, and the clock and rooms work;
   - a game speaking another protocol is refused, and the status page answers;
   - with `--allowtest`, addresses off the allow-list are refused, and a saved change lets
-    them in.
-- `StarSystem.exe -systemtest <dir> -cooptest -connect <address>:<port>` plays co-op against
+    them in;
+  - with `--keytest`, a player with no key or an unknown one is turned away; a key made with
+    `--new-key` while the server runs gets in at once, and once revoked doesn't; and the keys
+    file keeps no key itself.
+- `StarSystem.exe -systemtest <dir> -cooptest -connect <address>:<port> -apikey <key>` plays co-op against
   `Tools/CoopTest/bot.py`, a scripted second player. Start the bot first, so it hosts.
   - First the game is a guest. It checks that the bot's ship shows where it is, that an enemy
     goes where the bot puts it, and that the bot's hits and shots arrive. It also checks that

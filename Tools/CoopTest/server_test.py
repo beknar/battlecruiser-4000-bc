@@ -1,6 +1,7 @@
 """Tests for the co-op server, against a running one.
 
-    python server_test.py <host> <port> [--allowtest <config file the server is using>]
+    python server_test.py <host> <port> [--key <API key>] [--allowtest <config file the server is using>]
+                          [--keytest <the server program> <its keys file>]
 
 - as many players as the server takes (it says how many when the first joins; 7 by default) get
   in, and one more is turned away (server full); the server needs to take at least 4;
@@ -12,15 +13,20 @@
 - the status page answers.
 With --allowtest (the server started with that config file, which this rewrites): an address not
 on the allow-list is refused (HTTP 403), and a saved change to the file lets it in, live.
+Every player joins with the API key given (--key, or COOP_KEY). With --keytest (the server needs
+a key): no key, or a key it doesn't know, is turned away; a key made while it runs (the server
+program's --new-key, beside it) gets in at once, and once revoked (--revoke-key) doesn't.
 Needs the 'websockets' package.
 """
-import asyncio, json, sys, time, urllib.request
+import asyncio, json, subprocess, sys, time, urllib.request
 
 import websockets
 
-from protocol import PROTOCOL
+from protocol import PROTOCOL, KEY, hello as hello_msg
 
 HOST, PORT = sys.argv[1], int(sys.argv[2])
+if "--key" in sys.argv:
+    KEY = sys.argv[sys.argv.index("--key") + 1]
 URL = f"ws://{HOST}:{PORT}/coop"
 results = []
 
@@ -43,10 +49,20 @@ async def recv_until(ws, t, timeout=3.0):
     return None
 
 
-async def join(name, level="TestLevel", v=PROTOCOL):
+async def join(name, level="TestLevel", v=PROTOCOL, key=None):
     ws = await websockets.connect(URL)
-    await ws.send(json.dumps({"t": "hello", "v": v, "name": name, "level": level, "client": "test", "captain": 0, "clock": 12.5}))
+    # (the hello the bots send, with this test's key, or the one given: "" for none)
+    msg = hello_msg(v=v, name=name, level=level, client="test", captain=0, clock=12.5, key=KEY if key is None else key)
+    if not msg["key"]:
+        del msg["key"]
+    await ws.send(json.dumps(msg))
     return ws
+
+
+def server_keys(*args):
+    """Run the server program beside the running one, on its keys file: its output."""
+    exe, keys = sys.argv[sys.argv.index("--keytest") + 1], sys.argv[sys.argv.index("--keytest") + 2]
+    return subprocess.run([exe, "--keys", keys, *args], capture_output=True, text=True, timeout=60).stdout
 
 
 async def strays(xs, wait=0.6):
@@ -127,6 +143,31 @@ async def main():
     check("a game speaking another protocol is turned away", rej is not None and "protocol" in rej.get("why", ""))
     await old.close()
 
+    # ---- the API keys
+    if "--keytest" in sys.argv:
+        nokey = await join("Keyless", key="")
+        rej = await recv_until(nokey, "reject")
+        check("without an API key a player is turned away", rej is not None and "API key" in rej.get("why", ""), rej.get("why", "") if rej else "no reject")
+        await nokey.close()
+        wrong = await join("Guesser", key="bc4k_" + "0" * 40)
+        rej = await recv_until(wrong, "reject")
+        check("a key the server doesn't know is turned away", rej is not None and "isn't one of this server's" in rej.get("why", ""), rej.get("why", "") if rej else "no reject")
+        await wrong.close()
+        made = server_keys("--new-key", "Latecomer")
+        late = next((w for w in made.split() if w.startswith("bc4k_")), "")
+        ws = await join("Latecomer", key=late)
+        w = await recv_until(ws, "welcome")
+        check("a key made while the server runs gets in at once", bool(late) and w is not None, made.strip().splitlines()[0] if made.strip() else "no key made")
+        await ws.close()
+        server_keys("--revoke-key", "Latecomer")
+        ws = await join("Latecomer", key=late)
+        rej = await recv_until(ws, "reject")
+        check("once revoked, it doesn't", rej is not None)
+        await ws.close()
+        listed = server_keys("--list-keys")
+        kept = open(sys.argv[sys.argv.index("--keytest") + 2]).read()
+        check("the keys file keeps no key itself", bool(late) and late not in listed and late not in kept and (not KEY or KEY not in kept))
+
     # ---- the status page
     try:
         page = urllib.request.urlopen(f"http://{HOST}:{PORT}/", timeout=3).read().decode()
@@ -139,7 +180,7 @@ async def main():
         cfg = sys.argv[sys.argv.index("--allowtest") + 1]
         def write(allow):
             with open(cfg, "w") as f:
-                json.dump({"port": PORT, "maxPlayers": MAX, "allow": allow}, f)
+                json.dump({"port": PORT, "maxPlayers": MAX, "allow": allow, "requireKey": bool(KEY)}, f)
         write(["10.123.0.0/16"])
         await asyncio.sleep(3.0)     # a change notice, or the server's 2 s check
         try:

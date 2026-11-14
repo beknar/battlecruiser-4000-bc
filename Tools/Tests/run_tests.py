@@ -138,9 +138,9 @@ class Runner:
                 stop(p)
                 raise
 
-    def play(self, st, what, cmd, log, limit, cwd=None):
+    def play(self, st, what, cmd, log, limit, cwd=None, env=None):
         """Run a game (or a test script) to the end; a time-out is a failure."""
-        code = self.run(cmd, log, limit, cwd=cwd)
+        code = self.run(cmd, log, limit, cwd=cwd, env=env)
         if code is None:
             st.fail(f"{what}: still running after {limit} s, so stopped (see {log.parent})")
         return code
@@ -157,12 +157,21 @@ class Runner:
         p.log_file = f
         return p
 
+    def server_key(self, exe, d, name, ai=False):
+        """An API key from the server program, in d's keys file (the one coop_server uses)."""
+        out = subprocess.run([str(exe), "--keys", str(d / "coopkeys.json"), "--new-key", name] + (["--ai"] if ai else []),
+                             capture_output=True, text=True, timeout=60).stdout
+        key = next((w for w in out.split() if w.startswith("bc4k_")), None)
+        if not key:
+            raise RuntimeError(f"the server program made no key: {out.strip()[:200]}")
+        return key
+
     @contextlib.contextmanager
     def coop_server(self, exe, d, preferred_port, *args):
         """A co-op server on loopback (its log in d/server.log) for the length of a `with`;
-        gives the port it listens on."""
+        gives the port it listens on. It needs an API key from d's keys file (server_key)."""
         port = free_port(preferred_port)
-        srv = self.start([exe] + list(args) + ["--bind", "127.0.0.1", "--port", port], d / "server.log")
+        srv = self.start([exe] + list(args) + ["--bind", "127.0.0.1", "--port", port, "--keys", d / "coopkeys.json"], d / "server.log")
         try:
             wait_port(port, 15)
             yield port
@@ -361,9 +370,11 @@ class Runner:
         d = self.fresh("serverproc")
         cfg = d / "coopserver.json"
         shutil.copy(PROJECT / "Server" / "CoopServer" / "coopserver.json", cfg)
+        key = self.server_key(exe, d, "server test")
         with self.coop_server(exe, d, 7795, "--config", cfg) as port:
             code = self.play(st, "server_test.py", [sys.executable, "-B", PROJECT / "Tools" / "CoopTest" / "server_test.py",
-                                                    "127.0.0.1", port, "--allowtest", cfg], d / "server_test.log", 300)
+                                                    "127.0.0.1", port, "--key", key, "--allowtest", cfg,
+                                                    "--keytest", exe, d / "coopkeys.json"], d / "server_test.log", 300)
         lines = (d / "server_test.log").read_text(errors="replace").splitlines()
         self.selftest_result(st, "serverproc.txt", lines, require_done=False)
         if code != 0:
@@ -431,10 +442,12 @@ class Runner:
             return
         d = self.fresh("coop")
         bot = None
+        bot_key, my_key = self.server_key(server, d, "bot"), self.server_key(server, d, "Tester")
         with self.coop_server(server, d, 7790) as port:
             try:
                 # the bot joins first, so it hosts
-                bot = self.start([sys.executable, "-B", "-u", PROJECT / "Tools" / "CoopTest" / "bot.py", f"ws://127.0.0.1:{port}/coop", "StarSystem"], d / "bot.log")
+                bot = self.start([sys.executable, "-B", "-u", PROJECT / "Tools" / "CoopTest" / "bot.py", f"ws://127.0.0.1:{port}/coop", "StarSystem"], d / "bot.log",
+                                 env=dict(os.environ, COOP_KEY=bot_key))
                 # the server logs each player who gets in: wait for the bot before the game joins
                 joined = lambda: "joined from" in (d / "server.log").read_text(errors="replace")
                 end = time.time() + 20
@@ -444,7 +457,7 @@ class Runner:
                     st.fail(f"the bot didn't get in (see {d / 'bot.log'})")
                     return
                 self.play(st, "StarSystem", [exe] + WINDOW + ["-systemtest", d, "-cooptest", "-connect", f"127.0.0.1:{port}", "-name", "Tester",
-                                             "-logFile", d / "player.log"], d / "run.out", 600, cwd=exe.parent)
+                                             "-apikey", my_key, "-logFile", d / "player.log"], d / "run.out", 600, cwd=exe.parent)
             finally:
                 stop(bot)
         report = d / "systemtest.txt"
@@ -465,14 +478,16 @@ class Runner:
             return
         d = self.fresh("aibot")
         game = None
+        # an AI player's key, and the test player's own
+        ai_key, my_key = self.server_key(server, d, "Wingman", ai=True), self.server_key(server, d, "aibot test")
         with self.coop_server(server, d, 7792) as port:
             api = free_port(7781)
             try:
                 game = self.start([exe, "-batchmode", "-nographics", "-coopbot", "-connect", f"127.0.0.1:{port}", "-name", "Wingman",
-                                   "-botport", api, "-logFile", d / "bot_game.log"], d / "bot_game.out", cwd=exe.parent)
+                                   "-apikey", ai_key, "-botport", api, "-logFile", d / "bot_game.log"], d / "bot_game.out", cwd=exe.parent)
                 code = self.play(st, "aibot_test.py", [sys.executable, "-B", "-u", PROJECT / "Tools" / "CoopAI" / "aibot_test.py",
                                                        f"http://127.0.0.1:{api}", f"ws://127.0.0.1:{port}/coop", "Wingman"],
-                                 d / "aibot_test.log", 420)
+                                 d / "aibot_test.log", 420, env=dict(os.environ, COOP_KEY=my_key))
                 # it was told to quit
                 try:
                     game.wait(timeout=30)

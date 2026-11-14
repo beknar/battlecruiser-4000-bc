@@ -14,7 +14,8 @@ namespace CoopServer.Tests;
 /// </summary>
 public sealed class HubTests : IAsyncDisposable
 {
-    readonly ServerConfig cfg = new() { MaxPlayers = 7 };
+    // (an open server: KeyTests has the API keys)
+    readonly ServerConfig cfg = new() { MaxPlayers = 7, RequireKey = false };
     readonly Hub hub;
     readonly CancellationTokenSource stop = new();
     readonly TcpListener listener = new(IPAddress.Loopback, 0);

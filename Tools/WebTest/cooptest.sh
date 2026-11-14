@@ -7,7 +7,8 @@
 #
 #   Tools/WebTest/cooptest.sh [build dir] [seconds]
 #
-# COOPSERVER: the server program (default ../Builds/CoopServer/win-x64/CoopServer.exe)
+# COOPSERVER: the server program (default ../Builds/CoopServer/win-x64/CoopServer.exe); it is
+#   given a keys file of its own, with an API key each for the bot and the web game
 # PYTHON: a Python with the 'websockets' package (default: python)
 # Prints the self-test's lines and exits 1 unless it passes.
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -41,12 +42,16 @@ trap cleanup EXIT INT TERM
 mkdir -p "$WORK/site" && cp -r "$BUILD/." "$WORK/site/"
 (cd "$WORK/site" && exec "$PYTHON" -m http.server $PORT --bind 127.0.0.1 > "$WORK/web.log" 2>&1) &
 WEB=$!
-"$COOPSERVER" --bind 127.0.0.1 --port $COOP < /dev/null > "$WORK/coop.log" 2>&1 &
+KEYS=$(cygpath -w "$WORK/coopkeys.json" 2> /dev/null || echo "$WORK/coopkeys.json")
+newkey() { "$COOPSERVER" --keys "$KEYS" --new-key "$1" | grep -o 'bc4k_[0-9a-f]*' | head -1; }
+BOTKEY=$(newkey bot); WEBKEY=$(newkey WebTester)
+[ -n "$BOTKEY" ] && [ -n "$WEBKEY" ] || { echo "the co-op server made no API keys"; exit 1; }
+"$COOPSERVER" --bind 127.0.0.1 --port $COOP --keys "$KEYS" < /dev/null > "$WORK/coop.log" 2>&1 &
 SRV=$!
 sleep 2
 kill -0 "$WEB" 2> /dev/null || { echo "the web server didn't start:"; cat "$WORK/web.log"; exit 1; }
 kill -0 "$SRV" 2> /dev/null || { echo "the co-op server didn't start:"; cat "$WORK/coop.log"; exit 1; }
-"$PYTHON" -u "$HERE/../CoopTest/bot.py" "ws://127.0.0.1:$COOP/coop" StarSystem > "$WORK/bot.log" 2>&1 &
+COOP_KEY=$BOTKEY "$PYTHON" -u "$HERE/../CoopTest/bot.py" "ws://127.0.0.1:$COOP/coop" StarSystem > "$WORK/bot.log" 2>&1 &
 BOT=$!
 sleep 2
 
@@ -54,7 +59,7 @@ PROFILE=$(cygpath -w "$WORK/profile" 2> /dev/null || echo "$WORK/profile")
 "$CHROME" --headless=new --no-first-run --no-default-browser-check --user-data-dir="$PROFILE" \
   --window-size=1280,720 --enable-logging=stderr --v=0 --autoplay-policy=no-user-gesture-required \
   --enable-unsafe-swiftshader --use-gl=angle --use-angle=swiftshader --disable-features=WebGPU \
-  "http://localhost:$PORT/index.html?systemtest&coopquick&server=127.0.0.1:$COOP&name=WebTester&connect" 2> "$WORK/chrome.log" &
+  "http://localhost:$PORT/index.html?systemtest&coopquick&server=127.0.0.1:$COOP&name=WebTester&apikey=$WEBKEY&connect" 2> "$WORK/chrome.log" &
 CHR=$!
 
 # the web game doesn't quit when the test is done: wait for its verdict (or the time limit)

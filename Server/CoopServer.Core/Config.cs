@@ -6,8 +6,9 @@ namespace CoopServer;
 
 /// <summary>
 /// The server's settings: coopserver.json next to the program (or --config &lt;file&gt;), then
-/// anything on the command line on top. The allow-list and the player limit are read again
-/// whenever the file changes, without restarting.
+/// anything on the command line on top. The allow-list, the player limit and whether a key is
+/// needed are read again whenever the file changes, without restarting. The API keys are in
+/// their own file (keysFile, coopkeys.json by default, next to the settings).
 /// </summary>
 public sealed class ServerConfig
 {
@@ -20,9 +21,16 @@ public sealed class ServerConfig
     /// <summary>A .pfx certificate for wss:// (needed when the web client's page is served over https).</summary>
     public string? Certificate { get; set; }
     public string? CertificatePassword { get; set; }
+    /// <summary>Only players with one of the server's API keys may connect (people and AI players
+    /// alike). False: anyone the allow-list lets in.</summary>
+    public bool RequireKey { get; set; } = true;
+    /// <summary>The API keys' file, next to the settings file (or the program) unless a full path.</summary>
+    public string KeysFile { get; set; } = "coopkeys.json";
 
     [System.Text.Json.Serialization.JsonIgnore] public string? Path { get; private set; }
     [System.Text.Json.Serialization.JsonIgnore] public IpAllowList AllowList { get; private set; } = new(new List<string>());
+    /// <summary>The API keys (in memory only until Load gives them their file).</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public ApiKeys Keys { get; private set; } = new(null);
 
     static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true, ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
 
@@ -45,6 +53,18 @@ public sealed class ServerConfig
         if (allow.Count > 0) { cfg.Allow = allow; cfg.allowFromArgs = true; }
         if (Arg(args, "--cert") is string c) cfg.Certificate = c;
         if (Arg(args, "--cert-password") is string cp) cfg.CertificatePassword = cp;
+        if (args.Contains("--open")) { cfg.RequireKey = false; cfg.openFromArgs = true; }
+        // (on the command line: from the folder it is run in, as any path given there; in the
+        // settings file: from the file's folder, or the program's without one)
+        string keysPath;
+        if (Arg(args, "--keys") is string k) { cfg.KeysFile = k; keysPath = System.IO.Path.GetFullPath(k); }
+        else
+        {
+            string baseDir = cfg.Path != null ? System.IO.Path.GetDirectoryName(cfg.Path)! : AppContext.BaseDirectory;
+            keysPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(baseDir, cfg.KeysFile));
+        }
+        cfg.Keys = new ApiKeys(keysPath);
+        if (cfg.Keys.Error != null) { error = cfg.Keys.Error; return cfg; }
         if (cfg.MaxPlayers < 1) { error = "--max-players must be at least 1"; return cfg; }
         if (cfg.Port < 1 || cfg.Port > 65535) { error = "--port must be 1 to 65535"; return cfg; }
         try { cfg.AllowList = new IpAllowList(cfg.Allow); }
@@ -52,7 +72,7 @@ public sealed class ServerConfig
         return cfg;
     }
 
-    bool allowFromArgs, maxFromArgs;
+    bool allowFromArgs, maxFromArgs, openFromArgs;
 
     /// <summary>Read the allow-list and player limit from the file again (whichever of them the
     /// command line gave, it still wins).</summary>
@@ -68,10 +88,14 @@ public sealed class ServerConfig
                 Allow = fresh.Allow;
             }
             if (!maxFromArgs && fresh.MaxPlayers >= 1) MaxPlayers = fresh.MaxPlayers;
-            return $"reloaded: max players {MaxPlayers}, allow {AllowList}";
+            if (!openFromArgs) RequireKey = fresh.RequireKey;
+            return $"reloaded: max players {MaxPlayers}, allow {AllowList}, {KeyRule}";
         }
         catch (Exception e) { return $"kept the old settings: {e.Message}"; }
     }
+
+    /// <summary>Who may connect, as to keys (for the log and the status page).</summary>
+    public string KeyRule => RequireKey ? $"an API key needed ({Keys.Count} issued)" : "no API key needed (open)";
 
     static string? Arg(string[] args, string name)
     {

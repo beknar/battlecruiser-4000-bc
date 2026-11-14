@@ -50,8 +50,9 @@ namespace CarrierGame.Demo
         bool helloSent;
 
         /// <summary>Connect (closing any connection there is): address as a host name or IP
-        /// (or a full ws:// or wss:// address), and the port.</summary>
-        public static void Connect(string address, int port, string name)
+        /// (or a full ws:// or wss:// address), and the port, with the server's API key (null:
+        /// the one CoopKey has for the name).</summary>
+        public static void Connect(string address, int port, string name, string key = null)
         {
             if (Instance == null)
             {
@@ -59,8 +60,10 @@ namespace CarrierGame.Demo
                 DontDestroyOnLoad(go);
                 Instance = go.AddComponent<CoopClient>();
             }
-            Instance.Open(address, port, name);
+            Instance.Open(address, port, name, key ?? CoopKey.For(name));
         }
+
+        string key = "";
 
         /// <summary>The server's WebSocket address: ws://host:port/coop (wss:// when `secure`, an
         /// IPv6 address in brackets), or a full ws:// or wss:// address as given, with /coop
@@ -79,9 +82,10 @@ namespace CarrierGame.Demo
             if (Instance != null) Instance.Close("disconnected");
         }
 
-        void Open(string address, int port, string name)
+        void Open(string address, int port, string name, string apiKey)
         {
             Close("");
+            key = (apiKey ?? "").Trim();
             address = (address ?? "").Trim();
             MyName = string.IsNullOrWhiteSpace(name) ? "Captain" : name.Trim();
             // a page served over https may only open wss:// sockets
@@ -135,7 +139,7 @@ namespace CarrierGame.Demo
                 helloSent = true;
                 Send(new HelloMsg
                 {
-                    v = Protocol, name = MyName, level = SceneManager.GetActiveScene().name,
+                    v = Protocol, name = MyName, level = SceneManager.GetActiveScene().name, key = key,
                     // (an AI player says so: other bots know not to follow it)
                     client = CoopBot.Enabled ? CoopBot.ClientName : LaunchArgs.OnWeb ? (SystemInfo.graphicsDeviceType.ToString().Contains("WebGPU") ? "web (WebGPU)" : "web (WebGL)") : Application.platform.ToString(),
                     captain = Captain.Index, clock = LocalOrbitClock(),

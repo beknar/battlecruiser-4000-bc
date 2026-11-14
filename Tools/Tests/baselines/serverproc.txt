@@ -12,7 +12,12 @@ co-op server test against ws://127.0.0.1:7795/coop
   ok   everyone gets the new list of players
   ok   a player in another level is in that level's room, hosting it
   ok   a game speaking another protocol is turned away
-  ok   the status page answers  (Battlecruiser 4000 BC co-op server: 0 of 7 players, up 00:00:02)
+  ok   without an API key a player is turned away  (this server needs an API key: ask its owner for one, and enter it in the co-op panel)
+  ok   a key the server doesn't know is turned away  (that API key isn't one of this server's (it may have been revoked): ask its owner for a new one)
+  ok   a key made while the server runs gets in at once  (API key for Latecomer:)
+  ok   once revoked, it doesn't
+  ok   the keys file keeps no key itself
+  ok   the status page answers  (Battlecruiser 4000 BC co-op server: 0 of 7 players, up 00:00:03)
   ok   an address not on the allow-list is refused (HTTP 403)
   ok   a saved change to the allow-list lets it in, without a restart
-PASS: co-op server (16 of 16)
+PASS: co-op server (21 of 21)

@@ -14,15 +14,17 @@ they had.
 
 ## Downloads and demo reels
 
-The Windows builds are 64-bit and use DirectX 11. Unzip one and run the `.exe` inside. Every
-file is also on the [release page](https://github.com/beknar/battlecruiser-4000-bc/releases/tag/demo-reel-2026-11-03).
+The Windows build is 64-bit and uses DirectX 11. Unzip it and run `StarSystem/StarSystem.exe`.
+The builds and the co-op server are on the [14 Nov release](https://github.com/beknar/battlecruiser-4000-bc/releases/tag/star-system-2026-11-14), and
+the demo reels on the [3 Nov release](https://github.com/beknar/battlecruiser-4000-bc/releases/tag/demo-reel-2026-11-03) (recorded before the
+real-size system).
 
 | Game | Download | Demo reel |
 |---|---|---|
-| Star System | [battlecruiser-4000-bc-star-system-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-windows.zip) (96 MB) | [214 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4) (290 MB) |
+| Star System | [battlecruiser-4000-bc-star-system-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/star-system-2026-11-14/battlecruiser-4000-bc-star-system-windows.zip) (357 MB) | [214 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4) (290 MB) |
 | Star System: mining, combat, landing and mini-warps | The Star System downloads above | [5 min 10 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-features-reel.mp4) (382 MB) |
 | Star System: orbits, stations and launch systems | The Star System downloads above | [3 min 29 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-orbits-reel.mp4) (157 MB) |
-| Star System, web version | [battlecruiser-4000-bc-star-system-web.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-web.zip) (58 MB) | See [The web version](#the-web-version) |
+| Star System, web version | [battlecruiser-4000-bc-star-system-web.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/star-system-2026-11-14/battlecruiser-4000-bc-star-system-web.zip) (315 MB) | See [The web version](#the-web-version) |
 
 Carrier Demo and Asteroid Ambush are deprecated. Their last downloads stay on the release page,
 but they are no longer built or updated:
@@ -1007,6 +1009,11 @@ the web version with `?server=<address>:<port>&name=<name>&connect`.
   menu doesn't pause the game while you're connected.
 
 ### Running the server
+
+Ready-built servers for Windows and Linux are on the
+[14 Nov release](https://github.com/beknar/battlecruiser-4000-bc/releases/tag/star-system-2026-11-14): `battlecruiser-4000-bc-coop-server-windows.zip`
+and `battlecruiser-4000-bc-coop-server-linux.tar.gz`. The 3 Nov release's servers speak co-op
+protocol 1 and can't host the current game.
 
 The server is in `Server/CoopServer` (.NET 8). It runs on Windows and Linux and needs nothing
 else installed when built as below.

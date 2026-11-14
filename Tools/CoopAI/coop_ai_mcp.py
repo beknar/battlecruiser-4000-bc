@@ -161,7 +161,7 @@ TOOLS = [
                    "co-op server as a player.",
      {"server": {"type": "string", "description": "host:port of the co-op server (default 127.0.0.1:7777)"},
       "name": {"type": "string", "description": "the bot's name in the game (default Wingman)"},
-      "ship": {"type": "string", "description": "the ship class to fly (default the starting frigate)"},
+      "ship": {"type": "string", "description": "the frigate to fly: Sentinel (the default), Lancer, Warden, Talon or Vanguard. A destroyer or the cruiser only once built at a shipyard and taken command of in that game's save"},
       "headless": {"type": "boolean", "description": "no window (default true)"},
       "game": {"type": "string", "description": "path to the game's executable"}}, [], t_launch_bot),
     ("stop_bot", "Close the bot game started by launch_bot.", {}, [], t_stop_bot),

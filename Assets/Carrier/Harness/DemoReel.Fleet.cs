@@ -25,32 +25,28 @@ namespace CarrierGame.Demo
             return string.Join(", ", parts);
         }
 
-        /// <summary>The start menu: every ship, then the captains.</summary>
+        /// <summary>The start menu: the ships a game starts in (the frigates: the destroyers and the
+        /// cruiser come later, built at a shipyard), then the captains.</summary>
         IEnumerator ShipsMenu()
         {
             var roster = FrigateRoster.Get();
             var menu = FindAnyObjectByType<StartMenu>();
             if (roster == null || roster.frigates.Length == 0 || menu == null) { Note("no ship roster or start menu"); yield break; }
             StartMenu.LiveSwap = true;
-            var ships = roster.frigates;
-            Note($"ships: {string.Join(", ", ships.Select(f => $"{f.displayName} ({f.category})"))}");
             Place(cc.transform.position, cc.transform.position + cc.transform.forward * 1000f);
             menu.Open();
             menu.Select(0);
+            int offered = menu.OfferedCount;
+            var ships = Enumerable.Range(0, offered).Select(menu.OfferedAt).ToList();
+            Note($"ships offered: {string.Join(", ", ships.Select(f => $"{f.displayName} ({f.category})"))}");
             yield return FadeIn();
-            int frigates = ships.Count(f => f.category == FrigateRoster.Frigate);
-            Caption("THE SHIPS", $"Choose a ship and a captain: {frigates} frigates to start in, and destroyers and a cruiser to build at a shipyard", 5.5f);
+            Caption("THE SHIPS", $"Choose a frigate and a captain: every game starts in one of {offered} frigates. " +
+                    "Destroyers and a cruiser are built at a shipyard", 5.5f);
             yield return Wait(3f);
-            for (int i = 1; i < ships.Length; i++)
+            for (int i = 1; i < ships.Count; i++)
             {
-                var e = ships[i];
-                string was = ships[i - 1].category;
-                if (e.category == FrigateRoster.Destroyer && was != FrigateRoster.Destroyer)
-                    Caption("DESTROYERS", "Tougher and slower than any frigate: no main gun, more turrets, fewer CIWS, a magazine of missiles", 6f);
-                else if (e.category == FrigateRoster.Cruiser && was != FrigateRoster.Cruiser)
-                    Caption("THE CRUISER", "Tougher again, with more turrets and CIWS, a main gun, missiles and the biggest crew", 4.5f);
                 menu.Select(i);
-                yield return Wait(e.category == FrigateRoster.Frigate ? 1.5f : 1.9f);
+                yield return Wait(1.6f);
             }
             yield return Wait(1f);
             menu.Select(0);

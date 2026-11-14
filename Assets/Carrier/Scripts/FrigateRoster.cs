@@ -50,6 +50,20 @@ namespace CarrierGame
             return null;
         }
 
+        /// <summary>May a game start in this ship? Players start in a frigate: a destroyer or the
+        /// cruiser only once it has been built at a shipyard and taken command of. That holds for
+        /// everyone who plays (people, AI players, the reels); only the self-tests fly any ship
+        /// they are given (the ship tests test each one).</summary>
+        public static bool MayStartIn(Entry e)
+        {
+            if (e == null) return false;
+            if (!e.buildable || SelfTest) return true;
+            IndustryDirector.LoadSaved();
+            return string.Equals(IndustryLedger.Commanded, e.id, StringComparison.OrdinalIgnoreCase);
+        }
+
+        static bool SelfTest => LaunchArgs.Has("-systemtest") || LaunchArgs.PageHas("systemtest");
+
         public int IndexOf(string id)
         {
             for (int i = 0; i < frigates.Length; i++)

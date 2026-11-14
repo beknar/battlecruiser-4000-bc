@@ -35,7 +35,9 @@ namespace CarrierGame.Demo
             Place(DaySide(ochre, ochre.arrivalDistance), ochre.Position);
             yield return Wait(1f);
             float up = Above(ochre) / 1000f;
-            LookPast(800, ochre.Position, D * 2.4f, 35f, 8f, 2f);
+            // (looking well down: from 150 km up, "up" out from the planet, its horizon is some
+            // 50 degrees below level, and a level camera would see only sky)
+            LookPast(800, ochre.Position, D * 2.4f, 35f, 40f, 2f);
             yield return FadeIn();
             Caption("REAL-SIZE WORLDS", $"Ochre is {ochre.bodyRadius * 2f / 1000f:N0} km across and " +
                     $"{(star != null ? Vector3.Distance(ochre.Position, star.Position) / 1e9f : 0f):F1} million km from the star: here from {up:N0} km up", 6f);

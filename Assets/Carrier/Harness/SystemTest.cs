@@ -76,6 +76,8 @@ namespace CarrierGame.Demo
             t.navOnly = LaunchArgs.Switch("navtest");
             // -servicestest (or ?servicestest): only the services (trading, dropping crew off)
             t.servicesOnly = LaunchArgs.Switch("servicestest");
+            // -fleettest (or ?fleettest): only the fleet (joining, towing, orders, warping together)
+            t.fleetOnly = LaunchArgs.Switch("fleettest");
             // -cooptest (or ?cooptest), with -connect address:port (?server=...&connect): co-op with
             // the scripted second player (Tools/CoopTest/bot.py); -coopquick (?coopquick) skips the
             // part at Corsair Haven
@@ -170,6 +172,13 @@ namespace CarrierGame.Demo
             if (coopOnly)
             {
                 yield return CoopTest(kb, coopQuick);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
+            if (fleetOnly)
+            {
+                yield return FleetTest(kb);
                 Log("done");
                 if (!web) Application.Quit();
                 yield break;
@@ -517,7 +526,7 @@ namespace CarrierGame.Demo
         IEnumerator Warp(Func<IEnumerator> press, string how, string shot, bool pictures)
         {
             var target = warpTarget != null ? warpTarget : map.Selected;
-            float expectTrip = drive.TravelTimeTo(target), expect = drive.chargeTime + expectTrip;
+            float expectTrip = drive.TravelTimeTo(target), expect = drive.ChargeTime + expectTrip;
             float km = drive.DistanceTo(target) / 1000f;
             float t0 = Time.time;
             yield return press();
@@ -528,7 +537,7 @@ namespace CarrierGame.Demo
                 yield break;
             }
             Log($"{how}: warping to {target.displayName}, {km:F0} km, expected {expect:F1} s (trip {expectTrip:F1} s)");
-            if (pictures) { yield return new WaitForSeconds(drive.chargeTime * 0.6f); Shot(shot + "_charging"); }
+            if (pictures) { yield return new WaitForSeconds(drive.ChargeTime * 0.6f); Shot(shot + "_charging"); }
             while (drive.Current == WarpDrive.State.Charging) yield return null;
             Shot(shot + "_jump");
             if (pictures) { yield return new WaitForSeconds(Mathf.Min(1.2f, drive.TravelTime * 0.4f)); Shot(shot + "_tunnel"); }

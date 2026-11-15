@@ -208,6 +208,65 @@ namespace CarrierGame.Tests
         static Stock StockOf(string site) => IndustryLedger.Site(site).stock;
 
         [Test]
+        public void ABerthedShipJoinsTheFleetAndCanBeLeftAtAYard()
+        {
+            IndustryLedger.Launch("Halberd", "Kestrel Deep Yard");
+            Assert.IsFalse(IndustryLedger.JoinFleet("Halberd", "Brontes Shipyard", false, out string why), "not berthed there");
+            Assert.That(why, Does.Contain("isn't berthed"));
+            Assert.IsTrue(IndustryLedger.JoinFleet("Halberd", "Kestrel Deep Yard", true, out _));
+            Assert.That(IndustryLedger.Fleet.Count, Is.EqualTo(1));
+            Assert.That(IndustryLedger.Berthed.Count, Is.EqualTo(0));
+            Assert.IsTrue(IndustryLedger.Fleet[0].towed);
+            Assert.IsTrue(IndustryLedger.Owns("Halberd"), "a fleet ship is still the player's");
+            IndustryLedger.LeaveAt(IndustryLedger.Fleet[0], "Brontes Shipyard");
+            Assert.That(IndustryLedger.Fleet.Count, Is.EqualTo(0));
+            Assert.That(IndustryLedger.Berthed[0].site, Is.EqualTo("Brontes Shipyard"));
+        }
+
+        [Test]
+        public void AFleetShipLostIsGoneWithItsCrew()
+        {
+            IndustryLedger.Launch("Rapier", "Kestrel Deep Yard");
+            IndustryLedger.SetCrew("Rapier", 200f);
+            IndustryLedger.JoinFleet("Rapier", "Kestrel Deep Yard", false, out _);
+            IndustryLedger.LoseFleetShip(IndustryLedger.Fleet[0]);
+            Assert.That(IndustryLedger.Fleet.Count, Is.EqualTo(0));
+            Assert.IsFalse(IndustryLedger.Owns("Rapier"));
+            Assert.That(IndustryLedger.CrewOf("Rapier"), Is.EqualTo(0f));
+        }
+
+        [Test]
+        public void AFleetIsTenShipsAtMost()
+        {
+            // nine with the leader's own: room for none more
+            var nine = new System.Collections.Generic.List<FleetShip>();
+            for (int i = 0; i < IndustryLedger.MaxFleet - 1; i++) nine.Add(new FleetShip { id = "Ship" + i, site = "Kestrel Deep Yard" });
+            IndustryLedger.RestoreFleetShips(nine);
+            Assert.IsFalse(IndustryLedger.FleetHasRoom(out string why));
+            Assert.That(why, Does.Contain("10"));
+            IndustryLedger.Launch("Bulwark", "Kestrel Deep Yard");
+            Assert.IsFalse(IndustryLedger.JoinFleet("Bulwark", "Kestrel Deep Yard", false, out _));
+            Assert.That(IndustryLedger.Berthed.Count, Is.EqualTo(1), "it stays berthed");
+        }
+
+        [Test]
+        public void RecruitsSignOnIntoABerthedShip()
+        {
+            var hold = new GameObject("hold").AddComponent<CargoHold>();
+            try
+            {
+                hold.Earn(1e6f);
+                IndustryLedger.Launch("Halberd", "Thalassa Highport");
+                float pool = IndustryLedger.Pool("Thalassa Highport");
+                int n = IndustryLedger.RecruitInto("Thalassa Highport", "Halberd", 400, hold, 30, out string why);
+                Assert.That(n, Is.EqualTo(Mathf.Min(30, Mathf.FloorToInt(pool))), why);
+                Assert.That(IndustryLedger.CrewOf("Halberd"), Is.EqualTo((float)n));
+                Assert.That(IndustryLedger.Pool("Thalassa Highport"), Is.EqualTo(pool - n).Within(1e-3f));
+            }
+            finally { Object.DestroyImmediate(hold.gameObject); }
+        }
+
+        [Test]
         public void ARefiningJobTakesItsInputsAndMakesItsOutput()
         {
             var steel = IndustryTable.Get().Refined("SteelPlate");

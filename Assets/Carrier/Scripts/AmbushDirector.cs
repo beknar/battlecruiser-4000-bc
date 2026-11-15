@@ -48,7 +48,7 @@ namespace CarrierGame
 
         void Start()
         {
-            if (player == null) player = FindAnyObjectByType<CarrierController>();
+            if (player == null) player = PlayerShips.Primary != null ? PlayerShips.Primary.GetComponent<CarrierController>() : null;
         }
 
         void Update()

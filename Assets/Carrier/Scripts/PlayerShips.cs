@@ -21,12 +21,18 @@ namespace CarrierGame
 
         /// <summary>The local player's ship (the one with the controls; the other players' ships
         /// in co-op are copies without them), or null.</summary>
+        static Demo.CarrierDemoInput input;
+
         public static Transform Primary
         {
             get
             {
-                var cc = Object.FindAnyObjectByType<CarrierController>();
-                return cc != null ? cc.transform : null;
+                // (the ship the controls fly: the fleet's other ships are CarrierControllers too)
+                if (input == null) input = Object.FindAnyObjectByType<Demo.CarrierDemoInput>();
+                if (input != null && input.carrier != null) return input.carrier.transform;
+                foreach (var cc in Object.FindObjectsByType<CarrierController>(FindObjectsSortMode.None))
+                    if (cc != null && !cc.TryGetComponent(out Demo.FleetPilot _)) return cc.transform;
+                return null;
             }
         }
 

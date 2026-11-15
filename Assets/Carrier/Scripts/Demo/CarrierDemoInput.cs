@@ -204,6 +204,7 @@ namespace CarrierGame.Demo
                 case ModeOfPlay.Combat: CombatKeys(k); break;
                 case ModeOfPlay.Mining: MiningKeys(k); break;
                 case ModeOfPlay.Navigation: if (k.xKey.wasPressedThisFrame) Navigation?.Stop("Auto-travel off: the helm is yours"); break;
+                case ModeOfPlay.Fleet: FleetKeys(k); break;
             }
         }
 
@@ -226,6 +227,23 @@ namespace CarrierGame.Demo
             if (k.xKey.wasPressedThisFrame || k.backspaceKey.wasPressedThisFrame) ClearTarget();
             var mouse = Mouse.current;
             if (mouse != null && mouse.leftButton.wasPressedThisFrame) PickAt(mouse.position.ReadValue());
+            // the fleet: V attacks the target, Shift+V forms up
+            var fleet = FleetDirector.Instance;
+            if (k.vKey.wasPressedThisFrame && fleet != null) fleet.Order(k.shiftKey.isPressed ? FleetPilot.Order.FormUp : FleetPilot.Order.Attack);
+        }
+
+        /// <summary>The fleet mode's keys: the orders (to the ship chosen in its menu, or all),
+        /// and the camera on a ship of the fleet.</summary>
+        void FleetKeys(Keyboard k)
+        {
+            var fleet = FleetDirector.Instance;
+            if (fleet == null || ModeMenu.IsOpen || ModeMenu.JustClosed) return;   // (the menu's then)
+            if (k.fKey.wasPressedThisFrame) fleet.Order(FleetPilot.Order.Follow);
+            if (k.gKey.wasPressedThisFrame) fleet.Order(FleetPilot.Order.Guard);
+            if (k.rKey.wasPressedThisFrame) fleet.Order(FleetPilot.Order.FormUp);
+            if (k.vKey.wasPressedThisFrame) fleet.Order(FleetPilot.Order.Attack);
+            if (k.zKey.wasPressedThisFrame) fleet.Order(FleetPilot.Order.Hold);
+            if (k.bKey.wasPressedThisFrame) fleet.ViewNext();
         }
 
         /// <summary>The mining mode's keys: the laser, the scan, the hold.</summary>
@@ -257,6 +275,7 @@ namespace CarrierGame.Demo
                 case ModeOfPlay.Combat: src = Combat; break;
                 case ModeOfPlay.Mining: src = Mining; break;
                 case ModeOfPlay.Navigation: src = Navigation; break;
+                case ModeOfPlay.Fleet: src = FleetDirector.Instance; break;
                 case ModeOfPlay.Services:
                     // (the site's own screen: docked at it, or on its pad)
                     var site = IndustryPanel.Instance;
@@ -441,6 +460,7 @@ namespace CarrierGame.Demo
                 case ModeOfPlay.Mining: MiningPad(p, listUp); break;
                 case ModeOfPlay.Navigation: NavigationPad(p, listUp); break;
                 case ModeOfPlay.Services: if (!listUp && p.buttonSouth.wasPressedThisFrame) OpenModeMenu(); break;   // A
+                case ModeOfPlay.Fleet: FleetPad(p, listUp); break;
             }
             // right stick orbits: handled by OrbitCamera
         }
@@ -455,6 +475,18 @@ namespace CarrierGame.Demo
             if (p.rightShoulder.wasPressedThisFrame) FireGuns();                          // RB
             if (p.leftShoulder.wasPressedThisFrame) FireMissiles();                       // LB
             if (p.leftStickButton.wasPressedThisFrame) ToggleAutoFire();                  // L3
+        }
+
+        void FleetPad(Gamepad p, bool listUp)
+        {
+            var fleet = FleetDirector.Instance;
+            if (fleet == null) return;
+            if (!listUp && p.buttonSouth.wasPressedThisFrame) fleet.Order(FleetPilot.Order.Follow);   // A
+            if (!listUp && p.buttonEast.wasPressedThisFrame) fleet.Order(FleetPilot.Order.Hold);      // B
+            if (p.buttonWest.wasPressedThisFrame) fleet.Order(FleetPilot.Order.Guard);                // X
+            if (p.buttonNorth.wasPressedThisFrame) fleet.Order(FleetPilot.Order.FormUp);              // Y
+            if (p.rightShoulder.wasPressedThisFrame) fleet.Order(FleetPilot.Order.Attack);            // RB
+            if (p.leftShoulder.wasPressedThisFrame) fleet.ViewNext();                                 // LB
         }
 
         void NavigationPad(Gamepad p, bool listUp)

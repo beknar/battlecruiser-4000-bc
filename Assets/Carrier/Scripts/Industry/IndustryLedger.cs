@@ -34,6 +34,15 @@ namespace CarrierGame
         public string id, site;
     }
 
+    /// <summary>A ship in the player's fleet (its class, the yard it came from), flying with the
+    /// ship they command: crewed, or towed with nobody aboard.</summary>
+    [Serializable]
+    public class FleetShip
+    {
+        public string id, site;
+        public bool towed;
+    }
+
     /// <summary>
     /// The state of the industry: each site's storage and queues, what each frigate has had
     /// fitted, and the ships the player has built: berthed at their shipyards, or the one they
@@ -59,6 +68,10 @@ namespace CarrierGame
         // and the shipyard it goes back to when the player flies another)
         static readonly List<BuiltShip> berthed = new List<BuiltShip>();
         static BuiltShip commanded;
+        static readonly List<FleetShip> fleet = new List<FleetShip>();
+
+        /// <summary>Ships a fleet may have in all, the one commanded among them.</summary>
+        public const int MaxFleet = 10;
 
         /// <summary>How much faster than game time the lines run (the self-test speeds them up).</summary>
         public static float SpeedUp = 1f;
@@ -200,6 +213,59 @@ namespace CarrierGame
 
         /// <summary>The ships berthed at shipyards.</summary>
         public static IReadOnlyList<BuiltShip> Berthed => berthed;
+        /// <summary>The ships flying with the one the player commands.</summary>
+        public static IReadOnlyList<FleetShip> Fleet => fleet;
+
+        /// <summary>Another ship can join the fleet (it has fewer than MaxFleet, the commanded one counted).</summary>
+        public static bool FleetHasRoom(out string why)
+        {
+            why = fleet.Count + 1 >= MaxFleet ? $"a fleet is {MaxFleet} ships at most" : "";
+            return why == "";
+        }
+
+        /// <summary>A ship berthed at `site` joins the fleet (crewed, or towed): false if there is
+        /// no such ship there, or no room.</summary>
+        public static bool JoinFleet(string id, string site, bool towed, out string why)
+        {
+            if (!FleetHasRoom(out why)) return false;
+            int i = berthed.FindIndex(b => string.Equals(b.id, id, StringComparison.OrdinalIgnoreCase) && (site == null || b.site == site));
+            if (i < 0) { why = "it isn't berthed here"; return false; }
+            var b = berthed[i];
+            berthed.RemoveAt(i);
+            fleet.Add(new FleetShip { id = b.id, site = b.site, towed = towed });
+            Changed?.Invoke();
+            return true;
+        }
+
+        /// <summary>A fleet ship is left at a yard (berthed there).</summary>
+        public static void LeaveAt(FleetShip s, string site)
+        {
+            if (s == null || !fleet.Remove(s)) return;
+            berthed.Add(new BuiltShip { id = s.id, site = site ?? s.site });
+            Changed?.Invoke();
+        }
+
+        /// <summary>A fleet ship destroyed: gone, and its crew with it.</summary>
+        public static void LoseFleetShip(FleetShip s)
+        {
+            if (s == null || !fleet.Remove(s)) return;
+            crews[s.id] = 0f;
+            Changed?.Invoke();
+        }
+
+        /// <summary>The fleet, to save.</summary>
+        public static List<FleetShip> FleetShipsSnapshot()
+        {
+            var l = new List<FleetShip>();
+            foreach (var s in fleet) l.Add(new FleetShip { id = s.id, site = s.site, towed = s.towed });
+            return l;
+        }
+
+        public static void RestoreFleetShips(List<FleetShip> saved)
+        {
+            fleet.Clear();
+            if (saved != null) foreach (var s in saved) if (s != null && !string.IsNullOrEmpty(s.id)) fleet.Add(s);
+        }
         /// <summary>The built ship the player commands (its class), or "" when flying a frigate.</summary>
         public static string Commanded => commanded != null ? commanded.id : "";
 
@@ -209,6 +275,7 @@ namespace CarrierGame
             if (string.IsNullOrEmpty(id)) return false;
             if (commanded != null && string.Equals(commanded.id, id, StringComparison.OrdinalIgnoreCase)) return true;
             foreach (var b in berthed) if (string.Equals(b.id, id, StringComparison.OrdinalIgnoreCase)) return true;
+            foreach (var f in fleet) if (string.Equals(f.id, id, StringComparison.OrdinalIgnoreCase)) return true;
             return false;
         }
 
@@ -375,22 +442,52 @@ namespace CarrierGame
         /// many as there are recruits, room aboard and credits for. Returns how many signed on.</summary>
         public static int Recruit(string place, Crew crew, CargoHold hold, int want, out string why)
         {
+            why = "";
+            if (crew == null) { var p = CrewTable.Get().Place(place); why = p == null || !p.Recruits ? "nobody recruits here" : "no crew to join"; return 0; }
+            int n = SignOn(place, crew.Missing, hold, want, out why);
+            if (n <= 0) return 0;
+            n = crew.Add(n);
+            pools[place] = Pool(place) - n;
+            Changed?.Invoke();
+            return n;
+        }
+
+        /// <summary>How many could sign on at a place for a crew with `room` for more: as many
+        /// as are waiting, there is room for and the hold's credits pay for (nothing paid).</summary>
+        public static int Recruitable(string place, int room, CargoHold hold) => Reckon(place, room, hold, int.MaxValue, out _);
+
+        static int Reckon(string place, int room, CargoHold hold, int want, out string why)
+        {
             var table = CrewTable.Get();
             var p = table.Place(place);
             why = "";
             if (p == null || !p.Recruits) { why = "nobody recruits here"; return 0; }
-            if (crew == null) { why = "no crew to join"; return 0; }
             if (hold == null) { why = "no hold to pay from"; return 0; }
-            int n = Mathf.Min(want, Mathf.Min(crew.Missing, Mathf.FloorToInt(Pool(place) + 1e-4f)));
+            int n = Mathf.Min(want, Mathf.Min(room, Mathf.FloorToInt(Pool(place) + 1e-4f)));
             // (as many as the credits cover, by the same reckoning Spend pays by)
             if (table.recruitCost > 0f) n = Mathf.Min(n, Mathf.FloorToInt((hold.Credits + 1e-3f) / table.recruitCost));
-            if (n <= 0)
-            {
-                why = crew.Missing == 0 ? "the crew is complete" : Pool(place) < 1f ? "nobody is waiting to sign on" : "not enough credits";
-                return 0;
-            }
-            if (!hold.Spend(n * table.recruitCost)) { why = "not enough credits"; return 0; }
-            n = crew.Add(n);
+            if (n <= 0) why = room <= 0 ? "the crew is complete" : Pool(place) < 1f ? "nobody is waiting to sign on" : "not enough credits";
+            return Mathf.Max(0, n);
+        }
+
+        /// <summary>Sign on up to `want` at a place (room for `room`), paid from the hold: how
+        /// many (the pool is taken from by the caller, once they are aboard).</summary>
+        static int SignOn(string place, int room, CargoHold hold, int want, out string why)
+        {
+            int n = Reckon(place, room, hold, want, out why);
+            if (n <= 0) return 0;
+            if (!hold.Spend(n * CrewTable.Get().recruitCost)) { why = "not enough credits"; return 0; }
+            return n;
+        }
+
+        /// <summary>Recruit up to `want` at a place into a built ship's crew (berthed there, not
+        /// the one flown: its crew is the ledger's), paying from the hold: how many signed on.</summary>
+        public static int RecruitInto(string place, string ship, int complement, CargoHold hold, int want, out string why)
+        {
+            int aboard = Mathf.RoundToInt(CrewOf(ship) ?? 0f);
+            int n = SignOn(place, complement - aboard, hold, want, out why);
+            if (n <= 0) return 0;
+            crews[ship] = aboard + n;
             pools[place] = Pool(place) - n;
             Changed?.Invoke();
             return n;
@@ -493,6 +590,7 @@ namespace CarrierGame
             crews.Clear();
             berthed.Clear();
             commanded = null;
+            fleet.Clear();
             Changed?.Invoke();
         }
     }

@@ -62,6 +62,7 @@ namespace CarrierGame
             IndustryLedger.Restore(d.sites, d.fittings);
             IndustryLedger.RestorePeople(d.pools, d.crews);
             IndustryLedger.RestoreFleet(d.berthed, d.commanded);
+            IndustryLedger.RestoreFleetShips(d.fleet);
             WorldState.Restore(d.world);
             heldContents = d.hold;
             heldCredits = d.credits;
@@ -213,6 +214,7 @@ namespace CarrierGame
                 world = WorldState.Snapshot(),
                 berthed = berthed,
                 commanded = commanded,
+                fleet = IndustryLedger.FleetShipsSnapshot(),
                 hold = heldContents ?? new List<Stock.Entry>(),
                 credits = heldCredits,
             };

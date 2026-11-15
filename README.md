@@ -5,8 +5,12 @@ drones, fighters and capital ships. The frigate carries side guns, close-in poin
 beam that charges for 10 seconds and a hex shield. Every ship comes apart before it explodes.
 The game is Star System, a whole star system at its real size. The frigate can also land on its
 planets, moons and asteroid fields and fly all the way round them, and mine asteroids, comets and
-planets for 27 different minerals. It runs on Windows and in a web browser, with keyboard and
-mouse or an Xbox 360 / XInput gamepad.
+planets for 27 different minerals. Ore is refined, built into ship parts and traded; destroyers
+and a cruiser are built at shipyards, flown, or sent to fly with you as a fleet; wrecks are
+salvaged. Five modes of play (combat, mining, navigation, services, fleet) each have their own
+keys. Up to seven players fly together through a co-op server, which takes players with its API
+keys. It runs on Windows and in a web browser, with keyboard and mouse or an Xbox 360 / XInput
+gamepad.
 
 The two earlier games, Carrier Demo (open space) and Asteroid Ambush, are
 [deprecated](#deprecated-games-carrier-demo-and-asteroid-ambush): Star System has everything
@@ -105,6 +109,69 @@ scenes cut through black.
 - **Armed places.** The guns of Corsair Haven and the Cinder Orbital Battery open fire, and the
   bow beam destroys a gun and a platform. Then the colony on Selene, and Cinder Fortress with its
   garrison firing.
+
+## Playing the game
+
+### A new game
+
+The first game, with nothing saved yet:
+
+- **The ship.** A frigate, chosen on the start menu (the Sentinel, Lancer, Warden, Talon or
+  Vanguard), with the captain chosen there too. The destroyers and the cruiser are built later,
+  at a shipyard.
+- **Where.** In orbit of Thalassa, the ocean world. The orbits start where the system's clock
+  has them.
+- **What it has.** A full crew, a full shield and hull, an empty hold and no credits. Nothing
+  fitted beyond the ship's own.
+- **The mode.** Combat mode (1). The controls box in the top-left corner shows the mode's keys.
+
+### Carrying on
+
+- **Kept between games.** The industry (each site's storage and jobs, the parts fitted to each
+  ship), the hold and the credits, the crews and the people waiting to sign on, the ships built
+  (berthed, commanded, and the fleet), and the world (craters, rubble, what has been destroyed)
+  are saved as the game goes, and the next game carries on from them: the hold, the credits and
+  the fittings as they were, each ship's crew as it was (not full), and a destroyer or the
+  cruiser among the ships offered on the start menu if one was being commanded.
+- **Starting afresh.** `StarSystem.exe -newgame` starts a game as if nothing were saved, and
+  saves nothing either: the next game without it carries on from the old save. For a fresh
+  start that is kept, delete the save,
+  `%USERPROFILE%\AppData\LocalLow\DefaultCompany\Star System\industry_save.json`. The web
+  version has no `-newgame`; clearing the site's data in the browser starts it afresh.
+
+### How a game goes
+
+There is no script: what to do next is the player's. A usual way up:
+
+1. **Mine** (mining mode, 2). Scan (V) in an asteroid field, on a comet or over a planet,
+   choose a deposit in the menu (Tab), let the ship fly there (C) and cut it (Z) until the hold
+   is full.
+2. **Sell or refine** (services mode, 4). Dock or land at a trading station and sell the ore on
+   the trade page, or take it to a refinery, store it and refine it into materials.
+3. **Build and fit.** At a factory, build ship parts from the materials and fit them to the
+   ship (more armour, a stronger shield, faster engines, a bigger hold, more guns...), or sell
+   them.
+4. **Fight and salvage** (combat mode, 1). Pirates lie in wait in the asteroid fields and
+   round their bases; capital ship groups wait on the way in to Cinder and Glacis. A destroyed
+   hostile leaves a wreck, with steel, aluminium, copper and sometimes a part to salvage (Z).
+5. **Build a bigger ship.** With the parts in a shipyard's storage, lay down a destroyer or the
+   cruiser. Once built, take command of her, with crew recruited to fill her complement, or have
+   her **join your fleet** and fly the frigate still (fleet mode, 5).
+6. **Go anywhere.** The system map (M) warps to the planets, moons, fields, comets and Lagrange
+   points; at each, navigation mode's menu (Tab) flies to its bases and stations, lands and
+   docks.
+
+### Modes of play
+
+| Mode | For | Its menu (Tab) |
+|---|---|---|
+| 1 Combat | weapons, targets, lining up, salvage, strikes from orbit | the targets in range, and the wrecks near |
+| 2 Mining | the scan, the laser, flying to a deposit, the hold | the deposits found, and the ore aboard |
+| 3 Navigation | the system map, cruise, auto-travel, landing and docking | the points of interest at the place the ship is |
+| 4 Services | what a station or base offers, docked or on its pad | its services screen: storage, refining, building, fitting, trade, crew, the shipyard |
+| 5 Fleet | orders to the other ships | the fleet, and the ships berthed at the yards |
+
+Flying is the same in every mode. See [Controls](#controls) for every key.
 
 ## Features
 
@@ -293,7 +360,9 @@ Enemy guns lead their target and have some spread. The enemies fly orbits around
   - **The captain** shown or hidden: without her portrait the console is narrower, the ship's
     state and the comms line still on it.
   - **HUD size** (left/right on its row, or + and − in the game, Back + D-pad ↑↓ on the pad):
-    everything drawn on screen, smaller to see more of the game, or bigger.
+    everything drawn on screen, smaller to see more of the game, or bigger, in steps of 15%
+    from 55% to 295% (100% always one of them). Enter on the row goes a size up, round to the
+    smallest after the biggest. The pause menu itself never grows past the screen's height.
   - **The fleet's panels** shown or hidden: down the right side, below the target's, a small
     panel for each ship of the fleet with her name, her state (under fire, engaged, under tow
     or all clear, the panel's edge coloured to match), her hull and shield, her guns (how many,
@@ -515,15 +584,18 @@ system to travel around.
     first, with how far each is, roughly how long the trip takes, and whether it has a pad or a
     berth.
   - **Auto-travel.** Enter flies the ship there by itself, in real time: no warp and no fade.
-    Round a planet it climbs and cruises at a height (higher for a longer trip, since cruise is
-    faster higher up), along the great circle, coming down to where a warp would have dropped it.
-    Across a field it flies straight. K flies there and then lands on the base's pad (the
-    auto-lander takes her down) or docks at the station. The trip takes time: a minute or two
-    round a planet.
+    Round a planet it cruises along the great circle on a glide slope, as high above the
+    destination as there is still way to go (cruise is faster higher up), so it comes in fast
+    and slows smoothly, the throttle easing off at the end. Across a field it flies straight.
+    K flies there and then lands on that base's pad (the auto-lander takes her down) or docks
+    at the station. The trip takes time: a few minutes round a planet. Auto-travel goes only to
+    the points of interest at the place the ship is at; the map warps to the others.
   - **By hand.** C sets the course without flying it. The point of interest is marked on screen
     with its distance and the time to it at the speed the ship is making, or with a pointer at
-    the screen's edge when it is behind. X stops an auto-travel, and so does taking the helm;
-    the course stays marked.
+    the screen's edge when it is behind. The menu opens on the course, so Tab, then Enter, flies
+    it (A on the pad). X stops an auto-travel (and calls off the auto-lander if it is taking her
+    down), and so do taking the helm, moving the throttle and changing mode; the course stays
+    marked. A course is forgotten once the ship has warped somewhere else.
   - An AI player's "warp to" order, and the self-tests, still warp straight to a point of
     interest with the drive.
 - **System map.** M (R3 on the pad), in any mode, opens a top-down chart of every place the frigate can go,
@@ -729,7 +801,8 @@ fitted to the frigate to make it better. All of it is in
     ten). A refinery's trade page buys minerals only. Docking no longer sells the ore by
     itself.
   - **Crew**: recruit, where the place recruits, or drop crew off (one or ten at a time): they
-    go ashore and join those waiting there to sign on.
+    go ashore and join those waiting there to sign on (never below the few a ship keeps through
+    anything). A screen that opened because the crew is short opens on this page.
   - **Shipyard**, where there is one: build destroyers and the cruiser, and take command of
     the ships berthed there (see below).
 - **Jobs take time** (20 to 45 s a batch to refine, 80 to 180 s a part), one at a time on each
@@ -866,7 +939,7 @@ ships** in all. In fleet mode the others take orders while the player flies thei
   - **Join the fleet** (J, X on the pad), crewed. Recruits sign on at the yard first, paid
     from the hold (250 cr each), up to her complement. If they are too few, crew come across from
     the ship commanded, as many as it can spare while keeping half its own. She needs half her
-    complement to sail.
+    complement to sail. If even then she can't, she doesn't join, and nothing is paid or moved.
   - **Be towed** (T, Y on the pad), with nobody aboard. While anything is under tow the
     ship commanded makes half its speed, and its warps take twice as long, the charge and the
     trip.
@@ -883,9 +956,10 @@ ships** in all. In fleet mode the others take orders while the player flies thei
   heading and speed. It warps with it, arriving on its stations. Left far behind, as when the
   ship commanded cruises, it catches up out of sight. It can't be sent off on its own, to mine
   or to fight elsewhere in the system: that is what an AI player is for. It waits in orbit
-  while the ship commanded is down on a planet.
-- **Fighting.** Each ship's guns fire by themselves at what it is fighting, broadside on at gun
-  range. Enemies go for the fleet's ships as they do for the player's.
+  while the ship commanded is down on a planet or docked (a ship on the tow is cast off there
+  and taken up again on the way out).
+- **Fighting.** Each ship's guns fire by themselves at what it is fighting (the target given,
+  or a hostile that comes close), broadside on at gun range. Enemies go for the fleet's ships as they do for the player's.
 - **Losses.** A fleet ship destroyed is lost, and her crew with her.
 - **The menu** (Tab) lists each ship: what she is doing, how far off, her hull and her crew (or
   "towed"), and the ships berthed at the yards. B views a ship of the fleet, and back.
@@ -1005,9 +1079,9 @@ menu (only the pause menu stops it).
 |---|---|---|
 | Mining laser on/off | Z | A |
 | Mineral scan | V | Y |
-| Fly to the chosen deposit, until the laser reaches it (again, or steer, to stop) | C | X |
+| Fly to the chosen deposit, until the laser reaches it (again, steer or move the throttle to stop) | C | X |
 | Cargo hold list / jettison the cheapest ore | I / J | RB / B |
-| Menu: the deposits found, nearest first, then the ore aboard (Enter chooses a deposit for the laser or ejects that ore; C flies to the deposit; Z chooses it and cuts it; J ejects the ore) | Tab | Back + Y |
+| Menu: the 20 nearest deposits found, then the ore aboard (Enter chooses a deposit for the laser or ejects that ore; C flies to the deposit; Z chooses it and cuts it, or, out of reach, chooses it to fly to; J ejects the ore) | Tab | Back + Y |
 
 **Navigation mode (3)**
 
@@ -1015,7 +1089,7 @@ menu (only the pause menu stops it).
 |---|---|---|
 | System map: warp to a place | M | R3 |
 | Menu: the points of interest here (Enter flies there; K flies there and lands or docks; C sets the course, marked on screen) | Tab | Back + Y (A flies there, X and lands or docks) |
-| Fly to the course set / and land or dock there | Enter in the menu | A / LB |
+| Fly to the course set / and land or dock there | Tab, then Enter / Tab, then K (the menu opens on it) | A / LB |
 | Stop the auto-travel (or just steer) | X | B |
 | Cruise on/off | O | X |
 | On the map: choose a place / warp / close | Click, arrows or Tab / WARP, double-click or Enter / M or Esc | Left stick, D-pad or LB/RB / A / B |
@@ -1117,6 +1191,24 @@ WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use
   localhost). No special server settings are needed, as the game can unpack its own compressed
   files. Loading is faster if the server sends the `.unityweb` files with the header
   `Content-Encoding: br`.
+- **Setting it up on a web server**, step by step:
+  1. Unzip `battlecruiser-4000-bc-star-system-web.zip` (the release's) or build it
+     (**Tools > Carrier > Build Star System (Web)**, into `../Builds/StarSystemWeb/`). Co-op
+     with API keys (step 5) needs a build from after 14 Nov 2026: the next release, or one built
+     from source.
+  2. Copy what is in its folder (`index.html`, `xbox360.js`, `Build/`) to the web server's
+     folder for the game, keeping the layout.
+  3. Serve it over **https** (WebGPU needs a secure page; plain http falls back to WebGL 2, and
+     localhost counts as secure). Any static web server will do: nginx, Apache, IIS, GitHub
+     Pages, a CDN.
+  4. Optional, for faster loading: the `Content-Encoding: br` header above (in nginx:
+     `location ~ \.unityweb$ { add_header Content-Encoding br; default_type application/octet-stream; }`).
+  5. For co-op from the page: run a co-op server (see [Running the server](#running-the-server))
+     with a certificate, so the page can reach it over `wss://`, and give each player an API
+     key. A link like `https://<site>/?server=<host>:<port>&name=<name>&apikey=<key>&connect`
+     opens the game straight into it. Without `apikey` in the link, the first visit is turned
+     away for having no key: the player types it into the co-op panel (the pause menu, Co-op)
+     once, and it is kept, for that name, in that browser.
 - **Trying it locally.** From the build folder, run `python -m http.server 8080` and open
   `http://localhost:8080`.
 - **Gamepads.** Chrome and Edge on Windows report an Xbox 360 pad in the standard layout.
@@ -1230,6 +1322,78 @@ CoopServer --revoke-key <name|key>      revoke a key, then exit
   server a certificate (`--cert`), or put it behind a proxy that has one. A page served over
   plain http, or from localhost, can use `ws://`.
 - **Firewall.** Open the port (TCP) on the server's firewall for players on other machines.
+
+#### Setting up a standalone server on Windows
+
+The API keys these steps use came after the 14 Nov 2026 release: use the next release's server,
+or one built from source (see [Building the server](#building-the-server)).
+
+1. Unzip `battlecruiser-4000-bc-coop-server-windows.zip` somewhere it can stay, say
+   `C:\CoopServer`. Nothing else needs installing.
+2. Edit `coopserver.json` next to `CoopServer.exe` if needed: the port, the player limit, an
+   allow-list, a certificate for `wss://` (give its full path, e.g. `C:\CoopServer\server.pfx`).
+3. Make a key for each player and AI player, in a command prompt there:
+   `CoopServer.exe --new-key Alice` (`--ai` for an AI player). Send each their key.
+4. Let players in through the firewall (as administrator):
+   `netsh advfirewall firewall add rule name="Battlecruiser co-op" dir=in action=allow protocol=TCP localport=7777`.
+5. Start it: `CoopServer.exe`. Its console shows who joins and takes the commands under
+   **Console** above.
+6. To start it with Windows, without anyone logged in, in PowerShell as administrator (in its
+   own folder, with no time limit, started again if it stops):
+
+   ```
+   $a = New-ScheduledTaskAction -Execute "C:\CoopServer\CoopServer.exe" -WorkingDirectory "C:\CoopServer"
+   $t = New-ScheduledTaskTrigger -AtStartup
+   $s = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+   Register-ScheduledTask -TaskName "Battlecruiser co-op" -Action $a -Trigger $t -Settings $s -User SYSTEM -RunLevel Highest
+   ```
+
+   Run that way it has no console: its status page (`http://localhost:7777/`) shows who is on.
+   Keys can still be made beside it while it runs (`CoopServer.exe --new-key Bob`), and count
+   at once.
+
+#### Setting up a standalone server on Linux
+
+As on Windows, the API keys need the next release's server, or one built from source.
+
+1. Unpack it: `sudo tar xzf battlecruiser-4000-bc-coop-server-linux.tar.gz -C /opt` (it makes
+   `/opt/CoopServer`), and `sudo chmod +x /opt/CoopServer/CoopServer` if needed. It is a single
+   self-contained program: no .NET to install.
+2. A user for it to run as, owning its folder:
+   `sudo useradd -r coopserver && sudo chown -R coopserver /opt/CoopServer`.
+3. Edit `/opt/CoopServer/coopserver.json` if needed (`sudo -u coopserver nano ...`).
+4. Make the keys, as that user (so the keys file stays theirs):
+   `sudo -u coopserver /opt/CoopServer/CoopServer --new-key Alice` (`--ai` for an AI player),
+   and `--list-keys` / `--revoke-key` later.
+5. Open the port: `sudo ufw allow 7777/tcp` (or your firewall's way).
+6. Run it as a service, `/etc/systemd/system/coopserver.service`:
+
+   ```
+   [Unit]
+   Description=Battlecruiser 4000 BC co-op server
+   After=network-online.target
+
+   [Service]
+   ExecStart=/opt/CoopServer/CoopServer
+   WorkingDirectory=/opt/CoopServer
+   User=coopserver
+   Restart=on-failure
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+   then `sudo systemctl enable --now coopserver`. `journalctl -u coopserver -f` follows its
+   log. Keys made while it runs (step 4) count at once.
+7. For web players on an https page, either:
+   - a certificate for the server itself (`certificate` in the settings, its full path); or
+   - a reverse proxy with one in front (nginx with `proxy_pass` and the WebSocket upgrade
+     headers) forwarding to the server. Then have the server listen on this machine only
+     (`"bind": "127.0.0.1"`), don't open its port (skip step 5; open the proxy's 443 instead),
+     and leave the allow-list empty: behind a proxy every player seems to come from the proxy's
+     address, so it can't tell them apart. The API keys still keep out anyone without one.
+
+#### Building the server
 
 To build it, install the .NET 8 SDK and run this from `Server/CoopServer`:
 

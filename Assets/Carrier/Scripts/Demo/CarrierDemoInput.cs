@@ -466,7 +466,7 @@ namespace CarrierGame.Demo
             // A: fly to the course set (or choose one); LB: and land or dock there
             if (p.buttonSouth.wasPressedThisFrame) { if (nav.Course != null) nav.TravelTo(nav.Course, NavigationMode.Then.Arrive); else OpenModeMenu(); }
             if (p.leftShoulder.wasPressedThisFrame && nav.Course != null)
-                nav.TravelTo(nav.Course, nav.Course.kind == WarpPoint.Kind.SurfaceBase ? NavigationMode.Then.Land : NavigationMode.Then.Dock);
+                nav.TravelTo(nav.Course, NavigationMode.FinishFor(nav.Course));
         }
 
         NavigationMode navigation;

@@ -39,6 +39,13 @@ namespace CarrierGame.Demo
         WarpDrive Drive => demo != null ? demo.Warp : null;
         float started, nextNotice;
         bool finishing;
+        float throttleSet = -1f;    // the throttle as auto-travel last set it (-1: not set)
+        // the place the ship is at (looked at twice a second), and where the course's marker
+        // goes (once a frame: finding a clear arrival point is not cheap)
+        WarpPoint here;
+        float hereAt;
+        Vector3 markAt;
+        float markDist;
 
         // ------------------------------------------------------------ the menu
 
@@ -46,9 +53,7 @@ namespace CarrierGame.Demo
         {
             get
             {
-                var ship = Ship;
-                var place = ship != null ? Places.At(ship.transform.position) : null;
-                return place != null ? $"NAVIGATION: AT {place.displayName.ToUpperInvariant()}" : "NAVIGATION: OPEN SPACE";
+                return here != null ? $"NAVIGATION: AT {here.displayName.ToUpperInvariant()}" : "NAVIGATION: OPEN SPACE";
             }
         }
 
@@ -112,7 +117,7 @@ namespace CarrierGame.Demo
         {
             if (!(row?.tag is WarpPoint p)) return false;
             bool land = (k != null && k.kKey.wasPressedThisFrame) || (pad != null && !pad.selectButton.isPressed && pad.buttonWest.wasPressedThisFrame);
-            if (land) { TravelTo(p, CanLandAt(p) ? Then.Land : DockAt(p) != null ? Then.Dock : Then.Arrive); return true; }
+            if (land) { TravelTo(p, FinishFor(p)); return true; }
             if (k != null && k.cKey.wasPressedThisFrame) { SetCourse(p); return true; }
             return false;
         }
@@ -121,6 +126,10 @@ namespace CarrierGame.Demo
 
         /// <summary>Where the trip to a point of interest ends: where a warp to it would drop the ship.</summary>
         static Vector3 Destination(WarpPoint p, Vector3 from) => p.ArrivalPoint(from);
+
+        /// <summary>How a trip there ends when asked to land or dock (K, X on the pad, LB):
+        /// down on its pad, at its berth, or just there.</summary>
+        public static Then FinishFor(WarpPoint p) => CanLandAt(p) ? Then.Land : DockAt(p) != null ? Then.Dock : Then.Arrive;
 
         static bool CanLandAt(WarpPoint p) => p.kind == WarpPoint.Kind.SurfaceBase && p.LandingBody != null && p.LandingBody.surface != SurfaceKind.None;
 
@@ -147,11 +156,16 @@ namespace CarrierGame.Demo
                        : Drive != null && Drive.Current != WarpDrive.State.Ready ? "in warp"
                        : PlanetLanding.Busy ? "take off first (K)"
                        : Docking.Busy ? "undock first (K)" : null;
+            // (only to the points of interest at the place the ship is: the map warps to others)
+            var place = Places.PlaceOf(p) ?? p;
+            if (why == null && place != Places.At(ship.transform.position)) why = $"warp to {place.displayName} first (M)";
             if (why != null) { SoundFX.Ui(Sfx.UiError); Notices.Post($"Can't fly to {p.displayName}: {why}"); return false; }
             Course = p;
+            here = place;
             Finish = then;
             Travelling = true;
             finishing = false;
+            throttleSet = -1f;
             started = Time.time;
             nextNotice = 0f;
             Phase = "setting off";
@@ -165,7 +179,15 @@ namespace CarrierGame.Demo
         public void Stop(string why = null)
         {
             if (!Travelling) return;
+            // (the auto-lander, if it is taking her down for this trip, is called off too)
+            if (finishing && Finish == Then.Land && PlanetLanding.Instance != null) PlanetLanding.Instance.CancelAutoLand();
+            End(why);
+        }
+
+        void End(string why)
+        {
             Travelling = false;
+            throttleSet = -1f;
             finishing = false;
             Phase = "";
             var pf = PlanetFlight.Instance;
@@ -178,15 +200,32 @@ namespace CarrierGame.Demo
 
         void Update()
         {
-            if (!Travelling) return;
             var ship = Ship;
+            if (ship != null && Time.time >= hereAt)
+            {
+                hereAt = Time.time + 0.5f;
+                here = Places.At(ship.transform.position);
+                // a course for somewhere else (the ship has warped away): forgotten
+                if (Course != null && !Travelling && (Places.PlaceOf(Course) ?? Course) != here) Course = null;
+            }
+            if (Course != null && ship != null)
+            {
+                markAt = Destination(Course, ship.transform.position);
+                markDist = Vector3.Distance(ship.transform.position, markAt);
+            }
+            if (!Travelling) return;
             if (ship == null || ship.Destroyed || Course == null) { Stop(); return; }
+            // landing or docking: done once down, or docked (before anything else: a site's
+            // screen opening there changes the mode)
+            if (finishing && (PlanetLanding.OnSurface || Docking.Docked)) { Arrived(); return; }
             if (demo.PilotFlying) { Stop($"Auto-travel off: you have the helm. {Course.displayName} stays marked"); return; }
+            // (the throttle moved by the pilot: theirs, and auto-travel is off)
+            if (throttleSet >= 0f && Mathf.Abs(ship.throttle - throttleSet) > 0.01f) { Stop($"Auto-travel off: you have the throttle. {Course.displayName} stays marked"); return; }
+            // (another mode chosen: its keys and autopilots are the player's now)
+            if (!Modes.Is(ModeOfPlay.Navigation)) { Stop($"Auto-travel off. {Course.displayName} stays marked"); return; }
             if (Drive != null && Drive.Current != WarpDrive.State.Ready) { Stop(); return; }
             if (finishing)
             {
-                // landing or docking: done once down, or docked
-                if (PlanetLanding.OnSurface || Docking.Docked) { Arrived(); return; }
                 if (Finish == Then.Dock) FlyDock(ship);
                 // (the auto-lander flying her down from orbit is still "in space" till the ground
                 // takes over: it is the lander being off that means it gave up)
@@ -213,6 +252,7 @@ namespace CarrierGame.Demo
             float top = pf != null && pf.TopSpeed > 0f ? pf.TopSpeed : ship.maxSpeed;
             float want = Mathf.Max(dist / 6f, ship.maxSpeed * 0.4f);
             ship.throttle = Mathf.Clamp(want / Mathf.Max(1f, top), 0.02f, 1f);
+            throttleSet = ship.throttle;
             bool far = pf != null && pf.Cruising && ship.Speed > ship.maxSpeed * 1.5f;
             Phase = far ? $"cruising, {CombatMode.Distance(dist)} to go" : $"coming in, {CombatMode.Distance(dist)} to go";
         }
@@ -248,13 +288,16 @@ namespace CarrierGame.Demo
             if (pf != null) pf.autoCruise = false;
             demo.autoRudder = null; demo.autoPitch = null;
             ship.throttle = 0f;
+            throttleSet = 0f;
             if (Finish == Then.Land)
             {
                 finishing = true;
                 Phase = "landing";
                 nextNotice = Time.time + 6f;
+                // (the auto-lander has the throttle now)
+                throttleSet = -1f;
                 var landing = PlanetLanding.Instance;
-                if (landing == null || !landing.Land()) Stop($"At {Course.displayName}: couldn't land");
+                if (landing == null || !landing.LandAt(Course)) Stop($"At {Course.displayName}: couldn't land");
                 return;
             }
             if (Finish == Then.Dock && DockAt(Course) != null)
@@ -275,6 +318,7 @@ namespace CarrierGame.Demo
             if (docking.Candidate(out string why) == inst)
             {
                 ship.throttle = 0f;
+                throttleSet = -1f;
                 demo.autoRudder = null; demo.autoPitch = null;
                 if (why == "" && docking.Dock()) Phase = "docking";
                 else if (why != "") { Stop($"Can't dock at {inst.displayName}: {why}"); }
@@ -285,6 +329,7 @@ namespace CarrierGame.Demo
             demo.autoPitch = v.y;
             float d = Vector3.Distance(ship.transform.position, inst.BerthPosition);
             ship.throttle = d > 3000f ? 0.6f : 0.3f;
+            throttleSet = ship.throttle;
         }
 
         void Arrived()
@@ -292,7 +337,7 @@ namespace CarrierGame.Demo
             LastTrip = Time.time - started;
             Arrivals++;
             string where = Course.displayName;
-            Stop(null);
+            End(null);
             Notices.Post(PlanetLanding.OnSurface ? $"Down at {where}" : Docking.Docked ? $"Docked at {where}" : $"Arrived at {where}");
         }
 
@@ -301,13 +346,12 @@ namespace CarrierGame.Demo
         void OnGUI()
         {
             var ship = Ship;
-            if (Course == null || ship == null || PlanetLanding.OnSurface) return;
+            if (Course == null || ship == null || PlanetLanding.OnSurface || Docking.Docked) return;
             if (Hud.ReelMode && !Hud.ReelShowsMarks) return;
             var cam = Camera.main;
             if (cam == null) return;
             float s = Hud.S;
-            Vector3 target = Destination(Course, ship.transform.position);
-            float d = Vector3.Distance(ship.transform.position, target);
+            float d = markDist;
             string eta = ship.Speed > 5f ? $"  {Mathf.CeilToInt(d / ship.Speed)} s" : "";
             string text = $"<color=#7ee08a>{Course.displayName}  {CombatMode.Distance(d)}{eta}{(Travelling ? $"  ({Phase})" : "")}</color>";
             Vector3 sp = cam.WorldToScreenPoint(Course.Position);
@@ -331,7 +375,11 @@ namespace CarrierGame.Demo
                 var p = new Vector2(Screen.width * 0.5f + dir.x * edge, Screen.height * 0.5f - dir.y * edge);
                 float box = 10f * s;
                 Hud.Fill(new Rect(p.x - box * 0.5f, p.y - box * 0.5f, box, box), c);
-                GUI.Label(new Rect(p.x - 160f * s, p.y + box, 320f * s, 18f * s), text, Hud.Text(12, false, TextAnchor.UpperCenter));
+                // (the label kept clear of the controls box and the ship's console)
+                var lr = new Rect(p.x - 160f * s, p.y + box, 320f * s, 18f * s);
+                if (lr.Overlaps(ShipHud.HelpRect)) lr.x = ShipHud.HelpRect.xMax + 8f * s;
+                if (lr.Overlaps(ShipConsole.Rect)) lr.y = ShipConsole.Rect.yMin - lr.height - 6f * s;
+                GUI.Label(lr, text, Hud.Text(12, false, TextAnchor.UpperCenter));
             }
         }
     }

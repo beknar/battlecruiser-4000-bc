@@ -25,10 +25,28 @@ namespace CarrierGame
         /// <summary>How far out from a planet or moon (above its surface) its points of interest are.</summary>
         public static float Reach(WarpPoint body) => Mathf.Max(body.bodyRadius * 2.5f, 60000f);
 
+        // (worked out for each point now and then, not every call: the map and the menu ask
+        // for every point's place many times a frame, and each answer scans every point)
+        static readonly Dictionary<WarpPoint, WarpPoint> placeOf = new Dictionary<WarpPoint, WarpPoint>();
+        static float cachedAt = float.NegativeInfinity;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() { placeOf.Clear(); cachedAt = float.NegativeInfinity; }
+
         /// <summary>The place a point of interest is at (null if it is a place itself).</summary>
         public static WarpPoint PlaceOf(WarpPoint w)
         {
             if (w == null || IsBody(w)) return null;
+            float now = Time.unscaledTime;
+            if (now - cachedAt > 2f || now < cachedAt) { placeOf.Clear(); cachedAt = now; }
+            if (placeOf.TryGetValue(w, out var known)) return known;
+            var found = Find(w);
+            placeOf[w] = found;
+            return found;
+        }
+
+        static WarpPoint Find(WarpPoint w)
+        {
             // a base on a planet or moon
             if (w.LandingBody != w && IsBody(w.LandingBody)) return w.LandingBody;
             Vector3 p = w.Position;

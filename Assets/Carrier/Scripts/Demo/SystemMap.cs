@@ -107,8 +107,21 @@ namespace CarrierGame.Demo
             return false;
         }
 
-        bool IsHere(WarpPoint p) => carrier != null && p != null && p == WarpPoint.Nearest(carrier.transform.position)
-                                    && Vector3.Distance(carrier.transform.position, p.Position) < p.arrivalDistance * 1.6f;
+        // the place the ship is at (the map lists places only: at the Highport, it is at
+        // Thalassa), worked out once a frame
+        WarpPoint herePlace;
+        int hereFrame = -1;
+
+        bool IsHere(WarpPoint p)
+        {
+            if (carrier == null || p == null) return false;
+            if (hereFrame != Time.frameCount)
+            {
+                hereFrame = Time.frameCount;
+                herePlace = Places.At(carrier.transform.position);
+            }
+            return p == herePlace;
+        }
 
         void RefreshOrder()
         {

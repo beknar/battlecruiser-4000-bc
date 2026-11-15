@@ -90,6 +90,16 @@ namespace CarrierGame.Demo
                 Vector3 up = body != null ? PlanetFlight.UpAt(me, body, out _) : Vector3.up;
                 ship.upFrame = Quaternion.FromToRotation(Vector3.up, up);
             }
+            // the leader down on a planet, or docked: the fleet waits in orbit, where it is
+            // (a ship on the tow too: it is cast off there, and taken up again on the way out)
+            bool leaderAway = PlanetLanding.Busy || Docking.Docked;
+            if (Towed && leaderAway)
+            {
+                ship.externalMotion = true;
+                ship.SetTarget(null);
+                Doing = "waiting in orbit";
+                return;
+            }
             if (Towed)
             {
                 // on the tow: held behind the leader, its own flying off
@@ -101,13 +111,13 @@ namespace CarrierGame.Demo
             }
             ship.externalMotion = false;
             // the leader in warp (or being docked): it waits, and is put on its station as the
-            // leader arrives (FleetDirector)
-            if (leader.externalMotion)
+            // leader arrives (FleetDirector); down on a planet or docked, it waits in orbit
+            if (leader.externalMotion || leaderAway)
             {
                 ship.throttle = 0f;
                 ship.rudder = 0f;
                 ship.pitchInput = 0f;
-                Doing = "waiting for the warp";
+                Doing = leaderAway ? "waiting in orbit" : "waiting for the warp";
                 return;
             }
             // what to fight: the order's target; an enemy near the leader (guarding); one that
@@ -181,7 +191,9 @@ namespace CarrierGame.Demo
             float bestD = float.MaxValue;
             foreach (var t in Targets.All)
             {
-                if (t == null || Dead(t) || CombatPilot.IsHidden(t)) continue;
+                if (t == null || !t.gameObject.activeInHierarchy || Dead(t) || CombatPilot.IsHidden(t)) continue;
+                // (hostiles only, as the wingmen pick them: not whatever is in the target list)
+                if (!t.TryGetComponent(out TargetInfo info) || !info.Hostile) continue;
                 float dMe = Vector3.Distance(t.position, me), dLead = Vector3.Distance(t.position, lead);
                 // guarding: anything near the leader; otherwise only what has come close
                 bool near = (Current == Order.Guard && dLead < 6000f) || dMe < 2500f;

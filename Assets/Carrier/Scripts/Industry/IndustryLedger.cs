@@ -253,14 +253,6 @@ namespace CarrierGame
             Changed?.Invoke();
         }
 
-        /// <summary>A towed ship crewed now (or the other way round).</summary>
-        public static void SetTowed(FleetShip s, bool towed)
-        {
-            if (s == null || s.towed == towed) return;
-            s.towed = towed;
-            Changed?.Invoke();
-        }
-
         /// <summary>The fleet, to save.</summary>
         public static List<FleetShip> FleetShipsSnapshot()
         {
@@ -450,24 +442,41 @@ namespace CarrierGame
         /// many as there are recruits, room aboard and credits for. Returns how many signed on.</summary>
         public static int Recruit(string place, Crew crew, CargoHold hold, int want, out string why)
         {
+            why = "";
+            if (crew == null) { var p = CrewTable.Get().Place(place); why = p == null || !p.Recruits ? "nobody recruits here" : "no crew to join"; return 0; }
+            int n = SignOn(place, crew.Missing, hold, want, out why);
+            if (n <= 0) return 0;
+            n = crew.Add(n);
+            pools[place] = Pool(place) - n;
+            Changed?.Invoke();
+            return n;
+        }
+
+        /// <summary>How many could sign on at a place for a crew with `room` for more: as many
+        /// as are waiting, there is room for and the hold's credits pay for (nothing paid).</summary>
+        public static int Recruitable(string place, int room, CargoHold hold) => Reckon(place, room, hold, int.MaxValue, out _);
+
+        static int Reckon(string place, int room, CargoHold hold, int want, out string why)
+        {
             var table = CrewTable.Get();
             var p = table.Place(place);
             why = "";
             if (p == null || !p.Recruits) { why = "nobody recruits here"; return 0; }
-            if (crew == null) { why = "no crew to join"; return 0; }
             if (hold == null) { why = "no hold to pay from"; return 0; }
-            int n = Mathf.Min(want, Mathf.Min(crew.Missing, Mathf.FloorToInt(Pool(place) + 1e-4f)));
+            int n = Mathf.Min(want, Mathf.Min(room, Mathf.FloorToInt(Pool(place) + 1e-4f)));
             // (as many as the credits cover, by the same reckoning Spend pays by)
             if (table.recruitCost > 0f) n = Mathf.Min(n, Mathf.FloorToInt((hold.Credits + 1e-3f) / table.recruitCost));
-            if (n <= 0)
-            {
-                why = crew.Missing == 0 ? "the crew is complete" : Pool(place) < 1f ? "nobody is waiting to sign on" : "not enough credits";
-                return 0;
-            }
-            if (!hold.Spend(n * table.recruitCost)) { why = "not enough credits"; return 0; }
-            n = crew.Add(n);
-            pools[place] = Pool(place) - n;
-            Changed?.Invoke();
+            if (n <= 0) why = room <= 0 ? "the crew is complete" : Pool(place) < 1f ? "nobody is waiting to sign on" : "not enough credits";
+            return Mathf.Max(0, n);
+        }
+
+        /// <summary>Sign on up to `want` at a place (room for `room`), paid from the hold: how
+        /// many (the pool is taken from by the caller, once they are aboard).</summary>
+        static int SignOn(string place, int room, CargoHold hold, int want, out string why)
+        {
+            int n = Reckon(place, room, hold, want, out why);
+            if (n <= 0) return 0;
+            if (!hold.Spend(n * CrewTable.Get().recruitCost)) { why = "not enough credits"; return 0; }
             return n;
         }
 
@@ -475,20 +484,9 @@ namespace CarrierGame
         /// the one flown: its crew is the ledger's), paying from the hold: how many signed on.</summary>
         public static int RecruitInto(string place, string ship, int complement, CargoHold hold, int want, out string why)
         {
-            var table = CrewTable.Get();
-            var p = table.Place(place);
-            why = "";
-            if (p == null || !p.Recruits) { why = "nobody recruits here"; return 0; }
-            if (hold == null) { why = "no hold to pay from"; return 0; }
             int aboard = Mathf.RoundToInt(CrewOf(ship) ?? 0f);
-            int n = Mathf.Min(want, Mathf.Min(complement - aboard, Mathf.FloorToInt(Pool(place) + 1e-4f)));
-            if (table.recruitCost > 0f) n = Mathf.Min(n, Mathf.FloorToInt((hold.Credits + 1e-3f) / table.recruitCost));
-            if (n <= 0)
-            {
-                why = aboard >= complement ? "the crew is complete" : Pool(place) < 1f ? "nobody is waiting to sign on" : "not enough credits";
-                return 0;
-            }
-            if (!hold.Spend(n * table.recruitCost)) { why = "not enough credits"; return 0; }
+            int n = SignOn(place, complement - aboard, hold, want, out why);
+            if (n <= 0) return 0;
             crews[ship] = aboard + n;
             pools[place] = Pool(place) - n;
             Changed?.Invoke();

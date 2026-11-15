@@ -38,10 +38,21 @@ namespace CarrierGame.Demo
         void Awake() => Instance = this;
         void OnDestroy() { if (Instance == this) Instance = null; }
 
-        void Start()
+        bool spawned;
+
+        void Start() => IndustryDirector.LoadSaved();
+
+        /// <summary>The saved fleet made, once there is a leader to fly with: a ship that can't
+        /// be made (its class gone from the roster) is put back in its yard, not kept unseen.</summary>
+        void SpawnSaved()
         {
-            IndustryDirector.LoadSaved();
-            foreach (var e in IndustryLedger.Fleet.ToList()) Spawn(e);
+            spawned = true;
+            foreach (var e in IndustryLedger.Fleet.ToList())
+                if (Spawn(e) == null)
+                {
+                    Debug.LogWarning($"[Fleet] couldn't make the {e.id}: berthed at {e.site} again");
+                    IndustryLedger.LeaveAt(e, e.site);
+                }
         }
 
         // ------------------------------------------------------------ the ships
@@ -52,11 +63,10 @@ namespace CarrierGame.Demo
             var leader = Leader;
             var entry = FrigateRoster.Get()?.Find(e.id);
             if (leader == null || entry == null || entry.prefab == null) return null;
+            // (the roster's prefabs are the bare ships: the leader's own systems, the drive, the
+            // flight model, the strike, are added to the ship commanded, not to these)
             var go = Instantiate(entry.prefab, leader.transform.position - leader.transform.forward * 800f, leader.transform.rotation);
             go.name = $"{entry.displayName} (fleet)";
-            // (the leader's own systems aren't the fleet's: no second drive, flight model or strike)
-            foreach (var c in go.GetComponents<MonoBehaviour>())
-                if (c is PlanetFlight || c is KineticStrike || c is WarpDrive || c is Seafaring || c is MiningLaser || c is MineralSensor) Destroy(c);
             var cc = go.GetComponent<CarrierController>();
             if (cc == null) { Destroy(go); return null; }
             cc.shipName = entry.displayName;
@@ -112,32 +122,44 @@ namespace CarrierGame.Demo
         public bool Join(string id, string site, bool towed, out string why)
         {
             why = "";
-            if (!IndustryLedger.FleetHasRoom(out why)) return false;
             var leader = Leader;
+            if (leader == null) { why = "no ship to fly with"; return false; }
+            if (!IndustryLedger.FleetHasRoom(out why)) return false;
             int need = CrewToSail(id), full = Complement(id);
-            if (!towed)
+            var hold = demo.Cargo;
+            var own = leader.GetComponent<Crew>();
+            int aboard = Mathf.RoundToInt(IndustryLedger.CrewOf(id) ?? 0f);
+            // (worked out before anything is paid or moved: if she can't sail, nothing changes)
+            int signable = towed ? 0 : IndustryLedger.Recruitable(site, full - aboard, hold);
+            int spare = own != null ? Mathf.Max(0, own.Aboard - Mathf.CeilToInt(own.complement * 0.5f)) : 0;
+            if (!towed && aboard + signable + spare < need)
             {
-                var hold = demo.Cargo;
-                IndustryLedger.RecruitInto(site, id, full, hold, full, out _);
-                int aboard = Mathf.RoundToInt(IndustryLedger.CrewOf(id) ?? 0f);
-                if (aboard < need)
-                {
-                    // the rest from the leader: as many as it can spare, keeping half its own
-                    var own = leader != null ? leader.GetComponent<Crew>() : null;
-                    int spare = own != null ? Mathf.Max(0, own.Aboard - Mathf.CeilToInt(own.complement * 0.5f)) : 0;
-                    if (aboard + spare < need)
-                    {
-                        why = $"not enough crew: she needs {need} to sail, {aboard} signed on and {spare} can come across from the {leader?.shipName}. Recruit more, tow her, or leave her here";
-                        return false;
-                    }
-                    int sent = need - aboard;
-                    own.SetAboard(own.Current - sent);
-                    IndustryLedger.SetCrew(id, aboard + sent);
-                }
+                why = $"not enough crew: she needs {need} to sail, {aboard + signable} can sign on here and {spare} can come across from the {leader.shipName}. Recruit more, tow her, or leave her here";
+                return false;
             }
             if (!IndustryLedger.JoinFleet(id, site, towed, out why)) return false;
             var e = IndustryLedger.Fleet.LastOrDefault(f => string.Equals(f.id, id, System.StringComparison.OrdinalIgnoreCase));
-            if (e != null) Spawn(e);
+            if (e == null || Spawn(e) == null)
+            {
+                if (e != null) IndustryLedger.LeaveAt(e, site);
+                why = "she couldn't be got under way";
+                return false;
+            }
+            if (!towed)
+            {
+                // the recruits signed on (paid from the hold), and the rest from the leader
+                IndustryLedger.RecruitInto(site, id, full, hold, full, out _);
+                aboard = Mathf.RoundToInt(IndustryLedger.CrewOf(id) ?? 0f);
+                if (aboard < need && own != null)
+                {
+                    int sent = need - aboard;
+                    own.SetAboard(own.Current - sent);
+                    IndustryLedger.SetCrew(id, aboard + sent);
+                    aboard += sent;
+                }
+                var pilot = Ships.LastOrDefault(s => s != null && s.entry == e);
+                if (pilot != null && pilot.TryGetComponent(out Crew theirs)) theirs.SetAboard(aboard);
+            }
             return true;
         }
 
@@ -161,6 +183,7 @@ namespace CarrierGame.Demo
         {
             var leader = Leader;
             if (leader == null) return;
+            if (!spawned) SpawnSaved();
             Ships.RemoveAll(s => s == null);
             foreach (var s in Ships) s.leader = leader;   // (another ship taken command of)
             // towing: half speed, twice as long a warp
@@ -180,13 +203,14 @@ namespace CarrierGame.Demo
             {
                 nextCrewSave = Time.time + 5f;
                 foreach (var s in Ships)
-                    if (!s.Towed && s.TryGetComponent(out Crew c)) IndustryLedger.SetCrew(s.entry.id, c.Current);
+                    if (!s.Towed && s.TryGetComponent(out Crew c) && !Mathf.Approximately(IndustryLedger.CrewOf(s.entry.id) ?? -1f, c.Current))
+                        IndustryLedger.SetCrew(s.entry.id, c.Current);
             }
         }
 
         // ------------------------------------------------------------ orders
 
-        IEnumerable<FleetPilot> Addressed => Selected != null ? new[] { Selected } : Ships.Where(s => !s.Towed);
+        IEnumerable<FleetPilot> Addressed => Selected != null ? (Selected.Towed ? new FleetPilot[0] : new[] { Selected }) : Ships.Where(s => !s.Towed);
 
         public void Order(FleetPilot.Order o)
         {

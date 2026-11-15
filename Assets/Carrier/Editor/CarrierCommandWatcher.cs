@@ -11,7 +11,7 @@ namespace Carrier.EditorTools
 {
     /// <summary>
     /// Lets tools outside Unity drive the carrier build while the editor is open: write a command
-    /// ("build", "shots", "probe", "player", "player2", "player3", "web") to Temp/carrier_cmd.txt; the result goes to
+    /// ("build", "shots", "probe", "player", "player2", "player3", "web", "linux") to Temp/carrier_cmd.txt; the result goes to
     /// Temp/carrier_cmd_done.txt. Compiler errors are written to Temp/carrier_compile.log.
     /// </summary>
     [InitializeOnLoad]
@@ -55,6 +55,8 @@ namespace Carrier.EditorTools
                     case "player2": CarrierPlayerBuild.BuildAsteroids(); break;
                     case "player3": CarrierPlayerBuild.BuildStarSystem(); break;
                     case "web": CarrierPlayerBuild.BuildStarSystemWeb(); break;
+                    case "linux": CarrierPlayerBuild.BuildStarSystemLinux(); break;
+                    default: File.WriteAllText(Done, $"{cmd} FAILED {DateTime.Now}\nno such command"); return;
                 }
                 File.WriteAllText(Done, $"{cmd} ok {DateTime.Now}");
             }

@@ -78,21 +78,28 @@ namespace Carrier.EditorTools
 
         /// <summary>The star system for 64-bit Linux, chiefly for an AI wingman run headless on a
         /// Linux server (`StarSystem.x86_64 -coopbot -connect ... -batchmode -nographics`); it
-        /// plays as a game too, with Vulkan or OpenGL. Needs Unity's Linux (Mono) build support.</summary>
+        /// plays as a game too, with OpenGL or Vulkan. Needs Unity's Linux (Mono) build support.</summary>
         [MenuItem("Tools/Carrier/Build Star System (Linux)")]
         public static void BuildStarSystemLinux() => Run(StarSystemLinux);
 
-        static string Windows()
+        /// <summary>The window settings the desktop games share (Windows and Linux are one
+        /// "Standalone" group in the player settings: set the same for both, whichever is built).</summary>
+        static void Standalone()
         {
             PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
             PlayerSettings.runInBackground = true;
             PlayerSettings.defaultIsNativeResolution = true;
             PlayerSettings.resizableWindow = true;
             PlayerSettings.allowFullscreenSwitch = true;
+            PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.Standalone, ScriptingImplementation.Mono2x);
+        }
+
+        static string Windows()
+        {
+            Standalone();
             // DirectX 11: the mature path on hybrid (AMD + NVIDIA) laptops; DX12 hung the GPU driver here
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.StandaloneWindows64, false);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.StandaloneWindows64, new[] { UnityEngine.Rendering.GraphicsDeviceType.Direct3D11 });
-            PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.Standalone, ScriptingImplementation.Mono2x);
             return null;
         }
 
@@ -100,12 +107,11 @@ namespace Carrier.EditorTools
         {
             if (!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Standalone, BuildTarget.StandaloneLinux64))
                 return "Unity's Linux build support (Mono) isn't installed";
-            PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
-            PlayerSettings.runInBackground = true;
-            PlayerSettings.defaultIsNativeResolution = true;
-            PlayerSettings.resizableWindow = true;
-            PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.StandaloneLinux64, true);   // Vulkan, then OpenGL
-            PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.Standalone, ScriptingImplementation.Mono2x);
+            Standalone();
+            // (Unity's own choice: OpenGL Core, then Vulkan. The wingman runs with -nographics,
+            // so it uses neither. It is the whole game, not Unity's Dedicated Server build: that
+            // needs another module, and strips what the wingman shares with a player's game.)
+            PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.StandaloneLinux64, true);
             return null;
         }
 

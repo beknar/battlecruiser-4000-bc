@@ -67,12 +67,12 @@ namespace CarrierGame.Demo
             float price = table.Value(partId) * IndustryPanel.BuyMarkup;
             if (hold.Credits < price * 2f) hold.Earn(price * 2f);
             float c1 = hold.Credits, have = hold.Amount(partId);
-            panel.Act("*buy:" + partId, 13);
+            panel.Act("*buy:" + partId, IndustryPanel.Action("buy"));
             Check(hold.Amount(partId) == have + 1f && Mathf.Abs(c1 - hold.Credits - price) < 1f,
                   $"bought one {table.Name(partId).ToLower()} for {price:N0} cr ({table.Value(partId):N0} cr worth, x{IndustryPanel.BuyMarkup})");
             // and sell it back, at its worth
             float c2 = hold.Credits;
-            panel.Act("*sell:" + partId, 11);
+            panel.Act("*sell:" + partId, IndustryPanel.Action("sell"));
             Check(hold.Amount(partId) == have && Mathf.Abs(hold.Credits - c2 - table.Value(partId)) < 1f, $"and sold it back for {table.Value(partId):N0} cr");
 
             // drop crew off: they join those waiting to sign on
@@ -82,12 +82,12 @@ namespace CarrierGame.Demo
                 yield return null;
                 int aboard = crew.Aboard;
                 float pool = IndustryLedger.Pool("Thalassa Highport");
-                panel.Act("*d10", 15);
+                panel.Act("*d10", IndustryPanel.Action("dropoff"));
                 Check(crew.Aboard == aboard - 10 && IndustryLedger.Pool("Thalassa Highport") >= pool + 9.9f,
                       $"ten crew dropped off: {aboard} -> {crew.Aboard} aboard; waiting to sign on {pool:F0} -> {IndustryLedger.Pool("Thalassa Highport"):F0}");
                 // and recruited back
                 if (hold.Credits < 10 * CrewTable.Get().recruitCost) hold.Earn(10 * CrewTable.Get().recruitCost);
-                panel.Act("*r10", 9);
+                panel.Act("*r10", IndustryPanel.Action("recruit"));
                 Check(crew.Aboard == aboard, $"and recruited back ({crew.Aboard} aboard)");
             }
             panel.Close();

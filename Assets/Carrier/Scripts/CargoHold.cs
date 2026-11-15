@@ -8,8 +8,8 @@ namespace CarrierGame
     /// The frigate's hold: so many tonnes of each mineral, and the refined materials and ship
     /// parts it carries between the industrial sites (IndustryTable), up to `capacity` tonnes in
     /// all. What the mining laser brings in goes here; the cheapest mineral can be jettisoned to
-    /// make room for better. The cargo is lost if the ship is destroyed. Docked at a station with
-    /// a market, the ore is sold, and the credits kept.
+    /// make room for better. The cargo is lost if the ship is destroyed. At a market, the
+    /// services screen's trade page sells it (and buys), for the credits kept here.
     /// </summary>
     public class CargoHold : MonoBehaviour
     {

@@ -120,9 +120,18 @@ namespace CarrierGame.Demo
         public static bool IsMarket(IndustrySite site)
         {
             if (site == null) return false;
-            var inst = site.GetComponent<Installation>() ?? site.GetComponentInParent<Installation>();
-            return (inst != null && inst.market && !inst.hostile) || site.Recruits;
+            if (marketOf.TryGetValue(site, out bool known)) return known;
+            // (GetComponentInParent looks at the site's own object first)
+            var inst = site.GetComponentInParent<Installation>();
+            bool market = (inst != null && inst.market && !inst.hostile) || site.Recruits;
+            marketOf[site] = market;
+            return market;
         }
+
+        static readonly System.Collections.Generic.Dictionary<IndustrySite, bool> marketOf = new System.Collections.Generic.Dictionary<IndustrySite, bool>();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetMarkets() => marketOf.Clear();
 
         /// <summary>Has something to offer: storage and jobs, recruits, or a market.</summary>
         public static bool Offers(IndustrySite site) => site != null && (site.Spec != null || site.Recruits || IsMarket(site));
@@ -135,8 +144,14 @@ namespace CarrierGame.Demo
             Site = site;
             offeredAt = site;
             openedFrame = Time.frameCount;
-            // (a place that only recruits opens on its crew page)
-            if (!PageAvailable(page)) page = System.Array.Find(Pages, PageAvailable);
+            // (a page the place doesn't have: the crew page, where the crew is short and people
+            // sign on here, else the first it has)
+            if (!PageAvailable(page))
+            {
+                var crew = CrewAboard;
+                page = site.Recruits && crew != null && crew.Missing > 0 && PageAvailable(Page.Crew) ? Page.Crew
+                     : System.Array.Find(Pages, PageAvailable);
+            }
             Show(page);
             SoundFX.Ui(Sfx.UiLock);
             return true;
@@ -196,7 +211,7 @@ namespace CarrierGame.Demo
                     rows.Add(RecruitOne);
                     rows.Add(RecruitTen);
                     rows.Add(RecruitAll);
-                    if (CrewAboard is Crew aboard && aboard.Aboard > 0) { rows.Add(DropOne); rows.Add(DropTen); }
+                    if (CrewAboard is Crew aboard && aboard.Aboard > Mathf.CeilToInt(aboard.complement * CrewTable.Get().survivors)) { rows.Add(DropOne); rows.Add(DropTen); }
                     break;
                 case Page.Trade:
                     if (hold != null)
@@ -272,17 +287,17 @@ namespace CarrierGame.Demo
                     if (hold == null) return;
                     if (id == SellOre)
                     {
-                        float tonnes = 0f, credits = 0f;
-                        foreach (var e in hold.Contents())
-                            if (Table.Kind(e.id) == ItemKind.Raw) { tonnes += e.amount; credits += SellItem(e.id, e.amount); }
+                        float credits = SellAllOre(out float tonnes);
                         Say(tonnes > 0f ? $"Sold {tonnes:F0} t of ore for {credits:N0} cr" : "No ore aboard", tonnes <= 0f);
                         break;
                     }
                     {
                         string item = Item(id);
+                        if (hold.Amount(item) <= 0f) { Say($"No {Table.Name(item).ToLower()} aboard", true); break; }
+                        if (Table.Value(item) <= 0f) { Say($"Nobody here buys {Table.Name(item).ToLower()}", true); break; }
                         float want = action == SellAll ? hold.Amount(item) : Mathf.Min(Step(item), hold.Amount(item));
-                        float got = SellItem(item, want);
-                        Say(got > 0f ? $"Sold {Table.Amount(item, want)} of {Table.Name(item).ToLower()} for {got:N0} cr" : $"No {Table.Name(item).ToLower()} aboard", got <= 0f);
+                        float got = SellItem(item, want, out float sold);
+                        Say($"Sold {Table.Amount(item, sold)} of {Table.Name(item).ToLower()} for {got:N0} cr");
                     }
                     break;
                 case Buy:
@@ -294,15 +309,17 @@ namespace CarrierGame.Demo
                         float want = Step(item) * (action == BuyTen ? 10f : 1f);
                         bool part = Table.Part(item) != null;
                         float afford = price > 0f ? hold.Credits / price : 0f;
-                        if (part) afford = Mathf.Floor(afford + 1e-4f);
+                        if (part) afford = Mathf.Floor(afford);
                         float n = Mathf.Min(want, afford, hold.RoomFor(item));
-                        if (n <= (part ? 0.5f : 0.01f))
+                        if (part) n = Mathf.Floor(n);
+                        if (n <= (part ? 0.5f : 0.01f) || !hold.Spend(n * price))
                         {
                             Say(hold.RoomFor(item) < (part ? 1f : 0.01f) ? "The hold is full" : $"Not enough credits: {price:N0} cr {(part ? "each" : "a tonne")}", true);
                             break;
                         }
+                        // (paid for first; whatever didn't fit after all is paid back)
                         float got = hold.Load(item, n);
-                        hold.Spend(got * price);
+                        if (got < n) hold.Earn((n - got) * price);
                         IndustryLedger.Touch();
                         Say($"Bought {Table.Amount(item, got)} of {Table.Name(item).ToLower()} for {got * price:N0} cr");
                         SoundFX.Ui(Sfx.UiLock);
@@ -446,26 +463,33 @@ namespace CarrierGame.Demo
             id == null ? null : id.StartsWith(SellPrefix) ? id.Substring(SellPrefix.Length) : id.StartsWith(BuyPrefix) ? id.Substring(BuyPrefix.Length) : id;
 
         /// <summary>Sell up to `amount` of an item aboard at its worth: the credits it fetched.</summary>
-        float SellItem(string item, float amount)
+        /// <summary>Sell some of one thing from the hold at its worth: the credits it fetched,
+        /// and how much went (`sold`).</summary>
+        float SellItem(string item, float amount, out float sold)
         {
+            sold = 0f;
             var hold = Hold;
             if (hold == null || amount <= 0f) return 0f;
-            float t = hold.Unload(item, amount);
-            float credits = t * Table.Value(item);
+            sold = hold.Unload(item, amount);
+            float credits = sold * Table.Value(item);
             if (credits > 0f) hold.Earn(credits);
             IndustryLedger.Touch();
             return credits;
         }
 
-        /// <summary>Sell all the ore aboard (the self-test): the credits it fetched.</summary>
-        public float SellAllOre()
+        /// <summary>Sell all the ore aboard (the trade page's first row, and the self-test):
+        /// the credits it fetched, and the tonnes.</summary>
+        public float SellAllOre(out float tonnes)
         {
+            tonnes = 0f;
             var hold = Hold;
             if (hold == null) return 0f;
-            float credits = 0f;
-            foreach (var e in hold.Contents()) if (Table.Kind(e.id) == ItemKind.Raw) credits += SellItem(e.id, e.amount);
+            float credits = hold.SellAll(out tonnes);
+            if (tonnes > 0f) IndustryLedger.Touch();
             return credits;
         }
+
+        public float SellAllOre() => SellAllOre(out _);
 
         /// <summary>Take command of a ship berthed here: the crew come across with the captain (as
         /// many as it needs, up to all of them), the ship flown until now stays behind (berthed
@@ -509,6 +533,11 @@ namespace CarrierGame.Demo
                 case "fit": return FitToggle;
                 case "cancel": return CancelLast;
                 case "recruit": return Recruit;
+                case "sell": return Sell;
+                case "sellAll": return SellAll;
+                case "buy": return Buy;
+                case "buyTen": return BuyTen;
+                case "dropoff": return DropOff;
                 case "command": return TakeCommand;
             }
             return 0;

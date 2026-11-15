@@ -34,10 +34,8 @@ namespace CarrierGame.Demo
         /// <summary>Where the ship is docked (or docking).</summary>
         public Installation At { get; private set; }
         public int Dockings { get; private set; }
-        /// <summary>What the last visit did: hull repaired (points), ore sold (tonnes, credits).</summary>
+        /// <summary>What the last visit did: the hull repaired (points).</summary>
         public float LastRepair { get; private set; }
-        public float LastSoldTonnes { get; private set; }
-        public float LastSoldCredits { get; private set; }
 
         Installation candidate;
         string candidateWhy = "";
@@ -108,16 +106,13 @@ namespace CarrierGame.Demo
             Park();
             yield return null;
 
-            // the station's services: a full repair, and the hold sold where there is a market
+            // the station's services: a full repair (the hold is sold on the trade page, by choice)
             var hull = carrier.GetComponent<Health>();
             float before = hull != null ? hull.Current : 0f;
             if (hull != null) hull.Repair();
             LastRepair = hull != null ? hull.Current - before : 0f;
             var shield = carrier.GetComponentInChildren<Shield>();
             if (shield != null) shield.SetOffline(false);
-            LastSoldTonnes = 0f;
-            LastSoldCredits = 0f;
-            // (the ore is sold on the services screen's trade page now, by choice)
             Dockings++;
             Current = State.Docked;
             SoundFX.Play(Sfx.Impact, carrier.transform.position, 0.35f, 0.5f);

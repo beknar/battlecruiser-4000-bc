@@ -7,7 +7,8 @@ using UnityEngine;
 
 namespace Carrier.EditorTools
 {
-    /// <summary>Builds the games: the star system for Windows (64-bit) and for web browsers, and
+    /// <summary>Builds the games: the star system for Windows (64-bit), for web browsers and for
+    /// Linux (64-bit: an AI wingman run headless on a Linux server, beside the co-op server), and
     /// the two deprecated games (the open-space demo and the asteroid-field ambush: the star
     /// system has everything they had; they are built only on request now). Each is
     /// a Profile run the same way: the same checks, a fresh folder, a report in its log, and the
@@ -21,6 +22,7 @@ namespace Carrier.EditorTools
         public const string AsteroidOutDir = "../Builds/AsteroidAmbush";
         public const string StarSystemOutDir = "../Builds/StarSystem";
         public const string StarSystemWebDir = "../Builds/StarSystemWeb";
+        public const string StarSystemLinuxDir = "../Builds/StarSystemLinux";
 
         sealed class Profile
         {
@@ -52,6 +54,12 @@ namespace Carrier.EditorTools
             Target = BuildTarget.WebGL, Configure = Web,
         };
 
+        static readonly Profile StarSystemLinux = new Profile
+        {
+            Scene = CarrierBuilder.StarSystemScenePath, OutDir = StarSystemLinuxDir, Exe = "StarSystem.x86_64", ProductName = "Star System",
+            Log = "Temp/carrier_linux_build.log", Target = BuildTarget.StandaloneLinux64, Configure = Linux,
+        };
+
         [MenuItem("Tools/Carrier/Deprecated/Build Windows Demo (Carrier Demo)")]
         public static void Build() => Run(Demo);
 
@@ -68,6 +76,12 @@ namespace Carrier.EditorTools
         [MenuItem("Tools/Carrier/Build Star System (Web)")]
         public static void BuildStarSystemWeb() => Run(StarSystemWeb);
 
+        /// <summary>The star system for 64-bit Linux, chiefly for an AI wingman run headless on a
+        /// Linux server (`StarSystem.x86_64 -coopbot -connect ... -batchmode -nographics`); it
+        /// plays as a game too, with Vulkan or OpenGL. Needs Unity's Linux (Mono) build support.</summary>
+        [MenuItem("Tools/Carrier/Build Star System (Linux)")]
+        public static void BuildStarSystemLinux() => Run(StarSystemLinux);
+
         static string Windows()
         {
             PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
@@ -78,6 +92,19 @@ namespace Carrier.EditorTools
             // DirectX 11: the mature path on hybrid (AMD + NVIDIA) laptops; DX12 hung the GPU driver here
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.StandaloneWindows64, false);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.StandaloneWindows64, new[] { UnityEngine.Rendering.GraphicsDeviceType.Direct3D11 });
+            PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.Standalone, ScriptingImplementation.Mono2x);
+            return null;
+        }
+
+        static string Linux()
+        {
+            if (!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Standalone, BuildTarget.StandaloneLinux64))
+                return "Unity's Linux build support (Mono) isn't installed";
+            PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
+            PlayerSettings.runInBackground = true;
+            PlayerSettings.defaultIsNativeResolution = true;
+            PlayerSettings.resizableWindow = true;
+            PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.StandaloneLinux64, true);   // Vulkan, then OpenGL
             PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.Standalone, ScriptingImplementation.Mono2x);
             return null;
         }

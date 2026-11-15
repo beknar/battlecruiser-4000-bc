@@ -60,6 +60,8 @@ namespace CarrierGame
         /// <summary>0..1: how strongly the warp tunnel is showing.</summary>
         public float TunnelLevel { get; private set; }
         public bool InWarp => Current == State.Warping;
+        /// <summary>Warps made since the level started (jumps into warp: for the self-test).</summary>
+        public int Warps { get; private set; }
 
         CarrierController ship;
         Health health;
@@ -251,6 +253,7 @@ namespace CarrierGame
 
         void Jump()
         {
+            Warps++;
             Enter(State.Warping);
             from = transform.position;
             to = Destination.ArrivalPoint(from);

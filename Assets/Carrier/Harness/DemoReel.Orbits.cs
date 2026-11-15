@@ -115,7 +115,7 @@ namespace CarrierGame.Demo
             Caption("ORBITS", $"Every planet, moon and comet on its Kepler orbit, here sped up {MapLapse:N0} times", 6f);
             yield return TimeLapse(MapLapse, 2f);
             yield return Wait(4.5f);
-            sysMap.Select(WP("Thalassa Highport"));
+            sysMap.Select(WP("Thalassa L1 Observatory"));
             Caption("ORBITS", "The five Lagrange points of Thalassa and Jovara go round with them", 5f);
             yield return Wait(5f);
             sysMap.Select(WP("Comet Iskra"));

@@ -164,6 +164,26 @@ namespace CarrierGame.Demo
             return true;
         }
 
+        /// <summary>Land by a point of interest (navigation's auto-travel, K): on the pad of
+        /// that base, not whichever of the bases near is the landing candidate.</summary>
+        public bool LandAt(WarpPoint at)
+        {
+            if (at == null || at.LandingBody == null) return Land();
+            if (!CanLand(out var body, out string why))
+            {
+                Notices.Post(body != null ? $"Can't land on {body.displayName}: {why}" : $"Can't land: {why}");
+                SoundFX.Ui(Sfx.UiError);
+                return false;
+            }
+            var target = at.LandingBody;
+            if (Seamless(target)) StartCoroutine(AutoLand(target, at.Position));
+            else StartCoroutine(Descend(target));
+            return true;
+        }
+
+        /// <summary>Call off the auto-lander (navigation's auto-travel stopped).</summary>
+        public void CancelAutoLand(string why = null) => StopAutopilot(why);
+
         /// <summary>Land on a place from wherever the ship is (the self-test), coming back here on take-off.</summary>
         public bool LandOn(WarpPoint body)
         {

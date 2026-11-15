@@ -341,13 +341,14 @@ namespace CarrierGame.Demo
         }
 
         /// <summary>Down from orbit to the pad under the ship (or a hostile fortress's approach).</summary>
-        IEnumerator AutoLand(WarpPoint body)
+        IEnumerator AutoLand(WarpPoint body, Vector3? over = null)
         {
             Autopilot = true;
             AutopilotStage = "de-orbit";
             var pf = PlanetFlight.Instance;
             World = WorldFor(body);
-            Target(body, carrier.transform.position, out double tu, out double tv, out var padSite);
+            // (the pad under the ship, or under the place asked for)
+            Target(body, over ?? carrier.transform.position, out double tu, out double tv, out var padSite);
             Notices.Post($"Auto-lander: down to {body.displayName}{(padSite != null ? ", the landing pad" : "")}");
             if (pf != null) pf.autoCruise = true;
             float hand = HandoffFor(World);

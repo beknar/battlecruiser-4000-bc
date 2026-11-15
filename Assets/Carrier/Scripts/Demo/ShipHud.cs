@@ -41,6 +41,7 @@ namespace CarrierGame.Demo
             go.AddComponent<CombatMode>().demo = demo;
             go.AddComponent<Salvage>().demo = demo;
             go.AddComponent<MiningMode>().demo = demo;
+            go.AddComponent<NavigationMode>().demo = demo;
             return hud;
         }
 
@@ -144,7 +145,10 @@ namespace CarrierGame.Demo
                         lines.Add("Tab the deposits found, and the ore aboard");
                         break;
                     case ModeOfPlay.Navigation:
-                        if (demo.Warp != null) lines.Add("M system map: warp");
+                        if (demo.Warp != null) lines.Add("M system map: warp to a planet, moon, field...");
+                        lines.Add("Tab the points of interest here: Enter flies there");
+                        lines.Add("   (K there to land or dock, C to mark the course)");
+                        lines.Add("X stop the auto-travel (or just steer)");
                         if (PlanetFlight.Instance != null) lines.Add("O cruise on/off (the higher, the faster)");
                         break;
                     case ModeOfPlay.Services:
@@ -192,7 +196,9 @@ namespace CarrierGame.Demo
                         break;
                     case ModeOfPlay.Navigation:
                         if (demo.Warp != null) lines.Add("R3 system map: warp");
-                        if (PlanetFlight.Instance != null) lines.Add("X cruise on/off");
+                        lines.Add("Back+Y the points of interest here");
+                        lines.Add("A fly to the course   LB fly there and land or dock");
+                        lines.Add("B stop the auto-travel   X cruise on/off");
                         break;
                     case ModeOfPlay.Services:
                         lines.Add("A the station's or base's services");

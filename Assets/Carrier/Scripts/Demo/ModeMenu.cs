@@ -30,6 +30,12 @@ namespace CarrierGame.Demo
         bool Keys(Keyboard k, Gamepad pad, MenuRow row);
     }
 
+    /// <summary>A menu's source that has a row to open on (its tag), rather than the first.</summary>
+    public interface IMenuStart
+    {
+        object StartAt { get; }
+    }
+
     /// <summary>
     /// A mode's menu (Tab, or Back + Y on the pad): a list to choose from, over the game, which
     /// goes on while it is open. The ship can still be flown (bar the nose up/down, whose keys
@@ -78,7 +84,7 @@ namespace CarrierGame.Demo
             m.selected = -1;
             m.scroll = 0;
             m.openedFrame = Time.frameCount;
-            m.Refresh();
+            m.Refresh((s as IMenuStart)?.StartAt);
             SoundFX.Ui(Sfx.UiClear);
         }
 
@@ -110,9 +116,9 @@ namespace CarrierGame.Demo
         /// <summary>The rows as shown now (for the self-test).</summary>
         public IReadOnlyList<MenuRow> Rows => rows;
 
-        void Refresh()
+        void Refresh(object startAt = null)
         {
-            object keep = Selected?.tag;
+            object keep = Selected?.tag ?? startAt;
             rows.Clear();
             source.Rows(rows);
             refreshAt = Time.unscaledTime + 0.3f;

@@ -20,6 +20,18 @@ namespace CarrierGame.Demo
         IEnumerator WarpTo(Keyboard kb, string name, string shot)
         {
             collectionsAtWarp = SceneMemory.Collections;
+            // a point of interest isn't on the map (it is flown to from its place, in navigation
+            // mode): the tests warp straight to it with the drive, as an AI player's order does
+            var poi = WarpPoint.All.FirstOrDefault(w => w != null && w.displayName == name);
+            if (poi != null && !Places.IsPlace(poi))
+            {
+                if (SystemMap.IsOpen) map.Close();
+                warpTarget = poi;
+                Log($"  {name} is a point of interest at {Places.PlaceOf(poi)?.displayName}: warping straight there with the drive");
+                yield return Warp(() => EngageDrive(poi), "the drive", shot, false);
+                warpTarget = null;
+                yield break;
+            }
             if (!SystemMap.IsOpen) yield return Key(kb, UnityEngine.InputSystem.Key.M);
             for (int i = 0; i < 60 && map.Selected?.displayName != name; i++) yield return Key(kb, UnityEngine.InputSystem.Key.Tab);
             if (map.Selected?.displayName != name)
@@ -30,6 +42,15 @@ namespace CarrierGame.Demo
                 yield break;
             }
             yield return Warp(() => Key(kb, UnityEngine.InputSystem.Key.Enter), "keyboard Enter", shot, false);
+        }
+
+        /// <summary>The warp a test asks of the drive itself (not the map): a point of interest.</summary>
+        WarpPoint warpTarget;
+
+        IEnumerator EngageDrive(WarpPoint p)
+        {
+            if (!drive.Engage(p, out string why)) Log($"  the drive refused {p.displayName}: {why}");
+            yield return null;
         }
 
         /// <summary>Fly toward a deposit until the laser's reach to it is under `reach` (in space),

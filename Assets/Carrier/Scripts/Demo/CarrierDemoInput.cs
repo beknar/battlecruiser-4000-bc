@@ -203,6 +203,7 @@ namespace CarrierGame.Demo
             {
                 case ModeOfPlay.Combat: CombatKeys(k); break;
                 case ModeOfPlay.Mining: MiningKeys(k); break;
+                case ModeOfPlay.Navigation: if (k.xKey.wasPressedThisFrame) Navigation?.Stop("Auto-travel off: the helm is yours"); break;
             }
         }
 
@@ -255,6 +256,7 @@ namespace CarrierGame.Demo
             {
                 case ModeOfPlay.Combat: src = Combat; break;
                 case ModeOfPlay.Mining: src = Mining; break;
+                case ModeOfPlay.Navigation: src = Navigation; break;
                 case ModeOfPlay.Services:
                     // (the site's own screen: docked at it, or on its pad)
                     var site = IndustryPanel.Instance;
@@ -457,8 +459,19 @@ namespace CarrierGame.Demo
 
         void NavigationPad(Gamepad p, bool listUp)
         {
-            if (p.buttonWest.wasPressedThisFrame && PlanetFlight.Instance != null && !PlanetLanding.Busy) PlanetFlight.Instance.ToggleCruise();   // X
+            if (p.buttonWest.wasPressedThisFrame && !listUp && PlanetFlight.Instance != null && !PlanetLanding.Busy) PlanetFlight.Instance.ToggleCruise();   // X
+            var nav = Navigation;
+            if (nav == null || listUp) return;
+            if (p.buttonEast.wasPressedThisFrame) nav.Stop("Auto-travel off: the helm is yours");                    // B
+            // A: fly to the course set (or choose one); LB: and land or dock there
+            if (p.buttonSouth.wasPressedThisFrame) { if (nav.Course != null) nav.TravelTo(nav.Course, NavigationMode.Then.Arrive); else OpenModeMenu(); }
+            if (p.leftShoulder.wasPressedThisFrame && nav.Course != null)
+                nav.TravelTo(nav.Course, NavigationMode.FinishFor(nav.Course));
         }
+
+        NavigationMode navigation;
+        /// <summary>The navigation mode's menu and auto-travel (on this object).</summary>
+        public NavigationMode Navigation => navigation != null ? navigation : (navigation = GetComponent<NavigationMode>());
 
         void MiningPad(Gamepad p, bool listUp)
         {

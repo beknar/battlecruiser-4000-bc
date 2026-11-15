@@ -114,18 +114,30 @@ scenes cut through black.
 
 ### A new game
 
-- **The ship.** Every game starts in a frigate, chosen on the start menu (the Sentinel, Lancer,
-  Warden, Talon or Vanguard), with the captain chosen there too. The destroyers and the cruiser
-  are built later, at a shipyard.
-- **Where.** In orbit of Thalassa, the ocean world. The orbits
-  start where the system's clock has them.
-- **What it has.** A full crew, a full shield and hull, a full missile magazine (the ships that
-  carry them), an empty hold and no credits. Nothing fitted beyond the ship's own.
+The first game, with nothing saved yet:
+
+- **The ship.** A frigate, chosen on the start menu (the Sentinel, Lancer, Warden, Talon or
+  Vanguard), with the captain chosen there too. The destroyers and the cruiser are built later,
+  at a shipyard.
+- **Where.** In orbit of Thalassa, the ocean world. The orbits start where the system's clock
+  has them.
+- **What it has.** A full crew, a full shield and hull, an empty hold and no credits. Nothing
+  fitted beyond the ship's own.
 - **The mode.** Combat mode (1). The controls box in the top-left corner shows the mode's keys.
+
+### Carrying on
+
 - **Kept between games.** The industry (each site's storage and jobs, the parts fitted to each
   ship), the hold and the credits, the crews and the people waiting to sign on, the ships built
   (berthed, commanded, and the fleet), and the world (craters, rubble, what has been destroyed)
-  are saved as the game goes. A new game started with `-newgame` ignores the save.
+  are saved as the game goes, and the next game carries on from them: the hold, the credits and
+  the fittings as they were, each ship's crew as it was (not full), and a destroyer or the
+  cruiser among the ships offered on the start menu if one was being commanded.
+- **Starting afresh.** `StarSystem.exe -newgame` starts a game as if nothing were saved, and
+  saves nothing either: the next game without it carries on from the old save. For a fresh
+  start that is kept, delete the save,
+  `%USERPROFILE%\AppData\LocalLow\DefaultCompany\Star System\industry_save.json`. The web
+  version has no `-newgame`; clearing the site's data in the browser starts it afresh.
 
 ### How a game goes
 
@@ -1077,7 +1089,7 @@ menu (only the pause menu stops it).
 |---|---|---|
 | System map: warp to a place | M | R3 |
 | Menu: the points of interest here (Enter flies there; K flies there and lands or docks; C sets the course, marked on screen) | Tab | Back + Y (A flies there, X and lands or docks) |
-| Fly to the course set / and land or dock there | Tab, then Enter (the menu opens on it) / K | A / LB |
+| Fly to the course set / and land or dock there | Tab, then Enter / Tab, then K (the menu opens on it) | A / LB |
 | Stop the auto-travel (or just steer) | X | B |
 | Cruise on/off | O | X |
 | On the map: choose a place / warp / close | Click, arrows or Tab / WARP, double-click or Enter / M or Esc | Left stick, D-pad or LB/RB / A / B |
@@ -1181,20 +1193,22 @@ WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use
   `Content-Encoding: br`.
 - **Setting it up on a web server**, step by step:
   1. Unzip `battlecruiser-4000-bc-star-system-web.zip` (the release's) or build it
-     (**Tools > Carrier > Build Star System (Web)**, into `../Builds/StarSystemWeb/`).
+     (**Tools > Carrier > Build Star System (Web)**, into `../Builds/StarSystemWeb/`). Co-op
+     with API keys (step 5) needs a build from after 14 Nov 2026: the next release, or one built
+     from source.
   2. Copy what is in its folder (`index.html`, `xbox360.js`, `Build/`) to the web server's
      folder for the game, keeping the layout.
   3. Serve it over **https** (WebGPU needs a secure page; plain http falls back to WebGL 2, and
      localhost counts as secure). Any static web server will do: nginx, Apache, IIS, GitHub
      Pages, a CDN.
-  4. Optional, for faster loading: have the server send the `.unityweb` files with
-     `Content-Encoding: br` (in nginx: `location ~ \.unityweb$ { add_header Content-Encoding br;
-     default_type application/octet-stream; }`). Without it the game unpacks them itself.
+  4. Optional, for faster loading: the `Content-Encoding: br` header above (in nginx:
+     `location ~ \.unityweb$ { add_header Content-Encoding br; default_type application/octet-stream; }`).
   5. For co-op from the page: run a co-op server (see [Running the server](#running-the-server))
      with a certificate, so the page can reach it over `wss://`, and give each player an API
-     key. A link like `https://<site>/?server=<host>:<port>&name=<name>&connect` opens the game
-     straight into it; the key is typed into the co-op panel once and kept, for that name, in
-     that browser.
+     key. A link like `https://<site>/?server=<host>:<port>&name=<name>&apikey=<key>&connect`
+     opens the game straight into it. Without `apikey` in the link, the first visit is turned
+     away for having no key: the player types it into the co-op panel (the pause menu, Co-op)
+     once, and it is kept, for that name, in that browser.
 - **Trying it locally.** From the build folder, run `python -m http.server 8080` and open
   `http://localhost:8080`.
 - **Gamepads.** Chrome and Edge on Windows report an Xbox 360 pad in the standard layout.
@@ -1311,32 +1325,48 @@ CoopServer --revoke-key <name|key>      revoke a key, then exit
 
 #### Setting up a standalone server on Windows
 
-1. Unzip `battlecruiser-4000-bc-coop-server-windows.zip` (the release's) somewhere it can stay,
-   say `C:\CoopServer`. Nothing else needs installing.
+The API keys these steps use came after the 14 Nov 2026 release: use the next release's server,
+or one built from source (see [Building the server](#building-the-server)).
+
+1. Unzip `battlecruiser-4000-bc-coop-server-windows.zip` somewhere it can stay, say
+   `C:\CoopServer`. Nothing else needs installing.
 2. Edit `coopserver.json` next to `CoopServer.exe` if needed: the port, the player limit, an
-   allow-list, a certificate for `wss://`.
+   allow-list, a certificate for `wss://` (give its full path, e.g. `C:\CoopServer\server.pfx`).
 3. Make a key for each player and AI player, in a command prompt there:
    `CoopServer.exe --new-key Alice` (`--ai` for an AI player). Send each their key.
 4. Let players in through the firewall (as administrator):
    `netsh advfirewall firewall add rule name="Battlecruiser co-op" dir=in action=allow protocol=TCP localport=7777`.
-5. Start it: `CoopServer.exe`. Its console shows who joins, and takes `status`, `newkey`,
-   `keys`, `revoke` and `quit`.
-6. To start it with Windows, without anyone logged in (as administrator):
-   `schtasks /create /tn "Battlecruiser co-op" /tr "C:\CoopServer\CoopServer.exe" /sc onstart /ru SYSTEM`.
-   Keys can still be made beside it while it runs (`CoopServer.exe --new-key Bob`), and
-   count at once.
+5. Start it: `CoopServer.exe`. Its console shows who joins and takes the commands under
+   **Console** above.
+6. To start it with Windows, without anyone logged in, in PowerShell as administrator (in its
+   own folder, with no time limit, started again if it stops):
+
+   ```
+   $a = New-ScheduledTaskAction -Execute "C:\CoopServer\CoopServer.exe" -WorkingDirectory "C:\CoopServer"
+   $t = New-ScheduledTaskTrigger -AtStartup
+   $s = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+   Register-ScheduledTask -TaskName "Battlecruiser co-op" -Action $a -Trigger $t -Settings $s -User SYSTEM -RunLevel Highest
+   ```
+
+   Run that way it has no console: its status page (`http://localhost:7777/`) shows who is on.
+   Keys can still be made beside it while it runs (`CoopServer.exe --new-key Bob`), and count
+   at once.
 
 #### Setting up a standalone server on Linux
 
-1. Unpack it: `tar xzf battlecruiser-4000-bc-coop-server-linux.tar.gz -C /opt` (it makes
-   `/opt/CoopServer`), and `chmod +x /opt/CoopServer/CoopServer` if needed. It is a single
+As on Windows, the API keys need the next release's server, or one built from source.
+
+1. Unpack it: `sudo tar xzf battlecruiser-4000-bc-coop-server-linux.tar.gz -C /opt` (it makes
+   `/opt/CoopServer`), and `sudo chmod +x /opt/CoopServer/CoopServer` if needed. It is a single
    self-contained program: no .NET to install.
-2. Edit `/opt/CoopServer/coopserver.json` if needed.
-3. Make the keys: `/opt/CoopServer/CoopServer --new-key Alice` (`--ai` for an AI player), and
-   `--list-keys` / `--revoke-key` later. (Run them as the user the server runs as, so the keys
-   file stays theirs.)
-4. Open the port: `sudo ufw allow 7777/tcp` (or your firewall's way).
-5. Run it as a service, `/etc/systemd/system/coopserver.service`:
+2. A user for it to run as, owning its folder:
+   `sudo useradd -r coopserver && sudo chown -R coopserver /opt/CoopServer`.
+3. Edit `/opt/CoopServer/coopserver.json` if needed (`sudo -u coopserver nano ...`).
+4. Make the keys, as that user (so the keys file stays theirs):
+   `sudo -u coopserver /opt/CoopServer/CoopServer --new-key Alice` (`--ai` for an AI player),
+   and `--list-keys` / `--revoke-key` later.
+5. Open the port: `sudo ufw allow 7777/tcp` (or your firewall's way).
+6. Run it as a service, `/etc/systemd/system/coopserver.service`:
 
    ```
    [Unit]
@@ -1353,12 +1383,15 @@ CoopServer --revoke-key <name|key>      revoke a key, then exit
    WantedBy=multi-user.target
    ```
 
-   then `sudo useradd -r coopserver && sudo chown -R coopserver /opt/CoopServer &&
-   sudo systemctl enable --now coopserver`. `journalctl -u coopserver -f` follows its log. To
-   make keys while it runs: `sudo -u coopserver /opt/CoopServer/CoopServer --new-key Bob`.
-6. For web players on an https page: a certificate (`--cert server.pfx`, or `certificate` in the
-   settings), or a reverse proxy with one in front (nginx with `proxy_pass` and the
-   WebSocket upgrade headers) forwarding to the server's port.
+   then `sudo systemctl enable --now coopserver`. `journalctl -u coopserver -f` follows its
+   log. Keys made while it runs (step 4) count at once.
+7. For web players on an https page, either:
+   - a certificate for the server itself (`certificate` in the settings, its full path); or
+   - a reverse proxy with one in front (nginx with `proxy_pass` and the WebSocket upgrade
+     headers) forwarding to the server. Then have the server listen on this machine only
+     (`"bind": "127.0.0.1"`), don't open its port (skip step 5; open the proxy's 443 instead),
+     and leave the allow-list empty: behind a proxy every player seems to come from the proxy's
+     address, so it can't tell them apart. The API keys still keep out anyone without one.
 
 #### Building the server
 

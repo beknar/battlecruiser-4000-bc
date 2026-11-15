@@ -28,7 +28,7 @@ namespace CarrierGame.Demo
                 showCaptain = PlayerPrefs.GetInt(PrefCaptain, 1) != 0;
                 fleetPanels = PlayerPrefs.GetInt(PrefFleet, 1) != 0;
                 float size = PlayerPrefs.GetFloat(PrefSize, 1f);
-                if (size >= 0.5f && size <= 3f) Hud.UserScale = size;
+                if (size >= 0.5f && size <= 3f) Hud.UserScale = SizeAt(StepOf(size));
             }
             catch { }
         }
@@ -64,11 +64,26 @@ namespace CarrierGame.Demo
         /// <summary>The HUD's size, as a share of its own (Hud.UserScale).</summary>
         public static float Size => Hud.UserScale;
 
-        /// <summary>A step bigger (+1) or smaller (-1): the +/- keys and the pause menu.</summary>
+        // the sizes, in steps of 15% either side of 100%: 55% to 295%
+        const int MinStep = -3, MaxStep = 13;
+        static int StepOf(float size) => Mathf.Clamp(Mathf.RoundToInt((size - 1f) / 0.15f), MinStep, MaxStep);
+        static float SizeAt(int step) => 1f + 0.15f * step;
+
+        /// <summary>A step bigger (+1) or smaller (-1): the +/- keys and the pause menu. (On
+        /// the steps either side of 100%, so it can always be got back to.)</summary>
         public static void ChangeSize(int dir)
         {
             Load();
-            Hud.ChangeTextSize(dir);
+            Hud.UserScale = SizeAt(Mathf.Clamp(StepOf(Hud.UserScale) + dir, MinStep, MaxStep));
+            Save();
+        }
+
+        /// <summary>The pause menu's row: a step bigger, round to the smallest after the biggest.</summary>
+        public static void NextSize()
+        {
+            Load();
+            int step = StepOf(Hud.UserScale);
+            Hud.UserScale = SizeAt(step >= MaxStep ? MinStep : step + 1);
             Save();
         }
     }

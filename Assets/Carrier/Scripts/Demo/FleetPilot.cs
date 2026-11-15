@@ -18,6 +18,11 @@ namespace CarrierGame.Demo
     /// </summary>
     public class FleetPilot : MonoBehaviour
     {
+        Health hull;
+        Shield shield;
+        /// <summary>Its hull and shield (looked up once, for the fleet's panels).</summary>
+        public Health Hull { get { if (hull == null) hull = GetComponent<Health>(); return hull; } }
+        public Shield ShieldGen { get { if (shield == null) shield = GetComponentInChildren<Shield>(); return shield; } }
         public enum Order { Follow, Guard, FormUp, Attack, Hold }
 
         public CarrierController ship;

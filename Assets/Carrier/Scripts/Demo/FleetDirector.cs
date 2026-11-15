@@ -258,8 +258,8 @@ namespace CarrierGame.Demo
         /// <summary>How a fleet ship stands, for its panel: under fire, fighting, under tow, or clear.</summary>
         public static string Alert(FleetPilot p, out Color c)
         {
-            var h = p.GetComponent<Health>();
-            var sh = p.GetComponentInChildren<Shield>();
+            var h = p.Hull;
+            var sh = p.ShieldGen;
             float hit = Mathf.Max(h != null ? h.LastHitTime : -100f, sh != null ? sh.LastHitTime : -100f);
             if (p.Towed) { c = new Color(0.6f, 0.65f, 0.72f); return "UNDER TOW"; }
             if (Time.time - hit < 3f) { c = new Color(1f, 0.35f, 0.28f); return "UNDER FIRE"; }
@@ -271,24 +271,40 @@ namespace CarrierGame.Demo
         /// <summary>Its guns, in a few words: how many, how many firing now.</summary>
         public static string Guns(FleetPilot p)
         {
-            var guns = p.ship != null ? p.ship.mainTurrets.Where(t => t != null).ToList() : new List<CarrierTurret>();
-            if (guns.Count == 0) return "no guns";
-            int firing = guns.Count(t => Time.time - t.LastFiredTime < 2.5f);
-            return firing > 0 ? $"guns {guns.Count}: {firing} firing" : p.Fighting != null ? $"guns {guns.Count}: bearing on {Wingman.NameOf(p.Fighting)}" : $"guns {guns.Count}: ready";
+            int count = 0, firing = 0;
+            if (p.ship != null)
+                foreach (var t in p.ship.mainTurrets)
+                {
+                    if (t == null) continue;
+                    count++;
+                    if (Time.time - t.LastFiredTime < 2.5f) firing++;
+                }
+            if (count == 0) return "no guns";
+            return firing > 0 ? $"guns {count}: {firing} firing" : p.Fighting != null ? $"guns {count}: bearing on {Wingman.NameOf(p.Fighting)}" : $"guns {count}: ready";
         }
 
         void OnGUI()
         {
             PanelsRect = Rect.zero;
             if (Ships.Count == 0 || !HudSettings.FleetPanels || Hud.ReelMode || Leader == null) return;
+            // (not over a screen that covers the game: the map, the menu, a site's screen)
+            if (SystemMap.IsOpen || GameMenu.IsOpen || IndustryPanel.IsOpen) return;
+            GUI.depth = 5;   // (behind the other panels, should any meet)
             float s = Hud.S;
             float w = 250f * s, h = 76f * s, gap = 6f * s, pad = 8f * s;
             var display = demo != null ? demo.GetComponent<TargetDisplay>() : null;
             float top = display != null && display.PanelRect.height > 0f ? display.PanelRect.yMax + 10f * s : 12f * s;
             float x = Screen.width - w - 12f * s;
-            int fits = Mathf.Max(1, Mathf.FloorToInt((Screen.height * 0.62f - top) / (h + gap)));
+            // as many as fit down the right side, above the bottom of the screen (and a line for
+            // the rest)
+            float moreH = 18f * s;
+            int fits = Mathf.Max(1, Mathf.FloorToInt((Screen.height - 12f * s - moreH - top) / (h + gap)));
+            int shown = Mathf.Min(fits, Ships.Count);
+            PanelsRect = new Rect(x, top, w, shown * (h + gap) + (Ships.Count > fits ? moreH : 0f));
+            // (the rest only drawn on a repaint: the strings and bars aren't needed for the others)
+            if (Event.current.type != EventType.Repaint) return;
             var small = Hud.Text(11);
-            for (int i = 0; i < Ships.Count && i < fits; i++)
+            for (int i = 0; i < shown; i++)
             {
                 var p = Ships[i];
                 var r = new Rect(x, top + i * (h + gap), w, h);
@@ -298,8 +314,8 @@ namespace CarrierGame.Demo
                 bool chosen = Selected == p;
                 GUI.Label(new Rect(r.x + pad, r.y + 3f * s, w - pad * 2f, 18f * s),
                           $"<b>{(chosen ? "<color=#ffc070>> </color>" : "")}{p.displayName.ToUpperInvariant()}</b>  <color=#{ColorUtility.ToHtmlStringRGB(ac)}>{alert}</color>", Hud.Text(12));
-                var hp = p.GetComponent<Health>();
-                var sh = p.GetComponentInChildren<Shield>();
+                var hp = p.Hull;
+                var sh = p.ShieldGen;
                 float y = r.y + 23f * s;
                 MiniBar(new Rect(r.x + pad, y, w - pad * 2f, 9f * s), "HULL", hp != null && hp.maxHealth > 0f ? hp.Current / hp.maxHealth : 0f, new Color(0.9f, 0.75f, 0.35f), s);
                 y += 13f * s;
@@ -307,8 +323,6 @@ namespace CarrierGame.Demo
                 y += 13f * s;
                 GUI.Label(new Rect(r.x + pad, y, w - pad * 2f, 16f * s), $"<color=#9aa4b0>{Guns(p)}  ·  {p.Doing}</color>", small);
             }
-            int shown = Mathf.Min(fits, Ships.Count);
-            PanelsRect = new Rect(x, top, w, shown * (h + gap));
             if (Ships.Count > fits)
                 GUI.Label(new Rect(x, top + fits * (h + gap), w, 16f * s), $"<color=#9aa4b0>and {Ships.Count - fits} more (Tab in fleet mode)</color>", small);
         }

@@ -104,7 +104,7 @@ namespace CarrierGame.Demo
             {
                 case Item.HudCaptain: HudSettings.ShowCaptain = !HudSettings.ShowCaptain; return;
                 case Item.HudFleet: HudSettings.FleetPanels = !HudSettings.FleetPanels; return;
-                case Item.HudSize: HudSettings.ChangeSize(+1); if (HudSettings.Size >= 2.9f) { while (HudSettings.Size > 0.55f) HudSettings.ChangeSize(-1); } return;
+                case Item.HudSize: HudSettings.NextSize(); return;
                 case Item.Resume: Close(); break;
                 case Item.Sound: SoundFX.Muted = !SoundFX.Muted; break;
                 case Item.Captain: Demo.Captain.Index++; if (CoopClient.Active) CoopClient.Instance.SendCaptain(); break;
@@ -254,9 +254,12 @@ namespace CarrierGame.Demo
         {
             if (!open) return;
             GUI.depth = -100;   // over the HUD panels
-            float s = Hud.S;
-            Hud.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0.01f, 0.03f, 0.55f));
+            // (as big as the HUD, but never taller than the screen: the HUD's size is set here,
+            // and the menu has to stay usable at any of them)
             int n = Demo.Captain.Roster.Length;
+            float tall = 44f + 54f + 46f * Items.Length + 78f + 30f + 40f;
+            float s = Mathf.Min(Hud.S, Screen.height * 0.96f / tall);
+            Hud.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0.01f, 0.03f, 0.55f));
             float thumb = 78f * s, gap = 8f * s;
             float w = Mathf.Max(440f * s, n * thumb + (n - 1) * gap + 44f * s), rowH = 46f * s, pad = 22f * s;
             float h = pad * 2f + 54f * s + rowH * Items.Length + thumb + 30f * s + 40f * s;

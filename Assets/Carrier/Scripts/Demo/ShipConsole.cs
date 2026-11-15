@@ -166,6 +166,7 @@ namespace CarrierGame.Demo
             // (the captain's portrait, unless the HUD is set up without it)
             bool showCaptain = HudSettings.ShowCaptain;
             float pad = 10f * s, portrait = showCaptain ? 196f * s : 0f, colW = 340f * s, row = 21f * s;
+            float capW = showCaptain ? portrait + pad : 0f;   // (the captain's column, and its gap)
             bool flash = Mathf.Repeat(Time.unscaledTime, 0.8f) < 0.5f;
 
             // ---- what to show
@@ -198,8 +199,8 @@ namespace CarrierGame.Demo
             // and a comms line across the bottom: what the captain is saying
             var comms = Hud.Text(14);
             float commsH = comms.lineHeight * 2.1f + 8f * s;
-            float h = Mathf.Max(showCaptain ? portrait + 26f * s : 0f, colH) + pad * 2f + commsH;
-            float w = pad * (showCaptain ? 3f : 2f) + portrait + colW;
+            float h = Mathf.Max(capW > 0f ? portrait + 26f * s : 0f, colH) + pad * 2f + commsH;
+            float w = pad * 2f + capW + colW;
             var panel = new Rect(pad, Screen.height - h - pad, w, h);
             drawn = panel;
             Hud.Panel(panel);
@@ -218,7 +219,7 @@ namespace CarrierGame.Demo
             }
 
             // ---- the column of bars
-            float x = showCaptain ? pr.xMax + pad : panel.x + pad, y = panel.y + pad;
+            float x = panel.x + pad + capW, y = panel.y + pad;
             string reason = cap != null ? cap.Reason : "";
             GUI.Label(new Rect(x, y, colW, 22f * s),
                 $"<b>{cc.shipName.ToUpperInvariant()}</b>   <color={dimHex ??= "#" + ColorUtility.ToHtmlStringRGB(Dim)}>{reason}</color>", Hud.Text(16));

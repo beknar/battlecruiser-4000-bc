@@ -179,13 +179,15 @@ namespace CarrierGame.Demo
             Shot("modes_no_captain");
             HudSettings.ShowCaptain = true;
             Check(narrow > 0f && narrow < wide * 0.8f, $"the captain hidden, the console is narrower ({wide:F0} -> {narrow:F0} px)");
-            float size0 = HudSettings.Size;
+            float size0 = Hud.UserScale;
             HudSettings.ChangeSize(-1);
             yield return null;
             yield return null;
             float smaller = ShipConsole.Rect.width;
             HudSettings.ChangeSize(+1);
-            Check(HudSettings.Size == size0 && smaller < wide, $"the HUD a size smaller: the console {wide:F0} -> {smaller:F0} px");
+            bool back = Mathf.Approximately(HudSettings.Size, size0);
+            Hud.UserScale = size0;
+            Check(back && smaller < wide, $"the HUD a size smaller: the console {wide:F0} -> {smaller:F0} px, and back to {HudSettings.Size * 100f:F0}%");
             if (hull != null) hull.cannotDie = false;
             Log($"{(passed == checks ? "PASS" : "FAIL")}: modes of play ({passed} of {checks})");
         }

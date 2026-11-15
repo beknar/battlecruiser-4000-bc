@@ -57,7 +57,7 @@ namespace CarrierGame.Demo
         /// <summary>A panel covers this point (GUI coordinates): a click there isn't on a ship.</summary>
         public bool Covers(Vector2 gui) =>
             helpRect.Contains(gui) || ShipConsole.Rect.Contains(gui) || (display != null && display.PanelRect.Contains(gui)) || MiningDisplay.ManifestRect.Contains(gui)
-            || ModeMenu.Area.Contains(gui);
+            || ModeMenu.Area.Contains(gui) || FleetDirector.PanelsRect.Contains(gui);
 
         // ------------------------------------------------------------ messages
 

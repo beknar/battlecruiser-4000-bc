@@ -184,8 +184,8 @@ namespace CarrierGame.Demo
             // mode's menu open, Esc is the menu's, and P closes it and pauses)
             if ((k.escapeKey.wasPressedThisFrame && !listUp) || k.pKey.wasPressedThisFrame) { ModeMenu.Close(); Menu.Open(); return; }
             if (k.hKey.wasPressedThisFrame) hud.ToggleHelp();
-            if (k.equalsKey.wasPressedThisFrame || k.numpadPlusKey.wasPressedThisFrame) Hud.ChangeTextSize(+1);
-            if (k.minusKey.wasPressedThisFrame || k.numpadMinusKey.wasPressedThisFrame) Hud.ChangeTextSize(-1);
+            if (k.equalsKey.wasPressedThisFrame || k.numpadPlusKey.wasPressedThisFrame) HudSettings.ChangeSize(+1);
+            if (k.minusKey.wasPressedThisFrame || k.numpadMinusKey.wasPressedThisFrame) HudSettings.ChangeSize(-1);
             if (k.f11Key.wasPressedThisFrame && !LaunchArgs.OnWeb) GameSession.ToggleFullScreen();   // in a browser, F11 is the browser's
             if (k.nKey.wasPressedThisFrame) ToggleMute();
 
@@ -430,8 +430,8 @@ namespace CarrierGame.Demo
 
             if (back)
             {
-                if (p.dpad.up.wasPressedThisFrame) { Hud.ChangeTextSize(+1); backCombo = true; }
-                if (p.dpad.down.wasPressedThisFrame) { Hud.ChangeTextSize(-1); backCombo = true; }
+                if (p.dpad.up.wasPressedThisFrame) { HudSettings.ChangeSize(+1); backCombo = true; }
+                if (p.dpad.down.wasPressedThisFrame) { HudSettings.ChangeSize(-1); backCombo = true; }
                 // Back + D-pad left/right: zoom the camera (left/right alone roll the ship)
                 if (GunshipPad && orbitCamera != null)
                 {

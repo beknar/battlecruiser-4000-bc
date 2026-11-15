@@ -68,6 +68,15 @@ namespace CarrierGame.Demo
             if (halberd == null || rapier == null) { Log("FAIL: fleet (the two didn't both join, so the rest can't be tried)"); panel.Close(); yield break; }
             panel.Close();
             yield return null;
+            yield return null;
+            // the fleet's panels, on the right: shown, and hidden when set so
+            bool shown = FleetDirector.PanelsRect.height > 0f;
+            HudSettings.FleetPanels = false;
+            yield return null;
+            yield return null;
+            bool hidden = FleetDirector.PanelsRect.height <= 0f;
+            HudSettings.FleetPanels = true;
+            Check(shown && hidden, $"the fleet's panels: shown {shown}, hidden when the HUD is set so {hidden} ({FleetDirector.Alert(halberd, out _)}, {FleetDirector.Guns(halberd)})");
             yield return Key(kb, K.K);
             until = Time.time + 10f;
             while (Time.time < until && Docking.Busy) yield return null;

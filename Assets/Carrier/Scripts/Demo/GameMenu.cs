@@ -27,8 +27,8 @@ namespace CarrierGame.Demo
 
         // (no frigate here: the frigate is chosen at the start of the game, on the start menu,
         // and kept for the game: its crew, parts and hold go with it)
-        enum Item { Resume, Restart, Sound, Captain, Coop, Quit }
-        static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Captain, Item.Coop, Item.Quit };
+        enum Item { Resume, Restart, Sound, Captain, Coop, HudCaptain, HudSize, HudFleet, Quit }
+        static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Captain, Item.Coop, Item.HudCaptain, Item.HudSize, Item.HudFleet, Item.Quit };
 
         int selected;
         Item? confirming;
@@ -82,6 +82,9 @@ namespace CarrierGame.Demo
                 case Item.Sound: return SoundFX.Muted ? "Sound: off" : "Sound: on";
                 case Item.Captain: return $"Captain:  <   {Demo.Captain.Current.name}   >";
                 case Item.Coop: return CoopClient.Active ? $"Co-op: {CoopClient.Instance.Players.Count} playing" : "Co-op: join a game";
+                case Item.HudCaptain: return HudSettings.ShowCaptain ? "HUD: the captain shown" : "HUD: the captain hidden";
+                case Item.HudSize: return $"HUD size:  <   {Mathf.RoundToInt(HudSettings.Size * 100f)}%   >";
+                case Item.HudFleet: return HudSettings.FleetPanels ? "HUD: the fleet's panels shown" : "HUD: the fleet's panels hidden";
                 default: return sure ? "Quit: press again to confirm" : "Quit";
             }
         }
@@ -99,6 +102,9 @@ namespace CarrierGame.Demo
             confirming = null;
             switch (it)
             {
+                case Item.HudCaptain: HudSettings.ShowCaptain = !HudSettings.ShowCaptain; return;
+                case Item.HudFleet: HudSettings.FleetPanels = !HudSettings.FleetPanels; return;
+                case Item.HudSize: HudSettings.ChangeSize(+1); if (HudSettings.Size >= 2.9f) { while (HudSettings.Size > 0.55f) HudSettings.ChangeSize(-1); } return;
                 case Item.Resume: Close(); break;
                 case Item.Sound: SoundFX.Muted = !SoundFX.Muted; break;
                 case Item.Captain: Demo.Captain.Index++; if (CoopClient.Active) CoopClient.Instance.SendCaptain(); break;
@@ -167,11 +173,16 @@ namespace CarrierGame.Demo
                 if (k.escapeKey.wasPressedThisFrame || k.pKey.wasPressedThisFrame) { Close(); return; }
                 if (k.upArrowKey.wasPressedThisFrame || k.wKey.wasPressedThisFrame) Move(-1);
                 if (k.downArrowKey.wasPressedThisFrame || k.sKey.wasPressedThisFrame) Move(+1);
-                // left/right on the Captain row: the previous or next captain
+                // left/right on the Captain row: the previous or next captain; on the HUD size: smaller, bigger
                 if (Items[selected] == Item.Captain)
                 {
                     if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame) Demo.Captain.Index--;
                     if (k.rightArrowKey.wasPressedThisFrame || k.dKey.wasPressedThisFrame) Demo.Captain.Index++;
+                }
+                if (Items[selected] == Item.HudSize)
+                {
+                    if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame) HudSettings.ChangeSize(-1);
+                    if (k.rightArrowKey.wasPressedThisFrame || k.dKey.wasPressedThisFrame) HudSettings.ChangeSize(+1);
                 }
                 if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame || k.spaceKey.wasPressedThisFrame) { Activate(selected); return; }
             }
@@ -184,6 +195,11 @@ namespace CarrierGame.Demo
                 {
                     if (pad.dpad.left.wasPressedThisFrame) Demo.Captain.Index--;
                     if (pad.dpad.right.wasPressedThisFrame) Demo.Captain.Index++;
+                }
+                if (Items[selected] == Item.HudSize)
+                {
+                    if (pad.dpad.left.wasPressedThisFrame) HudSettings.ChangeSize(-1);
+                    if (pad.dpad.right.wasPressedThisFrame) HudSettings.ChangeSize(+1);
                 }
                 // the left stick steps through the items, repeating while held
                 float y = pad.leftStick.y.ReadValue();

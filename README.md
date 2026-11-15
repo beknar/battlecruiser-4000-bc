@@ -98,7 +98,7 @@ scenes cut through black.
   to get back. The propellant depot at Jovara's L5, and the Trojan asteroids at L4.
 - **The Highport and the space elevator.** The geostationary station with its turning ring, and a
   climber riding the tether.
-- **Docking.** At the Highport: the hull is repaired and the ore sold.
+- **Docking.** At the Highport: the hull is repaired, and the ore sold on its trade page.
 - **Launch systems.** The launch loop on Thalassa, the StarTram and spin launcher on Ochre, the
   mass driver on Selene and the slingatron on Steropes, each launching a payload.
 - **Stations.** Deepcut Station, Ochre Relay and Brontes Shipyard.
@@ -480,7 +480,8 @@ system to travel around.
   | Selene Base | A colony on the surface of Selene: domes, habitats, a control tower and tanks round a landing pad |
   | Cinder Fortress | The corsairs' stronghold on the surface of Cinder (hostile) |
 
-  - **Docking** (K, Back + B on the pad). Within 1.6 km of the berth at the Highport, Deepcut, the
+  - **Docking** (K, Back + B on the pad). (The ore is sold on the services screen's trade page,
+    at a market.) Within 1.6 km of the berth at the Highport, Deepcut, the
     shipyard or the L5 depot, and out of combat, K brings the frigate in to it. (Farther out,
     K lands on the planet or moon nearby, as before.) There it is repaired, hull
     and shield, and where there is a market (all but the shipyard) the whole hold is sold. The
@@ -701,7 +702,8 @@ fitted to the frigate to make it better. All of it is in
     from Deepcut Station), with a landing pad on the rock: docking there sets the frigate down
     on the pad.
 - **The site's screen** opens by itself on arriving (docked, or landed on the pad), which puts
-  the game in services mode, and Tab or U (A on the pad) in services mode opens it again. It has up to six pages:
+  the game in services mode, and Tab or U (A on the pad) in services mode opens it again.
+  What it offers depends on what the place is, page by page. It has up to seven pages:
   - **Storage**: move ore, refined materials and parts between the hold and the site's
     storage. Each site keeps its own storage, with no limit; the frigate's hold is what is
     limited, so materials have to be carried from a refinery to a factory.
@@ -710,7 +712,14 @@ fitted to the frigate to make it better. All of it is in
   - **Build**: queue factory jobs, refined materials into parts.
   - **Fit**: fit parts from storage (or the hold) to the frigate, or take them off again (they
     go back into storage). Each part can be fitted once, and each frigate has so many slots.
-  - **Crew**: recruit, where the place recruits.
+  - **Trade**, at a trading station: a market (the Thalassa Highport, Deepcut Station, the
+    Jovara L5 Depot) or any place where people live. Sell what is aboard, at its worth: the ore
+    all at once, or item by item (Enter one lot, Shift+Enter all of it). Buy raw minerals,
+    refined materials and ship parts at 1.3 times their worth (Enter one lot, Shift+Enter
+    ten). A refinery's trade page buys minerals only. Docking no longer sells the ore by
+    itself.
+  - **Crew**: recruit, where the place recruits, or drop crew off (one or ten at a time): they
+    go ashore and join those waiting there to sign on.
   - **Shipyard**, where there is one: build destroyers and the cruiser, and take command of
     the ships berthed there (see below).
 - **Jobs take time** (20 to 45 s a batch to refine, 80 to 180 s a part), one at a time on each
@@ -967,7 +976,7 @@ menu (only the pause menu stops it).
 
 | Action | Keyboard / mouse | Xbox 360 pad |
 |---|---|---|
-| The site's screen (docked, or on its pad; it opens by itself on arriving) | Tab or U | A |
+| The services screen (docked, or on its pad; it opens by itself on arriving): storage, refining, building, fitting, trade, crew, the shipyard, as the place offers | Tab or U | A |
 | In the site's screen: pages / choose / load, store / act / cancel a job / close | Tab or Q E / ↑↓ / ← → (Shift for all) / Enter / Backspace / U or Esc | LB RB / D-pad ↑↓ / D-pad ← →, X, Y / A / Y / B |
 
 **Fleet mode (5)** is for the player's other ships.
@@ -1353,7 +1362,7 @@ The games run one at a time, in a 1280x720 window.
 | `build` | the builds (with `--build`) |
 | `serverproc` | the server program, end to end |
 | `autotest` | the deprecated Carrier Demo and Asteroid Ambush autotests: run only when named (`--only autotest --build`) |
-| `hud`, `modes`, `nav`, `ships`, `water`, `industry`, `crew`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
+| `hud`, `modes`, `nav`, `services`, `ships`, `water`, `industry`, `crew`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
 | `web` | the web build's co-op test |
 
 `--quick` runs `tools`, `server`, `unity`, `serverproc`, `autotest`, `hud` and `coop`.
@@ -1477,6 +1486,10 @@ Each part can also be run alone:
   range and targets the one chosen; lining up (C) turns the ship until its guns bear, and
   steering takes the helm back; a hostile destroyed leaves a wreck, listed in the menu, chosen
   there, and Z strips it into the hold.
+  Add `-servicestest` (or `?servicestest` on the web) to test the services mode: docking at the
+  Highport puts the game in services mode; its trade page sells the ore at its worth, buys a
+  part at the markup and sells it back; ten crew are dropped off and recruited back; undocking
+  goes back to the mode before; and the Belt Smelter's trade page buys minerals and nothing else.
   Add `-navtest` (or `?navtest` on the web) to test the navigation mode: which places are
   places and which are points of interest at them; the map stepping through places only; at
   Thalassa, the menu listing its points of interest; auto-travel to the Highport to dock, flown

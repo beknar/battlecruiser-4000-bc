@@ -87,11 +87,25 @@ namespace CarrierGame.Demo
             bool docked = dock.Current == Docking.State.Docked && dock.At == st;
             bool atBerth = Vector3.Distance(cc.transform.position, st.BerthPosition) < 5f;
             bool repaired = hull.Current >= hull.maxHealth - 0.5f;
-            bool sold = !st.market || (hold != null && hold.Used < 0.5f && hold.Credits - credits0 > worth * 0.99f);
+            // at a market, the ore is sold on the services screen's trade page
+            var panel = IndustryPanel.Instance;
+            bool traded = true;
+            if (st.market && panel != null)
+            {
+                if (IndustryPanel.IsOpen) panel.Show(IndustryPanel.Page.Trade); else panel.Open(IndustryPanel.Page.Trade);
+                traded = IndustryPanel.IsOpen && panel.Current == IndustryPanel.Page.Trade;
+                yield return new WaitForSeconds(0.5f);
+                Shot(shot + "_trade");
+                panel.SellAllOre();
+                panel.Close();
+                yield return null;
+            }
+            else if (IndustryPanel.IsOpen) { panel.Close(); yield return null; }
+            bool sold = !st.market || (traded && hold != null && hold.Used < 0.5f && hold.Credits - credits0 > worth * 0.99f);
             bool warpLocked = !drive.CanWarp(out string lockWhy);
             bool landLocked = PlanetLanding.Instance == null || !PlanetLanding.Instance.CanLand(out _, out _);
             Log($"  docked {docked} at the berth {atBerth}; hull {hull0:F0} -> {hull.Current:F0} of {hull.maxHealth:F0}; " +
-                (st.market ? $"sold {load:F0} t worth {worth:N0} cr: credits {credits0:N0} -> {(hold != null ? hold.Credits : 0f):N0}; " : "no market; ") +
+                (st.market ? $"the trade page {traded}: sold {load:F0} t worth {worth:N0} cr: credits {credits0:N0} -> {(hold != null ? hold.Credits : 0f):N0}; " : "no market; ") +
                 $"warp locked {warpLocked} ({lockWhy}), landing locked {landLocked}");
             yield return LookAt(st.transform.position, shot + "_docked", 3.2f, 10f);
             yield return Key(kb, UnityEngine.InputSystem.Key.K);

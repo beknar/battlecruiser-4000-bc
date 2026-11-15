@@ -222,6 +222,14 @@ namespace CarrierGame
             return true;
         }
 
+        /// <summary>Credits from a sale (at a trading station).</summary>
+        public void Earn(float credits)
+        {
+            if (credits <= 0f) return;
+            Credits += credits;
+            Changed?.Invoke();
+        }
+
         /// <summary>Sell all the ore aboard at its worth: returns the credits it fetched (and the
         /// tonnes sold). Refined goods and parts stay aboard.</summary>
         public float SellAll(out float tonnesSold)

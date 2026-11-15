@@ -117,12 +117,7 @@ namespace CarrierGame.Demo
             if (shield != null) shield.SetOffline(false);
             LastSoldTonnes = 0f;
             LastSoldCredits = 0f;
-            var hold = carrier.GetComponent<CargoHold>();
-            if (s.market && hold != null && hold.Used > 0.5f)
-            {
-                LastSoldCredits = hold.SellAll(out float tonnes);
-                LastSoldTonnes = tonnes;
-            }
+            // (the ore is sold on the services screen's trade page now, by choice)
             Dockings++;
             Current = State.Docked;
             SoundFX.Play(Sfx.Impact, carrier.transform.position, 0.35f, 0.5f);
@@ -139,8 +134,7 @@ namespace CarrierGame.Demo
         string Services()
         {
             string r = LastRepair > 0.5f ? $"hull repaired (+{LastRepair:F0})" : "hull sound";
-            if (At != null && At.market)
-                r += LastSoldTonnes > 0.5f ? $", sold {LastSoldTonnes:F0} t of ore for {LastSoldCredits:N0} cr" : ", nothing to sell";
+            if (At != null && At.market) r += ", a market";
             var site = IndustrySite.At(At);
             if (site != null)
             {

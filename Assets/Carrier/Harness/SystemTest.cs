@@ -74,6 +74,8 @@ namespace CarrierGame.Demo
             t.modesOnly = LaunchArgs.Switch("modestest");
             // -navtest (or ?navtest): only the navigation mode (places, points of interest, auto-travel)
             t.navOnly = LaunchArgs.Switch("navtest");
+            // -servicestest (or ?servicestest): only the services (trading, dropping crew off)
+            t.servicesOnly = LaunchArgs.Switch("servicestest");
             // -cooptest (or ?cooptest), with -connect address:port (?server=...&connect): co-op with
             // the scripted second player (Tools/CoopTest/bot.py); -coopquick (?coopquick) skips the
             // part at Corsair Haven
@@ -168,6 +170,13 @@ namespace CarrierGame.Demo
             if (coopOnly)
             {
                 yield return CoopTest(kb, coopQuick);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
+            if (servicesOnly)
+            {
+                yield return ServicesTest(kb);
                 Log("done");
                 if (!web) Application.Quit();
                 yield break;

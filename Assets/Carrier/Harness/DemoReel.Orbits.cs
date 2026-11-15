@@ -297,12 +297,23 @@ namespace CarrierGame.Demo
             yield return Wait(0.8f);
             LookPast(430, berth, D * 1.7f, 28f, 10f, 1.5f);
             yield return FadeIn();
-            Caption("DOCKING", "Dock (K) at a friendly station: the hull is repaired and the ore sold", 6f);
+            Caption("DOCKING", "Dock (K) at a friendly station: the hull is repaired, and at a market the ore is sold on its trade page", 6f);
             yield return Wait(1.2f);
             bool ok = dock.Dock();
             float until = Time.time + 8f;
             while (dock.Current != Docking.State.Docked && Time.time < until) yield return null;
-            Note($"docking at the Highport: {(ok ? "docked " + (dock.Current == Docking.State.Docked) : "refused")}; repaired {dock.LastRepair:F0}, sold {dock.LastSoldTonnes:F0} t for {dock.LastSoldCredits:N0} cr");
+            // the services screen's trade page: the ore sold
+            var panel = IndustryPanel.Instance;
+            float sold = 0f;
+            if (panel != null && dock.Current == Docking.State.Docked)
+            {
+                if (IndustryPanel.IsOpen) panel.Show(IndustryPanel.Page.Trade); else panel.Open(IndustryPanel.Page.Trade);
+                yield return Wait(1.6f);
+                sold = panel.SellAllOre();
+                yield return Wait(1.6f);
+                panel.Close();
+            }
+            Note($"docking at the Highport: {(ok ? "docked " + (dock.Current == Docking.State.Docked) : "refused")}; repaired {dock.LastRepair:F0}, sold the ore for {sold:N0} cr");
             // moored at the berth, the ring turning beyond it
             // from out beyond the berth, looking back in: the frigate moored, the station behind it
             Vector3 across = Vector3.Cross(way, hp.transform.up).normalized;

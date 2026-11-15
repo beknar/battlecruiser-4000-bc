@@ -393,6 +393,19 @@ namespace CarrierGame
             return n;
         }
 
+        /// <summary>Put up to `want` of the crew ashore at a place (services: they join those
+        /// waiting there to sign on): returns how many went.</summary>
+        public static int DropOff(string place, Crew crew, int want)
+        {
+            if (crew == null || want <= 0) return 0;
+            int n = Mathf.Min(want, crew.Aboard);
+            if (n <= 0) return 0;
+            crew.SetAboard(crew.Current - n);
+            pools[place] = Pool(place) + n;
+            Changed?.Invoke();
+            return n;
+        }
+
         /// <summary>The crew a frigate class had aboard (what was saved), or null.</summary>
         public static float? CrewOf(string frigate) => crews.TryGetValue(frigate ?? "", out float n) ? n : (float?)null;
 

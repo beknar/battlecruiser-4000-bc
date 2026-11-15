@@ -7,11 +7,13 @@ namespace CarrierGame.Demo
 {
     /// <summary>
     /// The star system map: a top-down chart of every place the frigate can mini-warp to (the
-    /// star, the planets and their moons, the asteroid fields, the comets, and what has been
-    /// built: stations, installations, weapons batteries, bases), with the bodies' orbits, the
+    /// star, the planets and their moons, the asteroid fields, the comets, the Lagrange points,
+    /// and what is built out in deep space on its own), with the bodies' orbits, the
     /// frigate's own position and heading, and for the chosen destination its distance and how
-    /// long the trip will take. Built places are small squares; a name that would run into
-    /// another is left off until the place is chosen. Pick a destination and warp from here.
+    /// long the trip will take, and the points of interest there (its bases and stations: Places),
+    /// which the navigation mode's menu flies to once the ship is there. Built places are small
+    /// squares; a name that would run into another is left off until the place is chosen. Pick a
+    /// destination and warp from here.
     /// Everything moves on its orbit (OrbitalSystem), and the map with it: the comets' long
     /// ellipses are drawn, and the five Lagrange points of Thalassa and Jovara, going round
     /// with them.
@@ -114,7 +116,8 @@ namespace CarrierGame.Demo
             Vector3 star = WarpPoint.All.FirstOrDefault(w => w.kind == WarpPoint.Kind.Star)?.Position ?? Vector3.zero;
             float Key(WarpPoint w) => Vector3.Distance(star, (w.orbitParent != null ? w.orbitParent : w).Position) * 1000f
                                       + (w.orbitParent != null ? Vector3.Distance(w.Position, w.orbitParent.Position) / 1000f : 0f);
-            order = WarpPoint.All.Where(w => w != null).OrderBy(Key).ToList();
+            // (the places: their points of interest are flown to from there, in navigation mode)
+            order = WarpPoint.All.Where(Places.IsPlace).OrderBy(Key).ToList();
             extent = 1f;
             foreach (var w in order) extent = Mathf.Max(extent, Flat(w.Position - star).magnitude + w.arrivalDistance);
         }
@@ -460,7 +463,9 @@ namespace CarrierGame.Demo
                     GUI.Label(new Rect(x, y, w, oh), oc, body);
                     y += oh + 8f * s;
                 }
-                var desc = new GUIContent(Selected.description + (Selected.hostile ? "\n<color=#ff6050>Hostile contacts reported.</color>" : ""));
+                var pois = Places.PointsOfInterest(Selected, Selected.Position);
+                string there = pois.Count == 0 ? "" : $"\n<color=#9aa4b0>Points of interest: {string.Join(", ", pois.Select(p => p.displayName + (p.hostile ? " (hostile)" : "")))}</color>";
+                var desc = new GUIContent(Selected.description + (Selected.hostile ? "\n<color=#ff6050>Hostile contacts reported.</color>" : "") + there);
                 float h = body.CalcHeight(desc, w);
                 GUI.Label(new Rect(x, y, w, h), desc, body);
                 y += h + 18f * s;

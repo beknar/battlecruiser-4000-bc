@@ -72,6 +72,8 @@ namespace CarrierGame.Demo
             t.strikeOnly = LaunchArgs.Switch("striketest");
             // -modestest (or ?modestest): only the modes of play
             t.modesOnly = LaunchArgs.Switch("modestest");
+            // -navtest (or ?navtest): only the navigation mode (places, points of interest, auto-travel)
+            t.navOnly = LaunchArgs.Switch("navtest");
             // -cooptest (or ?cooptest), with -connect address:port (?server=...&connect): co-op with
             // the scripted second player (Tools/CoopTest/bot.py); -coopquick (?coopquick) skips the
             // part at Corsair Haven
@@ -166,6 +168,13 @@ namespace CarrierGame.Demo
             if (coopOnly)
             {
                 yield return CoopTest(kb, coopQuick);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
+            if (navOnly)
+            {
+                yield return NavigationTest(kb);
                 Log("done");
                 if (!web) Application.Quit();
                 yield break;
@@ -498,7 +507,7 @@ namespace CarrierGame.Demo
         /// <summary>Press a warp control, then follow the jump through, timing it and taking pictures.</summary>
         IEnumerator Warp(Func<IEnumerator> press, string how, string shot, bool pictures)
         {
-            var target = map.Selected;
+            var target = warpTarget != null ? warpTarget : map.Selected;
             float expectTrip = drive.TravelTimeTo(target), expect = drive.chargeTime + expectTrip;
             float km = drive.DistanceTo(target) / 1000f;
             float t0 = Time.time;

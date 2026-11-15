@@ -495,6 +495,26 @@ system to travel around.
     by Selene Base's landing pad, or 2.6 km from the fortress, facing it. On the ground they are
     bigger, with two rings of buildings. The fortress has a ring of gun batteries and missile
     sites, tanks, and a gunship and fighters on its pad.
+- **Places and points of interest.** The system map warps to **places**: the star, the planets,
+  the moons, the asteroid fields, the comets, the Lagrange points, and what is built out in deep
+  space on its own (the Kestrel Deep Yard). Everything else is a **point of interest** at a
+  place: a base on a planet or moon, a station or battery in orbit close by, a base in an
+  asteroid field. The map lists the points of interest at the place chosen.
+  - **At a place**, in navigation mode, the menu (Tab) lists its points of interest, nearest
+    first, with how far each is, roughly how long the trip takes, and whether it has a pad or a
+    berth.
+  - **Auto-travel.** Enter flies the ship there by itself, in real time: no warp and no fade.
+    Round a planet it climbs and cruises at a height (higher for a longer trip, since cruise is
+    faster higher up), along the great circle, coming down to where a warp would have dropped it.
+    Across a field it flies straight. K flies there and then lands on the base's pad (the
+    auto-lander takes her down) or docks at the station. The trip takes time: a minute or two
+    round a planet.
+  - **By hand.** C sets the course without flying it. The point of interest is marked on screen
+    with its distance and the time to it at the speed the ship is making, or with a pointer at
+    the screen's edge when it is behind. X stops an auto-travel, and so does taking the helm;
+    the course stays marked.
+  - An AI player's "warp to" order, and the self-tests, still warp straight to a point of
+    interest with the drive.
 - **System map.** M (R3 on the pad), in any mode, opens a top-down chart of every place the frigate can go,
   with their orbits and the frigate's own position and heading. Stations and installations are
   small squares, bases and Lagrange points diamonds. For the chosen destination it shows what
@@ -936,7 +956,10 @@ menu (only the pause menu stops it).
 
 | Action | Keyboard / mouse | Xbox 360 pad |
 |---|---|---|
-| System map: warp | M | R3 |
+| System map: warp to a place | M | R3 |
+| Menu: the points of interest here (Enter flies there; K flies there and lands or docks; C sets the course, marked on screen) | Tab | Back + Y (A flies there, X and lands or docks) |
+| Fly to the course set / and land or dock there | Enter in the menu | A / LB |
+| Stop the auto-travel (or just steer) | X | B |
 | Cruise on/off | O | X |
 | On the map: choose a place / warp / close | Click, arrows or Tab / WARP, double-click or Enter / M or Esc | Left stick, D-pad or LB/RB / A / B |
 
@@ -1330,7 +1353,7 @@ The games run one at a time, in a 1280x720 window.
 | `build` | the builds (with `--build`) |
 | `serverproc` | the server program, end to end |
 | `autotest` | the deprecated Carrier Demo and Asteroid Ambush autotests: run only when named (`--only autotest --build`) |
-| `hud`, `modes`, `ships`, `water`, `industry`, `crew`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
+| `hud`, `modes`, `nav`, `ships`, `water`, `industry`, `crew`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
 | `web` | the web build's co-op test |
 
 `--quick` runs `tools`, `server`, `unity`, `serverproc`, `autotest`, `hud` and `coop`.
@@ -1454,6 +1477,11 @@ Each part can also be run alone:
   range and targets the one chosen; lining up (C) turns the ship until its guns bear, and
   steering takes the helm back; a hostile destroyed leaves a wreck, listed in the menu, chosen
   there, and Z strips it into the hold.
+  Add `-navtest` (or `?navtest` on the web) to test the navigation mode: which places are
+  places and which are points of interest at them; the map stepping through places only; at
+  Thalassa, the menu listing its points of interest; auto-travel to the Highport to dock, flown
+  with no warp; auto-travel to the launch loop to land, flown and then taken down by the
+  auto-lander; a course set (C) marked but not flown; and X stopping a trip.
   Add `-approachtest` (or `?approachtest` on the web) to test the real-size system and flying
   down to it: the planets' sizes and distances, the world drawn round the frigate after a warp
   of millions of kilometres, the far bodies drawn nearer, Ochre's ground seen from orbit, the

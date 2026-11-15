@@ -214,8 +214,12 @@ namespace CarrierGame.Demo
             if (k.gKey.wasPressedThisFrame) ToggleAutoFire();
             if (k.bKey.wasPressedThisFrame) ChargeMainGun();
             if (k.rKey.wasPressedThisFrame) FireMissiles();
-            // (with the menu open, C acts on the row chosen: CombatMode.Keys)
-            if (k.cKey.wasPressedThisFrame && !ModeMenu.IsOpen && !ModeMenu.JustClosed) Combat?.ToggleLineUp();
+            // (with the menu open, C and Z act on the row chosen: CombatMode.Keys)
+            if (!ModeMenu.IsOpen && !ModeMenu.JustClosed)
+            {
+                if (k.cKey.wasPressedThisFrame) Combat?.ToggleLineUp();
+                if (k.zKey.wasPressedThisFrame) Salvage.Instance?.Toggle();
+            }
             // targeting: T cycles (Shift+T back), a click picks a ship, X stops targeting
             if (k.tKey.wasPressedThisFrame) { if (k.shiftKey.isPressed) PreviousTarget(); else NextTarget(); }
             if (k.xKey.wasPressedThisFrame || k.backspaceKey.wasPressedThisFrame) ClearTarget();
@@ -403,6 +407,7 @@ namespace CarrierGame.Demo
                 if (p.buttonNorth.wasPressedThisFrame) { if (!listUp) OpenModeMenu(); backCombo = true; }
                 if (p.buttonSouth.wasPressedThisFrame) { if (!carrier.Destroyed) LevelOff(); backCombo = true; }
                 if (p.buttonEast.wasPressedThisFrame) backCombo = true;     // (land or dock: PlanetLanding, Docking)
+                if (p.buttonWest.wasPressedThisFrame && Modes.Is(ModeOfPlay.Combat) && !carrier.Destroyed) { Salvage.Instance?.Toggle(); backCombo = true; }
             }
             if (p.selectButton.wasReleasedThisFrame) { if (!backCombo) hud.ToggleHelp(); backCombo = false; }
             if (p.rightStickButton.wasPressedThisFrame && warp == null) CycleCamera();    // R3 (the system map, with a warp drive)

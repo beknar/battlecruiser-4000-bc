@@ -21,6 +21,10 @@ namespace CarrierGame
         [Tooltip("Respawn after this many seconds instead of being destroyed (0 = destroy).")]
         public float respawnDelay = 0f;
         public UnityEvent onDestroyed;
+        /// <summary>Anything with Health destroyed (after its breakup has started), every time
+        /// (one that respawns too): salvage leaves a wreck where a hostile died. A listener that
+        /// throws doesn't stop the death going on.</summary>
+        public static event System.Action<Health> AnyDestroyed;
         public UnityEvent onRespawned;
 
         public float Current { get; private set; }
@@ -160,6 +164,12 @@ namespace CarrierGame
                 e.transform.localScale *= deathEffectScale;
             }
             onDestroyed?.Invoke();
+            if (AnyDestroyed != null)
+                foreach (System.Action<Health> listener in AnyDestroyed.GetInvocationList())
+                {
+                    try { listener(this); }
+                    catch (System.Exception ex) { Debug.LogException(ex, this); }
+                }
             if (respawnDelay > 0f)
             {
                 if (breakup == null) foreach (var r in GetComponentsInChildren<Renderer>()) r.enabled = false;

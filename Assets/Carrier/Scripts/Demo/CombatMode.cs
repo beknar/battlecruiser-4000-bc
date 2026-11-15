@@ -30,10 +30,10 @@ namespace CarrierGame.Demo
 
         // ------------------------------------------------------------ the menu
 
-        public string Title => "COMBAT: TARGETS IN RANGE";
+        public string Title => "COMBAT: TARGETS AND WRECKS";
 
-        public string Hint(bool pad) => pad ? "D-pad choose   A target it   X line up on it   B close"
-                                            : "Up/Down choose   Enter target it   C line up on it   Tab close";
+        public string Hint(bool pad) => pad ? "D-pad choose   A target it / choose the wreck   X line up on it   B close"
+                                            : "Up/Down choose   Enter target it / choose the wreck   C line up   Z salvage   Tab close";
 
         public void Rows(List<MenuRow> rows)
         {
@@ -57,6 +57,23 @@ namespace CarrierGame.Demo
                     tag = t,
                 });
             }
+            // wrecks to salvage, within 30 km
+            var salvage = Salvage.Instance;
+            var wrecks = salvage != null ? salvage.Near(30000f).ToList() : new List<Wreck>();
+            if (wrecks.Count > 0)
+            {
+                rows.Add(new MenuRow { header = true, text = $"WRECKS ({wrecks.Count})" });
+                foreach (var w in wrecks)
+                {
+                    string mark = w == salvage.Chosen || w == salvage.Working ? "<color=#ffc070>> </color>" : "";
+                    rows.Add(new MenuRow
+                    {
+                        text = $"{mark}{w.Name}  <color=#9aa4b0>{w.Summary(2)}</color>",
+                        detail = $"{Distance(salvage.DistanceTo(w))}   {w.Tonnes:F0} t{(salvage.InReach(w) ? "   in reach" : "")}",
+                        tag = w,
+                    });
+                }
+            }
         }
 
         public static string Distance(float m) => m >= 10000f ? $"{m / 1000f:F0} km" : m >= 1000f ? $"{m / 1000f:F1} km" : $"{m:F0} m";
@@ -64,10 +81,22 @@ namespace CarrierGame.Demo
         public void Act(MenuRow row)
         {
             if (row.tag is Transform t && t != null) demo.SelectTarget(t);
+            else if (row.tag is Wreck w && w != null) Salvage.Instance?.Choose(w);
         }
 
         public bool Keys(Keyboard k, Gamepad pad, MenuRow row)
         {
+            // Z on a wreck: choose it and salvage it (if in reach)
+            if (k != null && k.zKey.wasPressedThisFrame && row?.tag is Wreck w && w != null)
+            {
+                var salvage = Salvage.Instance;
+                if (salvage == null) return false;
+                salvage.Choose(w);
+                // (the beam on another wreck: moved to this one)
+                if (salvage.Working != null && salvage.Working != w) salvage.Stop();
+                if (salvage.Working == null) salvage.Toggle();
+                return true;
+            }
             bool lineUp = (k != null && k.cKey.wasPressedThisFrame) || (pad != null && !pad.selectButton.isPressed && pad.buttonWest.wasPressedThisFrame);
             if (!lineUp || !(row?.tag is Transform t) || t == null) return false;
             demo.SelectTarget(t);

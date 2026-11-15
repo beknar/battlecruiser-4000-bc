@@ -220,7 +220,10 @@ namespace CarrierGame.Demo
             if (!ModeMenu.IsOpen && !ModeMenu.JustClosed)
             {
                 if (k.cKey.wasPressedThisFrame) Combat?.ToggleLineUp();
-                if (k.zKey.wasPressedThisFrame) Salvage.Instance?.Toggle();
+                // Z: salvage (flying to the wreck first if it is out of reach); Shift+Z the next wreck
+                if (k.zKey.wasPressedThisFrame) { if (k.shiftKey.isPressed) Salvage.Instance?.ChooseNext(); else Salvage.Instance?.Toggle(); }
+                // U: fly to the target
+                if (k.uKey.wasPressedThisFrame) Combat?.FlyToTarget();
             }
             // targeting: T cycles (Shift+T back), a click picks a ship, X stops targeting
             if (k.tKey.wasPressedThisFrame) { if (k.shiftKey.isPressed) PreviousTarget(); else NextTarget(); }
@@ -256,6 +259,8 @@ namespace CarrierGame.Demo
             if (k.zKey.wasPressedThisFrame) ToggleMiningLaser();
             if (k.jKey.wasPressedThisFrame) Jettison();
             if (k.cKey.wasPressedThisFrame) Mining?.ToggleApproach();
+            // T (Shift+T back): choose the next deposit found, nearest first (C then flies there)
+            if (k.tKey.wasPressedThisFrame) Mining?.CycleDeposit(k.shiftKey.isPressed ? -1 : 1);
         }
 
         MiningMode mining;

@@ -67,6 +67,7 @@ namespace CarrierGame.Demo
                 foreach (var b in FindObjectsByType<EncounterGroup>(FindObjectsSortMode.None)) Off(b);
                 foreach (var b in FindObjectsByType<DefenseGrid>(FindObjectsSortMode.None)) Off(b);
                 foreach (var b in FindObjectsByType<AmbushDirector>(FindObjectsSortMode.None)) Off(b);
+                foreach (var b in FindObjectsByType<SpawnDirector>(FindObjectsSortMode.None)) Off(b);
                 Debug.Log("[Co-op] the enemies are the host's: puppets here");
             }
             else
@@ -80,7 +81,8 @@ namespace CarrierGame.Demo
                     if (e.puppet != null) Destroy(e.puppet);
                     e.puppet = null;
                     // one the host had destroyed comes back in its own time, as it would have
-                    if (e.h != null && e.h.Dead && e.h.respawnDelay > 0f) StartCoroutine(RespawnLater(e.h, e.h.respawnDelay));
+                    // (one whose location spawns it is left to its SpawnDirector)
+                    if (e.h != null && e.h.Dead && e.h.respawnDelay > 0f && !e.h.respawnHeld) StartCoroutine(RespawnLater(e.h, e.h.respawnDelay));
                 }
                 foreach (var b in directorsOff) if (b != null) b.enabled = true;
                 directorsOff.Clear();

@@ -32,8 +32,8 @@ namespace CarrierGame.Demo
 
         public string Title => "COMBAT: TARGETS AND WRECKS";
 
-        public string Hint(bool pad) => pad ? "D-pad choose   A target it / choose the wreck   X line up on it   B close"
-                                            : "Up/Down choose   Enter target it / choose the wreck   C line up   Z salvage   Tab close";
+        public string Hint(bool pad) => pad ? "D-pad choose   A target it / choose the wreck   X line up on it / fly to the wreck   B close"
+                                            : "Up/Down choose   Enter target it / choose the wreck   U fly to it   C line up / fly to the wreck   Z salvage   Tab close";
 
         public void Rows(List<MenuRow> rows)
         {
@@ -98,6 +98,21 @@ namespace CarrierGame.Demo
                 return true;
             }
             bool lineUp = (k != null && k.cKey.wasPressedThisFrame) || (pad != null && !pad.selectButton.isPressed && pad.buttonWest.wasPressedThisFrame);
+            // C (X on the pad) or U on a wreck: fly to it, and salvage it there
+            if ((lineUp || (k != null && k.uKey.wasPressedThisFrame)) && row?.tag is Wreck fw && fw != null)
+            {
+                ModeMenu.Close();
+                Salvage.Instance?.FlyTo(fw);
+                return true;
+            }
+            // U on a target: target it, and fly to it
+            if (k != null && k.uKey.wasPressedThisFrame && row?.tag is Transform ft && ft != null)
+            {
+                demo.SelectTarget(ft);
+                ModeMenu.Close();
+                FlyToTarget();
+                return true;
+            }
             if (!lineUp || !(row?.tag is Transform t) || t == null) return false;
             demo.SelectTarget(t);
             StartLineUp();
@@ -105,6 +120,25 @@ namespace CarrierGame.Demo
         }
 
         // ------------------------------------------------------------ lining up
+
+        /// <summary>U: fly to the target, until its guns reach it, and line up on it there.
+        /// Again, or the helm, stops it.</summary>
+        public void FlyToTarget()
+        {
+            var ship = Ship;
+            var fly = AutoFly.Instance;
+            if (ship == null || ship.Destroyed || fly == null) return;
+            var t = ship.target;
+            if (t == null) { SoundFX.Ui(Sfx.UiError); Notices.Post("Fly to: pick a target first (T, or click a ship)"); return; }
+            string name = Wingman.NameOf(t);
+            if (fly.Active && fly.Label == name) { fly.Stop("Auto-flight off"); return; }
+            // (to well inside the reach of its longest guns)
+            float reach = 0f;
+            if (ship.mainTurrets != null) foreach (var g in ship.mainTurrets) if (g != null) reach = Mathf.Max(reach, g.range);
+            reach = reach > 0f ? reach * 0.7f : 1500f;
+            fly.Begin(name, () => t != null ? t.position : ship.transform.position, reach, StartLineUp,
+                      () => t != null && ship.target == t && !(t.TryGetComponent(out Health h) && h.Dead));
+        }
 
         public void ToggleLineUp()
         {
@@ -117,6 +151,7 @@ namespace CarrierGame.Demo
             var ship = Ship;
             if (ship == null || ship.Destroyed) return;
             if (ship.target == null) { SoundFX.Ui(Sfx.UiError); Notices.Post(PadSupport.UsingPad ? "Line up: pick a target first (Y)" : "Line up: pick a target first (T, or click a ship)"); return; }
+            AutoFly.Instance?.Stop();
             LiningUp = true;
             saidLinedUp = false;
             nextLook = 0f;

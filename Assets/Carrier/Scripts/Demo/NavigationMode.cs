@@ -93,6 +93,7 @@ namespace CarrierGame.Demo
                 case WarpPoint.Kind.Installation: return "installation";
                 case WarpPoint.Kind.Weapons: return "weapons";
                 case WarpPoint.Kind.AsteroidBase: return "asteroid base";
+                case WarpPoint.Kind.Landmark: return string.IsNullOrEmpty(p.kindLabel) ? "landmark" : p.kindLabel;
                 default: return p.kind.ToString().ToLowerInvariant();
             }
         }
@@ -131,7 +132,10 @@ namespace CarrierGame.Demo
         /// down on its pad, at its berth, or just there.</summary>
         public static Then FinishFor(WarpPoint p) => CanLandAt(p) ? Then.Land : DockAt(p) != null ? Then.Dock : Then.Arrive;
 
-        static bool CanLandAt(WarpPoint p) => p.kind == WarpPoint.Kind.SurfaceBase && p.LandingBody != null && p.LandingBody.surface != SurfaceKind.None;
+        static bool CanLandAt(WarpPoint p) =>
+            (p.kind == WarpPoint.Kind.SurfaceBase && p.LandingBody != null && p.LandingBody.surface != SurfaceKind.None)
+            // (a landmark on a surface: down there, by the auto-lander)
+            || (p.kind == WarpPoint.Kind.Landmark && p.overhead && p.follow != null && p.follow.surface != SurfaceKind.None);
 
         static Installation DockAt(WarpPoint p) =>
             Installation.All.FirstOrDefault(i => i != null && i.canDock && !i.hostile && i.displayName == p.displayName);
@@ -160,6 +164,7 @@ namespace CarrierGame.Demo
             var place = Places.PlaceOf(p) ?? p;
             if (why == null && place != Places.At(ship.transform.position)) why = $"warp to {place.displayName} first (M)";
             if (why != null) { SoundFX.Ui(Sfx.UiError); Notices.Post($"Can't fly to {p.displayName}: {why}"); return false; }
+            AutoFly.Instance?.Stop();
             Course = p;
             here = place;
             Finish = then;

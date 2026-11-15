@@ -129,6 +129,36 @@ namespace CarrierGame.Demo
             Check(going && !nav.Travelling && nav.Course == highport && demo.autoRudder == null, "Enter flies it; X stops the trip, the course still marked");
             Shot("nav_course");
 
+            // ---- more than one point of interest at every planet, moon and asteroid field
+            var bodies = WarpPoint.All.Where(w => w != null && (w.kind == WarpPoint.Kind.Planet || w.kind == WarpPoint.Kind.Moon || w.kind == WarpPoint.Kind.AsteroidField)).ToList();
+            var few = bodies.Where(b => Places.PointsOfInterest(b, b.Position).Count < 2).Select(b => b.displayName).ToList();
+            var tPois = Places.PointsOfInterest(thalassa, cc.transform.position).Select(w => w.displayName).ToList();
+            Check(Landmarks.All.Count > 0 && few.Count == 0 && tPois.Contains("Thalassa Northern Reach") && tPois.Contains("Thalassa High Orbit"),
+                  $"every planet, moon and field has 2 or more points of interest ({Landmarks.All.Count} landmarks{(few.Count > 0 ? "; fewer at " + string.Join(", ", few) : "")}); Thalassa's: {string.Join(", ", tPois)}");
+            var north = Point("Thalassa Northern Reach");
+            Check(north != null && Places.PlaceOf(north) == thalassa && Vector3.Distance(north.Position, thalassa.Position) > thalassa.bodyRadius * 0.99f
+                  && Vector3.Distance(north.ArrivalPoint(cc.transform.position), north.Position) > 10000f,
+                  "a surface landmark is on Thalassa's surface, and is dropped into high over it");
+
+            // ---- a mini-warp to a ship (an ally): it drops out close by
+            // (a stand-in ship riding with a station, the farthest at Thalassa: a loose object far
+            // out would be left in a different frame from the ship, and drift from it)
+            var dock = Places.PointsOfInterest(thalassa, cc.transform.position)
+                             .Where(w => w.Built && w.GetComponent<ScaledSpace>() == null)
+                             .OrderByDescending(w => Vector3.Distance(w.Position, cc.transform.position)).FirstOrDefault();
+            var buddy = new GameObject("Test ally");
+            if (dock != null) buddy.transform.SetParent(dock.transform, false);
+            buddy.transform.position = (dock != null ? dock.Position : cc.transform.position + cc.transform.right * 300000f) + Vector3.up * 6000f;
+            Log($"  a stand-in ally by {(dock != null ? dock.displayName : "nothing")}, {Vector3.Distance(cc.transform.position, buddy.transform.position) / 1000f:F0} km off");
+            int warps1 = drive.Warps;
+            bool engaged = drive.EngageTo(buddy.transform, "Test ally", out string bwhy);
+            float bu = Time.time + 40f;
+            while (Time.time < bu && engaged && drive.Current != WarpDrive.State.Ready) yield return null;
+            float near = Vector3.Distance(cc.transform.position, buddy.transform.position);
+            Check(engaged && drive.Warps == warps1 + 1 && near < 3000f,
+                  $"a mini-warp to a ship drops out {near:F0} m from it ({(engaged ? "engaged" : "refused: " + bwhy)})");
+            Destroy(buddy);
+
             yield return Key(kb, K.Digit1);
             if (hull != null) hull.cannotDie = false;
             Log($"{(passed == checks ? "PASS" : "FAIL")}: navigation ({passed} of {checks})");

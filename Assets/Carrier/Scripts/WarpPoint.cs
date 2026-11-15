@@ -13,7 +13,9 @@ namespace CarrierGame
     /// </summary>
     public class WarpPoint : MonoBehaviour
     {
-        public enum Kind { Star, Planet, Moon, AsteroidField, Comet, Station, Installation, Weapons, AsteroidBase, SurfaceBase, Lagrange }
+        /// <summary>(Landmark: a point of interest made at the start, not built: a site on a
+        /// planet's or moon's surface, a high orbit over it, a part of an asteroid field. Landmarks.)</summary>
+        public enum Kind { Star, Planet, Moon, AsteroidField, Comet, Station, Installation, Weapons, AsteroidBase, SurfaceBase, Lagrange, Landmark }
 
         public string displayName = "Unknown";
         public Kind kind = Kind.Planet;
@@ -46,15 +48,22 @@ namespace CarrierGame
         {
             get
             {
+                // (a landmark: where it is on the body it goes with, in the body's own frame)
+                if (follow != null) return follow.Position + follow.transform.rotation * followOffset;
                 if (!scaledLooked) { scaledLooked = true; scaled = GetComponent<ScaledSpace>(); }
                 return scaled != null ? scaled.RealPosition : transform.position;
             }
         }
+
+        /// <summary>A landmark's body (the place it is at), and where on it it is: an offset in
+        /// the body's frame (m).</summary>
+        [System.NonSerialized] public WarpPoint follow;
+        [System.NonSerialized] public Vector3 followOffset;
         ScaledSpace scaled;
         bool scaledLooked;
 
         /// <summary>Something built, not a natural body.</summary>
-        public bool Built => kind >= Kind.Station;
+        public bool Built => kind >= Kind.Station && kind != Kind.Landmark;
         /// <summary>The body to land on from here (itself, or the body a surface base is on).</summary>
         public WarpPoint LandingBody => landsOn != null ? landsOn : this;
 
@@ -75,9 +84,10 @@ namespace CarrierGame
             {
                 // straight above it, a little back the way the ship came so it faces the base (on a
                 // planet or moon, high in its air: the ground is built as the ship comes down)
-                Vector3 up = transform.TransformDirection(overheadAxis).normalized;
+                Vector3 up = follow != null ? (Position - follow.Position).normalized : transform.TransformDirection(overheadAxis).normalized;
                 Vector3 back = Vector3.ProjectOnPlane(dir, up);
-                bool body = landsOn != null && (landsOn.kind == Kind.Planet || landsOn.kind == Kind.Moon);
+                var on = landsOn != null ? landsOn : follow;
+                bool body = on != null && (on.kind == Kind.Planet || on.kind == Kind.Moon);
                 float h = body ? Mathf.Max(arrivalDistance, 12000f) : arrivalDistance;
                 Vector3 o = Position + up * h + (back.sqrMagnitude > 1f ? back.normalized * h * overheadSide : Vector3.zero);
                 if (Cover.Mask != 0)
@@ -99,16 +109,17 @@ namespace CarrierGame
             // otherwise the one whose zone is closest, relative to its size
             WarpPoint best = null;
             float bestZone = float.MaxValue, bestRatio = float.MaxValue;
+            // (not a landmark: "near" is the place, or what is built there)
             foreach (var w in All)
             {
-                if (w == null) continue;
+                if (w == null || w.kind == Kind.Landmark) continue;
                 float d = Vector3.Distance(p, w.Position);
                 if (d < w.arrivalDistance * 1.4f && w.arrivalDistance < bestZone) { bestZone = w.arrivalDistance; best = w; }
             }
             if (best != null) return best;
             foreach (var w in All)
             {
-                if (w == null) continue;
+                if (w == null || w.kind == Kind.Landmark) continue;
                 float r = Vector3.Distance(p, w.Position) / Mathf.Max(1f, w.arrivalDistance);
                 if (r < bestRatio) { bestRatio = r; best = w; }
             }

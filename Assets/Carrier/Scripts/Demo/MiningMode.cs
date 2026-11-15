@@ -132,10 +132,32 @@ namespace CarrierGame.Demo
             StartApproach();
         }
 
+        /// <summary>The deposits found, nearest the laser first (what the menu lists).</summary>
+        System.Collections.Generic.List<IMineralSource> Found()
+        {
+            var sensor = demo != null ? demo.Sensor : null;
+            var laser = demo != null ? demo.Laser : null;
+            if (sensor == null || laser == null) return new System.Collections.Generic.List<IMineralSource>();
+            return sensor.Finds.Select(f => f.source).Where(s => s != null && s.Valid && !s.Depleted).Distinct()
+                         .OrderBy(s => laser.Reach(s)).ToList();
+        }
+
+        /// <summary>T (Shift+T back): choose the next deposit found, nearest first.</summary>
+        public void CycleDeposit(int dir)
+        {
+            var found = Found();
+            if (found.Count == 0) { SoundFX.Ui(Sfx.UiError); Notices.Post("No deposits found: V scans"); return; }
+            int i = Chosen != null ? found.IndexOf(Chosen) : -1;
+            i = i < 0 ? (dir > 0 ? 0 : found.Count - 1) : (i + dir + found.Count) % found.Count;
+            Choose(found[i]);
+        }
+
         public void StartApproach()
         {
             var laser = demo != null ? demo.Laser : null;
             if (laser == null) return;
+            // (none chosen yet: the nearest found)
+            if ((Chosen == null || !Chosen.Valid || Chosen.Depleted) && Found().FirstOrDefault() is IMineralSource nearest) Choose(nearest);
             if (Chosen == null || !Chosen.Valid || Chosen.Depleted)
             {
                 SoundFX.Ui(Sfx.UiError);
@@ -143,6 +165,7 @@ namespace CarrierGame.Demo
                 return;
             }
             if (laser.Reach(Chosen) <= laser.range * 0.8f) { Notices.Post($"{Chosen.Label} is in reach already"); return; }
+            AutoFly.Instance?.Stop();
             Approaching = true;
             approachLog = 0f;
             throttleSet = -1f;

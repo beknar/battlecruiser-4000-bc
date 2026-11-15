@@ -38,6 +38,9 @@ namespace CarrierGame.Demo
             go.AddComponent<ShipConsole>().demo = demo;
             // the modes of play: their menu, and the combat mode's
             go.AddComponent<ModeMenu>();
+            go.AddComponent<AutoFly>().demo = demo;
+            go.AddComponent<Landmarks>();
+            go.AddComponent<SpawnDirector>();
             go.AddComponent<CombatMode>().demo = demo;
             go.AddComponent<Salvage>().demo = demo;
             go.AddComponent<MiningMode>().demo = demo;
@@ -136,16 +139,16 @@ namespace CarrierGame.Demo
                         lines.Add("F fire guns   G auto-fire on/off" + (carrier.HasMissiles ? "   R missile salvo" : ""));
                         if (demo.MainGun != null) lines.Add("B main gun: charge (fires after 10 s)");
                         lines.Add("T next target (Shift+T back)   click a ship");
-                        lines.Add("X stop targeting   C line up on the target");
+                        lines.Add("X stop targeting   C line up   U fly to the target");
                         if (KineticStrike.Instance != null) lines.Add("Y kinetic strike from orbit");
-                        if (demo.Cargo != null) lines.Add("Z salvage a wreck in reach");
+                        if (demo.Cargo != null) lines.Add("Z salvage a wreck (flies to it)   Shift+Z next wreck");
                         if (FleetDirector.Instance != null && FleetDirector.Instance.Ships.Count > 0) lines.Add("V the fleet attacks my target   Shift+V forms up");
                         lines.Add("Tab the targets and wrecks near");
                         break;
                     case ModeOfPlay.Mining:
                         if (demo.Laser == null) { lines.Add("<i>No mining gear on this ship</i>"); break; }
                         lines.Add("Z mining laser on/off   V mineral scan");
-                        lines.Add("C fly to the chosen deposit");
+                        lines.Add("T next deposit (Shift+T back)   C fly to it");
                         lines.Add("I cargo hold   J jettison cheapest ore");
                         lines.Add("Tab the deposits found, and the ore aboard");
                         break;

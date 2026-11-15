@@ -153,7 +153,9 @@ namespace CarrierGame.Demo
                         break;
                     case ModeOfPlay.Services:
                         lines.Add("Tab or U the station's or base's services");
-                        lines.Add("(docked, or landed on its pad)");
+                        lines.Add("   (docked, or landed on its pad): storage, refining,");
+                        lines.Add("   building, fitting, trade, crew, the shipyard");
+                        lines.Add("   (what the place offers)");
                         break;
                     case ModeOfPlay.Fleet:
                         lines.Add("<i>No other ships yet: build one at a shipyard</i>");

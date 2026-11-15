@@ -166,6 +166,9 @@ namespace CarrierGame
             {
                 if (!p.Recruits || p.refillPerMinute <= 0f) continue;
                 float was = Pool(p.name);
+                // (refilling up to the place's own number; crew put ashore can take it past that,
+                // and are kept)
+                if (was >= p.recruits) continue;
                 float now = Mathf.Min(p.recruits, was + p.refillPerMinute * dt / 60f);
                 pools[p.name] = now;
                 if (Mathf.FloorToInt(now) != Mathf.FloorToInt(was)) any = true;
@@ -389,6 +392,21 @@ namespace CarrierGame
             if (!hold.Spend(n * table.recruitCost)) { why = "not enough credits"; return 0; }
             n = crew.Add(n);
             pools[place] = Pool(place) - n;
+            Changed?.Invoke();
+            return n;
+        }
+
+        /// <summary>Put up to `want` of the crew ashore at a place (services: they join those
+        /// waiting there to sign on): returns how many went.</summary>
+        public static int DropOff(string place, Crew crew, int want)
+        {
+            if (crew == null || want <= 0) return 0;
+            // (never below the few a ship keeps through anything: enough to sail her)
+            int keep = Mathf.CeilToInt(crew.complement * CrewTable.Get().survivors);
+            int n = Mathf.Min(want, crew.Aboard - keep);
+            if (n <= 0) return 0;
+            crew.SetAboard(crew.Current - n);
+            pools[place] = Pool(place) + n;
             Changed?.Invoke();
             return n;
         }

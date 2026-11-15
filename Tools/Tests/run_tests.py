@@ -24,6 +24,7 @@ Stages, in order (--quick runs the ones marked *):
   approach     -approachtest: the real-size system; the ground seen from orbit; the auto-lander down to a pad and back; by hand onto a moon
   strike       -striketest: strikes from orbit: satellites on settlements (off-screen and watched), the frigate's kinetic rods, craters, rubble
   nav          -navtest: the navigation mode: the map's places, their points of interest, auto-travel in real time to dock and to land
+  services     -servicestest: the services mode: a station's trade page (sell at worth, buy at a markup), dropping crew off, a refinery buying minerals only
   modes        -modestest: the modes of play: their keys, the controls box, their menus over a game that goes on, lining up on a target
   coop *       Star System -systemtest -cooptest against the scripted bot (Tools/CoopTest/bot.py)
   aibot        the AI wingman: Star System -coopbot (headless) checked as a player sees it, through its
@@ -64,7 +65,7 @@ WINDOW = ["-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", 
 WINDOWS = os.name == "nt"
 EXE = ".exe" if WINDOWS else ""
 
-STAGES = ["tools", "server", "unity", "build", "serverproc", "autotest", "hud", "modes", "nav", "ships", "water", "industry", "crew", "stream", "approach", "strike", "coop",
+STAGES = ["tools", "server", "unity", "build", "serverproc", "autotest", "hud", "modes", "nav", "services", "ships", "water", "industry", "crew", "stream", "approach", "strike", "coop",
           "aibot", "web", "system", "land", "orbit", "station"]
 QUICK = ["tools", "server", "unity", "serverproc", "hud", "modes", "coop"]
 # stages of the deprecated games (Carrier Demo, Asteroid Ambush): run only when named with --only
@@ -80,6 +81,7 @@ SELFTESTS = {
     "strike": (["-striketest"], 1200),
     "modes": (["-modestest"], 600),
     "nav": (["-navtest"], 1500),
+    "services": (["-servicestest"], 900),
     "system": ([], 1500),
     "land": (["-landtest"], 900),
     "orbit": (["-orbittest"], 1800),

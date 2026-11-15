@@ -76,10 +76,10 @@ namespace Carrier.EditorTools
             IndustrySites(s, root, b);
             Settlements(s, root, b);
             StrikeSatellites(s, p, root, b);
-            // every place that recruits crew is a port (its screen opens when docked, or landed
-            // on its pad, for the crew page)
+            // every place that recruits crew, and every market, is a port (its services screen
+            // opens when docked, or landed on its pad: the crew page, the trade page)
             foreach (var inst in root.GetComponentsInChildren<Installation>(true).Concat(s.sys.GetComponentsInChildren<Installation>(true)).Distinct())
-                if (!inst.hostile && CrewTable.Get().Place(inst.displayName)?.Recruits == true && inst.GetComponent<IndustrySite>() == null)
+                if (!inst.hostile && (CrewTable.Get().Place(inst.displayName)?.Recruits == true || inst.market) && inst.GetComponent<IndustrySite>() == null)
                     inst.gameObject.AddComponent<IndustrySite>().siteName = inst.displayName;
             SurfaceBaseInSpace(s, "Selene Base", s.wSelene, false, 8f, b,
                 "A colony on Selene: pressure domes, habitats, a control tower and tanks round a landing pad. " +

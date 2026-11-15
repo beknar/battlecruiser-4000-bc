@@ -140,7 +140,7 @@ namespace CarrierGame.Demo
             int kinds = MineralDeposit.All.SelectMany(d => d.Mix).Select(s => s.mineral).Distinct().Count();
             Log($"  {kinds} different minerals in the bodies in space, of {Minerals.Count} there are");
 
-            bool scanOk = true, mineOk = true, fullOk = true, jetOk = true, listed = true, cometOk = true;
+            bool scanOk = true, mineOk = true, fullOk = true, jetOk = true, listed = true, cometOk = true, menuOk = true;
             IMineralSource src = null;
             if (mineSurfaceOnly) goto Surface;
 
@@ -150,7 +150,22 @@ namespace CarrierGame.Demo
             Shot("n1_scan");
             scanOk = sensor.Finds.Count > 0 && sensor.Scans == 1;
             if (src == null) { Log("FAIL: mining (the scan found nothing)"); yield break; }
-            yield return Approach(laser, src, 800f, 60f);
+            // chosen from the mining mode's menu, and flown to by the ship (C)
+            var mining = demo.Mining;
+            yield return Key(kb, UnityEngine.InputSystem.Key.Tab);
+            var menu = ModeMenu.Instance;
+            bool inMenu = ModeMenu.IsOpen && menu != null && menu.Rows.Any(r => ReferenceEquals(r.tag, src));
+            for (int i = 0; i < 30 && menu != null && !ReferenceEquals(menu.Selected?.tag, src); i++) yield return Key(kb, UnityEngine.InputSystem.Key.DownArrow);
+            yield return Key(kb, UnityEngine.InputSystem.Key.C);
+            bool flying = mining != null && mining.Chosen == src && mining.Approaching;
+            yield return Key(kb, UnityEngine.InputSystem.Key.Tab);
+            Shot("n1_menu_flying");
+            float flyUntil = Time.time + 60f;
+            while (Time.time < flyUntil && mining != null && mining.Approaching) yield return null;
+            bool arrived = laser.Reach(src) <= laser.range;
+            Log($"  Tab: the menu lists the find {inMenu}; C: chosen {mining?.Chosen == src} and flying there {flying}; arrived {arrived} ({laser.Reach(src):F0} m, '{Notices.Last}')");
+            menuOk = inMenu && flying && arrived;
+            if (!arrived) yield return Approach(laser, src, 800f, 60f);
             Log($"  closed to {laser.Reach(src):F0} m of {src.Label}");
             float used0 = hold.Used;
             yield return Key(kb, UnityEngine.InputSystem.Key.Z);
@@ -160,8 +175,9 @@ namespace CarrierGame.Demo
             yield return BeamView(laser, "n2_mining_side");
             yield return new WaitForSeconds(2.4f);
             float got = hold.Used - used0;
-            Log($"  after 6 s: {got:F1} t aboard, cutting {laser.Cutting} ({Mix(laser.Source)}); hold: {Manifest(hold)}");
+            Log($"  after 6 s: {got:F1} t aboard, cutting {laser.Cutting} ({Mix(laser.Source)}); hold: {Manifest(hold)}; the chosen one {ReferenceEquals(laser.Source, src)}");
             mineOk = got > laser.rate * 4f;
+            menuOk &= ReferenceEquals(laser.Source, src) || src.Depleted;
 
             // keep cutting till the hold is full, moving on to the next rock when one is mined out
             float until = Time.time + 150f;
@@ -194,6 +210,18 @@ namespace CarrierGame.Demo
             Shot("n4_cargo");
             listed = MiningDisplay.ManifestOpen;
             yield return Key(kb, UnityEngine.InputSystem.Key.I);
+            // eject a mineral chosen in the menu (J on its row)
+            var dear = hold.Manifest().OrderByDescending(e => e.tonnes).Select(e => (Mineral?)e.mineral).FirstOrDefault();
+            if (dear != null)
+            {
+                yield return Key(kb, UnityEngine.InputSystem.Key.Tab);
+                for (int i = 0; i < MiningMode.MaxListed + 40 && menu != null && !(menu.Selected?.tag is Mineral mm && mm == dear.Value); i++) yield return Key(kb, UnityEngine.InputSystem.Key.DownArrow);
+                float had = hold[dear.Value];
+                yield return Key(kb, UnityEngine.InputSystem.Key.J);
+                yield return Key(kb, UnityEngine.InputSystem.Key.Tab);
+                Log($"  the menu's J on {Minerals.Name(dear.Value)}: {had:F1} -> {hold[dear.Value]:F1} t");
+                menuOk &= had > 0f && hold[dear.Value] < 0.01f;
+            }
             // room for what comes next
             while (hold.Free < 200f && hold.Cheapest() is Mineral m) hold.Jettison(m);
 
@@ -282,9 +310,9 @@ namespace CarrierGame.Demo
                 yield return WaitLanding(landing, PlanetLanding.State.InSpace, 12f);
             }
             Log($"  totals: mined {hold.TotalMined:F0} t, jettisoned {hold.TotalJettisoned:F0} t, aboard {hold.Used:F0} t worth {hold.Value:N0} cr");
-            bool ok = scanOk && mineOk && fullOk && jetOk && listed && cometOk && surfOk;
+            bool ok = scanOk && mineOk && fullOk && jetOk && listed && cometOk && surfOk && menuOk;
             Log(ok ? "PASS: mining (scan, mine an asteroid till the hold is full, jettison, a comet's tails and ice, a vein on Ochre)"
-                   : $"FAIL: mining (scan {scanOk}, mine {mineOk}, hold full {fullOk}, jettison {jetOk}, cargo list {listed}, comet {cometOk}, surface {surfOk})");
+                   : $"FAIL: mining (scan {scanOk}, mine {mineOk}, hold full {fullOk}, jettison {jetOk}, cargo list {listed}, comet {cometOk}, surface {surfOk}, the menu {menuOk})");
         }
 
         static string Plain(string s) => s == null ? "(none)" : System.Text.RegularExpressions.Regex.Replace(s, "<.*?>", "");

@@ -39,6 +39,9 @@ namespace CarrierGame
         public Vector3 HitPoint { get; private set; }
         /// <summary>What it is doing, for the HUD.</summary>
         public string Status { get; private set; } = "off";
+        /// <summary>The deposit chosen in the mining mode's menu: cut first, while it is in reach
+        /// (else the nearest, as ever).</summary>
+        [System.NonSerialized] public IMineralSource Preferred;
         public float TotalMined { get; private set; }
         public int DepositsMinedOut { get; private set; }
 
@@ -133,8 +136,9 @@ namespace CarrierGame
                 return;
             }
 
-            // keep on the deposit it is cutting while it can; otherwise find the nearest
-            if (Source == null || !Usable(Source, out _))
+            // keep on the deposit it is cutting while it can (unless another has been chosen, and
+            // is in reach); otherwise find the nearest
+            if (Source == null || !Usable(Source, out _) || (Preferred != null && Source != Preferred && Usable(Preferred, out _)))
             {
                 if (Time.time >= searchAt)
                 {
@@ -292,6 +296,7 @@ namespace CarrierGame
 
         IMineralSource Pick()
         {
+            if (Preferred != null && Usable(Preferred, out _) && !skip.ContainsKey(Preferred)) return Preferred;
             FindSources();
             if (candidates.Count == 0) return null;
             IMineralSource best = null;

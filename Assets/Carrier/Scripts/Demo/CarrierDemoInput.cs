@@ -230,11 +230,18 @@ namespace CarrierGame.Demo
         /// <summary>The mining mode's keys: the laser, the scan, the hold.</summary>
         void MiningKeys(Keyboard k)
         {
-            if (k.zKey.wasPressedThisFrame) ToggleMiningLaser();
             if (k.vKey.wasPressedThisFrame) MineralScan();
             if (k.iKey.wasPressedThisFrame) ToggleManifest();
+            // (with the menu open, Z, C and J act on the row chosen: MiningMode.Keys)
+            if (ModeMenu.IsOpen || ModeMenu.JustClosed) return;
+            if (k.zKey.wasPressedThisFrame) ToggleMiningLaser();
             if (k.jKey.wasPressedThisFrame) Jettison();
+            if (k.cKey.wasPressedThisFrame) Mining?.ToggleApproach();
         }
+
+        MiningMode mining;
+        /// <summary>The mining mode's menu and its flying to a deposit (on this object).</summary>
+        public MiningMode Mining => mining != null ? mining : (mining = GetComponent<MiningMode>());
 
         CombatMode combat;
         /// <summary>The combat mode's menu and line-up (on this object).</summary>
@@ -247,6 +254,7 @@ namespace CarrierGame.Demo
             switch (Modes.Current)
             {
                 case ModeOfPlay.Combat: src = Combat; break;
+                case ModeOfPlay.Mining: src = Mining; break;
                 case ModeOfPlay.Services:
                     // (the site's own screen: docked at it, or on its pad)
                     var site = IndustryPanel.Instance;
@@ -444,6 +452,7 @@ namespace CarrierGame.Demo
         {
             if (!listUp && p.buttonSouth.wasPressedThisFrame) ToggleMiningLaser();       // A
             if (!listUp && p.buttonEast.wasPressedThisFrame) Jettison();                 // B
+            if (!listUp && p.buttonWest.wasPressedThisFrame) Mining?.ToggleApproach();   // X
             if (p.buttonNorth.wasPressedThisFrame) MineralScan();                         // Y
             if (p.rightShoulder.wasPressedThisFrame) ToggleManifest();                    // RB
         }

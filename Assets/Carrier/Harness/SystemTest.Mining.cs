@@ -157,7 +157,8 @@ namespace CarrierGame.Demo
             bool inMenu = ModeMenu.IsOpen && menu != null && menu.Rows.Any(r => ReferenceEquals(r.tag, src));
             for (int i = 0; i < 30 && menu != null && !ReferenceEquals(menu.Selected?.tag, src); i++) yield return Key(kb, UnityEngine.InputSystem.Key.DownArrow);
             yield return Key(kb, UnityEngine.InputSystem.Key.C);
-            bool flying = mining != null && mining.Chosen == src && mining.Approaching;
+            // (flying there, or already in reach and so with no need to)
+            bool flying = mining != null && mining.Chosen == src && (mining.Approaching || laser.Reach(src) <= laser.range * 0.8f);
             yield return Key(kb, UnityEngine.InputSystem.Key.Tab);
             Shot("n1_menu_flying");
             float flyUntil = Time.time + 60f;

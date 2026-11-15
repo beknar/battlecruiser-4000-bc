@@ -22,6 +22,7 @@ namespace CarrierGame.Demo
         public bool Approaching { get; private set; }
 
         CarrierController Ship => demo != null ? demo.carrier : null;
+        float throttleSet = -1f;
         float approachLog;
 
         // ------------------------------------------------------------ the menu
@@ -93,9 +94,11 @@ namespace CarrierGame.Demo
             if (fly && row?.tag is IMineralSource s) { Choose(s); StartApproach(); return true; }
             if (k != null && k.zKey.wasPressedThisFrame && row?.tag is IMineralSource z)
             {
-                Choose(z);
                 var laser = demo.Laser;
-                if (laser != null && !laser.On) demo.ToggleMiningLaser();
+                if (laser == null) return false;
+                // (in reach: cut it; out of reach, it is chosen, to fly to first)
+                Choose(z);
+                if (laser.Reach(z) <= laser.range && !laser.On) demo.ToggleMiningLaser();
                 return true;
             }
             if (k != null && k.jKey.wasPressedThisFrame && row?.tag is Mineral m) { Eject(m); return true; }
@@ -118,14 +121,7 @@ namespace CarrierGame.Demo
         }
 
         /// <summary>Put a whole mineral over the side.</summary>
-        public void Eject(Mineral m)
-        {
-            var hold = demo != null ? demo.Cargo : null;
-            if (hold == null || hold[m] <= 0f) return;
-            float t = hold.Jettison(m);
-            SoundFX.Ui(Sfx.UiClear);
-            Notices.Post($"Ejected {t:F1} t of {Minerals.Name(m).ToLower()}: {hold.Used:F0} of {hold.capacity:F0} t aboard");
-        }
+        public void Eject(Mineral m) => demo?.Jettison(m);
 
         // ------------------------------------------------------------ flying to a deposit
 
@@ -149,45 +145,57 @@ namespace CarrierGame.Demo
             if (laser.Reach(Chosen) <= laser.range * 0.8f) { Notices.Post($"{Chosen.Label} is in reach already"); return; }
             Approaching = true;
             approachLog = 0f;
+            throttleSet = -1f;
             Notices.Post($"Flying to {Chosen.Label}: steer to take over");
         }
 
-        public void StopApproach(string why = null)
+        /// <summary>Stop flying there: the helm (and the throttle as it is) back to the pilot;
+        /// `arrived`, the engines are cut too.</summary>
+        public void StopApproach(string why = null, bool arrived = false)
         {
             if (!Approaching) return;
             Approaching = false;
             var ship = Ship;
-            if (ship != null) ship.throttle = 0f;
+            if (ship != null && arrived) ship.throttle = 0f;
             if (demo != null) { demo.autoRudder = null; demo.autoPitch = null; demo.autoElevator = null; }
             if (why != null) Notices.Post(why);
         }
 
         void Update()
         {
-            if (!Approaching) return;
             var ship = Ship;
             var laser = demo != null ? demo.Laser : null;
+            // (the laser's choice kept the same as this one: a ship swapped for another has a
+            // laser of its own)
+            if (laser != null && Chosen != null && laser.Preferred != Chosen && Chosen.Valid && !Chosen.Depleted) laser.Preferred = Chosen;
+            if (!Approaching) return;
             if (ship == null || ship.Destroyed || laser == null || Chosen == null || !Chosen.Valid || Chosen.Depleted) { StopApproach(); return; }
             if (demo.PilotFlying) { StopApproach("Stopped: you have the helm"); return; }
-            if (!Modes.Is(ModeOfPlay.Mining)) { StopApproach(); return; }
+            // (the throttle moved by the pilot: theirs, and the approach is off)
+            if (throttleSet >= 0f && Mathf.Abs(ship.throttle - throttleSet) > 0.01f) { StopApproach("Stopped: you have the throttle"); return; }
+            if (!Modes.Is(ModeOfPlay.Mining) || demo.ShipHeld) { StopApproach(); return; }
             Vector3 p = Chosen.Position;
             bool vein = Chosen is SurfaceVein;
             float reach = laser.Reach(Chosen);
             Vector3 flat = Vector3.ProjectOnPlane(p - ship.transform.position, ship.upFrame * Vector3.up);
-            if (vein ? flat.magnitude < 300f : reach < laser.range * 0.6f)
+            bool over = vein && flat.magnitude < 300f;
+            if (vein ? over && reach <= laser.range * 0.8f : reach < laser.range * 0.6f)
             {
-                StopApproach($"{Chosen.Label} in reach: Z cuts it");
+                StopApproach($"{Chosen.Label} in reach: Z cuts it", arrived: true);
                 return;
             }
-            // over a surface: up clear of the dunes and ridges first, then level, toward the vein
+            // over a surface: up clear of the dunes and ridges first, then level, toward the vein,
+            // and down over it if it is still out of the laser's reach
             var landing = PlanetLanding.Instance;
             bool low = vein && landing != null && landing.Altitude < 250f;
-            demo.autoElevator = low ? 1f : vein ? 0f : (float?)null;
+            bool high = vein && flat.magnitude < 600f && reach > laser.range * 0.8f;
+            demo.autoElevator = low ? 1f : high ? -1f : vein ? 0f : (float?)null;
             var v = ShipAutopilot.BowOn(ship, vein ? p + ship.upFrame * Vector3.up * Vector3.Dot(ship.transform.position - p, ship.upFrame * Vector3.up) : p);
             demo.autoRudder = v.x;
             demo.autoPitch = vein ? 0f : v.y;
             float to = vein ? flat.magnitude : reach;
-            ship.throttle = low ? 0.2f : to > 3500f ? 1f : to > 1600f ? 0.6f : 0.3f;
+            ship.throttle = low || over ? 0.2f : to > 3500f ? 1f : to > 1600f ? 0.6f : 0.3f;
+            throttleSet = ship.throttle;
         }
 
         // ------------------------------------------------------------ on screen

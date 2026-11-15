@@ -142,8 +142,7 @@ namespace CarrierGame.Demo
             if (!Modes.Is(ModeOfPlay.Combat)) { StopLineUp(); return; }
             // (not through a warp, a landing or a climb, nor while the comms line is typed into:
             // the ship isn't the pilot's to take back then)
-            if ((demo.Warp != null && demo.Warp.Current != WarpDrive.State.Ready) || PlanetLanding.Busy || Docking.Busy
-                || InputFocus.Has(InputFocus.Panel.Chat) || SystemMap.IsOpen || IndustryPanel.IsOpen) { StopLineUp(); return; }
+            if (demo.ShipHeld || PlanetLanding.Busy) { StopLineUp(); return; }
             Vector3 target = ship.target.position;
             var gun = demo.MainGun;
             bool bow = gun != null && gun.Current != MainBeam.State.Idle;

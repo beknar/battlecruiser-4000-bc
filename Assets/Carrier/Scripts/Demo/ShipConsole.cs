@@ -268,7 +268,7 @@ namespace CarrierGame.Demo
                 switch (warp.Current)
                 {
                     case WarpDrive.State.Charging:
-                        Bar(x, ref y, colW, row, "WARP", Mathf.Clamp01(warp.StateTime / Mathf.Max(0.1f, warp.chargeTime)), Cyan, "CHARGING");
+                        Bar(x, ref y, colW, row, "WARP", Mathf.Clamp01(warp.StateTime / Mathf.Max(0.1f, warp.ChargeTime)), Cyan, "CHARGING");
                         break;
                     case WarpDrive.State.Warping:
                         Bar(x, ref y, colW, row, "WARP", 1f - Mathf.Clamp01(warp.TimeLeft / Mathf.Max(0.1f, warp.TravelTime)), Cyan, $"IN WARP  {warp.TimeLeft:F1} s");

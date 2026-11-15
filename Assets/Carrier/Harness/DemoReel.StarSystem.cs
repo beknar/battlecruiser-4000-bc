@@ -518,7 +518,7 @@ namespace CarrierGame.Demo
         void Warp(float t, int nextPhase)
         {
             var to = sysMap.Selected;
-            float km = sysDrive.DistanceTo(to) / 1000f, eta = sysDrive.chargeTime + sysDrive.TravelTimeTo(to);
+            float km = sysDrive.DistanceTo(to) / 1000f, eta = sysDrive.ChargeTime + sysDrive.TravelTimeTo(to);
             bool ok = sysMap.WarpToSelected();
             Log($"{T,5:F1}s   warp to {to?.displayName}: {km:F0} km, {eta:F1} s ({(ok ? "engaged" : "refused: " + sysDrive.LastMessage)})");
             if (!ok)

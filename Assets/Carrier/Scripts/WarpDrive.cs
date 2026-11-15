@@ -26,10 +26,15 @@ namespace CarrierGame
 
         [Header("Timing")]
         public float chargeTime = 3f;
+        /// <summary>The charge, as it is now (twice as long while towing).</summary>
+        public float ChargeTime => chargeTime * slowScale;
         public float arriveTime = 1.8f;
         public float baseTravelTime = 2.5f;
         public float kmPerSecond = 40f;
         public float maxTravelTime = 16f;
+        /// <summary>Towing a ship of the fleet (FleetDirector): a warp takes this many times as
+        /// long, the charge and the trip (twice).</summary>
+        [System.NonSerialized] public float slowScale = 1f;
 
         [Header("Combat lock")]
         public float combatRange = 12000f;
@@ -49,7 +54,7 @@ namespace CarrierGame
         /// <summary>Length of the trip under way (s).</summary>
         public float TravelTime { get; private set; }
         /// <summary>Seconds left until the ship drops out of warp (charge included).</summary>
-        public float TimeLeft => Current == State.Charging ? chargeTime - StateTime + TravelTime
+        public float TimeLeft => Current == State.Charging ? ChargeTime - StateTime + TravelTime
                                : Current == State.Warping ? TravelTime - StateTime : 0f;
         public int Jumps { get; private set; }
         public float LastTravelSeconds { get; private set; }
@@ -94,7 +99,7 @@ namespace CarrierGame
         {
             if (p == null) return 0f;
             float km = Vector3.Distance(transform.position, p.ArrivalPoint(transform.position)) / 1000f;
-            return Mathf.Min(maxTravelTime, baseTravelTime + km / Mathf.Max(1f, kmPerSecond));
+            return Mathf.Min(maxTravelTime, baseTravelTime + km / Mathf.Max(1f, kmPerSecond)) * slowScale;
         }
 
         public float DistanceTo(WarpPoint p) => p == null ? 0f : Vector3.Distance(transform.position, p.ArrivalPoint(transform.position));
@@ -139,7 +144,7 @@ namespace CarrierGame
             Enter(State.Charging);
             chargeHitTime = LastHitTime;
             ship.externalMotion = true;
-            fx.StartCharge(chargeTime);
+            fx.StartCharge(ChargeTime);
             LastMessage = $"Warp drive charging: {p.displayName}";
             return true;
         }
@@ -163,7 +168,7 @@ namespace CarrierGame
             {
                 case State.Charging:
                 {
-                    float k = Mathf.Clamp01(StateTime / chargeTime);
+                    float k = Mathf.Clamp01(StateTime / ChargeTime);
                     // swing onto the destination, slowing to a crawl
                     TurnToward(travelDir, 50f, dt);
                     float speed = Mathf.MoveTowards(ship.Speed, 20f, 40f * dt);

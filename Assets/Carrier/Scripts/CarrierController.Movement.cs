@@ -75,6 +75,10 @@ namespace CarrierGame
         /// thrusters' speed, are this much of what they are in the air.</summary>
         [System.NonSerialized] public float speedScale = 1f, liftScale = 1f;
 
+        /// <summary>Towing a ship of the fleet (FleetDirector): its top speed is this much of
+        /// what it would be (half).</summary>
+        [System.NonSerialized] public float towScale = 1f;
+
         /// <summary>Held level (afloat on the sea, Seafaring): the nose and wings take no input.</summary>
         [System.NonSerialized] public bool holdLevel;
 
@@ -109,7 +113,7 @@ namespace CarrierGame
                 UpdateLiftFlares(0f);
                 return;
             }
-            speed = Mathf.MoveTowards(speed, throttle * maxSpeed * speedScale, acceleration * accelScale * dt);
+            speed = Mathf.MoveTowards(speed, throttle * maxSpeed * speedScale * towScale, acceleration * accelScale * dt);
 
             // attitude: heading turns about the vertical (the up frame's), the nose pitches up or down, and
             // the ship rolls about its own length (all the way round, if the pilot keeps on)

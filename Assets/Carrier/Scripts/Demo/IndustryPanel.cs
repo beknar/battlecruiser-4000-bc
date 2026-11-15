@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -64,6 +65,10 @@ namespace CarrierGame.Demo
         // the shipyard's rows: a ship to build (its class), or one berthed here ("*berth:" and its class)
         const string Berth = "*berth:";
         const int TakeCommand = 10;
+        // a berthed ship joins the fleet (crewed), or is towed away; a fleet ship here is left
+        // in the yard ("*fleet:" and its class)
+        const string FleetHere = "*fleet:";
+        const int JoinFleet = 16, TowIt = 17, LeaveHere = 18;
         // the trade page's rows: an item aboard to sell, or one to buy; and selling all the ore
         const string SellPrefix = "*sell:", BuyPrefix = "*buy:", SellOre = "*sellore";
         const int Sell = 11, SellAll = 12, Buy = 13, BuyTen = 14;
@@ -231,6 +236,11 @@ namespace CarrierGame.Demo
                 case Page.Shipyard:
                     if (spec == null || !spec.shipyard) break;
                     foreach (var b in IndustryLedger.Berthed) if (b.site == Site.siteName) rows.Add(Berth + b.id);
+                    // the fleet's ships with the ship here (to leave in the yard)
+                    var fleetNow = FleetDirector.Instance;
+                    if (fleetNow != null && carrier != null)
+                        foreach (var fs in fleetNow.Ships)
+                            if (fs != null && Vector3.Distance(fs.transform.position, carrier.transform.position) < 30000f) rows.Add(FleetHere + fs.entry.id);
                     canLayDown.Clear();
                     foreach (var sh in Table.ships)
                     {
@@ -396,6 +406,32 @@ namespace CarrierGame.Demo
                 case TakeCommand:
                     TakeCommandOf(id.StartsWith(Berth) ? id.Substring(Berth.Length) : id);
                     return;
+                case JoinFleet:
+                case TowIt:
+                    {
+                        var fleet = FleetDirector.Instance;
+                        if (fleet == null || !id.StartsWith(Berth)) return;
+                        string cls = id.Substring(Berth.Length);
+                        string name = FrigateRoster.Get()?.Find(cls)?.displayName ?? cls;
+                        if (fleet.Join(cls, Site.siteName, action == TowIt, out string why))
+                        {
+                            Say(action == TowIt ? $"The {name} is under tow: half speed, and warps take twice as long"
+                                                : $"The {name} joins the fleet, {Mathf.RoundToInt(IndustryLedger.CrewOf(cls) ?? 0f)} crew aboard");
+                            SoundFX.Ui(Sfx.UiLock);
+                        }
+                        else Say($"The {name} can't join: {why}", true);
+                    }
+                    break;
+                case LeaveHere:
+                    {
+                        var fleet = FleetDirector.Instance;
+                        string cls = id.StartsWith(FleetHere) ? id.Substring(FleetHere.Length) : id;
+                        var p = fleet != null ? fleet.Ships.FirstOrDefault(x => x != null && string.Equals(x.entry.id, cls, System.StringComparison.OrdinalIgnoreCase)) : null;
+                        if (p == null) return;
+                        fleet.LeaveAt(p, Site.siteName);
+                        Say($"The {p.displayName} is berthed here, to come back for");
+                    }
+                    break;
                 case QueueOne:
                 case QueueFive:
                     {
@@ -600,6 +636,11 @@ namespace CarrierGame.Demo
                 if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame || k.spaceKey.wasPressedThisFrame) Primary(id, shift);
                 if (k.backspaceKey.wasPressedThisFrame || k.deleteKey.wasPressedThisFrame)
                     if (Current == Page.Refine || Current == Page.Build || Current == Page.Shipyard) Act(id, CancelLast);
+                if (Current == Page.Shipyard && id != null && id.StartsWith(Berth))
+                {
+                    if (k.jKey.wasPressedThisFrame) Act(id, JoinFleet);
+                    if (k.tKey.wasPressedThisFrame) Act(id, TowIt);
+                }
             }
             if (pad != null)
             {
@@ -626,6 +667,11 @@ namespace CarrierGame.Demo
                 {
                     if (pad.buttonWest.wasPressedThisFrame) Act(id, QueueFive);
                     if (pad.buttonNorth.wasPressedThisFrame) Act(id, CancelLast);
+                }
+                else if (Current == Page.Shipyard && id != null && id.StartsWith(Berth))
+                {
+                    if (pad.buttonWest.wasPressedThisFrame) Act(id, JoinFleet);
+                    if (pad.buttonNorth.wasPressedThisFrame) Act(id, TowIt);
                 }
                 else if (Current == Page.Shipyard && pad.buttonNorth.wasPressedThisFrame) Act(id, CancelLast);
                 else if (Current == Page.Trade && pad.buttonWest.wasPressedThisFrame) Primary(id, true);
@@ -684,7 +730,7 @@ namespace CarrierGame.Demo
                     else Act(id, more ? BuyTen : Buy);
                     break;
                 case Page.Shipyard:
-                    Act(id, id != null && id.StartsWith(Berth) ? TakeCommand : QueueOne);
+                    Act(id, id != null && id.StartsWith(FleetHere) ? LeaveHere : id != null && id.StartsWith(Berth) ? TakeCommand : QueueOne);
                     break;
             }
         }
@@ -783,7 +829,8 @@ namespace CarrierGame.Demo
                 case Page.Build: return padUsed ? "A queue one   X queue five   Y cancel last   B close" : "Enter queue one   Shift+Enter five   Backspace cancel   U / Esc close";
                 case Page.Crew: return padUsed ? "A recruit / drop off   B close" : "Enter recruit / drop off   U / Esc close   K leave";
                 case Page.Trade: return padUsed ? "A sell / buy   X sell all / buy ten   B close" : "Enter sell / buy   Shift+Enter sell all / buy ten   U / Esc close";
-                case Page.Shipyard: return padUsed ? "A build / take command   Y stop building   B close" : "Enter build / take command   Backspace stop building   U / Esc close";
+                case Page.Shipyard: return padUsed ? "A build / take command   X join the fleet   Y tow / stop building   B close"
+                                                   : "Enter build / take command   J join the fleet   T tow   Backspace stop building   U / Esc close";
                 default: return padUsed ? "A fit / take off   B close" : "Enter fit / take off   U / Esc close";
             }
         }
@@ -962,7 +1009,20 @@ namespace CarrierGame.Demo
                 GUI.Label(new Rect(x, r.y + 1f * s, r.width * 0.6f, r.height * 0.55f), $"{b?.displayName ?? cls}  <color=#7ee08a>berthed here</color>", Hud.Text(15, sel, TextAnchor.MiddleLeft));
                 GUI.Label(new Rect(x, r.y + r.height * 0.5f, r.width * 0.7f, r.height * 0.5f), $"<color=#9aa4b0>{b?.role}  ·  crew aboard {aboard} of {complement}</color>", Hud.Text(12, false, TextAnchor.MiddleLeft));
                 bool flying = string.Equals(PlayerFrigate.Flying, cls, System.StringComparison.OrdinalIgnoreCase);
-                Button(new Rect(r.xMax - 130f * s, r.y + 7f * s, 124f * s, r.height - 14f * s), "Take command", id, TakeCommand, s, !flying);
+                float bw = 96f * s, gap = 4f * s, by = r.y + 7f * s, bh = r.height - 14f * s;
+                Button(new Rect(r.xMax - bw, by, bw, bh), "Tow", id, TowIt, s, IndustryLedger.FleetHasRoom(out _));
+                Button(new Rect(r.xMax - 2f * bw - gap, by, bw, bh), "Join fleet", id, JoinFleet, s, IndustryLedger.FleetHasRoom(out _));
+                Button(new Rect(r.xMax - 3f * bw - 2f * gap - 30f * s, by, bw + 30f * s, bh), "Take command", id, TakeCommand, s, !flying);
+                return;
+            }
+            if (id.StartsWith(FleetHere))
+            {
+                string cls = id.Substring(FleetHere.Length);
+                var b = roster?.Find(cls);
+                var fs = FleetDirector.Instance != null ? FleetDirector.Instance.Ships.FirstOrDefault(x => x != null && string.Equals(x.entry.id, cls, System.StringComparison.OrdinalIgnoreCase)) : null;
+                GUI.Label(new Rect(x, r.y + 1f * s, r.width * 0.6f, r.height * 0.55f), $"{b?.displayName ?? cls}  <color=#ffc070>in your fleet</color>", Hud.Text(15, sel, TextAnchor.MiddleLeft));
+                GUI.Label(new Rect(x, r.y + r.height * 0.5f, r.width * 0.7f, r.height * 0.5f), $"<color=#9aa4b0>{(fs != null ? fs.Doing : "")}</color>", Hud.Text(12, false, TextAnchor.MiddleLeft));
+                Button(new Rect(r.xMax - 150f * s, r.y + 7f * s, 144f * s, r.height - 14f * s), "Leave her here", id, LeaveHere, s);
                 return;
             }
             var t = Table;

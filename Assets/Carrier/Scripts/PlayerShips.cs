@@ -25,7 +25,9 @@ namespace CarrierGame
         {
             get
             {
-                var cc = Object.FindAnyObjectByType<CarrierController>();
+                // (the ship the controls fly: the fleet's other ships are CarrierControllers too)
+                var demo = Object.FindAnyObjectByType<Demo.CarrierDemoInput>();
+                var cc = demo != null && demo.carrier != null ? demo.carrier : Object.FindAnyObjectByType<CarrierController>();
                 return cc != null ? cc.transform : null;
             }
         }

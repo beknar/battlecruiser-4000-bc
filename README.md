@@ -846,6 +846,44 @@ then takes 9 to 20 minutes on the slips, two ships at a time, while the player i
 | Stiletto | 4 hull frame section, 7 turret mount, 2 missile cell block, 1 bridge module, 9 crew quarters, 1 reactor core, 2 fusion thruster, 1 shield emitter, 2 armour plating, 1 fire-control computer, 120 t steel plate | 9.33333 min |
 | Sovereign | 8 hull frame section, 12 turret mount, 2 missile cell block, 1 bridge module, 20 crew quarters, 2 reactor core, 3 fusion thruster, 2 shield emitter, 4 armour plating, 2 capacitor bank, 1 beam focusing lens, 1 fire-control computer, 400 t steel plate, 100 t titanium billets | 20 min |
 
+### Fleets
+
+A player can fly a fleet: the ship they command and the others they have built, up to **ten
+ships** in all. In fleet mode the others take orders while the player flies their own.
+
+- **Joining.** A ship built at a shipyard is berthed there. On the yard's shipyard page
+  (services) a berthed ship can:
+  - **Join the fleet** (J, X on the pad), crewed. Recruits sign on at the yard first, paid
+    from the hold (250 cr each), up to her complement. If they are too few, crew come across from
+    the ship commanded, as many as it can spare while keeping half its own. She needs half her
+    complement to sail.
+  - **Be towed** (T, Y on the pad), with nobody aboard. While anything is under tow the
+    ship commanded makes half its speed, and its warps take twice as long, the charge and the
+    trip.
+  - Or be **left in the yard** for later. A fleet ship can be left at a yard too ("Leave her
+    here"), and joins again from there.
+- **Orders** (fleet mode), to the ship chosen in the menu or the whole fleet:
+  - follow me: loose formation, fighting back if attacked;
+  - guard me: in formation, going for any enemy that comes within 6 km of the ship commanded;
+  - form up: close formation;
+  - attack my target: the ship commanded's target, then back into formation;
+  - hold position.
+  A towed ship takes no orders.
+- **Flying together.** The fleet keeps station off the ship commanded's quarters, matching its
+  heading and speed. It warps with it, arriving on its stations. Left far behind, as when the
+  ship commanded cruises, it catches up out of sight. It can't be sent off on its own, to mine
+  or to fight elsewhere in the system: that is what an AI player is for. It waits in orbit
+  while the ship commanded is down on a planet.
+- **Fighting.** Each ship's guns fire by themselves at what it is fighting, broadside on at gun
+  range. Enemies go for the fleet's ships as they do for the player's.
+- **Losses.** A fleet ship destroyed is lost, and her crew with her.
+- **The menu** (Tab) lists each ship: what she is doing, how far off, her hull and her crew (or
+  "towed"), and the ships berthed at the yards. B views a ship of the fleet, and back.
+- **Saved.** The fleet, and its ships' crews, are saved with the game.
+- **One of each class.** A shipyard builds one ship of each class (the five destroyers and the
+  cruiser), so a fleet today is at most seven ships: a frigate and the six.
+- **Not shared in co-op.** The other players don't see a player's fleet.
+
 ### Crew and the settlements
 
 Every frigate has a crew, and so has every installation except the automated ones (the Cinder
@@ -979,7 +1017,16 @@ menu (only the pause menu stops it).
 | The services screen (docked, or on its pad; it opens by itself on arriving): storage, refining, building, fitting, trade, crew, the shipyard, as the place offers | Tab or U | A |
 | In the site's screen: pages / choose / load, store / act / cancel a job / close | Tab or Q E / ↑↓ / ← → (Shift for all) / Enter / Backspace / U or Esc | LB RB / D-pad ↑↓ / D-pad ← →, X, Y / A / Y / B |
 
-**Fleet mode (5)** is for the player's other ships.
+**Fleet mode (5)**: the player's other ships (see [Fleets](#fleets)). Orders go to the ship chosen in the menu, or all of them.
+
+| Action | Keyboard / mouse | Xbox 360 pad |
+|---|---|---|
+| Follow me / guard me (protect) / form up on me | F / G / R | A / X / Y |
+| Attack my target / hold position | V / Z | RB / B |
+| View the next ship of the fleet (and back to mine) | B | LB |
+| Menu: the fleet, and the ships berthed at the yards (Enter: orders go to that ship, or all) | Tab | Back + Y |
+
+In combat mode, V sends the fleet after the target and Shift+V forms it up.
 
 **In the pause menu**, choose the captain with ← / → on Captain, or click her portrait (D-pad ← / → on the pad).
 
@@ -1362,7 +1409,7 @@ The games run one at a time, in a 1280x720 window.
 | `build` | the builds (with `--build`) |
 | `serverproc` | the server program, end to end |
 | `autotest` | the deprecated Carrier Demo and Asteroid Ambush autotests: run only when named (`--only autotest --build`) |
-| `hud`, `modes`, `nav`, `services`, `ships`, `water`, `industry`, `crew`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
+| `hud`, `modes`, `nav`, `services`, `fleet`, `ships`, `water`, `industry`, `crew`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
 | `web` | the web build's co-op test |
 
 `--quick` runs `tools`, `server`, `unity`, `serverproc`, `autotest`, `hud` and `coop`.
@@ -1486,6 +1533,12 @@ Each part can also be run alone:
   range and targets the one chosen; lining up (C) turns the ship until its guns bear, and
   steering takes the helm back; a hostile destroyed leaves a wreck, listed in the menu, chosen
   there, and Z strips it into the hold.
+  Add `-fleettest` (or `?fleettest` on the web) to test the fleet: a Halberd and a Rapier berthed
+  at the Kestrel Deep Yard; there the Halberd joins the fleet crewed and the Rapier is towed (the
+  leader at half speed, its warps twice as long); the fleet mode's menu lists them; the Halberd
+  follows on a run, and attacks the leader's target (V, combat mode); the fleet warps with the
+  leader to Thalassa; the Halberd destroyed is lost; the Rapier left at the yard is berthed
+  there, and the leader's speed and warps are back to normal.
   Add `-servicestest` (or `?servicestest` on the web) to test the services mode: docking at the
   Highport puts the game in services mode; its trade page sells the ore at its worth, buys a
   part at the markup and sells it back; ten crew are dropped off and recruited back; undocking

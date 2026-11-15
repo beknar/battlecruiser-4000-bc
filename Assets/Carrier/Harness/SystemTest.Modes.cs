@@ -44,7 +44,7 @@ namespace CarrierGame.Demo
 
             // ---- the number keys, and the controls box for each mode
             var keys = new[] { (K.Digit2, ModeOfPlay.Mining, "mineral scan"), (K.Digit3, ModeOfPlay.Navigation, "system map"),
-                               (K.Digit4, ModeOfPlay.Services, "services"), (K.Digit5, ModeOfPlay.Fleet, "other ships"),
+                               (K.Digit4, ModeOfPlay.Services, "services"), (K.Digit5, ModeOfPlay.Fleet, "fleet yet"),
                                (K.Digit1, ModeOfPlay.Combat, "fire guns") };
             foreach (var (key, mode, line) in keys)
             {

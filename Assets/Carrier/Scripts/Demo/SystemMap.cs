@@ -46,7 +46,7 @@ namespace CarrierGame.Demo
 
         void Start()
         {
-            if (carrier == null) carrier = FindAnyObjectByType<CarrierController>();
+            if (carrier == null) carrier = PlayerShips.Primary != null ? PlayerShips.Primary.GetComponent<CarrierController>() : null;
             if (drive == null && carrier != null) drive = carrier.GetComponent<WarpDrive>();
             disc = MakeDisc(64, false);
             ring = MakeDisc(64, true);
@@ -98,7 +98,7 @@ namespace CarrierGame.Demo
             }
             if (drive.Engage(Selected, out string why))
             {
-                Notices.Post($"Warping to {Selected.displayName}: {drive.chargeTime + drive.TravelTime:F1} s");
+                Notices.Post($"Warping to {Selected.displayName}: {drive.ChargeTime + drive.TravelTime:F1} s");
                 Close();
                 return true;
             }
@@ -486,7 +486,7 @@ namespace CarrierGame.Demo
                 bool here = IsHere(Selected);
                 GUI.Label(new Rect(x, y, w, 60f * s),
                     here ? "<color=#7ee08a>You are here</color>"
-                         : $"Distance  <b>{km:F0} km</b>\nWarp time  <b>{drive.chargeTime + drive.TravelTimeTo(Selected):F1} s</b>  <color=#9aa4b0>(charge {drive.chargeTime:F0} s + trip {drive.TravelTimeTo(Selected):F1} s)</color>", body);
+                         : $"Distance  <b>{km:F0} km</b>\nWarp time  <b>{drive.ChargeTime + drive.TravelTimeTo(Selected):F1} s</b>  <color=#9aa4b0>(charge {drive.ChargeTime:F0} s + trip {drive.TravelTimeTo(Selected):F1} s)</color>", body);
             }
             bool ok = drive.CanWarp(out string why);
             string status = ok ? "<color=#7ee08a>Warp drive ready</color>" : $"<color=#ff6050>Warp drive locked: {why}</color>";

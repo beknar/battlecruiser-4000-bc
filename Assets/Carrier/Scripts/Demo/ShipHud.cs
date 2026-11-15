@@ -42,6 +42,7 @@ namespace CarrierGame.Demo
             go.AddComponent<Salvage>().demo = demo;
             go.AddComponent<MiningMode>().demo = demo;
             go.AddComponent<NavigationMode>().demo = demo;
+            go.AddComponent<FleetDirector>().demo = demo;
             return hud;
         }
 
@@ -78,12 +79,15 @@ namespace CarrierGame.Demo
         // other systems; another mode, other keys)
         object helpFor;
         ModeOfPlay helpMode;
+        int helpFleet;
 
         void HelpFor(CarrierController carrier)
         {
-            if (ReferenceEquals(helpFor, carrier) && helpMode == Modes.Current) return;
+            int fleet = FleetDirector.Instance != null ? FleetDirector.Instance.Ships.Count : 0;
+            if (ReferenceEquals(helpFor, carrier) && helpMode == Modes.Current && helpFleet == fleet) return;
             helpFor = carrier;
             helpMode = Modes.Current;
+            helpFleet = fleet;
             keyHelp = padHelp = null;
         }
 
@@ -135,6 +139,7 @@ namespace CarrierGame.Demo
                         lines.Add("X stop targeting   C line up on the target");
                         if (KineticStrike.Instance != null) lines.Add("Y kinetic strike from orbit");
                         if (demo.Cargo != null) lines.Add("Z salvage a wreck in reach");
+                        if (FleetDirector.Instance != null && FleetDirector.Instance.Ships.Count > 0) lines.Add("V the fleet attacks my target   Shift+V forms up");
                         lines.Add("Tab the targets and wrecks near");
                         break;
                     case ModeOfPlay.Mining:
@@ -158,7 +163,11 @@ namespace CarrierGame.Demo
                         lines.Add("   (what the place offers)");
                         break;
                     case ModeOfPlay.Fleet:
-                        lines.Add("<i>No other ships yet: build one at a shipyard</i>");
+                        if (FleetDirector.Instance == null || FleetDirector.Instance.Ships.Count == 0) { lines.Add("<i>No fleet yet: build a ship at a shipyard,</i>"); lines.Add("<i>and have her join you there (services)</i>"); break; }
+                        lines.Add("F follow me   G guard me   R form up");
+                        lines.Add("V attack my target   Z hold position");
+                        lines.Add("B view the next ship (and back)");
+                        lines.Add("Tab the fleet: choose who gets the orders");
                         break;
                 }
                 lines.Add(Rule);
@@ -206,7 +215,9 @@ namespace CarrierGame.Demo
                         lines.Add("A the station's or base's services");
                         break;
                     case ModeOfPlay.Fleet:
-                        lines.Add("<i>No other ships yet: build one at a shipyard</i>");
+                        if (FleetDirector.Instance == null || FleetDirector.Instance.Ships.Count == 0) { lines.Add("<i>No fleet yet: build a ship at a shipyard</i>"); break; }
+                        lines.Add("A follow me   X guard me   Y form up");
+                        lines.Add("RB attack my target   B hold   LB view a ship");
                         break;
                 }
                 lines.Add(Rule);

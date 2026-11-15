@@ -49,6 +49,8 @@ namespace CarrierGame
             /// when flying a frigate).</summary>
             public List<BuiltShip> berthed = new List<BuiltShip>();
             public BuiltShip commanded;
+            /// <summary>The ships flying with the one commanded (FleetDirector).</summary>
+            public List<FleetShip> fleet = new List<FleetShip>();
         }
 
         /// <summary>A file a self-test saves to instead (its own folder).</summary>

@@ -169,6 +169,25 @@ namespace CarrierGame.Demo
 
             // ---- salvage: a hostile destroyed leaves a wreck; chosen in the menu, Z strips it into the hold
             yield return SalvageTest(kb, Check);
+
+            // ---- the HUD's settings: the captain hidden, the HUD smaller
+            float wide = ShipConsole.Rect.width;
+            HudSettings.ShowCaptain = false;
+            yield return null;
+            yield return null;
+            float narrow = ShipConsole.Rect.width;
+            Shot("modes_no_captain");
+            HudSettings.ShowCaptain = true;
+            Check(narrow > 0f && narrow < wide * 0.8f, $"the captain hidden, the console is narrower ({wide:F0} -> {narrow:F0} px)");
+            float size0 = Hud.UserScale;
+            HudSettings.ChangeSize(-1);
+            yield return null;
+            yield return null;
+            float smaller = ShipConsole.Rect.width;
+            HudSettings.ChangeSize(+1);
+            bool back = Mathf.Approximately(HudSettings.Size, size0);
+            Hud.UserScale = size0;
+            Check(back && smaller < wide, $"the HUD a size smaller: the console {wide:F0} -> {smaller:F0} px, and back to {HudSettings.Size * 100f:F0}%");
             if (hull != null) hull.cannotDie = false;
             Log($"{(passed == checks ? "PASS" : "FAIL")}: modes of play ({passed} of {checks})");
         }

@@ -15,6 +15,7 @@ namespace CarrierGame.Demo
             var go = demo.gameObject;
             // (a level, started or started again, is in combat mode)
             Modes.Reset();
+            HudSettings.Begin();
             var hud = ShipHud.Build(demo);
             go.AddComponent<CoopWorld>().demo = demo;
             go.AddComponent<CoopMenu>().demo = demo;

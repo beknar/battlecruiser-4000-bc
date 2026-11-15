@@ -286,9 +286,19 @@ Enemy guns lead their target and have some spread. The enemies fly orbits around
 - **Help.** An on-screen help list shows only the controls that work on the current ship, and the
   text size can be changed.
 - **Pause menu.** Esc or P (Start on the pad) pauses the game and opens a menu with Resume,
-  Restart, Sound on/off, Captain and Quit. Restart and Quit ask you to press them a second time to
-  confirm. To choose a captain, use left/right on the Captain row, or click her portrait in the
-  strip of five below the menu.
+  Restart, Sound on/off, Captain, Co-op, the HUD's settings and Quit. Restart and Quit ask you to
+  press them a second time to confirm. To choose a captain, use left/right on the Captain row, or
+  click her portrait in the strip of five below the menu.
+- **Setting up the HUD.** In the pause menu, kept for next time:
+  - **The captain** shown or hidden: without her portrait the console is narrower, the ship's
+    state and the comms line still on it.
+  - **HUD size** (left/right on its row, or + and − in the game, Back + D-pad ↑↓ on the pad):
+    everything drawn on screen, smaller to see more of the game, or bigger.
+  - **The fleet's panels** shown or hidden: down the right side, below the target's, a small
+    panel for each ship of the fleet with her name, her state (under fire, engaged, under tow
+    or all clear, the panel's edge coloured to match), her hull and shield, her guns (how many,
+    how many firing) and what she is doing.
+  Tests, reels and AI players use the defaults and keep nothing.
 - **Sound.** Sound effects come from a sound library, with several recordings of each so repeats
   don't sound identical. Any sound with no recording is synthesised in code instead, and the
   frigate's bow beam is always synthesised. The music has a calm track and a combat track, and

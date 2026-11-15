@@ -39,6 +39,7 @@ namespace CarrierGame.Demo
             // the modes of play: their menu, and the combat mode's
             go.AddComponent<ModeMenu>();
             go.AddComponent<CombatMode>().demo = demo;
+            go.AddComponent<Salvage>().demo = demo;
             return hud;
         }
 
@@ -131,7 +132,8 @@ namespace CarrierGame.Demo
                         lines.Add("T next target (Shift+T back)   click a ship");
                         lines.Add("X stop targeting   C line up on the target");
                         if (KineticStrike.Instance != null) lines.Add("Y kinetic strike from orbit");
-                        lines.Add("Tab the targets in range");
+                        if (demo.Cargo != null) lines.Add("Z salvage a wreck in reach");
+                        lines.Add("Tab the targets and wrecks near");
                         break;
                     case ModeOfPlay.Mining:
                         if (demo.Laser == null) { lines.Add("<i>No mining gear on this ship</i>"); break; }
@@ -177,7 +179,7 @@ namespace CarrierGame.Demo
                         lines.Add("RB fire guns" + (carrier.HasMissiles ? "   LB missile salvo" : "") + "   L3 auto-fire");
                         if (demo.MainGun != null) lines.Add("X main gun: charge");
                         lines.Add("Y next target   B stop targeting");
-                        lines.Add("A line up on the target");
+                        lines.Add("A line up on the target" + (demo.Cargo != null ? "   Back+X salvage" : ""));
                         break;
                     case ModeOfPlay.Mining:
                         if (demo.Laser == null) { lines.Add("<i>No mining gear on this ship</i>"); break; }

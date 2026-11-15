@@ -517,6 +517,15 @@ system to travel around.
   over days and weeks, so the way in from anywhere turns with them. Whenever the warp drive
   charges for the planet, or for a base on it or a place in orbit close by, a group lying in
   wait out of sight moves onto that warp's way in.
+- **Salvage.** Whatever hostile is destroyed (a ship, a fighter or drone, a gun emplacement, a
+  battery platform) leaves a wreck: a few of its scorched pieces drifting where it died. A wreck
+  holds steel plate, aluminium sheet and copper wire by its size, and a capital ship's wreck holds
+  a ship part half the time (armour plating, a turret mount, fire control...). In combat mode the
+  wrecks near are marked on screen, and the combat menu (Tab) lists them under WRECKS, with what
+  they hold and how far they are. Choose one, fly within 1.5 km of it and press Z (Back + X on the
+  pad): the salvage beam strips it into the hold over a few seconds, as much as there is room for.
+  What it brings aboard is the industry's own goods, stored, sold or built with like any other.
+  A wreck lasts 15 minutes. Wrecks aren't shared in co-op: each player salvages their own.
 - **Capital ships.**
 
   | Ship | Length | Hull | Weapons |
@@ -903,7 +912,8 @@ menu (only the pause menu stops it).
 | Stop targeting | X | B |
 | Line up on the target, until the guns bear (again, or steer, to stop) | C | A |
 | Kinetic strike from orbit | Y | |
-| Menu: the targets in range, nearest first (Enter targets one, C lines up on it) | Tab | Back + Y |
+| Salvage the chosen wreck, or the nearest in reach (again to stop) | Z | Back + X |
+| Menu: the targets in range and the wrecks near, nearest first (Enter targets one or chooses a wreck, C lines up, Z salvages) | Tab | Back + Y |
 
 **Mining mode (2)**
 
@@ -1431,7 +1441,8 @@ Each part can also be run alone:
   in it and not in another (V scans in mining mode, not in combat); services away from a site
   says to dock or land; the combat menu opens over a game that goes on, lists the targets in
   range and targets the one chosen; lining up (C) turns the ship until its guns bear, and
-  steering takes the helm back.
+  steering takes the helm back; a hostile destroyed leaves a wreck, listed in the menu, chosen
+  there, and Z strips it into the hold.
   Add `-approachtest` (or `?approachtest` on the web) to test the real-size system and flying
   down to it: the planets' sizes and distances, the world drawn round the frigate after a warp
   of millions of kilometres, the far bodies drawn nearer, Ochre's ground seen from orbit, the

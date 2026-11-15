@@ -166,8 +166,67 @@ namespace CarrierGame.Demo
             Targets.Remove(dummy.transform);
             Destroy(dummy);
             cc.throttle = 0f;
+
+            // ---- salvage: a hostile destroyed leaves a wreck; chosen in the menu, Z strips it into the hold
+            yield return SalvageTest(kb, Check);
             if (hull != null) hull.cannotDie = false;
             Log($"{(passed == checks ? "PASS" : "FAIL")}: modes of play ({passed} of {checks})");
+        }
+
+        IEnumerator SalvageTest(Keyboard kb, System.Action<bool, string> Check)
+        {
+            var salvage = Salvage.Instance;
+            var hold = demo.Cargo;
+            if (salvage == null || hold == null) { Check(false, "salvage: no salvage or no hold"); yield break; }
+            int made0 = salvage.WrecksMade;
+            var t = cc.transform;
+            var prey = new GameObject("Practice hulk");
+            prey.SetActive(false);
+            var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            box.transform.SetParent(prey.transform, false);
+            box.transform.localScale = new Vector3(40f, 20f, 120f);
+            Object.Destroy(box.GetComponent<Collider>());
+            var ph = prey.AddComponent<Health>();
+            ph.maxHealth = 500f;
+            var pi = prey.AddComponent<TargetInfo>();
+            pi.displayName = "Practice hulk";
+            pi.shipClass = "Target hulk";
+            prey.transform.position = t.position + t.forward * 700f + t.right * 200f;
+            prey.SetActive(true);
+            // (kept: the hulk is gone once destroyed, its transform with it)
+            var preyAt = prey.transform;
+            Targets.Add(preyAt);
+            yield return null;
+            ph.Damage(1e6f);
+            yield return null;
+            var wreck = Wreck.All.LastOrDefault();
+            Check(salvage.WrecksMade == made0 + 1 && wreck != null && wreck.Of == "Practice hulk" && !wreck.Empty,
+                  $"a hostile destroyed leaves a wreck: {(wreck != null ? $"{wreck.Name}, {wreck.Summary()} ({wreck.Tonnes:F0} t)" : "none")}");
+            Targets.Remove(preyAt);
+            if (wreck == null) { if (prey != null) Destroy(prey); yield break; }
+
+            // chosen from the combat menu
+            yield return Key(kb, K.Tab);
+            var menu = ModeMenu.Instance;
+            Check(menu != null && menu.Rows.Any(r => r.header && r.text.StartsWith("WRECKS")) && menu.Rows.Any(r => (Object)(r.tag as Wreck) == wreck),
+                  "the combat menu lists it under WRECKS");
+            for (int i = 0; i < 20 && menu != null && (Object)(menu.Selected?.tag as Wreck) != wreck; i++) yield return Key(kb, K.DownArrow);
+            yield return Key(kb, K.Enter);
+            Check(salvage.Chosen == wreck, $"Enter chooses it ({(salvage.Chosen != null ? salvage.Chosen.Name : "none")}); '{Notices.Last}'");
+            yield return Key(kb, K.Tab);
+            Shot("modes_wreck");
+
+            // Z, in reach: the beam strips it into the hold
+            float steel0 = hold.Amount("SteelPlate");
+            yield return Key(kb, K.Z);
+            Check(salvage.Working == wreck, $"Z starts the salvage beam ('{Notices.Last}')");
+            yield return new WaitForSeconds(1.5f);
+            Shot("modes_salvaging");
+            float until = Time.time + 15f;
+            while (Time.time < until && salvage.Working != null) yield return null;
+            Check(hold.Amount("SteelPlate") > steel0 && salvage.Salvaged > 0f && (wreck == null || wreck.Empty),
+                  $"it is stripped into the hold: steel plate {steel0:F0} -> {hold.Amount("SteelPlate"):F0} t, {salvage.Salvaged:F0} t salvaged ('{Notices.Last}')");
+            if (prey != null) Destroy(prey);
         }
     }
 }

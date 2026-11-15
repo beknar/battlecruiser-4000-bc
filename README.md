@@ -10,7 +10,7 @@ and a cruiser are built at shipyards, flown, or sent to fly with you as a fleet;
 salvaged. Five modes of play (combat, mining, navigation, services, fleet) each have their own
 keys. Up to seven players fly together through a co-op server, which takes players with its API
 keys. It runs on Windows and in a web browser, with keyboard and mouse or an Xbox 360 / XInput
-gamepad.
+gamepad; a Linux build runs an AI wingman on a server.
 
 The two earlier games, Carrier Demo (open space) and Asteroid Ambush, are
 [deprecated](#deprecated-games-carrier-demo-and-asteroid-ambush): Star System has everything
@@ -1138,7 +1138,7 @@ In the web version, use the page's Full screen button rather than F11.
   under The captain
 - `Assets/Carrier/Shaders`: the shield bubble and planet atmosphere shaders (URP, additive)
 - `Assets/Carrier/Editor`: `CarrierBuilder` generates the materials, prefabs, breakup chunks and
-  scene; `CarrierPlayerBuild` builds the Windows player; `CarrierCommandWatcher` runs builds from
+  scene; `CarrierPlayerBuild` builds the Windows, web and Linux players; `CarrierCommandWatcher` runs builds from
   a trigger file
 - `Assets/Carrier/Models`: custom models (frigate hull, ball turret, CIWS, beam emitter, carrier
   parts, drone, missile)
@@ -1174,7 +1174,10 @@ In the web version, use the page's Full screen button rather than F11.
 2. Run **Tools > Carrier > Build Everything** to generate the materials, prefabs and scene.
 3. Run one of these:
    - **Tools > Carrier > Build Star System** for `../Builds/StarSystem/StarSystem.exe`;
-   - **Tools > Carrier > Build Star System (Web)** for `../Builds/StarSystemWeb/`.
+   - **Tools > Carrier > Build Star System (Web)** for `../Builds/StarSystemWeb/`;
+   - **Tools > Carrier > Build Star System (Linux)** for `../Builds/StarSystemLinux/StarSystem.x86_64`
+     (it needs Unity's Linux Build Support (Mono) module): chiefly to run an AI wingman on a
+     Linux server, beside the co-op server.
 
    The deprecated games are under **Tools > Carrier > Deprecated**, for
    `../Builds/CarrierDemo/CarrierDemo.exe` and `../Builds/AsteroidAmbush/AsteroidAmbush.exe`.
@@ -1420,6 +1423,12 @@ goes to the captain's notices. The server passes chat on like any other game mes
 StarSystem.exe -coopbot -connect <address>:<port> -name Wingman [-frigate Lancer] [-botport 7781] [-batchmode -nographics]
 ```
 
+- **On a Linux server**, beside the co-op server: unpack the Linux build (say to
+  `/opt/StarSystemBot`), `chmod +x StarSystem.x86_64` (a build made on Windows loses the flag),
+  and run `StarSystem.x86_64 -batchmode -nographics -coopbot -connect 127.0.0.1:7777 -apikey
+  <an AI key> -name Wingman` as a service (its own user, `HOME` set to a folder it can write,
+  `Restart=always`, after the co-op server). It uses about half a CPU core and 340 MB. The sound
+  card errors in its log, on a server without one, do no harm.
 - It needs no window. It flies the starting frigate unless given another, and never touches
   your save.
 - It greets the players, then forms up on the first one to join. If that player warps far

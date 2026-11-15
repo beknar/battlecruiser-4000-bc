@@ -164,7 +164,7 @@ namespace CarrierGame.Demo
             var place = Places.PlaceOf(p) ?? p;
             if (why == null && place != Places.At(ship.transform.position)) why = $"warp to {place.displayName} first (M)";
             if (why != null) { SoundFX.Ui(Sfx.UiError); Notices.Post($"Can't fly to {p.displayName}: {why}"); return false; }
-            AutoFly.Instance?.Stop();
+            demo.StopAutopilotsBut(this);
             Course = p;
             here = place;
             Finish = then;

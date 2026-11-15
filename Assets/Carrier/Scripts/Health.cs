@@ -43,6 +43,11 @@ namespace CarrierGame
         public float LastHitAmount { get; private set; }
         /// <summary>When a destroyed ship comes back (only meaningful while Dead and respawning).</summary>
         public float RespawnAt { get; private set; }
+        /// <summary>When it was last destroyed.</summary>
+        public float DiedAt { get; private set; } = -1f;
+
+        /// <summary>When one held for its SpawnDirector comes back (for the target panel's countdown).</summary>
+        public void SetRespawnAt(float t) { if (respawnHeld && Dead) RespawnAt = t; }
 
         Shield shield;
         bool shieldLooked;
@@ -157,6 +162,7 @@ namespace CarrierGame
         {
             Current = 0f;
             Dead = true;
+            DiedAt = Time.time;
             TimesDestroyed++;
             // a ship built from parts comes apart first and sets off its own explosion
             var breakup = GetComponent<ShipBreakup>();

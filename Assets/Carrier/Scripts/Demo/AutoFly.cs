@@ -52,9 +52,7 @@ namespace CarrierGame.Demo
                 return false;
             }
             // (one autopilot at a time)
-            demo.Combat?.StopLineUp();
-            demo.Mining?.StopApproach();
-            demo.Navigation?.Stop();
+            demo.StopAutopilotsBut(this);
             Label = label;
             where = at;
             within = Mathf.Max(100f, stopWithin);

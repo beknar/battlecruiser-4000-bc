@@ -387,6 +387,17 @@ namespace CarrierGame.Demo
             Notices.Post($"Jettisoned {t:F1} t of {Minerals.Name(m).ToLower()}: {cargo.Used:F0} of {cargo.capacity:F0} t aboard");
         }
 
+        /// <summary>One autopilot flies the ship at a time: the one starting (`keep`) stops the
+        /// others (the combat line-up, the mining approach, navigation's auto-travel, AutoFly).</summary>
+        public void StopAutopilotsBut(Object keep)
+        {
+            if (!ReferenceEquals(keep, Combat)) Combat?.StopLineUp();
+            if (!ReferenceEquals(keep, Mining)) Mining?.StopApproach();
+            if (!ReferenceEquals(keep, Navigation)) Navigation?.Stop();
+            var fly = AutoFly.Instance;
+            if (fly != null && !ReferenceEquals(keep, fly)) fly.Stop();
+        }
+
         /// <summary>The ship isn't the pilot's to fly by an autopilot just now: in warp, landing,
         /// taking off or docking, or with the comms line, the map or a site's screen up.</summary>
         public bool ShipHeld => (Warp != null && Warp.Current != WarpDrive.State.Ready) || PlanetLanding.Transitioning || Docking.Busy

@@ -146,31 +146,47 @@ namespace CarrierGame.Demo
             Notices.Post(InReach(w) ? $"{w.Name}: in reach. Z salvages it" : $"{w.Name} chosen, {CombatMode.Distance(DistanceTo(w))} off: Z flies there and salvages it");
         }
 
-        /// <summary>Z: start salvaging the chosen wreck (or the nearest in reach), or stop.</summary>
         /// <summary>Z: salvage the chosen wreck (or the nearest in reach); one out of reach is
         /// flown to first, and salvaged on arrival. Z again stops the beam, or the flight.</summary>
         public void Toggle()
         {
             if (Working != null) { Stop("Salvage beam off"); return; }
-            var fly = AutoFly.Instance;
-            if (fly != null && fly.Active && flyingTo != null) { fly.Stop("Auto-flight off"); flyingTo = null; return; }
-            var ship = Ship;
-            if (ship == null || ship.Destroyed) return;
-            var hold = demo.Cargo;
-            if (hold == null) { Refuse($"The {ship.shipName.ToLower()} has no hold to salvage into"); return; }
-            // the one chosen, or one in reach, or (none near enough) the nearest about
-            var w = Chosen != null && !Chosen.Empty ? Chosen : Near(range + 400f).FirstOrDefault(InReach) ?? NearNow().FirstOrDefault();
+            if (FlyingToWreck) { AutoFly.Instance.Stop("Auto-flight off"); flyingTo = null; return; }
+            // the one chosen, or the nearest about
+            var w = Chosen != null && !Chosen.Empty ? Chosen : NearNow().FirstOrDefault();
             if (w == null) { Refuse("No wreck near: destroy a hostile, or choose a wreck in the combat menu (Tab)"); return; }
-            if (hold.Full) { Refuse("The hold is full"); return; }
+            if (!CanSalvage()) return;
             if (!InReach(w)) { FlyTo(w); return; }
             StartOn(w);
+        }
+
+        /// <summary>A flight to a wreck under way (this one's: not another auto-flight).</summary>
+        bool FlyingToWreck
+        {
+            get
+            {
+                var fly = AutoFly.Instance;
+                if (flyingTo != null && (fly == null || !fly.Active || fly.Label != flyingTo.Name)) flyingTo = null;
+                return flyingTo != null;
+            }
+        }
+
+        /// <summary>A hold to salvage into, with room: says why not.</summary>
+        bool CanSalvage()
+        {
+            var ship = Ship;
+            if (ship == null || ship.Destroyed) return false;
+            var hold = demo.Cargo;
+            if (hold == null) { Refuse($"The {ship.shipName.ToLower()} has no hold to salvage into"); return false; }
+            if (hold.Full) { Refuse("The hold is full"); return false; }
+            return true;
         }
 
         /// <summary>Fly to a wreck (until it is in the beam's reach), and salvage it there.</summary>
         public bool FlyTo(Wreck w)
         {
             var fly = AutoFly.Instance;
-            if (w == null || fly == null) return false;
+            if (w == null || fly == null || !CanSalvage()) return false;
             Chosen = w;
             flyingTo = w;
             return fly.Begin(w.Name, () => w != null ? w.transform.position : Ship.transform.position, range * 0.6f + w.Size,

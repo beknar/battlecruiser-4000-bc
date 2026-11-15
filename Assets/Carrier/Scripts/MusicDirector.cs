@@ -50,6 +50,11 @@ namespace CarrierGame
         // the calm tracks to go round, the one playing, the one fading in (and how far), and when
         // the next change is due
         AudioClip[] calmClips;
+        /// <summary>The calm tracks the music goes round (those of them there are).</summary>
+        static readonly string[] CalmTracks = { "Music_Calm", "Travel_Calm" };
+        // the combat track was started from its first bar (away from the scene's own calm track):
+        // it isn't pulled into step with the calm one until it has stopped
+        bool combatFromTop;
         AudioClip pairedCalm;
         int calmIndex;
         AudioSource calmNext;
@@ -94,12 +99,14 @@ namespace CarrierGame
             calm = Source(calmClip[0]);
             pairedCalm = calmClip[0];
             combat = Source(combatClip[0]);
-            // every calm track there is, the scene's own first
-            var all = SoundFX.LoadLibrary("Music");
+            // the calm tracks there are, the scene's own first (only those loaded)
             var list = new System.Collections.Generic.List<AudioClip> { calmClip[0] };
-            if (all != null)
-                foreach (var c in all)
-                    if (c != null && c != calmClip[0] && c.name.Contains("Calm")) list.Add(c);
+            foreach (var name in CalmTracks)
+            {
+                if (name == calmTrack) continue;
+                var c = SoundFX.LoadLibrary("Music/" + name);
+                if (c != null && c.Length > 0) list.Add(c[0]);
+            }
             calmClips = list.ToArray();
             calmIndex = 0;
             calmNext = Source(calmClip[0]);
@@ -133,25 +140,35 @@ namespace CarrierGame
             // enemies out of hiding close by: still a fight, even in a lull
             if (!eventDriven && Camera.main != null && CombatPilot.AnyEngagedNear(Camera.main.transform.position, 12000f)) fighting = true;
             float target = fighting ? 1f : 0f;
-            // in step with the combat arrangement only while the scene's own calm track plays
-            bool inStep = synced && calm.clip == pairedCalm && cycleK < 0f;
-            if (!inStep && target > 0f && !combat.isPlaying) { combat.timeSamples = 0; combat.Play(); }
+            // in step with the combat arrangement only while the scene's own calm track plays (and
+            // the combat one wasn't started from its top, away from it)
+            bool paired = synced && calm.clip == pairedCalm && cycleK < 0f;
+            bool inStep = paired && !combatFromTop;
+            if (!inStep && target > 0f && !combat.isPlaying) { combat.timeSamples = 0; combat.Play(); combatFromTop = synced; }
             CycleCalm(fighting);
             float rate = 1f / (target > CombatMix ? fadeToCombat : fadeToCalm);
             CombatMix = Mathf.MoveTowards(CombatMix, target, rate * Time.deltaTime);
             // equal-power crossfade, so the overall level holds steady through the switch
             float k = CombatMix * Mathf.PI * 0.5f;
             float calmLevel = calmVolume * Mathf.Cos(k);
-            float x = cycleK < 0f ? 0f : Mathf.Clamp01(cycleK);
-            calm.volume = calmLevel * (1f - x);
-            calmNext.volume = calmLevel * x;
+            // (equal power, as the combat crossfade: the level holds steady through the change)
+            float x = (cycleK < 0f ? 0f : Mathf.Clamp01(cycleK)) * Mathf.PI * 0.5f;
+            calm.volume = calmLevel * Mathf.Cos(x);
+            calmNext.volume = calmLevel * Mathf.Sin(x);
             combat.volume = combatVolume * Mathf.Sin(k);
             if (inStep)
             {
                 // keep the two arrangements locked together
                 if (Mathf.Abs(combat.timeSamples - calm.timeSamples) > 2048) combat.timeSamples = calm.timeSamples;
             }
-            else if (CombatMix <= 0f && combat.isPlaying && !(synced && calm.clip == pairedCalm)) combat.Stop();   // next fight starts it afresh
+            else if (CombatMix <= 0f && combat.isPlaying)
+            {
+                // the fight over: the next starts it afresh (or, back on the scene's own calm
+                // track, it runs in step with it again)
+                combat.Stop();
+                combatFromTop = false;
+                if (paired) { combat.timeSamples = calm.timeSamples; combat.Play(); }
+            }
         }
 
         /// <summary>The next calm track as soon as it is calm (the self-test).</summary>
@@ -173,8 +190,9 @@ namespace CarrierGame
                 cycleK = -1f;
                 Cycles++;
                 nextCycle = Time.time + Random.Range(cycleMin, cycleMax);
-                // (back on the scene's own calm track: the combat arrangement runs in step again)
-                if (synced && calm.clip == pairedCalm && !combat.isPlaying) { combat.timeSamples = calm.timeSamples; combat.Play(); }
+                // (back on the scene's own calm track: the combat arrangement runs in step again,
+                // unless one started from its top is still playing out a fight)
+                if (synced && calm.clip == pairedCalm && !combat.isPlaying) { combat.timeSamples = calm.timeSamples; combat.Play(); combatFromTop = false; }
                 return;
             }
             // (not in the middle of a fight, nor coming out of one: the next quiet spell)

@@ -151,7 +151,7 @@ namespace CarrierGame.Demo
             var ship = Ship;
             if (ship == null || ship.Destroyed) return;
             if (ship.target == null) { SoundFX.Ui(Sfx.UiError); Notices.Post(PadSupport.UsingPad ? "Line up: pick a target first (Y)" : "Line up: pick a target first (T, or click a ship)"); return; }
-            AutoFly.Instance?.Stop();
+            demo.StopAutopilotsBut(this);
             LiningUp = true;
             saidLinedUp = false;
             nextLook = 0f;

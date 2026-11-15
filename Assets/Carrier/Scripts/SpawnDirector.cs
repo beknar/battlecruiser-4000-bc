@@ -22,6 +22,8 @@ namespace CarrierGame
         public float spawnEvery = 300f;
         [Tooltip("Seconds a location stays empty once all its enemies have been destroyed.")]
         public float quietAfterCleared = 600f;
+        [Tooltip("One destroyed less than this long ago (s) waits for the next spawn.")]
+        public float minDead = 20f;
 
         public static SpawnDirector Instance { get; private set; }
 
@@ -74,6 +76,8 @@ namespace CarrierGame
             {
                 s.enemies.RemoveAll(h => h == null);
                 if (s.enemies.Count == 0) continue;
+                // (the destroyed ones' countdown, for the target panel: the next spawn, or the quiet's end)
+                foreach (var h in s.enemies) if (h.Dead) h.SetRespawnAt(s.Cleared ? s.quietUntil : s.nextSpawn);
                 int alive = s.Alive;
                 if (alive == 0 && !s.Cleared)
                 {
@@ -101,7 +105,16 @@ namespace CarrierGame
             s.nextSpawn = now + spawnEvery;
             int back = 0;
             foreach (var h in s.enemies)
-                if (h != null && h.Dead) { h.RespawnNow(); back++; }
+            {
+                if (h == null || !h.Dead) continue;
+                // (not one only just destroyed: its breakup is still going, and its wreck fresh;
+                // it comes back at the next spawn)
+                var breakup = h.GetComponent<ShipBreakup>();
+                float settle = Mathf.Max(minDead, breakup != null ? breakup.breakTime + breakup.duration + 0.5f : 0f);
+                if (Time.time - h.DiedAt < settle) continue;
+                h.RespawnNow();
+                back++;
+            }
             if (back == 0) return;
             s.spawns++;
             Debug.Log($"[Spawns] {s.name}: {back} back");

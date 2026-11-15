@@ -165,7 +165,7 @@ namespace CarrierGame.Demo
                 return;
             }
             if (laser.Reach(Chosen) <= laser.range * 0.8f) { Notices.Post($"{Chosen.Label} is in reach already"); return; }
-            AutoFly.Instance?.Stop();
+            demo.StopAutopilotsBut(this);
             Approaching = true;
             approachLog = 0f;
             throttleSet = -1f;

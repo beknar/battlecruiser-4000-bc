@@ -326,21 +326,31 @@ namespace CarrierGame.Demo
             Log($"  spawn locations: {string.Join(", ", sd.Sites.Select(x => $"{x.name} ({x.enemies.Count})"))}; every {sd.spawnEvery / 60f:0} min, quiet {sd.quietAfterCleared / 60f:0} min once cleared");
             var site = sd.Sites.OrderBy(x => x.enemies.Count).First();
             int count = site.enemies.Count;
+            // (a spawn leaves one only just destroyed, while it breaks up: no wait beyond that here)
+            float minDead0 = sd.minDead;
+            sd.minDead = 0f;
             foreach (var h in site.enemies) if (h != null && !h.Dead) h.Damage(1e9f);
             yield return new WaitForSeconds(3f);
             Check(site.Cleared && site.Alive == 0, $"{site.name}: all {count} destroyed, it is cleared (quiet for {sd.quietAfterCleared / 60f:0} min)");
             sd.SpawnAllNow();
             yield return null;
             Check(site.Alive == 0, $"no spawns there while it is quiet ({site.Alive} back)");
+            yield return new WaitForSeconds(5f);
             sd.EndQuietNow();
             yield return new WaitForSeconds(1.5f);
             Check(!site.Cleared && site.Alive == count, $"the quiet over, they spawn again: {site.Alive} of {count}");
             site.enemies[0].Damage(1e9f);
-            yield return new WaitForSeconds(3f);
+            yield return new WaitForSeconds(1f);
             int down = count - site.Alive;
             sd.SpawnAllNow();
             yield return null;
-            Check(down == 1 && site.Alive == count, $"a spawn (every {sd.spawnEvery / 60f:0} min) brings back the one destroyed ({down} down, {site.Alive} of {count} after)");
+            bool waited = site.Alive == count - 1;   // (only just destroyed: left for the next spawn)
+            yield return new WaitForSeconds(8f);
+            sd.SpawnAllNow();
+            yield return null;
+            sd.minDead = minDead0;
+            Check(down == 1 && waited && site.Alive == count,
+                  $"a spawn (every {sd.spawnEvery / 60f:0} min) brings back the one destroyed, once its breakup is over ({down} down, left at first {waited}, {site.Alive} of {count} after)");
         }
     }
 }

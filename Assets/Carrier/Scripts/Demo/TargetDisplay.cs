@@ -263,7 +263,8 @@ namespace CarrierGame.Demo
             {
                 Hud.Fill(vr, new Color(0f, 0f, 0f, 0.6f));
                 float left = health.respawnDelay > 0f ? Mathf.Max(0f, health.RespawnAt - Time.time) : 0f;
-                string msg = health.respawnDelay > 0f ? $"DESTROYED\n<size={Mathf.RoundToInt(15 * s)}>respawning in {left:F0} s</size>" : "DESTROYED";
+                bool knows = health.respawnDelay > 0f && !float.IsInfinity(left);
+                string msg = knows ? $"DESTROYED\n<size={Mathf.RoundToInt(15 * s)}>respawning in {(left >= 90f ? $"{left / 60f:F0} min" : $"{left:F0} s")}</size>" : "DESTROYED";
                 GUI.Label(vr, msg, Hud.Text(24, true, TextAnchor.MiddleCenter));
             }
             if (health != null && !dead && Time.time - health.LastHitTime < 0.8f)

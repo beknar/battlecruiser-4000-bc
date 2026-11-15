@@ -37,6 +37,7 @@ namespace CarrierGame
         public static WarpPoint PlaceOf(WarpPoint w)
         {
             if (w == null || IsBody(w)) return null;
+            if (w.kind == WarpPoint.Kind.Landmark) return w.follow;
             float now = Time.unscaledTime;
             if (now - cachedAt > 2f || now < cachedAt) { placeOf.Clear(); cachedAt = now; }
             if (placeOf.TryGetValue(w, out var known)) return known;

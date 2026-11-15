@@ -144,8 +144,12 @@ namespace CarrierGame.Demo
             InputFocus.Release(InputFocus.Panel.Chat);
         }
 
+        /// <summary>Where the comms line and its messages are on screen now (zero when none).</summary>
+        public static Rect Area { get; private set; }
+
         void OnGUI()
         {
+            Area = Rect.zero;
             if (!CoopClient.Active && !typing) return;
             float s = Screen.height / 1080f;
             if (box == null)
@@ -155,12 +159,27 @@ namespace CarrierGame.Demo
             }
             box.fontSize = Mathf.RoundToInt(17 * s);
             input.fontSize = Mathf.RoundToInt(18 * s);
-            float x = 16 * s, w = 560 * s, y = 150 * s, lh = 24 * s;
+            // at the foot of the screen, beside the ship's console (clear of the controls box at
+            // the top left, which covered it): the typing line at the bottom, the messages above it
+            float lh = 24 * s, inputH = 30 * s, gap = 12 * s;
+            var console = ShipConsole.Rect;
+            float x = console.width > 0f ? console.xMax + gap + 4 * s : 16 * s;
+            float bottom = Screen.height - 10 * s;
+            float w = Mathf.Min(560 * s, Screen.width - x - 16 * s);
+            if (w < 300 * s)
+            {
+                // (no room beside the console: over it)
+                x = 16 * s;
+                w = Mathf.Min(560 * s, Screen.width - 32 * s);
+                bottom = console.height > 0f ? console.yMin - 6 * s : bottom;
+            }
             // the last six, each fading out 20 to 26 s after it came (all of them while typing)
             double now = Now;
             float Alpha(Line l) => typing ? 1f : Mathf.Clamp01((26f - (float)(now - l.time)) / 6f);
             int shown = 0;
             for (int i = Lines.Count - 1; i >= 0 && shown < 6 && Alpha(Lines[i]) > 0f; i--) shown++;
+            float y = bottom - (typing ? inputH + 4 * s : 0f) - shown * lh;
+            Area = new Rect(x - 4 * s, y, w + 8 * s, bottom - y);
             for (int i = Lines.Count - shown; i < Lines.Count; i++)
             {
                 var l = Lines[i];
@@ -174,7 +193,7 @@ namespace CarrierGame.Demo
             GUI.color = Color.white;
             if (!typing) return;
             GUI.SetNextControlName("chat");
-            draft = GUI.TextField(new Rect(x, y + 4 * s, w, 30 * s), draft ?? "", MaxLength, input);
+            draft = GUI.TextField(new Rect(x, y + 4 * s, w, inputH), draft ?? "", MaxLength, input);
             GUI.FocusControl("chat");
         }
     }

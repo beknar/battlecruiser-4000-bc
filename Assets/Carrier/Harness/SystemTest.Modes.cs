@@ -42,6 +42,22 @@ namespace CarrierGame.Demo
             if (hull != null) hull.cannotDie = true;
             Check(Modes.Current == ModeOfPlay.Combat, $"a game starts in combat mode ({Modes.Name(Modes.Current)})");
 
+            // ---- the atmospheric music changes track (every 1 to 5 minutes: made due now)
+            var music = FindAnyObjectByType<MusicDirector>();
+            if (music != null && music.enabled && MusicDirector.Playing)
+            {
+                int cycles0 = MusicDirector.Cycles;
+                float fade0 = music.cycleFade;
+                music.cycleFade = 0.5f;
+                music.ChangeTrackSoon();
+                float mu = Time.time + 5f;
+                while (Time.time < mu && MusicDirector.Cycles == cycles0) yield return null;
+                music.cycleFade = fade0;
+                Check(MusicDirector.Cycles > cycles0 && music.cycleMin >= 60f && music.cycleMax <= 300f,
+                      $"the calm music changes track (every {music.cycleMin / 60f:0}-{music.cycleMax / 60f:0} min): {MusicDirector.Cycles - cycles0} change(s), now '{MusicDirector.NowPlaying}'");
+            }
+            else Log("  (no music here: the music check is skipped)");
+
             // ---- the number keys, and the controls box for each mode
             var keys = new[] { (K.Digit2, ModeOfPlay.Mining, "mineral scan"), (K.Digit3, ModeOfPlay.Navigation, "system map"),
                                (K.Digit4, ModeOfPlay.Services, "services"), (K.Digit5, ModeOfPlay.Fleet, "fleet yet"),
@@ -163,6 +179,22 @@ namespace CarrierGame.Demo
             yield return Keys(kb, K.LeftShift, K.T);
             Check(cc.target != null, $"Shift+T targets one too ({(cc.target != null ? cc.target.name : "none")})");
 
+            // ---- U: fly to the target (9 km ahead now), and line up on it there
+            var fly = AutoFly.Instance;
+            dummy.transform.position = t.position + t.forward * 9000f + t.right * 1500f;
+            demo.SelectTarget(dummy.transform);
+            int arrivals0 = fly != null ? fly.Arrivals : 0;
+            yield return Key(kb, K.U);
+            bool flying = fly != null && fly.Active;
+            float fu = Time.time + 90f;
+            while (Time.time < fu && fly != null && fly.Active) yield return null;
+            float there = Vector3.Distance(cc.transform.position, dummy.transform.position);
+            Check(flying && fly.Arrivals == arrivals0 + 1 && combat.LiningUp,
+                  $"U flies to the target ({there / 1000f:F1} km off on arrival, after {Time.time - (fu - 90f):F0} s) and lines up on it there (lining up {combat.LiningUp})");
+            Shot("modes_flown_to_target");
+            combat.StopLineUp();
+            cc.throttle = 0f;
+
             Targets.Remove(dummy.transform);
             Destroy(dummy);
             cc.throttle = 0f;
@@ -188,6 +220,8 @@ namespace CarrierGame.Demo
             bool back = Mathf.Approximately(HudSettings.Size, size0);
             Hud.UserScale = size0;
             Check(back && smaller < wide, $"the HUD a size smaller: the console {wide:F0} -> {smaller:F0} px, and back to {HudSettings.Size * 100f:F0}%");
+            // ---- the enemies' spawns, location by location
+            yield return SpawnTest(Check);
             if (hull != null) hull.cannotDie = false;
             Log($"{(passed == checks ? "PASS" : "FAIL")}: modes of play ({passed} of {checks})");
         }
@@ -246,6 +280,77 @@ namespace CarrierGame.Demo
             Check(hold.Amount("SteelPlate") > steel0 && salvage.Salvaged > 0f && (wreck == null || wreck.Empty),
                   $"it is stripped into the hold: steel plate {steel0:F0} -> {hold.Amount("SteelPlate"):F0} t, {salvage.Salvaged:F0} t salvaged ('{Notices.Last}')");
             if (prey != null) Destroy(prey);
+
+            // a second, 7 km off: Shift+Z chooses it, Z flies there and starts the beam on arrival
+            var far = new GameObject("Distant hulk");
+            far.SetActive(false);
+            var fbox = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            fbox.transform.SetParent(far.transform, false);
+            fbox.transform.localScale = new Vector3(40f, 20f, 120f);
+            Object.Destroy(fbox.GetComponent<Collider>());
+            var fh = far.AddComponent<Health>();
+            fh.maxHealth = 500f;
+            far.AddComponent<TargetInfo>().displayName = "Distant hulk";
+            far.transform.position = t.position + t.forward * 7000f - t.right * 1200f;
+            far.SetActive(true);
+            var farAt = far.transform;
+            Targets.Add(farAt);
+            yield return null;
+            fh.Damage(1e6f);
+            yield return null;
+            Targets.Remove(farAt);
+            var wreck2 = Wreck.All.LastOrDefault();
+            yield return Keys(kb, K.LeftShift, K.Z);
+            bool chose = wreck2 != null && salvage.Chosen == wreck2;
+            yield return Key(kb, K.Z);
+            var fly = AutoFly.Instance;
+            bool flies = fly != null && fly.Active;
+            float fu = Time.time + 90f;
+            while (Time.time < fu && fly != null && fly.Active) yield return null;
+            yield return null;
+            Check(chose && flies && salvage.Working == wreck2,
+                  $"Shift+Z chooses the far wreck ({chose}), Z flies there ({flies}) and starts the beam on arrival ({(salvage.Working != null ? salvage.Working.Name : "none")}, " +
+                  $"{(wreck2 != null ? salvage.DistanceTo(wreck2) / 1000f : -1f):F1} km off)");
+            Shot("modes_flown_to_wreck");
+            if (salvage.Working != null) salvage.Stop();
+            cc.throttle = 0f;
+            if (far != null) Destroy(far);
+        }
+
+        /// <summary>A location's enemies all destroyed: it is quiet (no spawns) till the quiet
+        /// is over, then they all come back; a spawn brings back any destroyed since.</summary>
+        IEnumerator SpawnTest(System.Action<bool, string> Check)
+        {
+            var sd = SpawnDirector.Instance;
+            if (sd == null || sd.Sites.Count == 0) { Check(false, "spawns: no locations"); yield break; }
+            Log($"  spawn locations: {string.Join(", ", sd.Sites.Select(x => $"{x.name} ({x.enemies.Count})"))}; every {sd.spawnEvery / 60f:0} min, quiet {sd.quietAfterCleared / 60f:0} min once cleared");
+            var site = sd.Sites.OrderBy(x => x.enemies.Count).First();
+            int count = site.enemies.Count;
+            // (a spawn leaves one only just destroyed, while it breaks up: no wait beyond that here)
+            float minDead0 = sd.minDead;
+            sd.minDead = 0f;
+            foreach (var h in site.enemies) if (h != null && !h.Dead) h.Damage(1e9f);
+            yield return new WaitForSeconds(3f);
+            Check(site.Cleared && site.Alive == 0, $"{site.name}: all {count} destroyed, it is cleared (quiet for {sd.quietAfterCleared / 60f:0} min)");
+            sd.SpawnAllNow();
+            yield return null;
+            Check(site.Alive == 0, $"no spawns there while it is quiet ({site.Alive} back)");
+            yield return new WaitForSeconds(5f);
+            sd.EndQuietNow();
+            yield return new WaitForSeconds(1.5f);
+            Check(!site.Cleared && site.Alive == count, $"the quiet over, they spawn again: {site.Alive} of {count}");
+            site.enemies[0].Damage(1e9f);
+            yield return new WaitForSeconds(1f);
+            int down = count - site.Alive;
+            sd.SpawnAllNow();
+            yield return null;
+            bool waited = site.Alive == count - 1;   // (only just destroyed: left for the next spawn)
+            yield return new WaitForSeconds(8f);
+            sd.SpawnAllNow();
+            yield return null;
+            sd.minDead = minDead0;
+            Check(down == 1 && waited && site.Alive == count,
+                  $"a spawn (every {sd.spawnEvery / 60f:0} min) brings back the one destroyed, once its breakup is over ({down} down, left at first {waited}, {site.Alive} of {count} after)");
         }
     }
 }

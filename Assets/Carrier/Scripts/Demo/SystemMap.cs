@@ -18,6 +18,11 @@ namespace CarrierGame.Demo
     /// ellipses are drawn, and the five Lagrange points of Thalassa and Jovara, going round
     /// with them.
     ///
+    /// The other ships of the player's side are on it too: the other players' (in co-op), the AI
+    /// wingmen's, and the fleet's, each marked with its name. Click one (another player, or a
+    /// wingman) and WARP, or double-click it, for a mini-warp to them: the ship drops out close
+    /// by them, astern and to one side.
+    ///
     /// Keyboard and mouse: M opens and closes it; click a place (or use the arrow keys / WASD,
     /// Tab to step through), then click WARP, double-click, or press Enter. Esc closes it.
     /// Gamepad: R3 (press the right stick) opens it; the left stick or D-pad moves between places,
@@ -35,6 +40,22 @@ namespace CarrierGame.Demo
 
         public WarpPoint Selected { get; private set; }
         public WarpPoint Hover { get; private set; }
+
+        /// <summary>Another ship of the player's side, as the map shows it.</summary>
+        public struct Ally
+        {
+            public string name, kind;
+            public Transform ship;
+            public Color color;
+            /// <summary>Why it can't be warped to (null: it can).</summary>
+            public string noWarp;
+        }
+
+        /// <summary>The other ships of the player's side on the map now.</summary>
+        public readonly List<Ally> Allies = new List<Ally>();
+        /// <summary>The ally chosen (its ship), instead of a place; null if none.</summary>
+        public Transform SelectedAlly { get; private set; }
+        Transform lastClickedAlly;
 
         Rect mapRect, infoRect, warpButton;
         float pxPerM = 1f;
@@ -81,14 +102,78 @@ namespace CarrierGame.Demo
 
         public void Select(WarpPoint p)
         {
-            if (p == null || p == Selected) return;
+            if (p == null || (p == Selected && SelectedAlly == null)) return;
             Selected = p;
+            SelectedAlly = null;
             SoundFX.Ui(Sfx.UiLock);
         }
 
-        /// <summary>Warp to the chosen place, if the drive allows it.</summary>
+        /// <summary>Choose another ship of the player's side (to warp to).</summary>
+        public void SelectAlly(Transform ship)
+        {
+            if (ship == null || ship == SelectedAlly) return;
+            SelectedAlly = ship;
+            SoundFX.Ui(Sfx.UiLock);
+        }
+
+        Ally? AllyOf(Transform ship)
+        {
+            foreach (var a in Allies) if (a.ship == ship) return a;
+            return null;
+        }
+
+        /// <summary>The other ships of the player's side: the other players' and the AI
+        /// wingmen's (in co-op, in this level), and the fleet's.</summary>
+        void RefreshAllies()
+        {
+            Allies.Clear();
+            var client = CoopClient.Instance;
+            var world = CoopWorld.Instance;
+            if (client != null && client.Connected && world != null)
+                foreach (var p in client.Players)
+                {
+                    if (p.id == client.MyId) continue;
+                    var r = world.RemoteOf(p.id);
+                    if (r == null) continue;
+                    bool bot = CoopBot.IsBot(p);
+                    string down = !string.IsNullOrEmpty(r.Surface) ? $"down on {r.Surface}" : null;
+                    if (r.Hidden && down == null) continue;   // (in warp, destroyed, or not heard from)
+                    Allies.Add(new Ally
+                    {
+                        name = p.name, kind = bot ? "AI wingman" : "player", ship = r.transform,
+                        color = bot ? new Color(1f, 0.7f, 0.3f) : new Color(0.45f, 0.85f, 1f),
+                        noWarp = down,
+                    });
+                }
+            var fleet = FleetDirector.Instance;
+            if (fleet != null)
+                foreach (var s in fleet.Ships)
+                    if (s != null)
+                        Allies.Add(new Ally { name = s.displayName, kind = "fleet", ship = s.transform, color = new Color(0.55f, 1f, 0.6f), noWarp = "she flies with you" });
+            if (SelectedAlly != null && AllyOf(SelectedAlly) == null) SelectedAlly = null;
+        }
+
+        /// <summary>A mini-warp to the ally chosen, if the drive allows it.</summary>
+        public bool WarpToAlly()
+        {
+            var a = SelectedAlly != null ? AllyOf(SelectedAlly) : null;
+            if (a == null || drive == null) return false;
+            if (a.Value.noWarp != null) { SoundFX.Ui(Sfx.UiError); Notices.Post($"Can't warp to {a.Value.name}: {a.Value.noWarp}"); return false; }
+            if (drive.EngageTo(a.Value.ship, a.Value.name, out string why))
+            {
+                Notices.Post($"Warping to {a.Value.name}: {drive.ChargeTime + drive.TravelTime:F1} s");
+                Close();
+                return true;
+            }
+            SoundFX.Ui(Sfx.UiError);
+            Notices.Post($"Can't warp to {a.Value.name}: {why}");
+            return false;
+        }
+
+        /// <summary>Warp to the chosen place (or ally), if the drive allows it.</summary>
         public bool WarpToSelected()
         {
+            if (SelectedAlly != null) return WarpToAlly();
             if (Selected == null || drive == null) return false;
             if (IsHere(Selected))
             {
@@ -188,6 +273,7 @@ namespace CarrierGame.Demo
                 return;
             }
             Layout();
+            RefreshAllies();
 
             if (k != null)
             {
@@ -228,6 +314,19 @@ namespace CarrierGame.Demo
         public void Click(Vector2 gui)
         {
             if (warpButton.Contains(gui)) { WarpToSelected(); return; }
+            // another ship of the player's side (before a place: it is drawn over them)
+            var ally = AllyAt(gui);
+            if (ally != null)
+            {
+                bool again = ally == lastClickedAlly && Time.unscaledTime - lastClick < 0.4f;
+                lastClickedAlly = ally;
+                lastClicked = null;
+                lastClick = Time.unscaledTime;
+                SelectAlly(ally);
+                if (again) WarpToAlly();
+                return;
+            }
+            lastClickedAlly = null;
             var p = PointAt(gui);
             if (p == null) return;
             bool twice = p == lastClicked && Time.unscaledTime - lastClick < 0.4f;
@@ -236,6 +335,23 @@ namespace CarrierGame.Demo
             Select(p);
             if (twice) WarpToSelected();
         }
+
+        /// <summary>The ally's ship drawn at a GUI position (within a few pixels), or null.</summary>
+        public Transform AllyAt(Vector2 gui, float maxPx = 16f)
+        {
+            Transform best = null;
+            float bestD = maxPx * Hud.S;
+            foreach (var a in Allies)
+            {
+                if (a.ship == null) continue;
+                float d = Vector2.Distance(ToScreen(a.ship.position), gui);
+                if (d < bestD) { bestD = d; best = a.ship; }
+            }
+            return best;
+        }
+
+        /// <summary>Where an ally's ship is drawn on the map (GUI space).</summary>
+        public Vector2 ScreenPosOf(Transform ship) => ToScreen(ship.position);
 
         public WarpPoint PointAt(Vector2 gui, float maxPx = 26f)
         {
@@ -370,9 +486,16 @@ namespace CarrierGame.Demo
                 placed.Add(r);
                 GUI.Label(new Rect(r.x, r.y, 300f * s, 24f * s), content, label);
             }
-            // the frigate, and the way to the chosen place
+            // the frigate, and the way to the chosen place (or ally)
             Vector2 me = ToScreen(carrier.transform.position);
-            if (Selected != null)
+            if (SelectedAlly != null)
+            {
+                Vector2 ap = ToScreen(SelectedAlly.position);
+                DottedLine(me, ap, new Color(0.55f, 0.8f, 1f, 0.8f), 8f * s);
+                float pulse = 1f + 0.15f * Mathf.Sin(Time.unscaledTime * 6f);
+                Draw(ring, ap, 30f * s * pulse, new Color(0.55f, 0.85f, 1f, 1f));
+            }
+            else if (Selected != null)
             {
                 Vector2 sp = ScreenPosOf(Selected);
                 DottedLine(me, sp, new Color(0.55f, 0.8f, 1f, 0.8f), 8f * s);
@@ -385,6 +508,22 @@ namespace CarrierGame.Demo
             Draw(arrow, me, 22f * s, new Color(0.5f, 1f, 0.6f, 1f));
             GUI.matrix = m;
             GUI.Label(new Rect(me.x + 12f * s, me.y + 4f * s, 200f * s, 24f * s), "<color=#7ee08a>Frigate</color>", label);
+            // the other ships of the player's side, each with its heading and name
+            for (int i = 0; i < Allies.Count; i++)
+            {
+                var a = Allies[i];
+                if (a.ship == null) continue;
+                Vector2 ap = ToScreen(a.ship.position);
+                Vector3 f = a.ship.forward;
+                var gm = GUI.matrix;
+                GUIUtility.RotateAroundPivot(Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg, ap);
+                Draw(arrow, ap, 16f * s, a.color);
+                GUI.matrix = gm;
+                // (stacked under the frigate's own label when it is at the same spot)
+                float below = Vector2.Distance(ap, me) < 14f * s ? 18f * s * (i + 1) : 0f;
+                GUI.Label(new Rect(ap.x + 10f * s, ap.y + 2f * s + below, 320f * s, 22f * s),
+                          $"<color=#{ColorUtility.ToHtmlStringRGB(a.color)}>{a.name}</color>  <color=#9aa4b0>{a.kind}{(a.noWarp != null && a.kind != "fleet" ? ", " + a.noWarp : "")}</color>", Hud.Text(13));
+            }
             // scale bar
             float km50 = 50000f * pxPerM;
             Hud.Fill(new Rect(mapRect.x + 20f * s, mapRect.yMax - 26f * s, km50, 2f * s), new Color(0.7f, 0.8f, 0.9f, 0.7f));
@@ -461,7 +600,20 @@ namespace CarrierGame.Demo
             float x = infoRect.x + 20f * s, y = infoRect.y + 18f * s, w = infoRect.width - 40f * s;
             var body = Hud.Text(17);
             body.wordWrap = true;
-            if (Selected != null)
+            var ally = SelectedAlly != null ? AllyOf(SelectedAlly) : null;
+            if (ally != null)
+            {
+                var a = ally.Value;
+                GUI.Label(new Rect(x, y, w, 34f * s), $"<b>{a.name}</b>", Hud.Text(26));
+                y += 36f * s;
+                GUI.Label(new Rect(x, y, w, 24f * s), $"<color=#9aa4b0>{(a.kind == "player" ? "Another player's ship" : a.kind == "AI wingman" ? "An AI wingman" : "A ship of your fleet")}</color>", body);
+                y += 34f * s;
+                float km = Vector3.Distance(carrier.transform.position, a.ship.position) / 1000f;
+                GUI.Label(new Rect(x, y, w, 60f * s),
+                    a.noWarp != null ? $"Distance  <b>{km:F0} km</b>\n<color=#9aa4b0>No warp: {a.noWarp}</color>"
+                                     : $"Distance  <b>{km:F0} km</b>\nMini-warp time  <b>{drive.ChargeTime + drive.TravelTimeTo(a.ship):F1} s</b>  <color=#9aa4b0>(drops out close by)</color>", body);
+            }
+            else if (Selected != null)
             {
                 GUI.Label(new Rect(x, y, w, 34f * s), $"<b>{Selected.displayName}</b>", Hud.Text(26));
                 y += 36f * s;
@@ -491,13 +643,13 @@ namespace CarrierGame.Demo
             bool ok = drive.CanWarp(out string why);
             string status = ok ? "<color=#7ee08a>Warp drive ready</color>" : $"<color=#ff6050>Warp drive locked: {why}</color>";
             GUI.Label(new Rect(x, warpButton.y - 40f * s, w, 30f * s), status, body);
-            bool usable = ok && Selected != null && !IsHere(Selected);
+            bool usable = ok && (ally != null ? ally.Value.noWarp == null : Selected != null && !IsHere(Selected));
             Hud.Fill(warpButton, usable ? new Color(0.2f, 0.45f, 0.8f, 0.9f) : new Color(0.25f, 0.28f, 0.32f, 0.8f));
             Hud.Outline(warpButton, Mathf.Max(1f, 2f * s), usable ? new Color(0.6f, 0.85f, 1f) : new Color(0.5f, 0.55f, 0.6f));
             GUI.Label(warpButton, usable ? "<b>WARP</b>" : "<color=#9aa4b0><b>WARP</b></color>", Hud.Text(24, true, TextAnchor.MiddleCenter));
             bool pad = PadSupport.UsingPad && Gamepad.current != null;
             string help = pad ? "Stick / D-pad: choose   LB/RB: step\nA: warp   B or R3: close"
-                              : "Click or arrows/WASD: choose   Tab: step\nWARP, double-click or Enter: warp   M/Esc: close";
+                              : "Click a place or a ship, or arrows/WASD: choose   Tab: step\nWARP, double-click or Enter: warp   M/Esc: close";
             GUI.Label(new Rect(x, warpButton.yMax + 12f * s, w, 50f * s), $"<color=#9aa4b0>{help}</color>", Hud.Text(14));
         }
 

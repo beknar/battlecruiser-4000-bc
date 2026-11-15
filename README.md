@@ -370,9 +370,10 @@ Enemy guns lead their target and have some spread. The enemies fly orbits around
   Tests, reels and AI players use the defaults and keep nothing.
 - **Sound.** Sound effects come from a sound library, with several recordings of each so repeats
   don't sound identical. Any sound with no recording is synthesised in code instead, and the
-  frigate's bow beam is always synthesised. The music has a calm track and a combat track, and
-  crossfades to the combat one while fighting is going on nearby. A master limiter stops the mix
-  from clipping.
+  frigate's bow beam is always synthesised. The music has calm tracks and a combat track, and
+  crossfades to the combat one while fighting is going on nearby. While it is calm, the
+  atmospheric music changes every one to five minutes, crossfading to the next calm track. A
+  master limiter stops the mix from clipping.
 
 ### The original carrier
 
@@ -580,6 +581,11 @@ system to travel around.
   space on its own (the Kestrel Deep Yard). Everything else is a **point of interest** at a
   place: a base on a planet or moon, a station or battery in orbit close by, a base in an
   asteroid field. The map lists the points of interest at the place chosen.
+  - **Landmarks.** Every planet, moon and asteroid field has more points of interest than its
+    bases. A planet or moon with a surface has a site in its northern and in its southern lands
+    (fly there, or K to fly there and land) and a high orbit over its pole; a gas giant, a high
+    orbit over its pole and one over its equator; an asteroid field, its dense cluster and its
+    outer rocks.
   - **At a place**, in navigation mode, the menu (Tab) lists its points of interest, nearest
     first, with how far each is, roughly how long the trip takes, and whether it has a pad or a
     berth.
@@ -602,6 +608,11 @@ system to travel around.
   with their orbits and the frigate's own position and heading. Stations and installations are
   small squares, bases and Lagrange points diamonds. For the chosen destination it shows what
   it is, the distance and how long the trip will take. Pick a place and warp from the map.
+  - **Your side's ships.** The other players' ships (cyan), the AI wingmen (orange) and the
+    fleet's ships (green) are on it too, each with its heading and name. Click another player or
+    a wingman, then WARP (or double-click it), for a mini-warp to them: the ship drops out close
+    by, astern of them and to one side. (Not to one down on a planet; the fleet flies with you.)
+  - **AI wingmen** do the same: one left more than 15 km behind its leader mini-warps to them.
 - **Mini-warp.**
   - The ship turns onto its destination and charges, with sparks streaming into the hull.
   - It jumps with a flash and a shockwave ring, then crosses the distance with streaks of
@@ -620,6 +631,12 @@ system to travel around.
   | Cinder Fortress (on the ground) | Gun batteries, missile sites, tanks, a gunship and fighters |
   | Corsair Haven | Six gun emplacements |
   | Glacis | Dreadnought battle group: a dreadnought and two escort destroyers |
+
+  **They come back, location by location.** Each band is a location. Every 5 minutes, the
+  destroyed enemies of a location spawn there again, back in their hiding places. But once all
+  of a location's enemies have been destroyed, none spawn there for 10 minutes: the place stays
+  clear (a notice says so), then they all come back and the 5-minute spawns go on. In co-op the
+  host's game decides it, as it does the enemies.
 
   The map marks the planets with capital ships on station as hostile. Enemy markers show for
   ships within 30 km. The capital ship groups at Cinder and Glacis wait on the way in, a few
@@ -1069,9 +1086,11 @@ menu (only the pause menu stops it).
 | Next / previous target, or click a ship | T / Shift+T | Y |
 | Stop targeting | X | B |
 | Line up on the target, until the guns bear (again, or steer, to stop) | C | A |
+| Fly to the target, to its guns' reach, and line up on it there (again, steer or the throttle to stop) | U | |
 | Kinetic strike from orbit | Y | |
-| Salvage the chosen wreck, or the nearest in reach (again to stop) | Z | Back + X |
-| Menu: the targets in range and the wrecks near, nearest first (Enter targets one or chooses a wreck, C lines up, Z salvages) | Tab | Back + Y |
+| Salvage the chosen wreck, or the nearest in reach; one out of reach is flown to, and salvaged there (again to stop) | Z | Back + X |
+| Choose the next wreck, nearest first | Shift+Z | |
+| Menu: the targets in range and the wrecks near, nearest first (Enter targets one or chooses a wreck, C lines up or flies to the wreck, U flies to it, Z salvages) | Tab | Back + Y |
 
 **Mining mode (2)**
 
@@ -1079,7 +1098,8 @@ menu (only the pause menu stops it).
 |---|---|---|
 | Mining laser on/off | Z | A |
 | Mineral scan | V | Y |
-| Fly to the chosen deposit, until the laser reaches it (again, steer or move the throttle to stop) | C | X |
+| Choose the next / previous deposit found, nearest first | T / Shift+T | |
+| Fly to the chosen deposit (or the nearest found), until the laser reaches it (again, steer or move the throttle to stop) | C | X |
 | Cargo hold list / jettison the cheapest ore | I / J | RB / B |
 | Menu: the 20 nearest deposits found, then the ore aboard (Enter chooses a deposit for the laser or ejects that ore; C flies to the deposit; Z chooses it and cuts it, or, out of reach, chooses it to fly to; J ejects the ore) | Tab | Back + Y |
 
@@ -1093,6 +1113,7 @@ menu (only the pause menu stops it).
 | Stop the auto-travel (or just steer) | X | B |
 | Cruise on/off | O | X |
 | On the map: choose a place / warp / close | Click, arrows or Tab / WARP, double-click or Enter / M or Esc | Left stick, D-pad or LB/RB / A / B |
+| On the map: a mini-warp to another player or a wingman | Click their ship, then WARP (or double-click it) | |
 
 **Services mode (4)**
 
@@ -1410,7 +1431,7 @@ Each build is a single self-contained file (about 47 MB) plus `coopserver.json`.
 
 ### Co-op comms and AI wingman
 
-**Comms.** In a co-op game, press **Enter** to open a line at the top left. Type a message, then
+**Comms.** In a co-op game, press **Enter** to open a line at the foot of the screen, beside the ship's console. Type a message, then
 press **Enter** to send it to everyone in your level, or **Esc** to drop it. The last few
 messages show under it and fade after about 20 seconds. Each message from someone else also
 goes to the captain's notices. The server passes chat on like any other game message (type

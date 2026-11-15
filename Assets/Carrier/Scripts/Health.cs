@@ -20,6 +20,9 @@ namespace CarrierGame
         public float deathEffectScale = 1f;
         [Tooltip("Respawn after this many seconds instead of being destroyed (0 = destroy).")]
         public float respawnDelay = 0f;
+        /// <summary>One that respawns is brought back by its location's SpawnDirector (every few
+        /// minutes, not when the place has been cleared), not by its own timer.</summary>
+        [System.NonSerialized] public bool respawnHeld;
         public UnityEvent onDestroyed;
         /// <summary>Anything with Health destroyed (after its breakup has started), every time
         /// (one that respawns too): salvage leaves a wreck where a hostile died. A listener that
@@ -40,6 +43,11 @@ namespace CarrierGame
         public float LastHitAmount { get; private set; }
         /// <summary>When a destroyed ship comes back (only meaningful while Dead and respawning).</summary>
         public float RespawnAt { get; private set; }
+        /// <summary>When it was last destroyed.</summary>
+        public float DiedAt { get; private set; } = -1f;
+
+        /// <summary>When one held for its SpawnDirector comes back (for the target panel's countdown).</summary>
+        public void SetRespawnAt(float t) { if (respawnHeld && Dead) RespawnAt = t; }
 
         Shield shield;
         bool shieldLooked;
@@ -154,6 +162,7 @@ namespace CarrierGame
         {
             Current = 0f;
             Dead = true;
+            DiedAt = Time.time;
             TimesDestroyed++;
             // a ship built from parts comes apart first and sets off its own explosion
             var breakup = GetComponent<ShipBreakup>();
@@ -173,13 +182,25 @@ namespace CarrierGame
             if (respawnDelay > 0f)
             {
                 if (breakup == null) foreach (var r in GetComponentsInChildren<Renderer>()) r.enabled = false;
-                RespawnAt = Time.time + Mathf.Max(respawnDelay, breakup != null ? breakup.breakTime + 0.5f : 0f);
-                Invoke(nameof(Respawn), RespawnAt - Time.time);
+                if (respawnHeld) RespawnAt = float.PositiveInfinity;   // (its SpawnDirector's to bring back)
+                else
+                {
+                    RespawnAt = Time.time + Mathf.Max(respawnDelay, breakup != null ? breakup.breakTime + 0.5f : 0f);
+                    Invoke(nameof(Respawn), RespawnAt - Time.time);
+                }
             }
             else
             {
                 Destroy(gameObject, breakup != null ? breakup.breakTime + breakup.duration : 0f);
             }
+        }
+
+        /// <summary>Back now, if it is down (a SpawnDirector's spawn).</summary>
+        public void RespawnNow()
+        {
+            if (!Dead) return;
+            CancelInvoke(nameof(Respawn));
+            Respawn();
         }
 
         void Respawn()

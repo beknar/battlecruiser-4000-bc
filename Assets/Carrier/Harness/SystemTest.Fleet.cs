@@ -92,6 +92,20 @@ namespace CarrierGame.Demo
             yield return Key(kb, K.Tab);
             yield return Key(kb, K.F);
             Check(halberd.Current == FleetPilot.Order.Follow, $"F: following ('{Notices.Last}')");
+            // the map shows the fleet's ships (no warp to them: they fly with you)
+            if (map != null)
+            {
+                yield return Key(kb, K.M);
+                yield return null;
+                var marked = map.Allies.Select(a => a.name).ToList();
+                map.SelectAlly(halberd.transform);
+                bool refused = !map.WarpToSelected();
+                Shot("fl_map");
+                Check(SystemMap.IsOpen && marked.Contains(halberd.displayName) && marked.Contains(rapier.displayName) && refused,
+                      $"the map shows the fleet: {string.Join(", ", marked)}; no warp to one ('{Notices.Last}')");
+                if (SystemMap.IsOpen) yield return Key(kb, K.M);
+                yield return Key(kb, K.Digit5);
+            }
             cc.throttle = 1f;
             yield return new WaitForSeconds(25f);
             cc.throttle = 0.4f;

@@ -208,7 +208,7 @@ namespace CarrierGame.Demo
                 if (w == null) continue;
                 switch (w.kind)
                 {
-                    case WarpPoint.Kind.Planet: case WarpPoint.Kind.Moon: case WarpPoint.Kind.Star: case WarpPoint.Kind.AsteroidField: continue;
+                    case WarpPoint.Kind.Planet: case WarpPoint.Kind.Moon: case WarpPoint.Kind.Star: case WarpPoint.Kind.AsteroidField: case WarpPoint.Kind.Landmark: continue;
                 }
                 float d = Vector3.Distance(p, w.Position);
                 if (d < best) best = d;

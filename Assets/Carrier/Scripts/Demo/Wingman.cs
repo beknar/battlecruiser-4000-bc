@@ -29,8 +29,8 @@ namespace CarrierGame.Demo
         public float gunRange = 1600f;
         [Tooltip("An enemy this close (m) is fought even while following or holding.")]
         public float defendRange = 6000f;
-        [Tooltip("How far the leader may get before it warps after them (m).")]
-        public float warpAfter = 60000f;
+        [Tooltip("How far the leader may get before it mini-warps to them (m).")]
+        public float warpAfter = 15000f;
 
         public Order Current { get; private set; } = Order.Hold;
         public int LeaderId { get; private set; }
@@ -243,6 +243,22 @@ namespace CarrierGame.Demo
             return false;
         }
 
+        /// <summary>A mini-warp to a ship (the leader). False when the drive refuses (or did, in
+        /// the last 20 s): Doing says why.</summary>
+        bool TryWarpTo(Transform ship, string name)
+        {
+            if (drive != null && drive.Current != WarpDrive.State.Ready && drive.DestinationShip == ship) { Doing = $"warping to {name}"; return true; }
+            if (Time.time < warpBlockedUntil) return false;
+            if (Undocking()) { Doing = $"undocking to follow {name}"; return true; }
+            if (Time.time < nextWarp) return false;
+            nextWarp = Time.time + 3f;
+            if (drive.EngageTo(ship, name, out string why)) { Doing = $"warping to {name}"; return true; }
+            // (too close to bother, or locked: it flies after them, and tries again in a while)
+            warpBlockedUntil = Time.time + 20f;
+            warpWhy = $"can't warp to {name}: {why}";
+            return false;
+        }
+
         void FollowLeader(CarrierController cc)
         {
             var leader = Leader();
@@ -255,14 +271,9 @@ namespace CarrierGame.Demo
             }
             Vector3 lp = leader.transform.position;
             float far = Vector3.Distance(cc.transform.position, lp);
-            // far behind: warp to the place nearest the leader, if that is any nearer them (and the
-            // drive will go); otherwise fly after them
-            if (far > warpAfter && drive != null)
-            {
-                var near = WarpPoint.Nearest(lp);
-                if (near != null && Vector3.Distance(near.Position, lp) < far * 0.5f
-                    && TryWarp(near, $"warping after {LeaderName}, to {near.displayName}")) return;
-            }
+            // far behind: a mini-warp to the leader (dropping out close by them), if the drive will
+            // go; otherwise fly after them
+            if (far > warpAfter && drive != null && TryWarpTo(leader.transform, LeaderName)) return;
             if (Undocking()) { Doing = $"undocking to follow {LeaderName}"; return; }
             Vector3 to = lp + leader.transform.rotation * (slot * size);
             float d = Vector3.Distance(cc.transform.position, to);

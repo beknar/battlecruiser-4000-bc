@@ -49,7 +49,15 @@ namespace CarrierGame
         public Color warpColor = new Color(0.55f, 0.75f, 1f);
 
         public State Current { get; private set; }
+        /// <summary>The place the warp is to (null for a warp to a ship).</summary>
         public WarpPoint Destination { get; private set; }
+        /// <summary>A ship the warp is to (an ally: the map, an AI wingman going after its
+        /// leader), or null. It drops out close by, astern and to one side of it.</summary>
+        public Transform DestinationShip { get; private set; }
+        /// <summary>What the warp is to, by name.</summary>
+        public string DestinationName => Destination != null ? Destination.displayName : shipName ?? "";
+        string shipName;
+        bool toShip;
         public float StateTime => Time.time - stateStart;
         /// <summary>Length of the trip under way (s).</summary>
         public float TravelTime { get; private set; }
@@ -98,9 +106,46 @@ namespace CarrierGame
         public float TravelTimeTo(WarpPoint p)
         {
             if (p == null) return 0f;
-            float km = Vector3.Distance(transform.position, p.ArrivalPoint(transform.position)) / 1000f;
-            return Mathf.Min(maxTravelTime, baseTravelTime + km / Mathf.Max(1f, kmPerSecond)) * slowScale;
+            return TravelTimeFor(Vector3.Distance(transform.position, p.ArrivalPoint(transform.position)));
         }
+
+        float TravelTimeFor(float metres) =>
+            Mathf.Min(maxTravelTime, baseTravelTime + metres / 1000f / Mathf.Max(1f, kmPerSecond)) * slowScale;
+
+        /// <summary>Where a warp to a ship drops out: astern of it and to one side, a little
+        /// above (clear of it and of its guns' line ahead).</summary>
+        static Vector3 NearShip(Transform t) => t.position - t.forward * 900f + t.right * 500f + t.up * 120f;
+
+        /// <summary>Trip time to a ship from where this one is now (s).</summary>
+        public float TravelTimeTo(Transform ship) => ship == null ? 0f : TravelTimeFor(Vector3.Distance(transform.position, NearShip(ship)));
+
+        /// <summary>A mini-warp to a ship (an ally), dropping out close by it. Returns false (and
+        /// says why) if it can't go.</summary>
+        public bool EngageTo(Transform target, string name, out string why)
+        {
+            if (target == null) { why = "no one to warp to"; return false; }
+            if (!CanWarp(out why)) { LastMessage = "Can't warp: " + why; return false; }
+            from = transform.position;
+            to = NearShip(target);
+            if (Vector3.Distance(from, to) < 3000f) { why = $"already with {name}"; LastMessage = "Already with " + name; return false; }
+            Destination = null;
+            DestinationShip = target;
+            shipName = name;
+            toShip = true;
+            travelDir = (to - from).normalized;
+            TravelTime = TravelTimeFor(Vector3.Distance(from, to));
+            LastDistance = Vector3.Distance(from, to);
+            Enter(State.Charging);
+            chargeHitTime = LastHitTime;
+            ship.externalMotion = true;
+            fx.StartCharge(ChargeTime);
+            LastMessage = $"Warp drive charging: {name}";
+            return true;
+        }
+
+        /// <summary>Where the destination is now (a ship gone: where the trip was going).</summary>
+        Vector3 DestinationPosition => Destination != null ? Destination.Position
+                                     : DestinationShip != null ? DestinationShip.position : to - toOffset;
 
         public float DistanceTo(WarpPoint p) => p == null ? 0f : Vector3.Distance(transform.position, p.ArrivalPoint(transform.position));
 
@@ -138,6 +183,9 @@ namespace CarrierGame
             to = p.ArrivalPoint(from);
             if (Vector3.Distance(from, to) < 1500f) { why = "already there"; LastMessage = "Already at " + p.displayName; return false; }
             Destination = p;
+            DestinationShip = null;
+            shipName = null;
+            toShip = false;
             travelDir = (to - from).normalized;
             TravelTime = TravelTimeTo(p);
             LastDistance = Vector3.Distance(from, to);
@@ -182,7 +230,8 @@ namespace CarrierGame
                 }
                 case State.Warping:
                 {
-                    if (Destination != null) to = Destination.Position + toOffset;
+                    // (the destination moves on its orbit, or the ship flies on, during the trip)
+                    if (Destination != null || DestinationShip != null) to = DestinationPosition + toOffset;
                     float u = Mathf.Clamp01(StateTime / Mathf.Max(0.1f, TravelTime));
                     float s = Ease(u);
                     transform.position = PathAt(s);
@@ -197,7 +246,8 @@ namespace CarrierGame
                 {
                     float k = Mathf.Clamp01(StateTime / arriveTime);
                     TunnelLevel = Mathf.MoveTowards(TunnelLevel, 0f, dt * 2.5f);
-                    if (Destination != null) TurnToward(Destination.Position - transform.position, 35f, dt);
+                    if (toShip && DestinationShip != null) TurnToward(DestinationShip.forward, 35f, dt);
+                    else if (Destination != null) TurnToward(Destination.Position - transform.position, 35f, dt);
                     float speed = Mathf.Lerp(arriveSpeed, 30f, k);
                     ship.SetMotion(speed);
                     transform.position += transform.forward * speed * dt;
@@ -261,14 +311,14 @@ namespace CarrierGame
             Warps++;
             Enter(State.Warping);
             from = transform.position;
-            to = Destination.ArrivalPoint(from);
+            to = Destination != null ? Destination.ArrivalPoint(from) : DestinationShip != null ? NearShip(DestinationShip) : to;
             // the destination moves along its orbit during the trip: the arrival point goes with it
-            toOffset = to - Destination.Position;
+            toOffset = to - DestinationPosition;
             via = Detour(from, to);
             travelDir = (via - from).sqrMagnitude > 1f ? (via - from).normalized : (to - from).normalized;
             fx.Jumped(transform.position);
             ScreenFlash = 1f;
-            LastMessage = $"In warp: {Destination.displayName}";
+            LastMessage = $"In warp: {DestinationName}";
         }
 
         void Arrive()
@@ -280,7 +330,7 @@ namespace CarrierGame
             arriveSpeed = 140f;
             fx.Arrived(transform.position + travelDir * 120f);
             ScreenFlash = 0.75f;
-            LastMessage = $"Arrived: {Destination.displayName}";
+            LastMessage = $"Arrived: {DestinationName}";
         }
 
         void Finish()

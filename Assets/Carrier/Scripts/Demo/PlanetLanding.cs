@@ -134,6 +134,7 @@ namespace CarrierGame.Demo
             // 27 km out from Thalassa but in its landing range), it's that place it is at
             foreach (var w in WarpPoint.All)
                 if (w != null && w != best && w.surface == SurfaceKind.None && w.kind != WarpPoint.Kind.Planet && w.kind != WarpPoint.Kind.Star &&
+                    w.kind != WarpPoint.Kind.Landmark &&
                     w.arrivalDistance < best.arrivalDistance &&
                     Vector3.Distance(carrier.transform.position, w.Position) < w.arrivalDistance * 1.1f) return null;
             if (carrier.Destroyed) why = "the frigate is destroyed";
@@ -175,7 +176,8 @@ namespace CarrierGame.Demo
                 SoundFX.Ui(Sfx.UiError);
                 return false;
             }
-            var target = at.LandingBody;
+            // (a landmark on a surface: the body it is on)
+            var target = at.kind == WarpPoint.Kind.Landmark && at.follow != null ? at.follow : at.LandingBody;
             if (Seamless(target)) StartCoroutine(AutoLand(target, at.Position));
             else StartCoroutine(Descend(target));
             return true;

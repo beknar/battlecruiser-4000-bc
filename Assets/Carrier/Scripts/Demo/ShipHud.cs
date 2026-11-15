@@ -40,6 +40,7 @@ namespace CarrierGame.Demo
             go.AddComponent<ModeMenu>();
             go.AddComponent<CombatMode>().demo = demo;
             go.AddComponent<Salvage>().demo = demo;
+            go.AddComponent<MiningMode>().demo = demo;
             return hud;
         }
 
@@ -138,7 +139,9 @@ namespace CarrierGame.Demo
                     case ModeOfPlay.Mining:
                         if (demo.Laser == null) { lines.Add("<i>No mining gear on this ship</i>"); break; }
                         lines.Add("Z mining laser on/off   V mineral scan");
+                        lines.Add("C fly to the chosen deposit");
                         lines.Add("I cargo hold   J jettison cheapest ore");
+                        lines.Add("Tab the deposits found, and the ore aboard");
                         break;
                     case ModeOfPlay.Navigation:
                         if (demo.Warp != null) lines.Add("M system map: warp");
@@ -184,6 +187,7 @@ namespace CarrierGame.Demo
                     case ModeOfPlay.Mining:
                         if (demo.Laser == null) { lines.Add("<i>No mining gear on this ship</i>"); break; }
                         lines.Add("A mining laser on/off   Y mineral scan");
+                        lines.Add("X fly to the chosen deposit");
                         lines.Add("RB cargo hold   B jettison cheapest ore");
                         break;
                     case ModeOfPlay.Navigation:

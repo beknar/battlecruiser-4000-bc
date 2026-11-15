@@ -433,8 +433,15 @@ system to travel around.
     deposit is mined out it moves on to the next one in reach; a small rock (under 80 m
     across) breaks up. It passes over a deposit it can't get a clear line to, and stops when
     the hold is full.
+  - **Choosing a deposit.** In mining mode, the menu (Tab) lists the deposits the scan found,
+    nearest first: what each is, its two most valuable minerals, the tonnes left and how far it
+    is. Choosing one makes it the laser's: it cuts that one while it is in reach, rather than
+    the nearest. C (X on the pad) then flies the ship to it, until it is in reach of the laser;
+    over a planet's surface it climbs clear of the ground first. The chosen deposit is marked on
+    screen.
   - **Cargo hold.** It holds 600 tonnes. I lists what is aboard and what it is worth; J
-    jettisons the cheapest mineral to make room for better. The cargo is lost if the frigate is
+    jettisons the cheapest mineral to make room for better. The menu lists the ore aboard too,
+    and ejects whichever is chosen (Enter, or J). The cargo is lost if the frigate is
     destroyed.
   - **What there is to mine.** Every rock, moon and comet has minerals in it, and so does the
     ground of every world the frigate can land on: one to three veins in each 5 km area.
@@ -921,7 +928,9 @@ menu (only the pause menu stops it).
 |---|---|---|
 | Mining laser on/off | Z | A |
 | Mineral scan | V | Y |
+| Fly to the chosen deposit, until the laser reaches it (again, or steer, to stop) | C | X |
 | Cargo hold list / jettison the cheapest ore | I / J | RB / B |
+| Menu: the deposits found, nearest first, then the ore aboard (Enter chooses a deposit for the laser or ejects that ore; C flies to the deposit; Z chooses it and cuts it; J ejects the ore) | Tab | Back + Y |
 
 **Navigation mode (3)**
 
@@ -1402,8 +1411,10 @@ Each part can also be run alone:
   that a battery fires on the frigate, and that near the north pole (where an area can be built
   on both sides of the pole) each area's forces appear only once.
   Add `-minetest` (or `?minetest` on the web) to test only the mining. It warps to the Inner
-  Belt, scans, then flies to the nearest rock and mines until the hold is full, moving from rock
-  to rock. Then it jettisons the cheapest ore and opens the cargo list. Next it warps to Comet
+  Belt in mining mode and scans. It chooses the nearest rock in the mining menu and lets the
+  ship fly itself there (C), checks the laser cuts the rock chosen, and mines until the hold is
+  full, moving from rock to rock. Then it jettisons the cheapest ore, opens the cargo list, and
+  ejects the biggest load from the menu. Next it warps to Comet
   Iskra, checks the tails point away from the star and mines ice. Last, it lands on Ochre and
   mines a vein in the ground.
   Add `-hudtest` (or `?hudtest` on the web) to test the ship's console and the captain:

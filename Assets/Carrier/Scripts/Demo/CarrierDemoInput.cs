@@ -230,11 +230,18 @@ namespace CarrierGame.Demo
         /// <summary>The mining mode's keys: the laser, the scan, the hold.</summary>
         void MiningKeys(Keyboard k)
         {
-            if (k.zKey.wasPressedThisFrame) ToggleMiningLaser();
             if (k.vKey.wasPressedThisFrame) MineralScan();
             if (k.iKey.wasPressedThisFrame) ToggleManifest();
+            // (with the menu open, Z, C and J act on the row chosen: MiningMode.Keys)
+            if (ModeMenu.IsOpen || ModeMenu.JustClosed) return;
+            if (k.zKey.wasPressedThisFrame) ToggleMiningLaser();
             if (k.jKey.wasPressedThisFrame) Jettison();
+            if (k.cKey.wasPressedThisFrame) Mining?.ToggleApproach();
         }
+
+        MiningMode mining;
+        /// <summary>The mining mode's menu and its flying to a deposit (on this object).</summary>
+        public MiningMode Mining => mining != null ? mining : (mining = GetComponent<MiningMode>());
 
         CombatMode combat;
         /// <summary>The combat mode's menu and line-up (on this object).</summary>
@@ -247,6 +254,7 @@ namespace CarrierGame.Demo
             switch (Modes.Current)
             {
                 case ModeOfPlay.Combat: src = Combat; break;
+                case ModeOfPlay.Mining: src = Mining; break;
                 case ModeOfPlay.Services:
                     // (the site's own screen: docked at it, or on its pad)
                     var site = IndustryPanel.Instance;
@@ -341,10 +349,22 @@ namespace CarrierGame.Demo
             if (Cargo == null) { NotFitted($"The {carrier.shipName.ToLower()} has no cargo hold"); return; }
             var m = cargo.Cheapest();
             if (m == null) { NotFitted("The cargo hold is empty"); return; }
-            float t = cargo.Jettison(m.Value);
-            SoundFX.Ui(Sfx.UiClear);
-            Notices.Post($"Jettisoned {t:F1} t of {Minerals.Name(m.Value).ToLower()}: {cargo.Used:F0} of {cargo.capacity:F0} t aboard");
+            Jettison(m.Value);
         }
+
+        /// <summary>Put all of one mineral over the side (the mining menu's J, or the cheapest).</summary>
+        public void Jettison(Mineral m)
+        {
+            if (Cargo == null || cargo[m] <= 0f) return;
+            float t = cargo.Jettison(m);
+            SoundFX.Ui(Sfx.UiClear);
+            Notices.Post($"Jettisoned {t:F1} t of {Minerals.Name(m).ToLower()}: {cargo.Used:F0} of {cargo.capacity:F0} t aboard");
+        }
+
+        /// <summary>The ship isn't the pilot's to fly by an autopilot just now: in warp, landing,
+        /// taking off or docking, or with the comms line, the map or a site's screen up.</summary>
+        public bool ShipHeld => (Warp != null && Warp.Current != WarpDrive.State.Ready) || PlanetLanding.Transitioning || Docking.Busy
+                                || InputFocus.Has(InputFocus.Panel.Chat) || SystemMap.IsOpen || IndustryPanel.IsOpen;
 
         /// <summary>Start charging the bow beam (it fires by itself after 10 s, straight ahead,
         /// locking on if the target is close to the bow line); pressing again cancels the charge.</summary>
@@ -444,6 +464,7 @@ namespace CarrierGame.Demo
         {
             if (!listUp && p.buttonSouth.wasPressedThisFrame) ToggleMiningLaser();       // A
             if (!listUp && p.buttonEast.wasPressedThisFrame) Jettison();                 // B
+            if (!listUp && p.buttonWest.wasPressedThisFrame) Mining?.ToggleApproach();   // X
             if (p.buttonNorth.wasPressedThisFrame) MineralScan();                         // Y
             if (p.rightShoulder.wasPressedThisFrame) ToggleManifest();                    // RB
         }

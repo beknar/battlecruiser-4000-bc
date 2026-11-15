@@ -39,6 +39,9 @@ namespace CarrierGame
         public Vector3 HitPoint { get; private set; }
         /// <summary>What it is doing, for the HUD.</summary>
         public string Status { get; private set; } = "off";
+        /// <summary>The deposit chosen in the mining mode's menu: cut first, while it is in reach
+        /// (else the nearest, as ever).</summary>
+        [System.NonSerialized] public IMineralSource Preferred;
         public float TotalMined { get; private set; }
         public int DepositsMinedOut { get; private set; }
 
@@ -49,6 +52,7 @@ namespace CarrierGame
         float searchAt, blockedSince = -1f;
         // deposits it couldn't get a clear line to, and until when it leaves them alone
         readonly Dictionary<IMineralSource, float> skip = new Dictionary<IMineralSource, float>();
+        float preferredBackAt;
         readonly List<IMineralSource> candidates = new List<IMineralSource>();
         readonly List<IMineralSource> near = new List<IMineralSource>();
         static readonly RaycastHit[] Hits = new RaycastHit[24];
@@ -133,8 +137,16 @@ namespace CarrierGame
                 return;
             }
 
-            // keep on the deposit it is cutting while it can; otherwise find the nearest
-            if (Source == null || !Usable(Source, out _))
+            // keep on the deposit it is cutting while it can; otherwise find the nearest. The one
+            // chosen is gone back to when it is in reach (a look twice a second), unless it was
+            // just found to be behind something nearer (cut that a while first) or out of sight
+            bool lost = Source == null || !Usable(Source, out _);
+            if (!lost && Preferred != null && Source != Preferred && Time.time >= searchAt && Time.time >= preferredBackAt)
+            {
+                searchAt = Time.time + 0.5f;
+                if (!skip.ContainsKey(Preferred) && Usable(Preferred, out _)) { Source = Preferred; blockedSince = -1f; }
+            }
+            if (lost)
             {
                 if (Time.time >= searchAt)
                 {
@@ -167,7 +179,12 @@ namespace CarrierGame
                 return;
             }
             blockedSince = -1f;
-            if (struck != null && struck != Source) Source = struck;   // something nearer in the way: cut that
+            if (struck != null && struck != Source)
+            {
+                // something nearer in the way: cut that (and leave the one chosen be a while)
+                if (Source == Preferred) preferredBackAt = Time.time + 6f;
+                Source = struck;
+            }
             HitPoint = hit;
             Cutting = true;
             float want = Mathf.Min(rate * Time.deltaTime, hold.Free);
@@ -292,6 +309,7 @@ namespace CarrierGame
 
         IMineralSource Pick()
         {
+            if (Preferred != null && Usable(Preferred, out _) && !skip.ContainsKey(Preferred)) return Preferred;
             FindSources();
             if (candidates.Count == 0) return null;
             IMineralSource best = null;

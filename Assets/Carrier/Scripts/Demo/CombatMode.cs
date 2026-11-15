@@ -92,6 +92,8 @@ namespace CarrierGame.Demo
                 var salvage = Salvage.Instance;
                 if (salvage == null) return false;
                 salvage.Choose(w);
+                // (the beam on another wreck: moved to this one)
+                if (salvage.Working != null && salvage.Working != w) salvage.Stop();
                 if (salvage.Working == null) salvage.Toggle();
                 return true;
             }

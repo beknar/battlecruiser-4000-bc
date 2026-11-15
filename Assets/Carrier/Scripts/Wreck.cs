@@ -23,14 +23,20 @@ namespace CarrierGame
         public readonly List<(string id, float amount)> Contents = new List<(string, float)>();
         /// <summary>Roughly how big it is (m), for how near the salvage beam must be.</summary>
         public float Size = 30f;
+        /// <summary>What it was the wreck of (one that respawns leaves one wreck at a time).</summary>
+        public Health From;
         public float life = 900f;
 
         float dieAt;
+        // (what it held at first: the beam takes a share of that each time, so a wreck is
+        // stripped in the time it is meant to be, not ever more slowly)
+        readonly List<float> start = new List<float>();
+        bool empty;
         Vector3 drift, spinAxis;
         float spinRate;
 
         public string Name => $"Wreck of {Of}";
-        public bool Empty => Contents.All(c => c.amount <= 1e-4f);
+        public bool Empty => empty;
         /// <summary>Tonnes left in it.</summary>
         public float Tonnes
         {
@@ -65,14 +71,14 @@ namespace CarrierGame
 
         void Update()
         {
-            if (Time.time >= dieAt || (Empty && Contents.Count > 0)) { Destroy(gameObject); return; }
+            if (Time.time >= dieAt || (empty && Contents.Count > 0)) { Destroy(gameObject); return; }
             transform.position += drift * Time.deltaTime;
             transform.Rotate(spinAxis, spinRate * Time.deltaTime, Space.World);
         }
 
-        /// <summary>Move what will fit into the hold, a share at a time (`share` of what is
-        /// left of each item, at least a tonne or a part): returns a line saying what came aboard
-        /// (null if nothing could).</summary>
+        /// <summary>Move what will fit into the hold, a share at a time (`share` of what each
+        /// item came to at first, at least a tonne or a part): returns a line saying what came
+        /// aboard (null if nothing could).</summary>
         public string TakeInto(CargoHold hold, float share)
         {
             var table = IndustryTable.Get();
@@ -83,18 +89,20 @@ namespace CarrierGame
                 var (id, left) = Contents[i];
                 if (left <= 1e-4f) continue;
                 bool part = table.Part(id) != null;
-                float want = part ? Mathf.Max(1f, Mathf.Floor(left * share)) : Mathf.Max(Mathf.Min(1f, left), left * share);
+                float whole = i < start.Count ? start[i] : left;
+                float want = part ? Mathf.Max(1f, Mathf.Floor(whole * share)) : Mathf.Max(Mathf.Min(1f, left), whole * share);
                 float took = hold.Load(id, Mathf.Min(want, left));
                 if (took <= 0f) continue;
                 Contents[i] = (id, left - took);
                 got.Add(part ? $"{took:F0} {table.Name(id).ToLowerInvariant()}" : $"{took:F1} t {table.Name(id).ToLowerInvariant()}");
             }
+            empty = Contents.All(c => c.amount <= 1e-4f);
             return got.Count > 0 ? string.Join(", ", got) : null;
         }
 
         /// <summary>A wreck where `dead` died, built from a few of its pieces (its breakup's
         /// chunks, or its own meshes), darkened.</summary>
-        public static Wreck Make(Transform dead, string of, IEnumerable<(string id, float amount)> contents, float size)
+        public static Wreck Make(Transform dead, string of, IEnumerable<(string id, float amount)> contents, float size, Health from = null)
         {
             var go = new GameObject($"Wreck of {of}");
             go.transform.position = dead.position;
@@ -102,7 +110,10 @@ namespace CarrierGame
             var w = go.AddComponent<Wreck>();
             w.Of = of;
             w.Size = size;
+            w.From = from;
             w.Contents.AddRange(contents.Where(c => c.amount > 0f));
+            w.start.AddRange(w.Contents.Select(c => c.amount));
+            w.empty = w.Contents.Count == 0;
             // the biggest few of its pieces, scattered a little
             var meshes = new List<(MeshFilter f, MeshRenderer r)>();
             var breakup = dead.GetComponent<ShipBreakup>();

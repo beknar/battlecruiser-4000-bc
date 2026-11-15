@@ -36,6 +36,9 @@ namespace CarrierGame.Demo
         CarrierController Ship => demo != null ? demo.carrier : null;
         LineRenderer beam;
         float nextTake;
+        // the wrecks near, nearest first, made once a frame for the markers
+        readonly List<Wreck> near = new List<Wreck>();
+        int nearFrame = -1;
 
         void Awake() => Instance = this;
         void OnEnable() => Health.AnyDestroyed += Died;
@@ -54,11 +57,20 @@ namespace CarrierGame.Demo
             bool listed = Targets.All.Contains(t);
             var info = t.GetComponent<TargetInfo>();
             if (!listed && (info == null || info.faction == "Friendly")) return;
+            // (one that respawns leaves a wreck each time it dies, but not another while the
+            // last is still there to strip: no endless salvage from one practice target)
+            if (h.respawnDelay > 0f && Wreck.All.Any(w => w != null && w.From == h && !w.Empty)) return;
             var contents = ContentsFor(t, info, out float size, out string of);
             if (contents.Count == 0) return;
-            // (the oldest go, past the limit)
-            while (Wreck.All.Count >= maxWrecks && Wreck.All.Count > 0) Destroy(Wreck.All[0].gameObject);
-            Wreck.Make(t, of, contents, size);
+            // (the oldest go, past the limit: out of the list now, as Destroy waits for the
+            // frame's end)
+            while (Wreck.All.Count >= maxWrecks && Wreck.All.Count > 0)
+            {
+                var old = Wreck.All[0];
+                Wreck.All.RemoveAt(0);
+                if (old != null) Destroy(old.gameObject);
+            }
+            Wreck.Make(t, of, contents, size, h);
             WrecksMade++;
         }
 
@@ -67,9 +79,20 @@ namespace CarrierGame.Demo
         public static List<(string id, float amount)> ContentsFor(Transform t, TargetInfo info, out float size, out string of)
         {
             of = info != null ? info.Name : t.name;
+            // its size, from the meshes shown: a ship that has just come apart has its pieces
+            // in its breakup's chunks (moved off it, but not yet flung apart)
+            var breakup = t.GetComponent<ShipBreakup>();
+            IEnumerable<Transform> sources = breakup != null && breakup.chunks != null && breakup.chunks.Any(c => c != null)
+                ? breakup.chunks.Where(c => c != null) : new[] { t };
+            bool any = false;
             var b = new Bounds(t.position, Vector3.zero);
-            foreach (var r in t.GetComponentsInChildren<Renderer>(true))
-                if (r is MeshRenderer || r is SkinnedMeshRenderer) b.Encapsulate(r.bounds);
+            foreach (var src in sources)
+                foreach (var r in src.GetComponentsInChildren<Renderer>(false))
+                {
+                    if (!r.enabled || !(r is MeshRenderer || r is SkinnedMeshRenderer)) continue;
+                    if (!any) { b = r.bounds; any = true; }
+                    else b.Encapsulate(r.bounds);
+                }
             size = Mathf.Clamp(b.extents.magnitude, 8f, 400f);
             bool small = info != null && info.IsSmallCraft;
             float steel = Mathf.Round(Mathf.Clamp(size * (small ? 0.12f : 0.25f), 1f, 90f));
@@ -83,6 +106,21 @@ namespace CarrierGame.Demo
             else if (small && rng.NextDouble() < 0.25) list.Add(("VectoringJets", 1f));
             var table = IndustryTable.Get();
             return list.Where(c => c.Item2 > 0f && table != null && table.Kind(c.Item1) != ItemKind.None).ToList();
+        }
+
+        /// <summary>The wrecks within 20 km, nearest first, worked out once a frame.</summary>
+        List<Wreck> NearNow()
+        {
+            if (nearFrame == Time.frameCount) return near;
+            nearFrame = Time.frameCount;
+            near.Clear();
+            var ship = Ship;
+            if (ship == null) return near;
+            Vector3 me = ship.transform.position;
+            foreach (var w in Wreck.All)
+                if (w != null && !w.Empty && (w.transform.position - me).sqrMagnitude < 20000f * 20000f) near.Add(w);
+            near.Sort((a, c) => (a.transform.position - me).sqrMagnitude.CompareTo((c.transform.position - me).sqrMagnitude));
+            return near;
         }
 
         /// <summary>The wrecks within `reach` of the ship, nearest first.</summary>
@@ -117,7 +155,7 @@ namespace CarrierGame.Demo
             var hold = demo.Cargo;
             if (hold == null) { Refuse($"The {ship.shipName.ToLower()} has no hold to salvage into"); return; }
             var w = Chosen != null && !Chosen.Empty ? Chosen : Near(range + 400f).FirstOrDefault(InReach);
-            if (w == null) { Refuse("No wreck in reach: choose one in the combat menu (Tab) and fly within 1.5 km"); return; }
+            if (w == null) { Refuse($"No wreck in reach: choose one in the combat menu (Tab) and fly within {range / 1000f:F1} km"); return; }
             if (!InReach(w)) { Refuse($"{w.Name} is {CombatMode.Distance(DistanceTo(w))} off: fly within {range / 1000f:F1} km"); return; }
             if (hold.Full) { Refuse("The hold is full"); return; }
             Working = w;
@@ -142,9 +180,11 @@ namespace CarrierGame.Demo
 
         void Update()
         {
-            if (Chosen != null && (Chosen == null || Chosen.Empty)) Chosen = null;
+            if (Chosen != null && Chosen.Empty) Chosen = null;
             var w = Working;
             if (w == null) { if (beam != null) beam.enabled = false; return; }
+            // (a combat mode tool: off when the player goes to another mode, where Z is theirs)
+            if (!Modes.Is(ModeOfPlay.Combat)) { Stop("Salvage beam off"); return; }
             var ship = Ship;
             var hold = demo.Cargo;
             if (ship == null || ship.Destroyed || hold == null || w == null || w.Empty) { Stop(w != null && w.Empty ? $"{w.Name} stripped" : null); return; }
@@ -193,8 +233,13 @@ namespace CarrierGame.Demo
             if (cam == null || ship == null || !Modes.Is(ModeOfPlay.Combat)) return;
             float s = Hud.S;
             // the chosen wreck, and those near
-            foreach (var w in Near(20000f).Take(6))
+            var list = NearNow();
+            for (int i = 0; i < list.Count && i < 6; i++)
             {
+                var w = list[i];
+                if (w == null) continue;
+                float dist = DistanceTo(w);
+                bool inReach = dist <= range + w.Size;
                 Vector3 sp = cam.WorldToScreenPoint(w.transform.position);
                 if (sp.z <= 0f) continue;
                 var p = new Vector2(sp.x, Screen.height - sp.y);
@@ -202,9 +247,9 @@ namespace CarrierGame.Demo
                 var c = chosen ? new Color(1f, 0.75f, 0.35f) : new Color(0.75f, 0.65f, 0.5f, 0.7f);
                 float box = (chosen ? 16f : 10f) * s;
                 Hud.Corners(new Rect(p.x - box, p.y - box, box * 2f, box * 2f), 5f * s, Mathf.Max(1f, 1.5f * s), c);
-                if (chosen || InReach(w))
+                if (chosen || inReach)
                 {
-                    string text = $"<color=#{ColorUtility.ToHtmlStringRGB(c)}>{w.Name}  {CombatMode.Distance(DistanceTo(w))}{(InReach(w) ? "  in reach" : "")}</color>";
+                    string text = $"<color=#{ColorUtility.ToHtmlStringRGB(c)}>{w.Name}  {CombatMode.Distance(dist)}{(inReach ? "  in reach" : "")}</color>";
                     GUI.Label(new Rect(p.x + box + 4f * s, p.y - 9f * s, 400f * s, 18f * s), text, Hud.Text(12));
                 }
             }

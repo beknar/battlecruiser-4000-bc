@@ -37,6 +37,10 @@ namespace CarrierGame
         // (switched back on, by a respawn that lit every renderer again: look afresh)
         void OnEnable() => recheck = true;
 
+        /// <summary>Something lit every renderer of the ship again: the plume is shown or hidden
+        /// by the thrust again on the next frame.</summary>
+        public void Refresh() => recheck = true;
+
         void Update()
         {
             shown = Mathf.MoveTowards(shown, throttle, Time.deltaTime * 0.5f);

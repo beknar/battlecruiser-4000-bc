@@ -79,6 +79,8 @@ namespace CarrierGame.Demo
         public void Open()
         {
             if (drive == null || !InputFocus.Take(InputFocus.Panel.SystemMap)) return;
+            // (an ally chosen last time, from navigation's menu say, isn't carried over)
+            SelectedAlly = null;
             RefreshOrder();
             if (Selected == null || IsHere(Selected))
                 Selected = order.Where(p => !IsHere(p)).OrderBy(p => Vector3.Distance(p.Position, carrier.transform.position)).FirstOrDefault();
@@ -164,6 +166,8 @@ namespace CarrierGame.Demo
             if (a.Value.noWarp != null) { SoundFX.Ui(Sfx.UiError); Notices.Post($"Can't warp to {a.Value.name}: {a.Value.noWarp}"); return false; }
             if (drive.EngageTo(a.Value.ship, a.Value.name, out string why))
             {
+                // (done with: the map next time opens on the places)
+                SelectedAlly = null;
                 Notices.Post($"Warping to {a.Value.name}: {drive.ChargeTime + drive.TravelTime:F1} s");
                 Close();
                 return true;
@@ -347,7 +351,9 @@ namespace CarrierGame.Demo
         /// on its name), or null.</summary>
         public Transform AllyAt(Vector2 gui, float maxPx = 16f)
         {
-            foreach (var (r, ship) in allyLabels) if (ship != null && r.Contains(gui) && AllyOf(ship) != null) return ship;
+            // (a name over a place's marker: the place, clicked right on it, comes first)
+            if (PointAt(gui, 10f) == null)
+                foreach (var (r, ship) in allyLabels) if (ship != null && r.Contains(gui) && AllyOf(ship) != null) return ship;
             Transform best = null;
             float bestD = maxPx * Hud.S;
             foreach (var a in Allies)

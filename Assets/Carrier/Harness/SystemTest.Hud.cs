@@ -198,13 +198,21 @@ namespace CarrierGame.Demo
             Shot("h12_menu");
             bool noRow = menu != null && menu.IndexOfLabel("Captain") < 0;
             int rows = 0;
-            while (menu != null && rows++ < 10) { yield return Key(kb, UnityEngine.InputSystem.Key.RightArrow); yield return Key(kb, UnityEngine.InputSystem.Key.DownArrow); }
+            float sizeBefore = Hud.UserScale;
+            while (menu != null && rows++ < 12)
+            {
+                // (right on every row but the HUD size's and the song's, which it changes)
+                string row = menu.SelectedLabel;
+                if (!row.StartsWith("HUD size") && !row.StartsWith("Song")) yield return Key(kb, UnityEngine.InputSystem.Key.RightArrow);
+                yield return Key(kb, UnityEngine.InputSystem.Key.DownArrow);
+            }
             bool kept = Captain.Index == before;
             Log($"  menu: no captain row {noRow}; her portrait clicked and right arrow on every row: still {Captain.Current.name} ({kept})");
             results.Add(("the captain can't be changed in the pause menu", noRow && kept));
             // the HUD size row: a click on its < side smaller, on its > side bigger
             int sizeRow = menu != null ? menu.IndexOfLabel("HUD size") : -1;
             float size0 = Hud.UserScale;
+            if (Mathf.Abs(size0 - sizeBefore) > 0.01f) Log($"  (the HUD size moved from {sizeBefore:P0} on the way down the rows)");
             Vector2 less = menu != null ? menu.ItemArrowScreenPos(sizeRow, -1) : Vector2.zero;
             Vector2 more = menu != null ? menu.ItemArrowScreenPos(sizeRow, +1) : Vector2.zero;
             yield return Click(mouse, new Vector2(more.x, Screen.height - more.y));

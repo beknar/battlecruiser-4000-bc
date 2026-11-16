@@ -327,7 +327,7 @@ namespace CarrierGame.Demo
             }
             else if (shown.GetComponentInParent<Installation>() != null) sb.Append("Crew  none (automated)\n");
 
-            string guns = carrier.target == shown ? carrier.GunsBearingText() : "";
+            string guns = carrier.target == shown && !Targets.IsFriendly(shown) ? carrier.GunsBearingText() : "";
             if (guns.Length > 0) sb.Append($"In arc  {(guns.StartsWith("none") ? "<color=#ffb060>none</color>" : guns)}\n");
             if (carrier.HasHangar)
             {

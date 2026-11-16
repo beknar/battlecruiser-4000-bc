@@ -56,7 +56,7 @@ namespace CarrierGame.Demo
         void TargetRemoved(Transform t, int i)
         {
             if (i < targetIndex) targetIndex--;
-            if (targetIndex >= Targets.All.Count) targetIndex = 0;
+            if (targetIndex >= Targets.AllWithFriendly().Count) targetIndex = 0;
             if (carrier != null && carrier.target == t) carrier.SetTarget(null);
         }
 
@@ -142,7 +142,7 @@ namespace CarrierGame.Demo
             WatchDestruction();
             if (carrier.Destroyed) return;
             carrier.rudder = turn != 0f || !autoRudder.HasValue ? turn : autoRudder.Value;
-            if (MainGun != null && mainGun.Current != MainBeam.State.Idle) mainGun.target = carrier.target;
+            if (MainGun != null && mainGun.Current != MainBeam.State.Idle) mainGun.target = Targets.IsFriendly(carrier.target) ? null : carrier.target;
             carrier.pitchInput = Mathf.Clamp(pitch != 0f || !autoPitch.HasValue ? pitch : autoPitch.Value, -1f, 1f);
             carrier.elevator = Mathf.Clamp(lift != 0f || !autoElevator.HasValue ? lift : autoElevator.Value, -1f, 1f);
             carrier.rollInput = Mathf.Clamp(roll != 0f || !autoRoll.HasValue ? roll : autoRoll.Value, -1f, 1f);
@@ -413,7 +413,7 @@ namespace CarrierGame.Demo
             switch (mainGun.Current)
             {
                 case MainBeam.State.Idle:
-                    mainGun.target = carrier.target;
+                    mainGun.target = Targets.IsFriendly(carrier.target) ? null : carrier.target;
                     mainGun.StartCharge();
                     Notices.Post($"Main gun charging: {mainGun.chargeTime:F0} s, keep the bow on the target");
                     PadSupport.Rumble(0.2f, 0.1f, 0.3f);
@@ -557,6 +557,7 @@ namespace CarrierGame.Demo
         public void FireGuns()
         {
             if (carrier.Destroyed) return;
+            if (Targets.IsFriendly(carrier.target)) { NotFitted($"Guns held: {Targets.NameOf(carrier.target)} is friendly"); return; }
             int fired = 0;
             foreach (var t in carrier.mainTurrets)
             {

@@ -138,12 +138,16 @@ namespace CarrierGame
             transform.position += Collide((transform.forward * speed + transform.up * liftSpeed) * dt);
             if (Cover.Active) transform.position = Depenetrate(transform.position);
             UpdateLiftFlares(liftChange);
-            if (engines != null) foreach (var e in engines) if (e) e.throttle = Mathf.Max(0.15f, throttle);
+            // the main engines burn with the throttle, and go out (plume, light and hum) without it
+            if (engines != null) foreach (var e in engines) if (e) e.throttle = throttle;
             wing.RemoveAll(c => c == null);
             if (hum != null)
             {
                 float f = Mathf.InverseLerp(0f, maxSpeed, speed);
-                hum.volume = 0.2f + 0.4f * Mathf.Max(throttle, f);
+                // (the lift thrusters are thrust too)
+                float thrust = Mathf.Max(throttle, Mathf.Abs(elevator) * 0.5f);
+                float want = thrust < EngineThrust.Off ? 0f : 0.2f + 0.4f * thrust;
+                hum.volume = Mathf.MoveTowards(hum.volume, want, dt * 1.5f);
                 hum.pitch = 0.8f + 0.45f * f;
             }
         }

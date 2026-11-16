@@ -71,6 +71,8 @@ namespace CarrierGame
         readonly List<Craft> wing = new List<Craft>();
         float speed, heading, pitchAngle, liftSpeed;
         AudioSource hum;
+        /// <summary>How loud the engine hum is now (for the self-test).</summary>
+        public float HumVolume => hum != null ? hum.volume : 0f;
 
         public Vector3 Velocity => transform.forward * speed + transform.up * liftSpeed;
         /// <summary>Compass heading in degrees (0 = +Z of the up frame: the world's in space).</summary>

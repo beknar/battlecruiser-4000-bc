@@ -203,6 +203,17 @@ namespace CarrierGame.Tests
         public void TheServersWebSocketAddress(string address, int port, bool secure, string url) =>
             Assert.That(CoopClient.UrlFor(address, port, secure), Is.EqualTo(url));
 
+        [TestCase("192.168.1.58", 7777, "https://192.168.1.58/", "wss://192.168.1.58/coop")]
+        [TestCase("Example.com", 7777, "https://example.com:8443/game/index.html?x", "wss://example.com:8443/coop")]
+        [TestCase("::1", 7777, "https://[::1]/", "wss://[::1]/coop")]
+        [TestCase("192.168.1.58", 443, "https://192.168.1.58/", null)]
+        [TestCase("192.168.1.58", 7777, "http://192.168.1.58/", null)]
+        [TestCase("10.0.0.2", 7777, "https://192.168.1.58/", null)]
+        [TestCase("wss://192.168.1.58:7777/coop", 7777, "https://192.168.1.58/", null)]
+        [TestCase("192.168.1.58", 7777, "", null)]
+        public void AnHttpsPageFallsBackToItsOwnAddress(string address, int port, string page, string url) =>
+            Assert.That(CoopClient.PageOriginUrl(address, port, page), Is.EqualTo(url));
+
         [TestCase("http://host/index.html?systemtest&cooptest", "cooptest", true)]
         [TestCase("http://host/index.html?server=1.2.3.4:7777&connect", "connect", true)]
         [TestCase("http://host/index.html?server=1.2.3.4:7777&connect", "server", true)]

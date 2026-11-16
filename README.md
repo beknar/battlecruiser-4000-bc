@@ -1365,7 +1365,11 @@ CoopServer --revoke-key <name|key>      revoke a key, then exit
 - **Status page.** `http://<server>:<port>/` shows the same status to allowed addresses.
 - **Web players.** A web page served over https can only connect to `wss://`, so give the
   server a certificate (`--cert`), or put it behind a proxy that has one. A page served over
-  plain http, or from localhost, can use `ws://`.
+  plain http, or from localhost, can use `ws://`. When the page comes from the co-op server's
+  own host and the port it was given doesn't answer over `wss://` (the plain 7777, say), the
+  game tries the page's own address next, `wss://<host>/coop`, so a proxy there (nginx's
+  `location /coop { proxy_pass http://127.0.0.1:7777/coop; ... }`, with the WebSocket upgrade
+  headers) works with the default port.
 - **Firewall.** Open the port (TCP) on the server's firewall for players on other machines.
 
 #### Setting up a standalone server on Windows

@@ -48,6 +48,8 @@ namespace CarrierGame.Demo
         readonly ClockSync clock = new ClockSync();
         double nextPing;
         bool helloSent;
+        // where to try next if the first address never answers (null: nowhere)
+        string fallbackUrl;
 
         /// <summary>Connect (closing any connection there is): address as a host name or IP
         /// (or a full ws:// or wss:// address), and the port, with the server's API key (null:
@@ -77,6 +79,22 @@ namespace CarrierGame.Demo
             return $"{(secure ? "wss" : "ws")}://{host}:{port}/coop";
         }
 
+        /// <summary>For a page served over https from the co-op server's own host, but told a
+        /// different port (the server's plain-socket 7777, say, which can't take wss://): the
+        /// page's own address, wss://host[:port]/coop, where a proxy may pass sockets on to the
+        /// server. Null when there is nothing else to try.</summary>
+        internal static string PageOriginUrl(string address, int port, string pageUrl)
+        {
+            address = (address ?? "").Trim();
+            if (string.IsNullOrEmpty(pageUrl) || !pageUrl.StartsWith("https:") ||
+                address.StartsWith("ws://") || address.StartsWith("wss://")) return null;
+            Uri page;
+            try { page = new Uri(pageUrl); } catch { return null; }
+            if (!string.Equals(address.Trim('[', ']'), page.Host.Trim('[', ']'), StringComparison.OrdinalIgnoreCase)) return null;
+            if (port == page.Port) return null;
+            return $"wss://{page.Authority}/coop";
+        }
+
         public static void Disconnect()
         {
             if (Instance != null) Instance.Close("disconnected");
@@ -91,6 +109,7 @@ namespace CarrierGame.Demo
             // a page served over https may only open wss:// sockets
             bool secure = LaunchArgs.PageUrl.StartsWith("https:");
             string url = UrlFor(address, port, secure);
+            fallbackUrl = LaunchArgs.OnWeb ? PageOriginUrl(address, port, LaunchArgs.PageUrl) : null;
             Url = url;
             Status = $"connecting to {url}...";
             Debug.Log($"[Co-op] connecting to {url}");
@@ -157,6 +176,17 @@ namespace CarrierGame.Demo
             }
             if (socket != null && socket.Status == CoopSocket.State.Closed)
             {
+                // never opened: once more at the page's own address, if there is one to try
+                if (!helloSent && fallbackUrl != null)
+                {
+                    Debug.Log($"[Co-op] {Url} didn't answer ({socket.Error}); trying {fallbackUrl}");
+                    socket.Close();
+                    Url = fallbackUrl;
+                    fallbackUrl = null;
+                    Status = $"connecting to {Url}...";
+                    socket = CoopSocket.Open(Url);
+                    return;
+                }
                 string err = socket.Error;
                 Close(string.IsNullOrEmpty(err) ? (MyId > 0 ? "the server closed the connection" : "couldn't connect") : err);
                 Debug.Log($"[Co-op] closed: {Status}");

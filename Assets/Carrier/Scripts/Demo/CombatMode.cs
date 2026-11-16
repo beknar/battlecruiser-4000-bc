@@ -57,6 +57,22 @@ namespace CarrierGame.Demo
                     tag = t,
                 });
             }
+            // friendly stations and installations within 30 km: to fly to (U), never fired on
+            var friends = Targets.Friendly.Where(t => TargetDisplay.InRange(t, me)).OrderBy(t => (t.position - me).sqrMagnitude).ToList();
+            if (friends.Count > 0)
+            {
+                rows.Add(new MenuRow { header = true, text = $"FRIENDLY ({friends.Count}): U FLIES TO IT" });
+                foreach (var t in friends)
+                {
+                    string mark = t == ship.target ? "<color=#7ee08a>> </color>" : "";
+                    rows.Add(new MenuRow
+                    {
+                        text = $"{mark}<color=#7ee08a>{Targets.NameOf(t)}</color>",
+                        detail = Distance(Vector3.Distance(me, t.position)),
+                        tag = t,
+                    });
+                }
+            }
             // wrecks to salvage, within 30 km
             var salvage = Salvage.Instance;
             var wrecks = salvage != null ? salvage.Near(30000f).ToList() : new List<Wreck>();
@@ -136,7 +152,10 @@ namespace CarrierGame.Demo
             float reach = 0f;
             if (ship.mainTurrets != null) foreach (var g in ship.mainTurrets) if (g != null) reach = Mathf.Max(reach, g.range);
             reach = reach > 0f ? reach * 0.7f : 1500f;
-            fly.Begin(name, () => t != null ? t.position : ship.transform.position, reach, StartLineUp,
+            // (a friendly one: just there, the guns not lined up on it)
+            bool friendly = Targets.IsFriendly(t);
+            if (friendly) reach = Mathf.Max(reach, 2500f);
+            fly.Begin(name, () => t != null ? t.position : ship.transform.position, reach, friendly ? (System.Action)null : StartLineUp,
                       () => t != null && ship.target == t && !(t.TryGetComponent(out Health h) && h.Dead));
         }
 

@@ -110,6 +110,27 @@ namespace CarrierGame.Demo
             results.Add(("a puppet goes where the host says, as damaged as the host says", entOff >= 0f && entOff < 150f && Mathf.Abs(hullFrac - 0.6f) < 0.05f));
             results.Add(("the host's hits on me land, and its shots show", world.HitsTaken - taken0 >= 3 && lost > 0f && world.ShotsShown > shown0));
 
+            // the system map: the other player's ship beside mine (its arrow under my own), chosen
+            // by clicking its name; it is too close to warp to. Navigation's menu lists it as an ally.
+            var smap = FindAnyObjectByType<SystemMap>();
+            bool picked = false, honest = false, listed = false;
+            if (smap != null && bot != null)
+            {
+                smap.Open();
+                yield return null;
+                yield return null;
+                var lp = smap.LabelPosOf(bot.transform);
+                picked = lp.HasValue && smap.AllyAt(lp.Value) == bot.transform;
+                honest = smap.Allies.Any(a => a.ship == bot.transform && a.noWarp != null && a.noWarp.StartsWith("already with you"));
+                smap.Close();
+                var nav = FindAnyObjectByType<NavigationMode>();
+                var rows = new System.Collections.Generic.List<MenuRow>();
+                if (nav != null) nav.Rows(rows);
+                listed = rows.Any(r => (object)r.tag == bot.transform);
+            }
+            Log($"  the map: its name clicked picks it {picked}; too close to warp to, said so {honest}; navigation's menu lists it {listed}");
+            results.Add(("on the map, another player's ship beside mine is picked by its name, and listed in navigation's menu", picked && honest && listed));
+
             // two players here: the enemies are tougher
             float tough2 = CoopScaling.Toughness(2), built = th != null ? th.BuiltMaxHealth : 0f;
             Log($"  scaled for {world.ScaledFor} players: '{target}' hull {(th != null ? th.maxHealth : 0f):F0} (built {built:F0}, x{tough2:0.##})");

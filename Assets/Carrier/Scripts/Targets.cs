@@ -16,6 +16,33 @@ namespace CarrierGame
         /// <summary>Everything targetable, in the order it came (destroyed ones may be null).</summary>
         public static IReadOnlyList<Transform> All => list;
 
+        /// <summary>The friendly stations and installations in space: they can be targeted too, to
+        /// fly to (U) and see on the target display, but the guns never fire on them. (Not the
+        /// bases down on a surface: navigation mode flies down to those, and lands.)</summary>
+        public static IEnumerable<Transform> Friendly
+        {
+            get
+            {
+                foreach (var i in Installation.All)
+                    if (i != null && !i.hostile && i.isActiveAndEnabled && i.kind != WarpPoint.Kind.SurfaceBase) yield return i.transform;
+            }
+        }
+
+        /// <summary>Hostiles first, in the list's order, then the friendly installations.</summary>
+        public static List<Transform> AllWithFriendly()
+        {
+            var l = new List<Transform>(list);
+            foreach (var f in Friendly) if (!l.Contains(f)) l.Add(f);
+            return l;
+        }
+
+        /// <summary>A friendly installation (never fired on).</summary>
+        public static bool IsFriendly(Transform t) => t != null && t.TryGetComponent(out Installation i) && !i.hostile && i.kind != WarpPoint.Kind.SurfaceBase;
+
+        /// <summary>What to call it: its target info's name, an installation's, or its object's.</summary>
+        public static string NameOf(Transform t) =>
+            t == null ? "" : t.TryGetComponent(out TargetInfo info) ? info.Name : t.TryGetComponent(out Installation i) ? i.displayName : t.name;
+
         /// <summary>Something left the list, and where it was in it.</summary>
         public static event Action<Transform, int> Removed;
 

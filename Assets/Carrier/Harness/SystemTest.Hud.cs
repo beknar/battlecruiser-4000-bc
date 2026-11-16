@@ -186,27 +186,42 @@ namespace CarrierGame.Demo
             results.Add(("she speaks lines about what happens", said.Count >= 10 && events.Count >= 10 && closest >= 1.4f &&
                                                                  said.All(x => !x.line.Contains("{")) && events.Contains("TARGET DESTROYED")));
 
-            // ---- choosing a captain in the pause menu, by clicking her portrait
+            // ---- the pause menu: the captain can't be changed once the game has started; the
+            // HUD size's < and > make it smaller and bigger
             var menu = FindAnyObjectByType<GameMenu>();
             yield return Key(kb, UnityEngine.InputSystem.Key.Escape);
             yield return new WaitForSecondsRealtime(0.4f);
-            int pick = (chosen0 + 2) % Captain.Roster.Length;
-            Vector2 at = menu != null ? menu.CaptainScreenPos(pick) : Vector2.zero;
+            int before = Captain.Index;
+            Vector2 at = menu != null ? menu.CaptainScreenPos() : Vector2.zero;
             yield return Click(mouse, new Vector2(at.x, Screen.height - at.y));
             yield return new WaitForSecondsRealtime(0.3f);
             Shot("h12_menu");
-            bool clicked = Captain.Index == pick;
-            int saved = PlayerPrefs.GetInt(Captain.PrefKey, -1);
-            // and with the keys: right arrow on the Captain row
+            bool noRow = menu != null && menu.IndexOfLabel("Captain") < 0;
             int rows = 0;
-            while (menu != null && menu.SelectedLabel.StartsWith("Captain") == false && rows++ < 8) yield return Key(kb, UnityEngine.InputSystem.Key.DownArrow);
-            yield return Key(kb, UnityEngine.InputSystem.Key.RightArrow);
-            bool keyed = Captain.Index == (pick + 1) % Captain.Roster.Length;
-            Log($"  menu: clicked {Captain.Roster[pick].name}: chosen {clicked}, saved {saved == pick}; right arrow on '{menu?.SelectedLabel}': {Captain.Current.name} ({keyed})");
+            while (menu != null && rows++ < 10) { yield return Key(kb, UnityEngine.InputSystem.Key.RightArrow); yield return Key(kb, UnityEngine.InputSystem.Key.DownArrow); }
+            bool kept = Captain.Index == before;
+            Log($"  menu: no captain row {noRow}; her portrait clicked and right arrow on every row: still {Captain.Current.name} ({kept})");
+            results.Add(("the captain can't be changed in the pause menu", noRow && kept));
+            // the HUD size row: a click on its < side smaller, on its > side bigger
+            int sizeRow = menu != null ? menu.IndexOfLabel("HUD size") : -1;
+            float size0 = Hud.UserScale;
+            Vector2 less = menu != null ? menu.ItemArrowScreenPos(sizeRow, -1) : Vector2.zero;
+            Vector2 more = menu != null ? menu.ItemArrowScreenPos(sizeRow, +1) : Vector2.zero;
+            yield return Click(mouse, new Vector2(more.x, Screen.height - more.y));
+            yield return new WaitForSecondsRealtime(0.2f);
+            float size1 = Hud.UserScale;
+            yield return Click(mouse, new Vector2(less.x, Screen.height - less.y));
+            yield return new WaitForSecondsRealtime(0.2f);
+            float size2 = Hud.UserScale;
+            yield return Click(mouse, new Vector2(less.x, Screen.height - less.y));
+            yield return new WaitForSecondsRealtime(0.2f);
+            float size3 = Hud.UserScale;
+            // (back to where it was: one step down from it, net)
+            for (int i = 0; i < 3 && Hud.UserScale < size0 - 0.01f; i++) HudSettings.ChangeSize(+1);
+            Log($"  HUD size: {size0:P0}; > {size1:P0}; < {size2:P0}; < {size3:P0}");
+            results.Add(("the HUD size's < makes it smaller and > bigger", sizeRow >= 0 && size1 > size0 && size2 < size1 && size3 < size2));
             yield return Key(kb, UnityEngine.InputSystem.Key.Escape);
             yield return new WaitForSeconds(0.3f);
-            bool hello = cap.Reason == "REPORTING FOR DUTY";
-            results.Add(("a captain chosen in the menu (click and keys), and saved", clicked && saved == pick && keyed && hello));
 
             // every captain on the console
             for (int i = 0; i < Captain.Roster.Length; i++)

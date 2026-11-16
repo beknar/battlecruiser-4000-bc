@@ -67,7 +67,7 @@ namespace CarrierGame.Demo
             Vector3 me = ship.transform.position;
             var place = Places.At(me);
             var pois = place != null ? Places.PointsOfInterest(place, me) : new List<WarpPoint>();
-            if (place == null) { rows.Add(new MenuRow { header = true, text = "NO PLACE NEAR: M FOR THE SYSTEM MAP" }); return; }
+            if (place == null) { rows.Add(new MenuRow { header = true, text = "NO PLACE NEAR: M FOR THE SYSTEM MAP" }); AllyRows(rows, me); return; }
             rows.Add(new MenuRow { header = true, text = pois.Count == 0 ? $"NOTHING BUILT AT {place.displayName.ToUpperInvariant()}: M FOR THE MAP"
                                                                          : $"POINTS OF INTEREST AT {place.displayName.ToUpperInvariant()} ({pois.Count})" });
             foreach (var p in pois)
@@ -82,6 +82,26 @@ namespace CarrierGame.Demo
                     tag = p,
                 });
             }
+            AllyRows(rows, me);
+        }
+
+        /// <summary>The other players and AI wingmen (co-op), to mini-warp to (Enter).</summary>
+        void AllyRows(List<MenuRow> rows, Vector3 me)
+        {
+            var map = Map;
+            if (map == null) return;
+            map.RefreshAllies();
+            var allies = map.Allies.Where(a => a.ship != null && a.kind != "fleet").ToList();
+            if (allies.Count == 0) return;
+            rows.Add(new MenuRow { header = true, text = $"ALLIES ({allies.Count}): ENTER WARPS TO THEM" });
+            foreach (var a in allies.OrderBy(a => (a.ship.position - me).sqrMagnitude))
+                rows.Add(new MenuRow
+                {
+                    text = $"<color=#{ColorUtility.ToHtmlStringRGB(a.color)}>{a.name}</color>  <color=#9aa4b0>{a.kind}</color>",
+                    detail = a.noWarp ?? CombatMode.Distance(Vector3.Distance(me, a.ship.position)),
+                    enabled = a.noWarp == null,
+                    tag = a.ship,
+                });
         }
 
         static string Kind(WarpPoint p)
@@ -109,7 +129,17 @@ namespace CarrierGame.Demo
         public void Act(MenuRow row)
         {
             if (row.tag is WarpPoint p) TravelTo(p, Then.Arrive);
+            // an ally: a mini-warp to it
+            else if (row.tag is Transform ship && Map != null)
+            {
+                Map.RefreshAllies();
+                Map.SelectAlly(ship);
+                if (Map.WarpToAlly()) ModeMenu.Close();
+            }
         }
+
+        SystemMap map;
+        SystemMap Map => map != null ? map : (map = FindAnyObjectByType<SystemMap>());
 
         /// <summary>The menu opens on the course set, if any (so Tab, Enter flies it).</summary>
         public object StartAt => Course;

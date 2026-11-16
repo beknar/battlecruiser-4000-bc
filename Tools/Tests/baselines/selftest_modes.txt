@@ -7,9 +7,9 @@
    2.6s  ok: Digit3: NAVIGATION mode, its keys in the controls box ('system map')
    2.6s  ok: Digit4: SERVICES mode, its keys in the controls box ('services')
    2.6s  ok: Digit5: FLEET mode, its keys in the controls box ('fleet yet')
-   2.7s  ok: Digit1: COMBAT mode, its keys in the controls box ('fire guns')
-   2.7s  ok: modes taken up by themselves unwind in turn: the map closed, SERVICES; the site left, MINING
-   2.7s  ok: a mode chosen meanwhile stays when the site is left (FLEET)
+   2.6s  ok: Digit1: COMBAT mode, its keys in the controls box ('fire guns')
+   2.6s  ok: modes taken up by themselves unwind in turn: the map closed, SERVICES; the site left, MINING
+   2.6s  ok: a mode chosen meanwhile stays when the site is left (FLEET)
    2.8s  ok: V scans in mining mode (sweeping True), not in combat mode (False)
    2.8s  ok: services mode's Tab, away from any site, says to dock or land ('Services: dock at a station or land on a site's pad first (K)')
    2.9s  ok: Tab opens the combat menu, listing the targets in range (1 listed)
@@ -21,18 +21,19 @@
    4.9s  ok: steering takes the helm back from the line-up
    4.9s  ok: Shift+T targets one too (Practice target)
   52.9s  ok: U flies to the target (3.1 km off on arrival, after 48 s) and lines up on it there (lining up True)
-  52.9s  ok: a hostile destroyed leaves a wreck: Wreck of Practice hulk, 16 t steel plate, 6 t aluminium sheet, 2 t copper wire (24 t)
-  53.0s  ok: the combat menu lists it under WRECKS
-  53.0s  ok: Enter chooses it (Wreck of Practice hulk); 'Wreck of Practice hulk: in reach. Z salvages it'
-  53.0s  ok: Z starts the salvage beam ('Salvaging Wreck of Practice hulk: 16 t steel plate, 6 t aluminium sheet, 2 t copper wire')
-  59.1s  ok: it is stripped into the hold: steel plate 0 -> 16 t, 24 t salvaged ('Wreck of Practice hulk stripped')
- 109.6s  ok: Shift+Z chooses the far wreck (True), Z flies there (True) and starts the beam on arrival (Wreck of Distant hulk, 1.0 km off)
- 109.6s  ok: the captain hidden, the console is narrower (521 -> 331 px)
- 109.7s  ok: the HUD a size smaller: the console 521 -> 443 px, and back to 100%
- 109.7s    spawn locations: Corsair patrol (3), Pirate cruiser (3), Raiders (6), Dreadnought battle group (3); every 5 min, quiet 10 min once cleared
- 112.7s  ok: Corsair patrol: all 3 destroyed, it is cleared (quiet for 10 min)
- 112.7s  ok: no spawns there while it is quiet (0 back)
- 119.2s  ok: the quiet over, they spawn again: 3 of 3
- 128.2s  ok: a spawn (every 5 min) brings back the one destroyed, once its breakup is over (1 down, left at first True, 3 of 3 after)
- 128.2s  PASS: modes of play (32 of 32)
- 128.2s  done
+  53.9s  ok: a friendly installation can be targeted (Concord Colony, the nearest), the guns holding their fire (True); the Thalassa L1 Observatory among them (True)
+  53.9s  ok: a hostile destroyed leaves a wreck: Wreck of Practice hulk, 16 t steel plate, 6 t aluminium sheet, 2 t copper wire and 1 more (34 t)
+  54.0s  ok: the combat menu lists it under WRECKS
+  54.0s  ok: Enter chooses it (Wreck of Practice hulk); 'Wreck of Practice hulk: in reach. Z salvages it'
+  54.0s  ok: Z starts the salvage beam ('Salvaging Wreck of Practice hulk: 16 t steel plate, 6 t aluminium sheet, 2 t copper wire and 1 more')
+  60.0s  ok: it is stripped into the hold: steel plate 0 -> 16 t, 34 t salvaged ('Wreck of Practice hulk stripped')
+ 110.9s  ok: Shift+Z chooses the far wreck (True), Z flies there (True) and starts the beam on arrival (Wreck of Distant hulk, 1.0 km off)
+ 110.9s  ok: the captain hidden, the console is narrower (521 -> 331 px)
+ 110.9s  ok: the HUD a size smaller: the console 521 -> 443 px, and back to 100%
+ 110.9s    spawn locations: Corsair patrol (3), Dreadnought battle group (3), Pirate cruiser (3), Raiders (6); every 5 min, quiet 10 min once cleared
+ 114.0s  ok: Corsair patrol: all 3 destroyed, it is cleared (quiet for 10 min)
+ 114.0s  ok: no spawns there while it is quiet (0 back)
+ 120.5s  ok: the quiet over, they spawn again: 3 of 3
+ 129.5s  ok: a spawn (every 5 min) brings back the one destroyed, once its breakup is over (1 down, left at first True, 3 of 3 after)
+ 129.5s  PASS: modes of play (33 of 33)
+ 129.5s  done

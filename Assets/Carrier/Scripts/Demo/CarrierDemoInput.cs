@@ -599,6 +599,7 @@ namespace CarrierGame.Demo
         {
             if (!carrier.HasMissiles) { NotFitted($"The {carrier.shipName.ToLower()} has no missiles: guns only"); return; }
             if (carrier.target == null) { NoTarget(); return; }
+            if (Targets.IsFriendly(carrier.target)) { NotFitted($"Missiles held: {Targets.NameOf(carrier.target)} is friendly"); return; }
             if (carrier.missiles.Stock == 0) { NotFitted("Out of missiles: rearm docked at a station or landed at a site"); return; }
             carrier.FireMissiles();
             PadSupport.Rumble(0.35f, 0.5f, 0.35f);
@@ -608,6 +609,7 @@ namespace CarrierGame.Demo
         {
             if (!Hangar()) return;
             if (carrier.target == null) NoTarget();
+            else if (Targets.IsFriendly(carrier.target)) NotFitted($"The wing won't attack {Targets.NameOf(carrier.target)}: it is friendly");
             else carrier.OrderWing(Craft.Order.Attack);
         }
 
@@ -620,7 +622,7 @@ namespace CarrierGame.Demo
         /// ambush and is within range; with none chosen yet, the one at the list's place first.</summary>
         void CycleTarget(int dir)
         {
-            var targets = Targets.All;
+            var targets = Targets.AllWithFriendly();
             if (targets.Count == 0) return;
             for (int tries = 0; tries < targets.Count; tries++)
             {
@@ -697,7 +699,7 @@ namespace CarrierGame.Demo
 
         static int IndexOf(Transform t)
         {
-            var targets = Targets.All;
+            var targets = Targets.AllWithFriendly();
             for (int i = 0; i < targets.Count; i++) if (targets[i] == t) return i;
             return -1;
         }
@@ -714,7 +716,7 @@ namespace CarrierGame.Demo
             var cam = Camera.main;
             if (cam == null) return;
             if (hud.Covers(new Vector2(screen.x, Screen.height - screen.y))) return;
-            var targets = Targets.All;
+            var targets = Targets.AllWithFriendly();
 
             Transform best = null;
             // the nearest thing under the cursor that isn't our own ship or its shield

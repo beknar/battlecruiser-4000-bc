@@ -116,7 +116,7 @@ namespace CarrierGame.Demo
         }
 
         /// <summary>A target's name as the player sees it.</summary>
-        public static string NameOf(Transform t) => t == null ? "" : t.TryGetComponent(out TargetInfo info) ? info.Name : t.name;
+        public static string NameOf(Transform t) => Targets.NameOf(t);
 
         static bool Gone(Transform t) => t == null || !t.gameObject.activeInHierarchy || (t.TryGetComponent(out Health h) && h.Dead);
 

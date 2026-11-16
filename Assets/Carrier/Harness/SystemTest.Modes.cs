@@ -195,6 +195,31 @@ namespace CarrierGame.Demo
             combat.StopLineUp();
             cc.throttle = 0f;
 
+            // ---- a friendly station or installation in range can be targeted (T), to fly to; the
+            // guns hold their fire on it
+            {
+                var friendly = Targets.Friendly.Where(f => TargetDisplay.InRange(f, cc.transform.position)).ToList();
+                Transform got = null;
+                for (int i = 0; i < Targets.AllWithFriendly().Count + 1 && got == null; i++)
+                {
+                    yield return Key(kb, K.T);
+                    if (Targets.IsFriendly(cc.target)) got = cc.target;
+                }
+                // (none within 30 km here: the nearest, chosen as a click or the menu would)
+                if (friendly.Count == 0)
+                {
+                    got = Targets.Friendly.OrderBy(f => (f.position - cc.transform.position).sqrMagnitude).FirstOrDefault();
+                    if (got != null) demo.SelectTarget(got);
+                    yield return null;
+                }
+                bool hold = got != null && cc.target == got && cc.mainTurrets.All(g => g == null || g.target == null);
+                bool observatory = Targets.Friendly.Any(f => Targets.NameOf(f) == "Thalassa L1 Observatory");
+                Check(got != null && hold && observatory,
+                      $"a friendly installation can be targeted ({Targets.NameOf(got)}, {(friendly.Count > 0 ? $"by T, of {friendly.Count} in range" : "the nearest")}), " +
+                      $"the guns holding their fire ({hold}); the Thalassa L1 Observatory among them ({observatory})");
+                demo.ClearTarget();
+            }
+
             Targets.Remove(dummy.transform);
             Destroy(dummy);
             cc.throttle = 0f;

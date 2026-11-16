@@ -159,6 +159,38 @@ namespace CarrierGame.Demo
                   $"a mini-warp to a ship drops out {near:F0} m from it ({(engaged ? "engaged" : "refused: " + bwhy)})");
             Destroy(buddy);
 
+            // ---- K where a warp leaves the ship docks, flying in first: Deepcut Station (at the
+            // edge of the Inner Belt: not a landing on the field), the Lantern Arcology and Kestrel
+            // Deep Yard (places of their own, out in deep space)
+            foreach (var name in new[] { "Deepcut Station", "Lantern Arcology", "Kestrel Deep Yard" })
+            {
+                var inst = Installation.All.FirstOrDefault(i => i != null && i.displayName == name);
+                var wp = Point(name);
+                if (inst == null || wp == null) { Check(false, $"{name}: there to dock at"); continue; }
+                yield return WarpTo(kb, name, "nav_dock_" + name.Replace(" ", "_").ToLowerInvariant());
+                yield return Key(kb, K.Digit3);
+                float berthOff = Vector3.Distance(cc.transform.position, inst.BerthPosition);
+                // (a place of its own is in its own menu)
+                var rows = new System.Collections.Generic.List<MenuRow>();
+                nav.Rows(rows);
+                bool inMenu = rows.Any(r => ReferenceEquals(r.tag, wp));
+                string hud = Docking.Instance != null ? System.Text.RegularExpressions.Regex.Replace(Docking.Instance.HudText() ?? "", "<[^>]+>", "") : "";
+                yield return Key(kb, K.K);
+                float du = Time.time + 150f;
+                bool landed = false;
+                while (Time.time < du && !(Docking.Docked && Docking.Instance.At == inst))
+                {
+                    if (PlanetLanding.Busy) landed = true;
+                    yield return null;
+                }
+                bool docked = Docking.Docked && Docking.Instance.At == inst;
+                Shot("nav_docked_" + name.Replace(" ", "_").ToLowerInvariant());
+                Check(docked && !landed && inMenu,
+                      $"{name}: K {berthOff / 1000f:F1} km from the berth, where the warp left her ('{hud}'), flies in and docks ({docked}, landed instead {landed}; in navigation's menu {inMenu})");
+                if (Docking.Docked) { yield return Key(kb, K.K); float uu = Time.time + 8f; while (Time.time < uu && Docking.Busy) yield return null; }
+                cc.throttle = 0f;
+            }
+
             yield return Key(kb, K.Digit1);
             if (hull != null) hull.cannotDie = false;
             Log($"{(passed == checks ? "PASS" : "FAIL")}: navigation ({passed} of {checks})");

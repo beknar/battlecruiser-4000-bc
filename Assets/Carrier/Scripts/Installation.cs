@@ -20,9 +20,39 @@ namespace CarrierGame
         public bool market;
         [Tooltip("Where a docked ship sits; its forward is the way out.")]
         public Transform berth;
-        // kept short: from farther out, K lands on the body nearby
+        // the last of the way in: from here the ship is brought in to the berth (under a fade)
         [Tooltip("Docking is possible within this distance of the berth (m).")]
         public float dockRange = 1600f;
+
+        /// <summary>From where a warp or an auto-flight leaves the ship (its warp point's arrival
+        /// distance, and the way navigation counts as there), K docks here: within dockRange at
+        /// once, farther out by flying in to the berth first. Never less than dockRange.</summary>
+        public float ApproachRange
+        {
+            get
+            {
+                var wp = Point;
+                if (wp == null) return dockRange;
+                float far = wp.arrivalDistance + Vector3.Distance(BerthPosition, wp.Position) + 3000f;
+                return Mathf.Max(dockRange, far);
+            }
+        }
+
+        WarpPoint point;
+        bool pointLooked;
+        /// <summary>Its warp point (the one of its name), or null.</summary>
+        public WarpPoint Point
+        {
+            get
+            {
+                if (point == null && !pointLooked)
+                {
+                    pointLooked = true;
+                    foreach (var w in WarpPoint.All) if (w != null && w.displayName == displayName) { point = w; break; }
+                }
+                return point;
+            }
+        }
 
         public static readonly List<Installation> All = new List<Installation>();
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -57,6 +87,38 @@ namespace CarrierGame
                 if (d < s.dockRange && d < bestD) { bestD = d; best = s; }
             }
             return best;
+        }
+
+        /// <summary>The friendly place to dock whose approach a point is in (where a warp or an
+        /// auto-flight there leaves the ship), the one in docking range first, else the nearest; null if none.</summary>
+        public static Installation ApproachableNear(Vector3 p)
+        {
+            var close = DockableNear(p);
+            if (close != null) return close;
+            Installation best = null;
+            float bestD = float.MaxValue;
+            foreach (var s in All)
+            {
+                if (s == null || !s.canDock || s.hostile) continue;
+                float d = Vector3.Distance(p, s.BerthPosition);
+                if (d < s.ApproachRange && d < bestD) { bestD = d; best = s; }
+            }
+            return best;
+        }
+
+        /// <summary>The ship at `p` is close enough to be brought in to the berth now.</summary>
+        public bool InDockRange(Vector3 p) => Vector3.Distance(p, BerthPosition) < dockRange;
+
+        /// <summary>Where to steer for on the way in: out in front of the berth (its way out),
+        /// so the ship comes in on the open side rather than through the rock or the hull it is
+        /// built into; the berth itself once in front of it.</summary>
+        public Vector3 ApproachPoint(Vector3 from)
+        {
+            if (berth == null) return BerthPosition;
+            Vector3 b = BerthPosition, f = berth.forward;
+            float ahead = Vector3.Dot(from - b, f);
+            if (ahead > dockRange * 0.25f) return b;
+            return b + f * Mathf.Min(dockRange * 0.6f, 1000f);
         }
     }
 }

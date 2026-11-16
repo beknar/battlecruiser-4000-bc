@@ -49,12 +49,14 @@ namespace CarrierGame.Demo
 
         void OnDestroy() { if (Instance == this) Instance = null; }
 
-        /// <summary>The place the ship could dock at now (null if none), and if it can't yet, why.</summary>
+        /// <summary>The place the ship could dock at now (null if none), and if it can't yet, why:
+        /// in docking range of its berth, or out where a warp or an auto-flight there leaves the
+        /// ship (K then flies her in first: Dock).</summary>
         public Installation Candidate(out string why)
         {
             why = "";
             if (carrier == null || PlanetLanding.Busy) return null;
-            var s = Installation.DockableNear(carrier.transform.position);
+            var s = Installation.ApproachableNear(carrier.transform.position);
             if (s == null) return null;
             if (carrier.Destroyed) why = "the frigate is destroyed";
             else if (drive != null && drive.Current != WarpDrive.State.Ready) why = "in warp";
@@ -62,7 +64,9 @@ namespace CarrierGame.Demo
             return s;
         }
 
-        /// <summary>Dock at the place in range (the K key). Returns false (and says why) if it can't.</summary>
+        /// <summary>Dock at the place in range (the K key): in docking range, brought in to the
+        /// berth now; farther out, flown in to it first (navigation's auto-travel, ending docked).
+        /// Returns false (and says why) if it can't.</summary>
         public bool Dock()
         {
             if (Current != State.Free) return false;
@@ -73,8 +77,19 @@ namespace CarrierGame.Demo
                 SoundFX.Ui(Sfx.UiError);
                 return false;
             }
+            if (!s.InDockRange(carrier.transform.position)) return FlyIn(s);
             StartCoroutine(DockAt(s));
             return true;
+        }
+
+        /// <summary>Out in the approach: flown in to the berth, then docked.</summary>
+        bool FlyIn(Installation s)
+        {
+            var nav = FindAnyObjectByType<NavigationMode>();
+            var wp = s.Point;
+            if (nav == null || wp == null) { Notices.Post($"Fly closer to {s.displayName} to dock"); SoundFX.Ui(Sfx.UiError); return false; }
+            if (!Modes.Is(ModeOfPlay.Navigation)) Modes.Set(ModeOfPlay.Navigation);
+            return nav.TravelTo(wp, NavigationMode.Then.Dock);
         }
 
         public bool Undock()
@@ -209,8 +224,10 @@ namespace CarrierGame.Demo
                 case State.Docked: return $"Docked  {At?.displayName}  <color=#7ee08a>{Services()}</color>  <color=#9aa4b0>{key} undock</color>";
             }
             if (candidate == null) return null;
-            return candidateWhy == "" ? $"Dock  <color=#7ee08a>{key} dock at {candidate.displayName}</color>"
-                                      : $"Dock  <color=#ff6050>{candidate.displayName}: {candidateWhy}</color>";
+            if (candidateWhy != "") return $"Dock  <color=#ff6050>{candidate.displayName}: {candidateWhy}</color>";
+            return candidate.InDockRange(carrier.transform.position)
+                ? $"Dock  <color=#7ee08a>{key} dock at {candidate.displayName}</color>"
+                : $"Dock  <color=#7ee08a>{key} fly in and dock at {candidate.displayName}</color>";
         }
 
         void OnGUI()

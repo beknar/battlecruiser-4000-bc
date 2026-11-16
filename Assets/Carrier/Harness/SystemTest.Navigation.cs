@@ -162,7 +162,7 @@ namespace CarrierGame.Demo
             // ---- K where a warp leaves the ship docks, flying in first: Deepcut Station (at the
             // edge of the Inner Belt: not a landing on the field), the Lantern Arcology and Kestrel
             // Deep Yard (places of their own, out in deep space)
-            foreach (var name in new[] { "Deepcut Station", "Lantern Arcology", "Kestrel Deep Yard" })
+            foreach (var name in new[] { "Deepcut Station", "Hollow Rock", "Lantern Arcology", "Kestrel Deep Yard" })
             {
                 var inst = Installation.All.FirstOrDefault(i => i != null && i.displayName == name);
                 var wp = Point(name);

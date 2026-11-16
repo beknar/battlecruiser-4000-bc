@@ -1490,11 +1490,13 @@ ships`, `everyone` or `wingmen` reaches every bot. It answers each order on the 
 | `attack [target]` | Fights that target, or the nearest enemy. |
 | `warp to <place>` | Warps there, then holds. |
 | `dock` | Docks at the station it is at. |
+| `mine` or `mine at <field>` | Mines asteroids: warps to the field (the one it is at, or the nearest), scans, flies to the nearest deposit and cuts it until the hold is full, then warps to the nearest market (a station or base that buys ore), docks, sells the ore and goes back for more, over and over. `start mining` and `mine asteroids` do the same. |
+| `sell` | Takes the ore aboard to the nearest market now, sells it, then goes back to mining. |
 | `status` | Reports its hull, shield, missiles, what it is doing and where it is. |
 | `help` | Lists these orders. |
 
-It also says when it starts a fight, when the target is destroyed, when it arrives, and when it
-can't do what it was told.
+It also says when it starts a fight, when the target is destroyed, when it arrives, when it sells a
+load (how much, where, and for how much), and when it can't do what it was told.
 
 **An AI at the controls.** The bot game answers a small HTTP API on this machine only
 (`127.0.0.1`, port `-botport`, 7781 by default):
@@ -1525,6 +1527,8 @@ build. See `Tools/CoopAI/README.md`.
   (`Tools/CoopAI/aibot_test.py`) then checks:
   - that the bot greets it and follows it;
   - its orders by name, the API, and the MCP server against the live bot;
+  - that told to mine it mines a field, and told to sell it docks at a market, sells the ore
+    and goes back to mining;
   - that it quits when told.
 
 ### Testing co-op

@@ -16,12 +16,14 @@ namespace CarrierGame.Demo
     ///             beam when lined up, missiles now and then
     ///   Goto    - warp to a place, then hold there
     ///   Dock    - dock at the station it is at
+    ///   Mine    - mine asteroids, sell the ore at the nearest market when the hold is full, and
+    ///             go back for more (Wingman.Mining.cs)
     /// When an enemy comes close while it is following or holding, it fights, and goes back to
     /// its order when the fight is over.
     /// </summary>
-    public class Wingman : MonoBehaviour
+    public partial class Wingman : MonoBehaviour
     {
-        public enum Order { Hold, Follow, Attack, Goto, Dock }
+        public enum Order { Hold, Follow, Attack, Goto, Dock, Mine }
 
         public CarrierDemoInput demo;
         [Tooltip("Where it keeps station off its leader: right, up and behind, in the leader's frame, in ship sizes.")]
@@ -74,6 +76,8 @@ namespace CarrierGame.Demo
 
         void Set(Order o)
         {
+            // (leaving the Mine order: the laser off, the approach stopped)
+            if (Current == Order.Mine && o != Order.Mine) StopMiningGear();
             Current = o;
             defending = false;
             nextWarp = 0f;
@@ -155,6 +159,8 @@ namespace CarrierGame.Demo
 
             if (Current == Order.Attack || defending)
             {
+                // (mining: the laser off and the approach called off for the fight, then on again)
+                if (Current == Order.Mine) MinePause();
                 if (Gone(Target))
                 {
                     Target = NearestEnemy(cc.transform.position, Current == Order.Attack ? 30000f : defendRange);
@@ -179,6 +185,9 @@ namespace CarrierGame.Demo
                     break;
                 case Order.Follow:
                     FollowLeader(cc);
+                    break;
+                case Order.Mine:
+                    MineUpdate(cc);
                     break;
                 case Order.Goto:
                     if (Destination == null) { Current = Order.Hold; break; }

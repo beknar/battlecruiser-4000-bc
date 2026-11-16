@@ -2,7 +2,7 @@
 
 The ship is a game of its own running in bot mode: the Star System build started with -coopbot
 (see launch_bot), connected to the co-op server like any player, flown by its wingman pilot
-(follow, hold, attack, go to a place, regroup, dock) and talking on the game's comms channel.
+(follow, hold, attack, go to a place, regroup, dock, mine and sell) and talking on the game's comms channel.
 The bot game answers on a small HTTP API on this machine (127.0.0.1, port 7781 by default); this
 server turns that API into MCP tools, over stdio:
 
@@ -10,7 +10,7 @@ server turns that API into MCP tools, over stdio:
     read_messages   the comms channel since the last read (players' messages, the bot's own)
     say             send a message on the comms channel (every player in its level sees it)
     order           give the pilot an order: follow <player>, hold, attack [target], goto <place>,
-                    regroup, dock
+                    regroup, dock, mine [field], sell
     destinations    the places a ship can warp to, with distances
     launch_bot      start the bot game (headless) and connect it to a co-op server
     stop_bot        close the bot game started here
@@ -40,7 +40,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 GAME = os.environ.get("COOP_GAME_EXE", os.path.normpath(os.path.join(HERE, "..", "..", "..", "Builds", "StarSystem",
                                                                      "StarSystem.exe" if os.name == "nt" else "StarSystem")))
 PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"]
-ORDERS = ["follow", "hold", "attack", "goto", "regroup", "dock"]
+ORDERS = ["follow", "hold", "attack", "goto", "regroup", "dock", "mine", "sell"]
 
 bot_process = None
 cursor = 0
@@ -156,9 +156,11 @@ TOOLS = [
     ("order", "Order the bot's pilot. follow [player name] (no name: the last player to speak): fly in formation, "
               "warping after them; hold: stop where it is; attack [target name]: fight the target or the nearest "
               "enemy; goto <place>: warp to a destination; regroup: form up on the nearest player; dock: dock at "
-              "the station it is at.",
+              "the station it is at; mine [asteroid field]: mine asteroids (the nearest field if none is named), "
+              "selling the ore at the nearest market whenever the hold is full, over and over; sell: take the ore "
+              "aboard to the nearest market now.",
      {"order": {"type": "string", "enum": ORDERS},
-      "target": {"type": "string", "description": "a player's name (follow), a target's (attack) or a place's (goto)"}},
+      "target": {"type": "string", "description": "a player's name (follow), a target's (attack), a place's (goto) or an asteroid field's (mine)"}},
      ["order"], t_order),
     ("destinations", "The places a ship can warp to, nearest first, with their kinds and distances.", {}, [], t_destinations),
     ("launch_bot", "Start the bot game (the Star System build in bot mode, headless by default) and connect it to a "

@@ -31,8 +31,12 @@ namespace CarrierGame.Demo
         public float CreditsEarned { get; private set; }
         public int Sales { get; private set; }
 
-        float stepSince, nextScan, nextMineTry;
-        bool sellNow;
+        float stepSince, nextScan, nextMineTry, cutIdleSince = -1f;
+        // the order a Sell interrupted (back to it once sold; null: it was mining)
+        Order? afterSale;
+        int afterLeader;
+        // rocks it couldn't get to or cut (passed over till it goes to a field again)
+        readonly System.Collections.Generic.HashSet<IMineralSource> skipped = new System.Collections.Generic.HashSet<IMineralSource>();
 
         /// <summary>Mine (at a field by name, or the nearest), and sell when the hold is full.</summary>
         public void Mine(WarpPoint field = null)
@@ -40,19 +44,28 @@ namespace CarrierGame.Demo
             LeaveLeader();
             MineField = field;
             Set(Order.Mine);
-            sellNow = false;
+            afterSale = null;
             TonnesSold = CreditsEarned = 0f;
             Sales = 0;
             Go(MineStep.ToField);
         }
 
-        /// <summary>Take what is aboard to the nearest market now (then back to mining, if it was).</summary>
+        /// <summary>Take what is aboard to the nearest market now; then back to mining if it was,
+        /// else to following its leader (or holding).</summary>
         public void SellNow()
         {
-            if (Current != Order.Mine) { LeaveLeader(); Set(Order.Mine); MineField = null; }
-            sellNow = true;
+            if (Current != Order.Mine)
+            {
+                afterSale = Current;
+                afterLeader = LeaderId;
+                LeaveLeader();
+                Set(Order.Mine);
+                MineField = null;
+            }
             Go(MineStep.ToMarket);
         }
+
+        static bool BuysOre(Installation i) => i != null && (i.market || IndustryPanel.IsMarket(IndustrySite.At(i)));
 
         void Go(MineStep s)
         {
@@ -75,8 +88,7 @@ namespace CarrierGame.Demo
 
         /// <summary>The nearest friendly place that buys ore, and can be docked at.</summary>
         Installation NearestMarket(Vector3 me) =>
-            Installation.All.Where(i => i != null && i.isActiveAndEnabled && i.canDock && !i.hostile && !givenUp.Contains(i) &&
-                                        (i.market || IndustryPanel.IsMarket(IndustrySite.At(i))))
+            Installation.All.Where(i => i != null && i.isActiveAndEnabled && i.canDock && !i.hostile && !givenUp.Contains(i) && BuysOre(i))
                 .OrderBy(i => (i.BerthPosition - me).sqrMagnitude).FirstOrDefault();
 
         // markets it couldn't get in to dock at (three tries): passed over till it next sells
@@ -123,8 +135,9 @@ namespace CarrierGame.Demo
                     if (Undocking()) { Doing = "undocking to go mining"; return; }
                     var field = FieldFor(me);
                     if (field == null) { Doing = "can't mine: no asteroid field"; Current = Order.Hold; return; }
-                    if (Places.At(me) == field) { Go(MineStep.Scan); return; }
-                    if (!TryWarp(field, $"warping to {field.displayName} to mine")) { Current = Order.Hold; Released = true; }
+                    if (Places.At(me) == field) { skipped.Clear(); nextScan = 0f; Go(MineStep.Scan); return; }
+                    // (a warp refused, under fire say: it tries again in a while, still mining)
+                    TryWarp(field, $"warping to {field.displayName} to mine");
                     return;
                 }
                 case MineStep.Scan:
@@ -133,7 +146,9 @@ namespace CarrierGame.Demo
                     cc.throttle = 0f;
                     if (!Modes.Is(ModeOfPlay.Mining)) Modes.Set(ModeOfPlay.Mining);
                     if (sensor.Sweeping) { Doing = "scanning for deposits"; return; }
-                    var found = sensor.Finds.Select(f => f.source).Where(s => s != null && s.Valid && !s.Depleted && !(s is SurfaceVein))
+                    // (what the last scan found here: not what an earlier one found at another field)
+                    var found = sensor.Finds.Select(f => f.source)
+                                    .Where(s => s != null && s.Valid && !s.Depleted && !(s is SurfaceVein) && !skipped.Contains(s) && laser.Reach(s) < sensor.spaceRange)
                                     .OrderBy(s => laser.Reach(s)).FirstOrDefault();
                     if (found != null)
                     {
@@ -166,7 +181,19 @@ namespace CarrierGame.Demo
                 case MineStep.Approach:
                 {
                     if (mm.Chosen == null || !mm.Chosen.Valid || mm.Chosen.Depleted) { Go(MineStep.Scan); return; }
-                    if (mm.Approaching) { Doing = $"flying to {mm.Chosen.Label} ({CombatMode.Distance(laser.Reach(mm.Chosen))} off)"; return; }
+                    if (mm.Approaching)
+                    {
+                        // (pinned against another rock on the way, or far too long about it: another one)
+                        if (Time.time - stepSince > 150f || (Time.time - stepSince > 15f && cc.Speed < 1f && laser.Reach(mm.Chosen) > 400f))
+                        {
+                            mm.StopApproach();
+                            skipped.Add(mm.Chosen);
+                            Go(MineStep.Scan);
+                            return;
+                        }
+                        Doing = $"flying to {mm.Chosen.Label} ({CombatMode.Distance(laser.Reach(mm.Chosen))} off)";
+                        return;
+                    }
                     // there (or the approach gave up): cut it if it is in reach, else look again
                     Go(laser.Reach(mm.Chosen) <= laser.range ? MineStep.Cut : MineStep.Scan);
                     return;
@@ -178,6 +205,18 @@ namespace CarrierGame.Demo
                     if (!Modes.Is(ModeOfPlay.Mining)) Modes.Set(ModeOfPlay.Mining);
                     if (laser.On)
                     {
+                        // (on, but with nothing it can cut: the rock mined out, out of reach, or no
+                        // clear line to it): off, and the next one
+                        if (laser.Cutting) cutIdleSince = -1f;
+                        else if (cutIdleSince < 0f) cutIdleSince = Time.time;
+                        else if (Time.time - cutIdleSince > 3f)
+                        {
+                            cutIdleSince = -1f;
+                            if (mm.Chosen != null && mm.Chosen.Valid && !mm.Chosen.Depleted) skipped.Add(mm.Chosen);
+                            laser.TurnOff();
+                            Go(MineStep.Scan);
+                            return;
+                        }
                         Doing = $"mining {laser.Source?.Label ?? mm.Chosen?.Label ?? "a rock"}: hold {hold.Used:F0} of {hold.capacity:F0} t";
                         return;
                     }
@@ -191,23 +230,41 @@ namespace CarrierGame.Demo
                 case MineStep.ToMarket:
                 {
                     StopMiningGear();
-                    if (hold.OreTonnes < 0.5f) { sellNow = false; Go(MineStep.ToField); return; }
+                    if (hold.OreTonnes < 0.5f)
+                    {
+                        // (no ore, and no room for any: a hold full of goods it doesn't sell)
+                        if (hold.Free < 1f) { Doing = "can't mine: the hold is full of goods, not ore"; Current = Order.Hold; return; }
+                        Go(afterSale != null ? MineStep.Leave : MineStep.ToField);
+                        return;
+                    }
+                    var dock = Docking.Instance;
+                    // docked already (told to sell there): sell, if it buys ore; else away first
+                    if (dock != null && dock.Current == Docking.State.Docking) { Doing = "docking"; return; }
+                    if (Docking.Docked)
+                    {
+                        if (BuysOre(dock.At)) { Market = dock.At; Go(MineStep.Sell); }
+                        else { Undocking(); Doing = "undocking to sell the ore at a market"; }
+                        return;
+                    }
+                    if (dock != null && dock.Current == Docking.State.Undocking) return;
                     if (Market == null) Market = NearestMarket(me);
                     if (Market == null) { Doing = "nowhere to sell ore"; Current = Order.Hold; return; }
                     var wp = Market.Point;
-                    var dock = Docking.Instance;
-                    // in the approach to its berth: dock (flying in)
-                    if (dock != null && dock.Current == Docking.State.Free && dock.Candidate(out string w) == Market && w == "")
+                    // in the approach to its berth: dock (flying in); kept off while it can't yet
+                    string w = "";
+                    var cand = dock != null ? dock.Candidate(out w) : null;
+                    if (cand == Market)
                     {
+                        if (w != "") { Steer(0f, 0f); cc.throttle = 0f; Doing = $"waiting to dock at {Market.displayName}: {w}"; return; }
                         Release();
                         if (dock.Dock()) { Go(MineStep.Docking); Doing = $"docking at {Market.displayName} to sell"; }
                         return;
                     }
                     if (wp == null) { Doing = $"can't find the way to {Market.displayName}"; Current = Order.Hold; return; }
-                    // far: warp there; close (at the place, but outside its approach): fly in
+                    // far: warp there (a refusal: again in a while); close (at the place, but outside its approach): fly in
                     if (Vector3.Distance(me, Market.BerthPosition) > Mathf.Max(20000f, wp.arrivalDistance * 3f))
                     {
-                        if (!TryWarp(wp, $"warping to {Market.displayName} to sell {hold.OreTonnes:F0} t of ore")) { Current = Order.Hold; Released = true; }
+                        TryWarp(wp, $"warping to {Market.displayName} to sell {hold.OreTonnes:F0} t of ore");
                         return;
                     }
                     var v = ShipAutopilot.BowOn(cc, Market.ApproachPoint(me));
@@ -243,12 +300,19 @@ namespace CarrierGame.Demo
                     }
                     givenUp.Clear();
                     dockTries = 0;
-                    sellNow = false;
                     Go(MineStep.Leave);
                     return;
                 }
                 case MineStep.Leave:
                     if (Undocking()) { Doing = $"leaving {Market?.displayName}"; return; }
+                    // (told to sell while doing something else: back to following, or holding)
+                    if (afterSale != null)
+                    {
+                        var o = afterSale.Value;
+                        afterSale = null;
+                        if (o == Order.Follow && afterLeader != 0) Follow(afterLeader); else Hold();
+                        return;
+                    }
                     Go(MineStep.ToField);
                     return;
             }

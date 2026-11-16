@@ -271,11 +271,15 @@ namespace CarrierGame.Demo
                 {
                     // (at a field by name, or the nearest; "asteroids" is any field)
                     WarpPoint field = null;
-                    string t = target.ToLowerInvariant();
-                    if (t.Length > 0 && t != "asteroids" && t != "rocks" && t != "the asteroids")
+                    // ("asteroids in the Outer Drift", "at the Inner Belt", "rocks": the field's name, if any)
+                    string name = target.Trim();
+                    foreach (var lead in new[] { "the asteroids", "asteroids", "rocks", "in", "at", "the" })
+                        if (name.Equals(lead, StringComparison.OrdinalIgnoreCase)) name = "";
+                        else if (name.StartsWith(lead + " ", StringComparison.OrdinalIgnoreCase)) name = name.Substring(lead.Length + 1).Trim();
+                    if (name.Length > 0)
                     {
-                        field = Place(target.StartsWith("at ", StringComparison.OrdinalIgnoreCase) ? target.Substring(3) : target);
-                        if (field == null || field.kind != WarpPoint.Kind.AsteroidField) return $"don't know an asteroid field called {target}.";
+                        field = Place(name);
+                        if (field == null || field.kind != WarpPoint.Kind.AsteroidField) return $"don't know an asteroid field called {name}.";
                     }
                     Pilot.Mine(field);
                     lastLeader = 0;

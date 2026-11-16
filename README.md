@@ -518,8 +518,10 @@ system to travel around.
   - **Choosing a deposit.** In mining mode, the menu (Tab) lists the deposits the scan found,
     nearest first: what each is, its two most valuable minerals, the tonnes left and how far it
     is. Choosing one makes it the laser's: it cuts that one while it is in reach, rather than
-    the nearest. C (X on the pad) then flies the ship to it, until it is in reach of the laser;
-    over a planet's surface it climbs clear of the ground first. The chosen deposit is marked on
+    the nearest. C (X on the pad) then flies the ship to it: to an asteroid or a comet right up
+    to the rock, easing off over the last few hundred metres and cutting every engine within
+    100 m of it (or as close as the hull lets her); over a planet's surface to within the laser's
+    reach, climbing clear of the ground first. The chosen deposit is marked on
     screen.
   - **Cargo hold.** It holds 600 tonnes. I lists what is aboard and what it is worth; J
     jettisons the cheapest mineral to make room for better. The menu lists the ore aboard too,
@@ -563,9 +565,11 @@ system to travel around.
   | Cinder Fortress | The corsairs' stronghold on the surface of Cinder (hostile) |
 
   - **Docking** (K, Back + B on the pad). (The ore is sold on the services screen's trade page,
-    at a market.) Within 1.6 km of the berth at the Highport, Deepcut, the
-    shipyard or the L5 depot, and out of combat, K brings the frigate in to it. (Farther out,
-    K lands on the planet or moon nearby, as before.) There it is repaired, hull
+    at a market.) Within 1.6 km of the berth of a station or base, and out of combat, K brings
+    the frigate in to it. Farther out, but where a warp or an auto-flight there leaves the ship
+    (a few kilometres off: Deepcut at the edge of the Inner Belt, the Lantern Arcology, Kestrel
+    Deep Yard), K flies her in to the berth first, round to its open side, then docks: it
+    doesn't land on the field or the body nearby. There it is repaired, hull
     and shield, and where there is a market (all but the shipyard) the whole hold is sold. The
     HUD keeps the credits. K again undocks, and the ship pulls away under its own power.
   - **The hostile ones fight.** Their guns are cold until the frigate comes within range in
@@ -589,7 +593,9 @@ system to travel around.
     orbit over its pole and one over its equator; an asteroid field, its dense cluster and its
     outer rocks.
   - **At a place**, in navigation mode, the menu (Tab) lists its points of interest, nearest
-    first, with how far each is, roughly how long the trip takes, and whether it has a pad or a
+    first (a place that is itself somewhere to dock, out on its own like the Lantern Arcology
+    or Kestrel Deep Yard, is listed too, so K flies in and docks there), with how far each is,
+    roughly how long the trip takes, and whether it has a pad or a
     berth.
   - **Auto-travel.** Enter flies the ship there by itself, in real time: no warp and no fade.
     Round a planet it cruises along the great circle on a glide slope, as high above the

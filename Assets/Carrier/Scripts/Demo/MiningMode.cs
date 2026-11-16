@@ -152,6 +152,10 @@ namespace CarrierGame.Demo
             Choose(found[i]);
         }
 
+        /// <summary>A flight to an asteroid or a comet stops (every engine cut) this close to it (m).</summary>
+        public const float StopAt = 100f;
+        float approachStarted;
+
         public void StartApproach()
         {
             var laser = demo != null ? demo.Laser : null;
@@ -164,9 +168,11 @@ namespace CarrierGame.Demo
                 Notices.Post("Fly to: choose a deposit first (Tab)");
                 return;
             }
-            if (laser.Reach(Chosen) <= laser.range * 0.8f) { Notices.Post($"{Chosen.Label} is in reach already"); return; }
+            if (Chosen is SurfaceVein ? laser.Reach(Chosen) <= laser.range * 0.8f : laser.Reach(Chosen) <= StopAt)
+            { Notices.Post($"{Chosen.Label} is in reach already"); return; }
             demo.StopAutopilotsBut(this);
             Approaching = true;
+            approachStarted = Time.time;
             approachLog = 0f;
             throttleSet = -1f;
             Notices.Post($"Flying to {Chosen.Label}: steer to take over");
@@ -202,7 +208,10 @@ namespace CarrierGame.Demo
             float reach = laser.Reach(Chosen);
             Vector3 flat = Vector3.ProjectOnPlane(p - ship.transform.position, ship.upFrame * Vector3.up);
             bool over = vein && flat.magnitude < 300f;
-            if (vein ? over && reach <= laser.range * 0.8f : reach < laser.range * 0.6f)
+            // (an asteroid's or a comet's: right up to it, every engine cut within StopAt of it, or
+            // as close as the hull lets her: up against it, stopped)
+            bool against = !vein && reach < 400f && ship.Speed < 1.5f && Time.time > approachStarted + 5f;
+            if (vein ? over && reach <= laser.range * 0.8f : reach <= StopAt || against)
             {
                 StopApproach($"{Chosen.Label} in reach: Z cuts it", arrived: true);
                 return;
@@ -217,7 +226,12 @@ namespace CarrierGame.Demo
             demo.autoRudder = v.x;
             demo.autoPitch = vein ? 0f : v.y;
             float to = vein ? flat.magnitude : reach;
-            ship.throttle = low || over ? 0.2f : to > 3500f ? 1f : to > 1600f ? 0.6f : 0.3f;
+            // (easing right off over the last few hundred metres, to stop by the rock, not on it)
+            ship.throttle = low || over ? 0.2f : to > 3500f ? 1f : to > 1600f ? 0.6f : to > 600f ? 0.3f
+                          : vein ? 0.2f
+                          // (the last of the way to a rock: slowing as it closes, to about 2.5 m/s at it, under
+                          // the speed a bump would do damage at)
+                          : Mathf.Clamp((to - StopAt) * 0.12f, 2.5f, 45f) / Mathf.Max(1f, ship.maxSpeed);
             throttleSet = ship.throttle;
         }
 

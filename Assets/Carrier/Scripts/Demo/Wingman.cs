@@ -193,10 +193,17 @@ namespace CarrierGame.Demo
                     break;
                 case Order.Dock:
                 {
+                    if (Docking.Docked) { Steer(0f, 0f); cc.throttle = 0f; Doing = "docked"; Current = Order.Hold; break; }
+                    var d = Docking.Instance;
+                    // (navigation flying her in to the berth: hands off till she is in)
+                    if (d != null && d.Current == Docking.State.Free && d.Candidate(out _) is Installation inn && d.FlyingIn(inn))
+                    {
+                        Release();
+                        Doing = $"flying in to dock at {inn.displayName}";
+                        break;
+                    }
                     Steer(0f, 0f);
                     cc.throttle = 0f;
-                    if (Docking.Docked) { Doing = "docked"; Current = Order.Hold; break; }
-                    var d = Docking.Instance;
                     if (d == null || d.Current != Docking.State.Free) break;   // (docking: wait for it)
                     if (d.Candidate(out string why) == null) { Doing = $"can't dock: {why}"; Current = Order.Hold; break; }
                     if (d.Dock()) Doing = "docking";

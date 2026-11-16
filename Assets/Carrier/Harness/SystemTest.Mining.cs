@@ -182,11 +182,17 @@ namespace CarrierGame.Demo
             bool flying = mining != null && mining.Chosen == src && (mining.Approaching || laser.Reach(src) <= laser.range * 0.8f);
             yield return Key(kb, UnityEngine.InputSystem.Key.Tab);
             Shot("n1_menu_flying");
-            float flyUntil = Time.time + 60f;
+            float flyUntil = Time.time + 90f;
             while (Time.time < flyUntil && mining != null && mining.Approaching) yield return null;
+            // (right up to the rock: within MiningMode.StopAt of it, or up against it, every engine cut)
+            yield return new WaitForSeconds(2f);
+            float stopReach = laser.Reach(src);
             bool arrived = laser.Reach(src) <= laser.range;
-            Log($"  Tab: the menu lists the find {inMenu}; C: chosen {mining?.Chosen == src} and flying there {flying}; arrived {arrived} ({laser.Reach(src):F0} m, '{Notices.Last}')");
-            menuOk = inMenu && flying && arrived;
+            bool close = stopReach <= MiningMode.StopAt + 25f || (stopReach < 400f && cc.Speed < 2f);
+            bool cut = cc.throttle <= 0.001f && cc.Speed < 5f;
+            Log($"  Tab: the menu lists the find {inMenu}; C: chosen {mining?.Chosen == src} and flying there {flying}; arrived {arrived} ({stopReach:F0} m off, " +
+                $"within {MiningMode.StopAt:F0} m {close}; engines cut {cut}: throttle {cc.throttle:F2}, {cc.Speed:F1} m/s; '{Notices.Last}')");
+            menuOk = inMenu && flying && arrived && close && cut;
             if (!arrived) yield return Approach(laser, src, 800f, 60f);
             Log($"  closed to {laser.Reach(src):F0} m of {src.Label}");
             float used0 = hold.Used;

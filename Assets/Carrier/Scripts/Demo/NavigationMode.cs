@@ -68,6 +68,8 @@ namespace CarrierGame.Demo
             var place = Places.At(me);
             var pois = place != null ? Places.PointsOfInterest(place, me) : new List<WarpPoint>();
             if (place == null) { rows.Add(new MenuRow { header = true, text = "NO PLACE NEAR: M FOR THE SYSTEM MAP" }); AllyRows(rows, me); return; }
+            // (a place that is itself somewhere to dock, out on its own: the Lantern Arcology, Kestrel Deep Yard)
+            if (place.Built && DockAt(place) != null && !pois.Contains(place)) pois.Insert(0, place);
             rows.Add(new MenuRow { header = true, text = pois.Count == 0 ? $"NOTHING BUILT AT {place.displayName.ToUpperInvariant()}: M FOR THE MAP"
                                                                          : $"POINTS OF INTEREST AT {place.displayName.ToUpperInvariant()} ({pois.Count})" });
             foreach (var p in pois)
@@ -338,11 +340,15 @@ namespace CarrierGame.Demo
             if (Finish == Then.Dock && DockAt(Course) != null)
             {
                 finishing = true;
+                dockLegStart = Time.time;
+                dockStall = -1f;
                 Phase = "closing on the berth";
                 return;
             }
             Arrived();
         }
+
+        float dockLegStart, dockStall = -1f;
 
         /// <summary>The last of the way in to dock: to the berth, then dock.</summary>
         void FlyDock(CarrierController ship)
@@ -350,7 +356,8 @@ namespace CarrierGame.Demo
             var inst = DockAt(Course);
             var docking = Docking.Instance;
             if (inst == null || docking == null) { Stop("Nowhere to dock"); return; }
-            if (docking.Candidate(out string why) == inst)
+            if (docking.Candidate(out string why) == inst && inst.InDockRange(ship.transform.position) &&
+                inst.ApproachPoint(ship.transform.position) == inst.BerthPosition)
             {
                 ship.throttle = 0f;
                 throttleSet = -1f;
@@ -359,10 +366,19 @@ namespace CarrierGame.Demo
                 else if (why != "") { Stop($"Can't dock at {inst.displayName}: {why}"); }
                 return;
             }
-            var v = ShipAutopilot.BowOn(ship, inst.BerthPosition);
+            // (stuck against something, or far too long about it: given up, with a word)
+            if (ship.Speed < 2f) { if (dockStall < 0f) dockStall = Time.time; } else dockStall = -1f;
+            if ((dockStall > 0f && Time.time - dockStall > 12f) || Time.time - dockLegStart > 180f)
+            {
+                Stop($"Couldn't get in to {inst.displayName}'s berth: fly in by hand, then K");
+                return;
+            }
+            // (round to the open side of the berth first: not through the rock it is dug into)
+            Vector3 aim = inst.ApproachPoint(ship.transform.position);
+            var v = ShipAutopilot.BowOn(ship, aim);
             demo.autoRudder = v.x;
             demo.autoPitch = v.y;
-            float d = Vector3.Distance(ship.transform.position, inst.BerthPosition);
+            float d = Vector3.Distance(ship.transform.position, aim);
             ship.throttle = d > 3000f ? 0.6f : 0.3f;
             throttleSet = ship.throttle;
         }

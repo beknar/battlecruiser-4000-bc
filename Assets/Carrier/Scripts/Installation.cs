@@ -33,7 +33,7 @@ namespace CarrierGame
             {
                 var wp = Point;
                 if (wp == null) return dockRange;
-                float far = wp.arrivalDistance + Vector3.Distance(BerthPosition, wp.Position) + 3000f;
+                float far = wp.arrivalDistance + Vector3.Distance(BerthPosition, wp.Position) + 2500f;
                 return Mathf.Max(dockRange, far);
             }
         }
@@ -101,7 +101,14 @@ namespace CarrierGame
             {
                 if (s == null || !s.canDock || s.hostile) continue;
                 float d = Vector3.Distance(p, s.BerthPosition);
-                if (d < s.ApproachRange && d < bestD) { bestD = d; best = s; }
+                if (d >= s.ApproachRange || d >= bestD) continue;
+                // (nearer the middle of the field or body it is at than to it: there, K lands
+                // as it always has; only on its own side of the place is it the station's)
+                var wp = s.Point;
+                var place = wp != null ? Places.PlaceOf(wp) : null;
+                if (place != null && place.surface != SurfaceKind.None &&
+                    Vector3.Distance(p, place.Position) - (place.kind == WarpPoint.Kind.AsteroidField ? 0f : place.bodyRadius) < d) continue;
+                bestD = d; best = s;
             }
             return best;
         }
@@ -118,7 +125,24 @@ namespace CarrierGame
             Vector3 b = BerthPosition, f = berth.forward;
             float ahead = Vector3.Dot(from - b, f);
             if (ahead > dockRange * 0.25f) return b;
-            return b + f * Mathf.Min(dockRange * 0.6f, 1000f);
+            Vector3 front = b + f * Mathf.Min(dockRange * 0.6f, 1000f);
+            // (what the berth is built into, round its middle: as far out as the berth, and a margin)
+            Vector3 c = Point != null ? Point.Position : transform.position;
+            float r = Vector3.Distance(b, c) + 300f;
+            if (SegmentClear(from, front, c, r)) return front;
+            // the way to the front blocked: out to the side first, level with the berth
+            Vector3 side = Vector3.ProjectOnPlane(from - c, f);
+            if (side.sqrMagnitude < 1f) side = Vector3.Cross(f, Vector3.up);
+            if (side.sqrMagnitude < 1f) side = Vector3.Cross(f, Vector3.right);
+            return c + side.normalized * (r + 500f) + f * Mathf.Max(0f, Vector3.Dot(b - c, f));
+        }
+
+        /// <summary>The straight way from a to b keeps more than r from c.</summary>
+        static bool SegmentClear(Vector3 a, Vector3 b, Vector3 c, float r)
+        {
+            Vector3 ab = b - a;
+            float t = ab.sqrMagnitude > 1e-4f ? Mathf.Clamp01(Vector3.Dot(c - a, ab) / ab.sqrMagnitude) : 0f;
+            return (a + ab * t - c).sqrMagnitude > r * r;
         }
     }
 }

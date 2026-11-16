@@ -228,7 +228,10 @@ namespace CarrierGame.Demo
             float to = vein ? flat.magnitude : reach;
             // (easing right off over the last few hundred metres, to stop by the rock, not on it)
             ship.throttle = low || over ? 0.2f : to > 3500f ? 1f : to > 1600f ? 0.6f : to > 600f ? 0.3f
-                          : vein ? 0.2f : to > 300f ? 0.12f : 0.05f;
+                          : vein ? 0.2f
+                          // (the last of the way to a rock: slowing as it closes, to about 2.5 m/s at it, under
+                          // the speed a bump would do damage at)
+                          : Mathf.Clamp((to - StopAt) * 0.12f, 2.5f, 45f) / Mathf.Max(1f, ship.maxSpeed);
             throttleSet = ship.throttle;
         }
 

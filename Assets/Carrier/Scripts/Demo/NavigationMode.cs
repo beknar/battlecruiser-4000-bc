@@ -340,11 +340,15 @@ namespace CarrierGame.Demo
             if (Finish == Then.Dock && DockAt(Course) != null)
             {
                 finishing = true;
+                dockLegStart = Time.time;
+                dockStall = -1f;
                 Phase = "closing on the berth";
                 return;
             }
             Arrived();
         }
+
+        float dockLegStart, dockStall = -1f;
 
         /// <summary>The last of the way in to dock: to the berth, then dock.</summary>
         void FlyDock(CarrierController ship)
@@ -360,6 +364,13 @@ namespace CarrierGame.Demo
                 demo.autoRudder = null; demo.autoPitch = null;
                 if (why == "" && docking.Dock()) Phase = "docking";
                 else if (why != "") { Stop($"Can't dock at {inst.displayName}: {why}"); }
+                return;
+            }
+            // (stuck against something, or far too long about it: given up, with a word)
+            if (ship.Speed < 2f) { if (dockStall < 0f) dockStall = Time.time; } else dockStall = -1f;
+            if ((dockStall > 0f && Time.time - dockStall > 12f) || Time.time - dockLegStart > 180f)
+            {
+                Stop($"Couldn't get in to {inst.displayName}'s berth: fly in by hand, then K");
                 return;
             }
             // (round to the open side of the berth first: not through the rock it is dug into)

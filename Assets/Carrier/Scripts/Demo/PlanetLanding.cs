@@ -132,7 +132,11 @@ namespace CarrierGame.Demo
             if (best == null) return null;
             // in the approach to a station or base to dock at (Deepcut, out at the edge of the
             // Inner Belt): K docks there, it doesn't land on the field
-            if (Installation.ApproachableNear(carrier.transform.position) != null) return null;
+            if (Installation.ApproachableNear(carrier.transform.position) is Installation dockHere)
+            {
+                why = $"K docks at {dockHere.displayName} here";
+                return null;
+            }
             // at a place with no surface of its own nearer than the planet (the L1 observatory,
             // 27 km out from Thalassa but in its landing range), it's that place it is at
             foreach (var w in WarpPoint.All)

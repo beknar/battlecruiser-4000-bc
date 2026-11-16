@@ -85,12 +85,24 @@ namespace CarrierGame.Demo
         /// <summary>Out in the approach: flown in to the berth, then docked.</summary>
         bool FlyIn(Installation s)
         {
-            var nav = FindAnyObjectByType<NavigationMode>();
+            var nav = Nav;
             var wp = s.Point;
             if (nav == null || wp == null) { Notices.Post($"Fly closer to {s.displayName} to dock"); SoundFX.Ui(Sfx.UiError); return false; }
+            // (already on the way in there: carry on)
+            if (FlyingIn(s)) return true;
+            var was = Modes.Current;
             if (!Modes.Is(ModeOfPlay.Navigation)) Modes.Set(ModeOfPlay.Navigation);
-            return nav.TravelTo(wp, NavigationMode.Then.Dock);
+            if (nav.TravelTo(wp, NavigationMode.Then.Dock)) return true;
+            if (was != ModeOfPlay.Navigation) Modes.Set(was);
+            return false;
         }
+
+        NavigationMode nav;
+        NavigationMode Nav => nav != null ? nav : (nav = FindAnyObjectByType<NavigationMode>());
+
+        /// <summary>Navigation is flying the ship in to dock at it now.</summary>
+        public bool FlyingIn(Installation s) =>
+            s != null && Nav != null && Nav.Travelling && Nav.Finish == NavigationMode.Then.Dock && Nav.Course == s.Point;
 
         public bool Undock()
         {
@@ -225,6 +237,7 @@ namespace CarrierGame.Demo
             }
             if (candidate == null) return null;
             if (candidateWhy != "") return $"Dock  <color=#ff6050>{candidate.displayName}: {candidateWhy}</color>";
+            if (FlyingIn(candidate)) return $"Dock  <color=#bfe6ff>flying in to {candidate.displayName}</color>";
             return candidate.InDockRange(carrier.transform.position)
                 ? $"Dock  <color=#7ee08a>{key} dock at {candidate.displayName}</color>"
                 : $"Dock  <color=#7ee08a>{key} fly in and dock at {candidate.displayName}</color>";

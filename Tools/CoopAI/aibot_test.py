@@ -207,6 +207,33 @@ async def main():
             msgs = replies.get(4, {}).get("result", {})
             check(not msgs.get("isError", True) and "via MCP" in msgs["content"][0]["text"], "MCP: read_messages has the channel")
 
+            # mining and selling: it mines the nearest field, and takes the ore to a market
+            n = len(me.heard)
+            await me.say(f"{BOT}, mine asteroids")
+            r = await me.hear("mining", 15, n)
+            s = await wait_status(lambda s: s.get("order", {}).get("order") == "mine", 10)
+            check(r is not None and s.get("order", {}).get("order") == "mine", "'mine asteroids' is carried out and answered", r or "no answer")
+            t0 = time.monotonic()
+            s = await wait_status(lambda s: s.get("ship", {}).get("ore_t", 0) >= 40, 420)
+            ore = s.get("ship", {}).get("ore_t", 0)
+            check(ore >= 40, "it scans, flies to a rock and mines it",
+                  f"{ore:.0f} t of ore aboard after {time.monotonic() - t0:.0f} s; {s.get('order', {}).get('doing')} (near {s.get('ship', {}).get('near')})")
+            credits0 = s.get("ship", {}).get("credits", 0)
+            n = len(me.heard)
+            await me.say(f"{BOT}, sell")
+            r = await me.hear("market", 15, n)
+            t0 = time.monotonic()
+            s = await wait_status(lambda s: s.get("order", {}).get("sales", 0) >= 1, 420)
+            sold = await me.hear("sold", 20, n)
+            o = s.get("order", {})
+            check(o.get("sales", 0) >= 1 and s.get("ship", {}).get("credits", 0) > credits0 and sold is not None,
+                  "'sell' takes the ore to a market, docks and sells it",
+                  f"after {time.monotonic() - t0:.0f} s: {o.get('sold_t', 0):.0f} t sold for {o.get('earned', 0):.0f} credits; said '{sold}'; now {o.get('doing')}")
+            # and back to mining
+            s = await wait_status(lambda s: s.get("order", {}).get("step") in ("tofield", "scan", "approach", "cut") and not s.get("ship", {}).get("docked"), 120)
+            check(s.get("order", {}).get("step") in ("tofield", "scan", "approach", "cut"), "then it goes back to mining", s.get("order", {}).get("doing", ""))
+            await me.say(f"{BOT}, hold")
+
             r = await api("/quit", {})
             check(r.get("ok") is True, "/quit is accepted")
         finally:

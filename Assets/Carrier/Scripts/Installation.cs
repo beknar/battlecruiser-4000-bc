@@ -116,19 +116,24 @@ namespace CarrierGame
         /// <summary>The ship at `p` is close enough to be brought in to the berth now.</summary>
         public bool InDockRange(Vector3 p) => Vector3.Distance(p, BerthPosition) < dockRange;
 
-        /// <summary>Where to steer for on the way in: out in front of the berth (its way out),
-        /// so the ship comes in on the open side rather than through the rock or the hull it is
-        /// built into; the berth itself once in front of it.</summary>
+        /// <summary>Where to steer for on the way in: out in front of the berth (out from what it
+        /// is built into: a pad on a rock's face from above it), so the ship comes in on the open
+        /// side rather than through the rock or the hull; round it first when the straight way
+        /// there would cross it; the berth itself once in front of it.</summary>
         public Vector3 ApproachPoint(Vector3 from)
         {
             if (berth == null) return BerthPosition;
-            Vector3 b = BerthPosition, f = berth.forward;
-            float ahead = Vector3.Dot(from - b, f);
-            if (ahead > dockRange * 0.25f) return b;
-            Vector3 front = b + f * Mathf.Min(dockRange * 0.6f, 1000f);
+            Vector3 b = BerthPosition;
             // (what the berth is built into, round its middle: as far out as the berth, and a margin)
             Vector3 c = Point != null ? Point.Position : transform.position;
             float r = Vector3.Distance(b, c) + 300f;
+            // the way in: out from what it is built into (a pier's end, a pad on a rock's face:
+            // in from above it), or, at a berth in the middle of a station, its own way out
+            Vector3 f = b - c;
+            f = f.sqrMagnitude > 200f * 200f ? f.normalized : berth.forward;
+            float ahead = Vector3.Dot(from - b, f);
+            if (ahead > dockRange * 0.25f) return b;
+            Vector3 front = b + f * Mathf.Min(dockRange * 0.6f, 1000f);
             if (SegmentClear(from, front, c, r)) return front;
             // the way to the front blocked: out to the side first, level with the berth
             Vector3 side = Vector3.ProjectOnPlane(from - c, f);

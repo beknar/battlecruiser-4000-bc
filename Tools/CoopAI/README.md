@@ -28,7 +28,7 @@ Two environment variables change where it looks. Add them with `-e NAME=value` b
 | `status` | The ship: hull, shield, crew, missiles, speed, warp, docked or landed. Also the pilot's order and what it is doing, what is near it (enemies first), and the players. |
 | `read_messages` | The comms channel since the last read (or since `after`). Messages addressed to the bot are marked `to_me`. |
 | `say` | Sends a message to every player in the bot's level. |
-| `order` | `follow [player]`, `hold`, `attack [target]`, `goto <place>`, `regroup` (the nearest player) or `dock`. |
+| `order` | `follow [player]`, `hold`, `attack [target]`, `goto <place>`, `regroup` (the nearest player), `dock`, `mine [field]` (mine asteroids and sell the ore whenever the hold is full) or `sell` (the ore aboard, now). |
 | `destinations` | The places to warp to, nearest first. |
 | `stop_bot` | Closes the bot game that `launch_bot` started. |
 

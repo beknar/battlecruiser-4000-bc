@@ -18,6 +18,7 @@ namespace CarrierGame.Demo
     ///
     /// Players order it on the comms channel, by its name: "Wingman, follow me", "@Wingman attack
     /// the cruiser", "Wingman hold", "Wingman warp to Thalassa Highport", "Wingman dock",
+    /// "Wingman, mine asteroids" (and sell the ore when the hold is full), "Wingman, sell",
     /// "Wingman status" ("all ships", "everyone" or "wingmen" orders every bot). It answers, and
     /// says when it starts a fight, finishes one, arrives or can't do what it was told.
     ///
@@ -27,7 +28,7 @@ namespace CarrierGame.Demo
     ///   GET  /messages?after=N  the comms channel after message N
     ///   GET  /destinations      the places to warp to, nearest first
     ///   POST /say   {text}      say something on the comms channel
-    ///   POST /order {order, target}  follow|hold|attack|goto|regroup|dock
+    ///   POST /order {order, target}  follow|hold|attack|goto|regroup|dock|mine|sell
     ///   POST /quit              close the game
     /// Requests are read on a thread of their own and answered on the main thread, a frame later.
     /// </summary>
@@ -103,6 +104,7 @@ namespace CarrierGame.Demo
                     Pilot = demo.GetComponent<Wingman>();
                     if (Pilot == null) Pilot = demo.gameObject.AddComponent<Wingman>();
                     Pilot.demo = demo;
+                    Pilot.Sold += what => { if (CoopClient.Active) CoopChat.Say($"{Me}: {what}."); };
                     if (lastLeader != 0) Pilot.Follow(lastLeader);
                 }
             }
@@ -111,7 +113,7 @@ namespace CarrierGame.Demo
                 greeted = true;
                 var human = Humans().FirstOrDefault();
                 if (human != null) { Pilot.Follow(human.id); lastLeader = lastSpeaker = human.id; }
-                CoopChat.Say($"{Me} on station{(human != null ? $", forming up on {human.name}" : "")}. Orders by name: \"{Me}, follow me / hold / attack / warp to <place> / dock / status\".");
+                CoopChat.Say($"{Me} on station{(human != null ? $", forming up on {human.name}" : "")}. Orders by name: \"{Me}, follow me / hold / attack / warp to <place> / dock / mine / sell / status\".");
             }
             if (!CoopClient.Active) greeted = false;
             // says what it starts doing, when it's worth saying
@@ -198,8 +200,11 @@ namespace CarrierGame.Demo
             if ((a = Arg("attack", "engage", "fire on", "kill")) != null) return Order("attack", a.StartsWith("the ", StringComparison.OrdinalIgnoreCase) ? a.Substring(4) : a, fromId);
             if ((a = Arg("warp to", "go to", "goto", "jump to", "warp")) != null) return Order("goto", a, fromId);
             if (Arg("dock") != null) return Order("dock", "", fromId);
+            if ((a = Arg("start mining", "go mining", "mine asteroids", "mine at", "mine in", "mine")) != null)
+                return Order("mine", a.StartsWith("the ", StringComparison.OrdinalIgnoreCase) ? a.Substring(4) : a, fromId);
+            if (Arg("sell the ore", "sell ore", "sell") != null) return Order("sell", "", fromId);
             if (Arg("status", "report", "sitrep") != null) return Report();
-            if (Arg("help", "orders") != null) return "orders: follow me / follow <name>, hold, attack [target], warp to <place>, dock, regroup, status.";
+            if (Arg("help", "orders") != null) return "orders: follow me / follow <name>, hold, attack [target], warp to <place>, dock, regroup, mine [at <field>], sell, status.";
             return null;
         }
 
@@ -262,6 +267,30 @@ namespace CarrierGame.Demo
                     lastLeader = 0;
                     Orders++;
                     return "docking.";
+                case "mine":
+                {
+                    // (at a field by name, or the nearest; "asteroids" is any field)
+                    WarpPoint field = null;
+                    string t = target.ToLowerInvariant();
+                    if (t.Length > 0 && t != "asteroids" && t != "rocks" && t != "the asteroids")
+                    {
+                        field = Place(target.StartsWith("at ", StringComparison.OrdinalIgnoreCase) ? target.Substring(3) : target);
+                        if (field == null || field.kind != WarpPoint.Kind.AsteroidField) return $"don't know an asteroid field called {target}.";
+                    }
+                    Pilot.Mine(field);
+                    lastLeader = 0;
+                    Orders++;
+                    return $"mining {(field != null ? "in " + field.displayName : "the nearest asteroid field")}; I'll sell the ore when the hold is full.";
+                }
+                case "sell":
+                {
+                    var hold = cc.GetComponentInChildren<CargoHold>();
+                    if (hold == null || hold.OreTonnes < 0.5f) return "no ore aboard to sell.";
+                    Pilot.SellNow();
+                    lastLeader = 0;
+                    Orders++;
+                    return $"taking {hold.OreTonnes:F0} t of ore to the nearest market.";
+                }
                 default:
                     return $"don't understand '{order}'.";
             }
@@ -483,10 +512,13 @@ namespace CarrierGame.Demo
                 if (cc.missiles != null) sb.Append($",\"missiles\":{cc.missiles.Stock}");
                 sb.Append($",\"speed\":{F(cc.Velocity.magnitude)},\"warp\":{Q(drive != null ? drive.Current.ToString().ToLowerInvariant() : "none")}");
                 sb.Append($",\"docked\":{B(Docking.Docked)},\"landed\":{B(PlanetLanding.Busy)}");
+                var hold = cc.GetComponentInChildren<CargoHold>();
+                if (hold != null) sb.Append($",\"hold_t\":{F(hold.Used)},\"ore_t\":{F(hold.OreTonnes)},\"capacity_t\":{F(hold.capacity)},\"credits\":{F(hold.Credits)}");
                 if (near != null) sb.Append($",\"near\":{Q(near.displayName)},\"near_km\":{F(Vector3.Distance(cc.transform.position, near.Position) / 1000f)}");
                 sb.Append("}");
                 sb.Append($",\"order\":{{\"order\":{Q(Pilot.Current.ToString().ToLowerInvariant())},\"leader\":{Q(Pilot.LeaderName)}");
-                sb.Append($",\"target\":{Q(Wingman.NameOf(Pilot.Target))},\"destination\":{Q(Pilot.Destination != null ? Pilot.Destination.displayName : "")},\"doing\":{Q(Pilot.Doing)}}}");
+                sb.Append($",\"target\":{Q(Wingman.NameOf(Pilot.Target))},\"destination\":{Q(Pilot.Destination != null ? Pilot.Destination.displayName : "")},\"doing\":{Q(Pilot.Doing)}" +
+                          (Pilot.Current == Wingman.Order.Mine ? $",\"step\":{Q(Pilot.Step.ToString().ToLowerInvariant())},\"sold_t\":{F(Pilot.TonnesSold)},\"earned\":{F(Pilot.CreditsEarned)},\"sales\":{Pilot.Sales}" : "") + "}");
                 // what is near, enemies first
                 sb.Append(",\"nearby\":[");
                 bool first = true;

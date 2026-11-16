@@ -42,19 +42,41 @@ namespace CarrierGame.Demo
             if (hull != null) hull.cannotDie = true;
             Check(Modes.Current == ModeOfPlay.Combat, $"a game starts in combat mode ({Modes.Name(Modes.Current)})");
 
-            // ---- the atmospheric music changes track (every 1 to 5 minutes: made due now)
+            // ---- the music: a playlist for calm and for combat, changing track (no longer than 3
+            // minutes a track: made due now), Shift+N the next song, and it can be turned off
             var music = FindAnyObjectByType<MusicDirector>();
             if (music != null && music.enabled && MusicDirector.Playing)
             {
+                Check(MusicDirector.CalmCount >= 20 && MusicDirector.CombatCount >= 20,
+                      $"the playlist: {MusicDirector.CalmCount} calm tracks, {MusicDirector.CombatCount} combat tracks");
                 int cycles0 = MusicDirector.Cycles;
+                string song0 = MusicDirector.NowPlaying;
                 float fade0 = music.cycleFade;
                 music.cycleFade = 0.5f;
                 music.ChangeTrackSoon();
                 float mu = Time.time + 5f;
                 while (Time.time < mu && MusicDirector.Cycles == cycles0) yield return null;
+                yield return new WaitForSeconds(1f);
+                string song1 = MusicDirector.NowPlaying;
+                Check(MusicDirector.Cycles > cycles0 && song1 != song0 && music.cycleMin >= 30f && music.cycleMax <= 180f,
+                      $"the music changes track, crossfading (every {music.cycleMin:0}-{music.cycleMax:0} s): '{song0}' to '{song1}'");
+                int cycles1 = MusicDirector.Cycles;
+                yield return Keys(kb, K.LeftShift, K.N);
+                yield return new WaitForSeconds(1f);
+                string song2 = MusicDirector.NowPlaying;
+                Check(MusicDirector.Cycles > cycles1 && song2 != song1, $"Shift+N: the next song ('{song2}')");
+                MusicDirector.Previous();
+                yield return new WaitForSeconds(1f);
+                Check(MusicDirector.NowPlaying == song1, $"and the one before again ('{MusicDirector.NowPlaying}')");
+                // off: silent, the rest of the sound going on; on again
+                MusicDirector.Toggle();
+                yield return new WaitForSeconds(2f);
+                bool silent = !MusicDirector.Playing && MusicDirector.Volume < 0.001f && !SoundFX.Muted;
+                MusicDirector.Toggle();
+                yield return new WaitForSeconds(2.5f);
+                bool musicBack = MusicDirector.Playing && MusicDirector.Volume > 0.05f && MusicDirector.On;
+                Check(silent && musicBack, $"the music turns off (silent {silent}, the sound still on) and on again ({musicBack}, '{MusicDirector.NowPlaying}')");
                 music.cycleFade = fade0;
-                Check(MusicDirector.Cycles > cycles0 && music.cycleMin >= 60f && music.cycleMax <= 300f,
-                      $"the calm music changes track (every {music.cycleMin / 60f:0}-{music.cycleMax / 60f:0} min): {MusicDirector.Cycles - cycles0} change(s), now '{MusicDirector.NowPlaying}'");
             }
             else Log("  (no music here: the music check is skipped)");
 

@@ -187,7 +187,11 @@ namespace CarrierGame.Demo
             if (k.equalsKey.wasPressedThisFrame || k.numpadPlusKey.wasPressedThisFrame) HudSettings.ChangeSize(+1);
             if (k.minusKey.wasPressedThisFrame || k.numpadMinusKey.wasPressedThisFrame) HudSettings.ChangeSize(-1);
             if (k.f11Key.wasPressedThisFrame && !LaunchArgs.OnWeb) GameSession.ToggleFullScreen();   // in a browser, F11 is the browser's
-            if (k.nKey.wasPressedThisFrame) ToggleMute();
+            if (k.nKey.wasPressedThisFrame)
+            {
+                if (k.shiftKey.isPressed) MusicDirector.Next();   // Shift+N: another song
+                else ToggleMute();
+            }
 
             // the modes: 1-5, and the mode's menu (Tab)
             if (k.digit1Key.wasPressedThisFrame) Modes.Set(ModeOfPlay.Combat);

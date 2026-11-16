@@ -29,7 +29,8 @@ namespace CarrierGame.Demo
         bool wasDead;
         float lastSeenHit, flashUntil;
 
-        string ShownName => info != null ? info.Name : shown != null ? shown.name : "";
+        string ShownName => info != null ? info.Name : Targets.NameOf(shown);
+        static readonly Color Green = new Color(0.45f, 1f, 0.55f);
 
         /// <summary>Pointers toward an off-screen target: right, left, up, down. The browser has no
         /// system fonts to fall back on, and the built-in font has no triangles.</summary>
@@ -164,7 +165,7 @@ namespace CarrierGame.Demo
             float km = Vector3.Distance(carrier.transform.position, c) / 1000f;
             string label = $"{ShownName}   {km:F1} km";
             bool dead = health != null && health.Dead;
-            Color col = dead ? new Color(0.7f, 0.7f, 0.7f, 0.8f) : Red;
+            Color col = dead ? new Color(0.7f, 0.7f, 0.7f, 0.8f) : Targets.IsFriendly(shown) ? Green : Red;
             bool onScreen = sp.z > 0f && sp.x > 0 && sp.x < Screen.width && sp.y > 0 && sp.y < Screen.height;
             if (onScreen)
             {
@@ -292,8 +293,9 @@ namespace CarrierGame.Demo
         string StatsText()
         {
             var sb = new System.Text.StringBuilder();
-            string cls = info != null ? info.shipClass : "Unknown";
-            string faction = info != null ? info.faction : "Unknown";
+            var inst = info == null && shown != null ? shown.GetComponent<Installation>() : null;
+            string cls = info != null ? info.shipClass : inst != null ? inst.kind.ToString() : "Unknown";
+            string faction = info != null ? info.faction : inst != null && !inst.hostile ? "Friendly" : "Unknown";
             sb.Append($"Class  <b>{cls}</b>   ({faction})\n");
             if (health != null)
             {
@@ -325,7 +327,7 @@ namespace CarrierGame.Demo
             }
             else if (shown.GetComponentInParent<Installation>() != null) sb.Append("Crew  none (automated)\n");
 
-            string guns = carrier.target == shown ? carrier.GunsBearingText() : "";
+            string guns = carrier.target == shown && !Targets.IsFriendly(shown) ? carrier.GunsBearingText() : "";
             if (guns.Length > 0) sb.Append($"In arc  {(guns.StartsWith("none") ? "<color=#ffb060>none</color>" : guns)}\n");
             if (carrier.HasHangar)
             {

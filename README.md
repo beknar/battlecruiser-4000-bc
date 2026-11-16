@@ -333,9 +333,10 @@ Enemy guns lead their target and have some spread. The enemies fly orbits around
       waits its turn, and she doesn't say the same kind of thing again too soon.
     - She takes command as each level starts, and remarks on the quiet now and then.
 
-  There are five captains to choose from in the pause menu: Elena Vasquez, Amara Okafor, Yuki
+  There are five captains to choose from on the start menu: Elena Vasquez, Amara Okafor, Yuki
   Tanaka, Freya Lindqvist and Priya Raman. All are young officers in their late twenties. The
-  choice is remembered between sessions.
+  choice is remembered between sessions. Once the game has started she stays in command for it:
+  the pause menu shows her but can't change her.
 
   The portraits were made with a local [InvokeAI](https://github.com/invoke-ai/InvokeAI) server:
   - Each captain's base portrait came from Juggernaut XL v9.
@@ -353,13 +354,14 @@ Enemy guns lead their target and have some spread. The enemies fly orbits around
 - **Help.** An on-screen help list shows only the controls that work on the current ship, and the
   text size can be changed.
 - **Pause menu.** Esc or P (Start on the pad) pauses the game and opens a menu with Resume,
-  Restart, Sound on/off, Captain, Co-op, the HUD's settings and Quit. Restart and Quit ask you to
-  press them a second time to confirm. To choose a captain, use left/right on the Captain row, or
-  click her portrait in the strip of five below the menu.
+  Restart, Sound on/off, Co-op, the HUD's settings and Quit. Restart and Quit ask you to press
+  them a second time to confirm. The captain in command is shown below the menu (chosen on the
+  start menu; she can't be changed once the game has started).
 - **Setting up the HUD.** In the pause menu, kept for next time:
   - **The captain** shown or hidden: without her portrait the console is narrower, the ship's
     state and the comms line still on it.
-  - **HUD size** (left/right on its row, or + and − in the game, Back + D-pad ↑↓ on the pad):
+  - **HUD size** (left/right on its row, or click its < side for smaller and its > side for
+    bigger; + and − in the game, Back + D-pad ↑↓ on the pad):
     everything drawn on screen, smaller to see more of the game, or bigger, in steps of 15%
     from 55% to 295% (100% always one of them). Enter on the row goes a size up, round to the
     smallest after the biggest. The pause menu itself never grows past the screen's height.
@@ -610,8 +612,11 @@ system to travel around.
   it is, the distance and how long the trip will take. Pick a place and warp from the map.
   - **Your side's ships.** The other players' ships (cyan), the AI wingmen (orange) and the
     fleet's ships (green) are on it too, each with its heading and name. Click another player or
-    a wingman, then WARP (or double-click it), for a mini-warp to them: the ship drops out close
-    by, astern of them and to one side. (Not to one down on a planet; the fleet flies with you.)
+    a wingman (its arrow or its name: in formation the arrow is under the frigate's own), then
+    WARP (or double-click it), for a mini-warp to them: the ship drops out close by, astern of
+    them and to one side. (Not to one down on a planet, nor to one already within 3 km; the
+    fleet flies with you.) Navigation mode's menu (Tab) lists them too, under ALLIES: Enter
+    mini-warps to the one chosen.
   - **AI wingmen** do the same: one left more than 15 km behind its leader mini-warps to them.
 - **Mini-warp.**
   - The ship turns onto its destination and charges, with sparks streaming into the hull.
@@ -1072,7 +1077,7 @@ menu (only the pause menu stops it).
 | Orbit camera / zoom | Right-drag / mouse wheel | Right stick / Back + D-pad ← → |
 | Help / text size | H / + − | Back / Back + D-pad ↑↓ |
 | Sound on/off | N | (pause menu) |
-| Pause menu: resume, restart, sound, captain, quit | Esc or P | Start |
+| Pause menu: resume, restart, sound, co-op, the HUD, quit | Esc or P | Start |
 | Window / full screen | F11 | |
 
 **Combat mode (1)**
@@ -1083,7 +1088,7 @@ menu (only the pause menu stops it).
 | Missile salvo at the target (destroyers, the cruiser) | R | LB |
 | Auto-fire on/off | G | L3 |
 | Charge main gun (again to cancel) | B | X |
-| Next / previous target, or click a ship | T / Shift+T | Y |
+| Next / previous target, or click a ship (the hostiles, then the friendly stations and installations within 30 km: those to fly to, never fired on) | T / Shift+T | Y |
 | Stop targeting | X | B |
 | Line up on the target, until the guns bear (again, or steer, to stop) | C | A |
 | Fly to the target, to its guns' reach, and line up on it there (again, steer or the throttle to stop) | U | |
@@ -1133,7 +1138,7 @@ menu (only the pause menu stops it).
 
 In combat mode, V sends the fleet after the target and Shift+V forms it up.
 
-**In the pause menu**, choose the captain with ← / → on Captain, or click her portrait (D-pad ← / → on the pad).
+**The captain** is chosen on the start menu, and stays in command for the game.
 
 In the web version, use the page's Full screen button rather than F11.
 
@@ -1712,7 +1717,8 @@ Each part can also be run alone:
     - a fight at Corsair Haven, with contact, hits, firing back and a kill;
     - the ship lost and respawned;
   - she talks with each message and blinks;
-  - a captain can be chosen in the pause menu by click and by key, and the choice is saved.
+  - the captain can't be changed in the pause menu (neither by clicking her portrait nor by
+    key), and a click on the HUD size row's < side makes the HUD smaller, on its > side bigger.
 
   The test pictures each captain, then puts the player's own choice back.
   Add `-orbittest` (or `?orbittest` on the web) to test the orbits. It runs a week of them in

@@ -119,6 +119,9 @@ namespace CarrierGame
         /// <summary>Trip time to a ship from where this one is now (s).</summary>
         public float TravelTimeTo(Transform ship) => ship == null ? 0f : TravelTimeFor(Vector3.Distance(transform.position, NearShip(ship)));
 
+        /// <summary>A mini-warp to another ship needs it at least this far off (m).</summary>
+        public const float AllyMinDistance = 3000f;
+
         /// <summary>A mini-warp to a ship (an ally), dropping out close by it. Returns false (and
         /// says why) if it can't go.</summary>
         public bool EngageTo(Transform target, string name, out string why)
@@ -127,7 +130,7 @@ namespace CarrierGame
             if (!CanWarp(out why)) { LastMessage = "Can't warp: " + why; return false; }
             from = transform.position;
             to = NearShip(target);
-            if (Vector3.Distance(from, to) < 3000f) { why = $"already with {name}"; LastMessage = "Already with " + name; return false; }
+            if (Vector3.Distance(from, to) < AllyMinDistance) { why = $"already with {name}"; LastMessage = "Already with " + name; return false; }
             Destination = null;
             DestinationShip = target;
             shipName = name;

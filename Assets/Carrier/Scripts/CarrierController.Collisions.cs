@@ -148,8 +148,10 @@ namespace CarrierGame
         {
             var old = target;
             target = t;
-            if (mainTurrets != null) foreach (var tu in mainTurrets) if (tu) tu.target = t;
-            if (pointDefense != null) foreach (var tu in pointDefense) if (tu) tu.target = t;
+            // (a friendly installation, targeted to fly to: the guns hold their fire)
+            var fire = Targets.IsFriendly(t) ? null : t;
+            if (mainTurrets != null) foreach (var tu in mainTurrets) if (tu) tu.target = fire;
+            if (pointDefense != null) foreach (var tu in pointDefense) if (tu) tu.target = fire;
             if (t == null && old != null)
                 foreach (var c in wing)
                     if (c != null && c.order == Craft.Order.Attack && c.target == old) c.Command(Craft.Order.Escort);

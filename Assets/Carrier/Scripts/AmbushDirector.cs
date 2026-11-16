@@ -110,7 +110,7 @@ namespace CarrierGame
             // give the guns something to shoot at if the pilot hasn't picked a target
             var demo = FindAnyObjectByType<Demo.CarrierDemoInput>();
             var nearest = CombatPilot.Nearest(firstWave, player.transform.position);
-            if (demo != null && player.target == null && nearest != null) demo.SelectTarget(nearest.transform);
+            if (demo != null && (player.target == null || Targets.IsFriendly(player.target)) && nearest != null) demo.SelectTarget(nearest.transform);
         }
     }
 }

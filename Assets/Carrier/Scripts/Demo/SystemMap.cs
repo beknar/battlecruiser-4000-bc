@@ -79,6 +79,8 @@ namespace CarrierGame.Demo
         public void Open()
         {
             if (drive == null || !InputFocus.Take(InputFocus.Panel.SystemMap)) return;
+            // (an ally chosen last time, from navigation's menu say, isn't carried over)
+            SelectedAlly = null;
             RefreshOrder();
             if (Selected == null || IsHere(Selected))
                 Selected = order.Where(p => !IsHere(p)).OrderBy(p => Vector3.Distance(p.Position, carrier.transform.position)).FirstOrDefault();
@@ -124,7 +126,7 @@ namespace CarrierGame.Demo
 
         /// <summary>The other ships of the player's side: the other players' and the AI
         /// wingmen's (in co-op, in this level), and the fleet's.</summary>
-        void RefreshAllies()
+        public void RefreshAllies()
         {
             Allies.Clear();
             var client = CoopClient.Instance;
@@ -138,6 +140,9 @@ namespace CarrierGame.Demo
                     bool bot = CoopBot.IsBot(p);
                     string down = !string.IsNullOrEmpty(r.Surface) ? $"down on {r.Surface}" : null;
                     if (r.Hidden && down == null) continue;   // (in warp, destroyed, or not heard from)
+                    // (already close by, in formation say: nothing to warp across)
+                    if (down == null && carrier != null && Vector3.Distance(carrier.transform.position, r.transform.position) < WarpDrive.AllyMinDistance)
+                        down = $"already with you ({CombatMode.Distance(Vector3.Distance(carrier.transform.position, r.transform.position))} off)";
                     Allies.Add(new Ally
                     {
                         name = p.name, kind = bot ? "AI wingman" : "player", ship = r.transform,
@@ -161,6 +166,8 @@ namespace CarrierGame.Demo
             if (a.Value.noWarp != null) { SoundFX.Ui(Sfx.UiError); Notices.Post($"Can't warp to {a.Value.name}: {a.Value.noWarp}"); return false; }
             if (drive.EngageTo(a.Value.ship, a.Value.name, out string why))
             {
+                // (done with: the map next time opens on the places)
+                SelectedAlly = null;
                 Notices.Post($"Warping to {a.Value.name}: {drive.ChargeTime + drive.TravelTime:F1} s");
                 Close();
                 return true;
@@ -336,9 +343,17 @@ namespace CarrierGame.Demo
             if (twice) WarpToSelected();
         }
 
-        /// <summary>The ally's ship drawn at a GUI position (within a few pixels), or null.</summary>
+        // where each ally's name is drawn (it can be clicked too: in formation, its arrow is
+        // under the frigate's own)
+        readonly List<(Rect r, Transform ship)> allyLabels = new List<(Rect, Transform)>();
+
+        /// <summary>The ally's ship drawn at a GUI position (within a few pixels of its arrow, or
+        /// on its name), or null.</summary>
         public Transform AllyAt(Vector2 gui, float maxPx = 16f)
         {
+            // (a name over a place's marker: the place, clicked right on it, comes first)
+            if (PointAt(gui, 10f) == null)
+                foreach (var (r, ship) in allyLabels) if (ship != null && r.Contains(gui) && AllyOf(ship) != null) return ship;
             Transform best = null;
             float bestD = maxPx * Hud.S;
             foreach (var a in Allies)
@@ -352,6 +367,13 @@ namespace CarrierGame.Demo
 
         /// <summary>Where an ally's ship is drawn on the map (GUI space).</summary>
         public Vector2 ScreenPosOf(Transform ship) => ToScreen(ship.position);
+
+        /// <summary>Where an ally's name is drawn on the map (GUI space), if it is drawn.</summary>
+        public Vector2? LabelPosOf(Transform ship)
+        {
+            foreach (var (r, s) in allyLabels) if (s == ship) return r.center;
+            return null;
+        }
 
         public WarpPoint PointAt(Vector2 gui, float maxPx = 26f)
         {
@@ -509,6 +531,7 @@ namespace CarrierGame.Demo
             GUI.matrix = m;
             GUI.Label(new Rect(me.x + 12f * s, me.y + 4f * s, 200f * s, 24f * s), "<color=#7ee08a>Frigate</color>", label);
             // the other ships of the player's side, each with its heading and name
+            allyLabels.Clear();
             for (int i = 0; i < Allies.Count; i++)
             {
                 var a = Allies[i];
@@ -521,8 +544,14 @@ namespace CarrierGame.Demo
                 GUI.matrix = gm;
                 // (stacked under the frigate's own label when it is at the same spot)
                 float below = Vector2.Distance(ap, me) < 14f * s ? 18f * s * (i + 1) : 0f;
-                GUI.Label(new Rect(ap.x + 10f * s, ap.y + 2f * s + below, 320f * s, 22f * s),
-                          $"<color=#{ColorUtility.ToHtmlStringRGB(a.color)}>{a.name}</color>  <color=#9aa4b0>{a.kind}{(a.noWarp != null && a.kind != "fleet" ? ", " + a.noWarp : "")}</color>", Hud.Text(13));
+                string text = $"<color=#{ColorUtility.ToHtmlStringRGB(a.color)}>{a.name}</color>  <color=#9aa4b0>{a.kind}{(a.noWarp != null && a.kind != "fleet" ? ", " + a.noWarp : "")}</color>";
+                var st = Hud.Text(13);
+                var lr = new Rect(ap.x + 10f * s, ap.y + 2f * s + below, 320f * s, 22f * s);
+                GUI.Label(lr, text, st);
+                // (clickable where the name is: in formation, the arrow is under the frigate's)
+                float tw = st.CalcSize(new GUIContent(text)).x;
+                allyLabels.Add((new Rect(lr.x - 4f * s, lr.y, Mathf.Min(lr.width, tw) + 8f * s, lr.height), a.ship));
+                if (a.ship == SelectedAlly) Hud.Outline(allyLabels[allyLabels.Count - 1].r, Mathf.Max(1f, s), new Color(a.color.r, a.color.g, a.color.b, 0.8f));
             }
             // scale bar
             float km50 = 50000f * pxPerM;

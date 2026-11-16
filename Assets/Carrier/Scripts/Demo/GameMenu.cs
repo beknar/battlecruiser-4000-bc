@@ -6,9 +6,10 @@ namespace CarrierGame.Demo
 {
     /// <summary>
     /// The pause menu: Esc on the keyboard, Start on the pad. The game stops while it is open.
-    /// Resume, Restart (the level from the beginning), Sound on/off, Captain (which of the five
-    /// captains is on the HUD: left/right, Enter, or click her portrait), and Quit. Restart and Quit
-    /// ask for a second press to make sure. Mouse (hover and click), keyboard (up/down or W/S,
+    /// Resume, Restart (the level from the beginning), Sound on/off, the HUD's settings (its size:
+    /// left/right, or click the &lt; or &gt; side of the row), and Quit. Restart and Quit ask for a
+    /// second press to make sure. The captain, chosen on the start menu, is shown but can't be
+    /// changed once the game has started. Mouse (hover and click), keyboard (up/down or W/S,
     /// Enter or Space, Esc to resume) and pad (D-pad or left stick, A, B or Start to resume).
     /// In a web page, Quit shuts the game down and the page offers to start it again.
     /// </summary>
@@ -27,15 +28,16 @@ namespace CarrierGame.Demo
 
         // (no frigate here: the frigate is chosen at the start of the game, on the start menu,
         // and kept for the game: its crew, parts and hold go with it)
-        enum Item { Resume, Restart, Sound, Captain, Coop, HudCaptain, HudSize, HudFleet, Quit }
-        static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Captain, Item.Coop, Item.HudCaptain, Item.HudSize, Item.HudFleet, Item.Quit };
+        // (nor the captain: she is chosen on the start menu too, and stays for the game)
+        enum Item { Resume, Restart, Sound, Coop, HudCaptain, HudSize, HudFleet, Quit }
+        static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Coop, Item.HudCaptain, Item.HudSize, Item.HudFleet, Item.Quit };
 
         int selected;
         Item? confirming;
         float confirmUntil;
         float stickRepeat;
         Rect[] itemRects = new Rect[Items.Length];
-        readonly Rect[] captainRects = new Rect[Demo.Captain.Roster.Length];
+        Rect captainRect;
         float savedTimeScale = 1f;
 
         public void Open()
@@ -80,7 +82,6 @@ namespace CarrierGame.Demo
                 case Item.Resume: return "Resume";
                 case Item.Restart: return sure ? "Restart: press again to confirm" : "Restart";
                 case Item.Sound: return SoundFX.Muted ? "Sound: off" : "Sound: on";
-                case Item.Captain: return $"Captain:  <   {Demo.Captain.Current.name}   >";
                 case Item.Coop: return CoopClient.Active ? $"Co-op: {CoopClient.Instance.Players.Count} playing" : "Co-op: join a game";
                 case Item.HudCaptain: return HudSettings.ShowCaptain ? "HUD: the captain shown" : "HUD: the captain hidden";
                 case Item.HudSize: return $"HUD size:  <   {Mathf.RoundToInt(HudSettings.Size * 100f)}%   >";
@@ -104,10 +105,9 @@ namespace CarrierGame.Demo
             {
                 case Item.HudCaptain: HudSettings.ShowCaptain = !HudSettings.ShowCaptain; return;
                 case Item.HudFleet: HudSettings.FleetPanels = !HudSettings.FleetPanels; return;
-                case Item.HudSize: HudSettings.NextSize(); return;
+                case Item.HudSize: HudSettings.NextSize(); return;   // (Enter: a step bigger, round to the smallest)
                 case Item.Resume: Close(); break;
                 case Item.Sound: SoundFX.Muted = !SoundFX.Muted; break;
-                case Item.Captain: Demo.Captain.Index++; if (CoopClient.Active) CoopClient.Instance.SendCaptain(); break;
                 case Item.Coop:
                     Close();
                     var coop = FindAnyObjectByType<CoopMenu>();
@@ -173,12 +173,7 @@ namespace CarrierGame.Demo
                 if (k.escapeKey.wasPressedThisFrame || k.pKey.wasPressedThisFrame) { Close(); return; }
                 if (k.upArrowKey.wasPressedThisFrame || k.wKey.wasPressedThisFrame) Move(-1);
                 if (k.downArrowKey.wasPressedThisFrame || k.sKey.wasPressedThisFrame) Move(+1);
-                // left/right on the Captain row: the previous or next captain; on the HUD size: smaller, bigger
-                if (Items[selected] == Item.Captain)
-                {
-                    if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame) Demo.Captain.Index--;
-                    if (k.rightArrowKey.wasPressedThisFrame || k.dKey.wasPressedThisFrame) Demo.Captain.Index++;
-                }
+                // left/right on the HUD size: smaller, bigger
                 if (Items[selected] == Item.HudSize)
                 {
                     if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame) HudSettings.ChangeSize(-1);
@@ -191,11 +186,6 @@ namespace CarrierGame.Demo
                 if (pad.startButton.wasPressedThisFrame || pad.buttonEast.wasPressedThisFrame) { Close(); return; }
                 if (pad.dpad.up.wasPressedThisFrame) Move(-1);
                 if (pad.dpad.down.wasPressedThisFrame) Move(+1);
-                if (Items[selected] == Item.Captain)
-                {
-                    if (pad.dpad.left.wasPressedThisFrame) Demo.Captain.Index--;
-                    if (pad.dpad.right.wasPressedThisFrame) Demo.Captain.Index++;
-                }
                 if (Items[selected] == Item.HudSize)
                 {
                     if (pad.dpad.left.wasPressedThisFrame) HudSettings.ChangeSize(-1);
@@ -220,17 +210,34 @@ namespace CarrierGame.Demo
                     if (itemRects[i].Contains(gui))
                     {
                         if (mouse.delta.ReadValue().sqrMagnitude > 0.01f && selected != i) { selected = i; confirming = null; }
-                        if (mouse.leftButton.wasPressedThisFrame) { Activate(i); return; }
-                    }
-                // a click on a captain's portrait chooses her
-                for (int i = 0; i < captainRects.Length; i++)
-                    if (captainRects[i].Contains(gui) && mouse.leftButton.wasPressedThisFrame)
-                    {
-                        Demo.Captain.Index = i;
-                        selected = System.Array.IndexOf(Items, Item.Captain);
+                        if (!mouse.leftButton.wasPressedThisFrame) continue;
+                        // the HUD size: the < side of the row smaller, the > side bigger
+                        if (Items[i] == Item.HudSize)
+                        {
+                            selected = i;
+                            confirming = null;
+                            HudSettings.ChangeSize(gui.x < itemRects[i].center.x ? -1 : +1);
+                            return;
+                        }
+                        Activate(i);
                         return;
                     }
             }
+        }
+
+        /// <summary>Where the &lt; (dir -1) or &gt; (+1) of an item's row is on screen (for the self-test's mouse).</summary>
+        public Vector2 ItemArrowScreenPos(int index, int dir)
+        {
+            var r = itemRects[Mathf.Clamp(index, 0, itemRects.Length - 1)];
+            float x = r.center.x + Mathf.Sign(dir) * r.width * 0.3f;
+            return new Vector2(x, Screen.height - r.center.y);
+        }
+
+        /// <summary>The row of an item (for the self-test), or -1.</summary>
+        public int IndexOfLabel(string startsWith)
+        {
+            for (int i = 0; i < Items.Length; i++) if (Label(Items[i]).StartsWith(startsWith)) return i;
+            return -1;
         }
 
         /// <summary>Where an item is on screen (for the self-test's mouse).</summary>
@@ -240,12 +247,8 @@ namespace CarrierGame.Demo
             return new Vector2(r.center.x, Screen.height - r.center.y);
         }
 
-        /// <summary>Where a captain's portrait is on screen (for the self-test's mouse).</summary>
-        public Vector2 CaptainScreenPos(int index)
-        {
-            var r = captainRects[Mathf.Clamp(index, 0, captainRects.Length - 1)];
-            return new Vector2(r.center.x, Screen.height - r.center.y);
-        }
+        /// <summary>Where the captain's portrait is on screen (for the self-test's mouse).</summary>
+        public Vector2 CaptainScreenPos() => new Vector2(captainRect.center.x, Screen.height - captainRect.center.y);
 
         public int Selected => selected;
         public string SelectedLabel => Label(Items[selected]);
@@ -256,12 +259,11 @@ namespace CarrierGame.Demo
             GUI.depth = -100;   // over the HUD panels
             // (as big as the HUD, but never taller than the screen: the HUD's size is set here,
             // and the menu has to stay usable at any of them)
-            int n = Demo.Captain.Roster.Length;
             float tall = 44f + 54f + 46f * Items.Length + 78f + 30f + 40f;
             float s = Mathf.Min(Hud.S, Screen.height * 0.96f / tall);
             Hud.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0.01f, 0.03f, 0.55f));
-            float thumb = 78f * s, gap = 8f * s;
-            float w = Mathf.Max(440f * s, n * thumb + (n - 1) * gap + 44f * s), rowH = 46f * s, pad = 22f * s;
+            float thumb = 78f * s;
+            float w = 440f * s, rowH = 46f * s, pad = 22f * s;
             float h = pad * 2f + 54f * s + rowH * Items.Length + thumb + 30f * s + 40f * s;
             var panel = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
             Hud.Fill(panel, new Color(0.03f, 0.05f, 0.1f, 0.95f));
@@ -279,25 +281,16 @@ namespace CarrierGame.Demo
                 GUI.Label(r, text, Hud.Text(19, sel, TextAnchor.MiddleCenter));
                 y += rowH;
             }
-            // the captains: click one to choose her
-            float tx = panel.x + (w - (n * thumb + (n - 1) * gap)) * 0.5f;
-            for (int i = 0; i < n; i++)
+            // the captain (chosen on the start menu: hers for the whole game)
             {
-                var r = new Rect(tx + i * (thumb + gap), y + 4f * s, thumb, thumb);
-                captainRects[i] = r;
-                bool chosen = i == Demo.Captain.Index;
-                var face = Demo.Captain.Face(i, Mood.Neutral);
+                var r = new Rect(panel.x + (w - thumb) * 0.5f, y + 4f * s, thumb, thumb);
+                captainRect = r;
+                var face = Demo.Captain.Face(Demo.Captain.Index, Mood.Neutral);
                 Hud.Fill(r, new Color(0f, 0f, 0f, 0.6f));
-                if (face != null)
-                {
-                    var old = GUI.color;
-                    if (!chosen) GUI.color = new Color(0.6f, 0.6f, 0.65f, 1f);
-                    GUI.DrawTexture(r, face, ScaleMode.ScaleAndCrop);
-                    GUI.color = old;
-                }
-                Hud.Outline(r, Mathf.Max(1f, (chosen ? 3f : 1f) * s), chosen ? new Color(1f, 0.72f, 0.3f) : new Color(1f, 1f, 1f, 0.2f));
+                if (face != null) GUI.DrawTexture(r, face, ScaleMode.ScaleAndCrop);
+                Hud.Outline(r, Mathf.Max(1f, 2f * s), new Color(1f, 0.72f, 0.3f));
             }
-            GUI.Label(new Rect(panel.x, y + thumb + 8f * s, w, 20f * s), $"Capt. {Demo.Captain.Current.name}", Hud.Text(14, true, TextAnchor.MiddleCenter));
+            GUI.Label(new Rect(panel.x, y + thumb + 8f * s, w, 20f * s), $"Capt. {Demo.Captain.Current.name}  <color=#9aa4b0>(in command for this game)</color>", Hud.Text(14, true, TextAnchor.MiddleCenter));
             string hint = Gamepad.current != null ? "A select   B or Start resume" : "Enter select   Esc or P resume";
             GUI.Label(new Rect(panel.x, panel.yMax - pad - 22f * s, w, 22f * s), hint, Hud.Text(13, false, TextAnchor.MiddleCenter));
         }

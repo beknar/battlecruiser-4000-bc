@@ -220,6 +220,7 @@ namespace CarrierGame.Demo
             {
                 target = Leader != null ? Leader.target : null;
                 if (target == null) { SoundFX.Ui(Sfx.UiError); Notices.Post("Attack: target something first (combat mode, T)"); return; }
+                if (Targets.IsFriendly(target)) { SoundFX.Ui(Sfx.UiError); Notices.Post($"The fleet won't attack {Targets.NameOf(target)}: it is friendly"); return; }
             }
             var to = Addressed.ToList();
             if (to.Count == 0) { SoundFX.Ui(Sfx.UiError); Notices.Post("The ships under tow can't take orders"); return; }

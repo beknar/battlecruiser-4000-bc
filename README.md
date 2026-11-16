@@ -1369,7 +1369,9 @@ CoopServer --revoke-key <name|key>      revoke a key, then exit
   own host and the port it was given doesn't answer over `wss://` (the plain 7777, say), the
   game tries the page's own address next, `wss://<host>/coop`, so a proxy there (nginx's
   `location /coop { proxy_pass http://127.0.0.1:7777/coop; ... }`, with the WebSocket upgrade
-  headers) works with the default port.
+  headers) works with the default port. Behind such a proxy every player connects from the
+  proxy's own address (127.0.0.1), so an `allow` list can't tell them apart: leave loopback
+  out of it, or rely on the API keys.
 - **Firewall.** Open the port (TCP) on the server's firewall for players on other machines.
 
 #### Setting up a standalone server on Windows

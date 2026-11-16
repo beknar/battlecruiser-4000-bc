@@ -32,6 +32,7 @@ namespace CarrierGame.Demo
         Renderer[] renderers;
         Collider[] colliders;
         Health health;
+        EngineThrust[] engines;
         bool shown = true;
 
         /// <summary>How far in the past the ship is shown, so there are two updates to go between.</summary>
@@ -45,6 +46,7 @@ namespace CarrierGame.Demo
             colliders = GetComponentsInChildren<Collider>(true);
             health = GetComponent<Health>();
             if (health != null) { health.cannotDie = true; health.respawnDelay = 0f; }
+            engines = GetComponentsInChildren<EngineThrust>(true);
             Show(false);
         }
 
@@ -57,6 +59,8 @@ namespace CarrierGame.Demo
             bool wasDead = Dead;
             Shield = m.sh; Hull = m.hu; Dead = m.dead;
             Warp = m.warp; Surface = m.surf ?? "";
+            // its engines as its player's throttle (out, without thrust)
+            if (engines != null) foreach (var e in engines) if (e != null) e.throttle = Mathf.Clamp01(m.th);
             // it blew up: an explosion where it was
             if (Dead && !wasDead && health != null && health.deathEffect != null && shown)
             {
@@ -77,6 +81,8 @@ namespace CarrierGame.Demo
             shown = on;
             if (renderers != null) foreach (var r in renderers) if (r != null) r.enabled = on;
             if (colliders != null) foreach (var c in colliders) if (c != null) c.enabled = on;
+            // (every renderer lit again, the plumes too: theirs go by the thrust)
+            if (on && engines != null) foreach (var e in engines) if (e != null) e.Refresh();
         }
 
         /// <summary>Put it where its player's updates say it was, a moment ago.</summary>

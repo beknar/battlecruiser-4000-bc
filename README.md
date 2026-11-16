@@ -189,7 +189,7 @@ doesn't change it. The choice is remembered for next time.
 | Lancer | Fast attack frigate | 2 twin turrets, one on each flank | 2 | 4500 / 5000 | 190 m/s, 28°/s |
 | Warden | Heavy escort frigate | 3 twin turrets: forward, under the keel, aft | 4 | 8500 / 8000 | 120 m/s, 15°/s |
 | Talon | Strike frigate | 2 heavy twin turrets on its flanks | 1 | 5500 / 5500 | 165 m/s, 22°/s |
-| Vanguard | Line cruiser | 6 turrets bearing forward: two twins on the foredeck, four ball domes on the flanks; the strongest bow beam | 4 | 9000 / 7000 | 115 m/s, 13°/s |
+| Vanguard | Line frigate | 6 turrets bearing forward: two twins on the foredeck, four ball domes on the flanks; the strongest bow beam | 4 | 9000 / 7000 | 115 m/s, 13°/s |
 
 Every frigate has a bow main gun, at least one CIWS mount, the shield and the mining gear. The
 Lancer, Warden, Talon and Vanguard fight with the turrets modelled on them: each traverses on its own

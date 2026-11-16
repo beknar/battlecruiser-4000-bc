@@ -306,6 +306,8 @@ def convert(f):
             "yaw_pivot": unity(yaw_pivot), "pitch_pivot": unity(pitch_pivot),
             "facing": unity_dir(facing), "up": unity_dir(up),
             "muzzles": [{"pos": unity(m)} for m in muzzles],
+            # (a traverse set by hand, degrees from rest: keeps flank guns off the hull)
+            **({"arc": t["arc"]} if "arc" in t else {}),
         })
         parts.append((yaw, yaw_pivot))
         if pitch is not None:

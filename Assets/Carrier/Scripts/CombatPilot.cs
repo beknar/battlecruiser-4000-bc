@@ -149,6 +149,17 @@ namespace CarrierGame
             lurkPoint = transform.position;
             lurkRotation = transform.rotation;
             Current = startLurking ? State.Lurk : State.Engage;
+            engines = GetComponentsInChildren<EngineThrust>(true);
+        }
+
+        EngineThrust[] engines;
+
+        // the engines burn as hard as the ship is going (out, lying still in wait)
+        void LateUpdate()
+        {
+            if (engines == null || engines.Length == 0 || (health != null && health.Dead)) return;
+            float k = Mathf.Clamp01(speed / Mathf.Max(1f, attackSpeed));
+            foreach (var e in engines) if (e) e.throttle = k;
         }
 
         float nextRetarget;

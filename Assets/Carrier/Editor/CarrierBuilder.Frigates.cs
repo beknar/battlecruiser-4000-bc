@@ -57,6 +57,10 @@ namespace Carrier.EditorTools
             public string name, yaw_mesh, pitch_mesh;
             public float[] yaw_pivot, pitch_pivot, facing, up;
             public V[] muzzles;
+            // a traverse set by hand (degrees from rest, the least and the most), over the one
+            // FitArc finds: the Talon's flank turrets, whose long barrels clear the deck while
+            // still swinging in over it
+            public float[] arc;
         }
 
         // a ball mount's place on the hull and the way it faces
@@ -186,6 +190,14 @@ namespace Carrier.EditorTools
                 tu.fireCone = 3f;
                 tu.leadTarget = true;
                 FitArc(tu, root.transform);
+                if (mt.arc != null && mt.arc.Length == 2)
+                {
+                    // (within what FitArc found clear, too)
+                    float lo = tu.unevenArc ? tu.yawMin : -tu.yawLimit, hi = tu.unevenArc ? tu.yawMax : tu.yawLimit;
+                    tu.unevenArc = true;
+                    tu.yawMin = Mathf.Max(lo, mt.arc[0]);
+                    tu.yawMax = Mathf.Min(hi, mt.arc[1]);
+                }
                 made.Add(tu);
                 Log($"{fs.displayName} turret {mt.name}: at {mount.transform.localPosition:F1} facing {facing:F1}, " +
                     $"{(string.IsNullOrEmpty(mt.pitch_mesh) ? "barrels fixed to the housing" : "barrels elevate")}, {muzzles.Length} muzzles; " +

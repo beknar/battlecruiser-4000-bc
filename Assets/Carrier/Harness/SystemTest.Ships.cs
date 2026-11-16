@@ -62,6 +62,18 @@ namespace CarrierGame.Demo
             Shot("ship_" + flying + "_start");
             yield return Pictures(flying);
 
+            // the engines: lit (and heard) under thrust, out and quiet without it
+            var engines = (cc.engines ?? new EngineThrust[0]).Where(e => e != null).ToArray();
+            cc.throttle = 0.6f;
+            yield return new WaitForSeconds(1.5f);
+            bool litUnder = engines.All(e => e.Lit);
+            float humUnder = cc.HumVolume;
+            cc.throttle = 0f;
+            yield return new WaitForSeconds(1f);
+            bool outAfter = engines.All(e => !e.Lit);
+            Check(engines.Length > 0 && litUnder && outAfter && humUnder > 0.05f && cc.HumVolume < 0.01f,
+                  $"its engines burn under thrust and go out, quiet, without it ({engines.Length} engines; lit {litUnder}, hum {humUnder:F2}; then out {outAfter}, hum {cc.HumVolume:F2})");
+
             // the guns: a target ahead, to each side, above, below and astern
             cc.throttle = 0f;
             var dummy = GameObject.CreatePrimitive(PrimitiveType.Sphere);

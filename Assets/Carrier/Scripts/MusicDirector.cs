@@ -94,7 +94,9 @@ namespace CarrierGame
         // the tracks played, the one playing last (for Previous)
         readonly List<Track> history = new List<Track>();
         Voice current;
-        float nextChange;
+        float nextChange, changingSince = -1f, lastSync;
+        // the fight (or the quiet) the music is following, once it has held a moment
+        bool settled;
         bool wasOn = true;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -153,8 +155,10 @@ namespace CarrierGame
             var me = Instance;
             bool combat = me.current != null && me.current.track.combat;
             // (the one playing is the last in the history: the one before it)
-            int i = me.history.Count - 2;
-            while (i >= 0 && me.history[i].combat != combat) i--;
+            // (the one before of the same kind: not the one playing, nor its other arrangement)
+            var now = me.current != null ? me.current.track : null;
+            int i = me.history.Count - 1;
+            while (i >= 0 && (me.history[i].combat != combat || me.history[i] == now || (now != null && me.history[i] == now.pair))) i--;
             if (i < 0) { Next(); return; }
             var t = me.history[i];
             me.history.RemoveRange(i, me.history.Count - i);
@@ -278,7 +282,7 @@ namespace CarrierGame
         }
 
         /// <summary>Make `v` the track playing, fading it in (and every other out) over `fade` s.</summary>
-        void Bring(Voice v, float fade)
+        void Bring(Voice v, float fade, bool record = true)
         {
             if (v == null) return;
             float rate = 1f / Mathf.Max(0.05f, fade);
@@ -286,8 +290,11 @@ namespace CarrierGame
             current = v;
             if (fade <= 0f) v.gain = 1f;
             NowPlaying = v.track.title;
-            history.Add(v.track);
-            if (history.Count > 40) history.RemoveAt(0);
+            if (record)
+            {
+                history.Add(v.track);
+                if (history.Count > 40) history.RemoveAt(0);
+            }
             // the next change, before a track that isn't a loop comes to its end
             float wait = Random.Range(cycleMin, cycleMax);
             if (!v.track.loops && v.src.clip != null)
@@ -306,6 +313,8 @@ namespace CarrierGame
         void ChangeTrack(float fade, bool announce = false)
         {
             bool combat = current != null && current.track.combat;
+            // (a list of one, the asteroid ambush's: nothing to change to)
+            if ((combat ? combatTracks : calmTracks).Count < 2) { nextChange = Time.time + Random.Range(cycleMin, cycleMax); return; }
             StartFresh(combat, fade);
             Cycles++;
             if (announce && current != null) Notices.Post($"Music: {current.track.title}");
@@ -321,7 +330,8 @@ namespace CarrierGame
             {
                 // (already there, fading out: bring it back)
                 var back = voices.Find(o => o.track == pair);
-                Bring(back ?? Play(pair, current.src.timeSamples), fade);
+                Bring(back ?? Play(pair, current.src.timeSamples), fade, record: false);
+                lastSync = Time.unscaledTime;
                 return;
             }
             StartFresh(combat, fade);
@@ -342,14 +352,31 @@ namespace CarrierGame
                             (!eventDriven && Time.time - SoundFX.LastCombatTime < combatHold);
             // enemies out of hiding close by: still a fight, even in a lull
             if (!eventDriven && Camera.main != null && CombatPilot.AnyEngagedNear(Camera.main.transform.position, 12000f)) fighting = true;
-            if (!wasOn || current == null) { wasOn = true; StartFresh(fighting, 1.5f); }
+            // (held a moment before the music follows: an enemy at the edge of the range, or a lull,
+            // doesn't flick it back and forth; a cue from the scene is followed at once)
+            if (fighting != settled)
+            {
+                if (changingSince < 0f) changingSince = Time.unscaledTime;
+                if (Time.time < forcedUntil || Time.unscaledTime - changingSince >= (fighting ? 0.75f : 2f)) { settled = fighting; changingSince = -1f; }
+            }
+            else changingSince = -1f;
+            if (!wasOn || current == null) { wasOn = true; StartFresh(settled, 1.5f); }
+            if (current == null) { Playing = false; Mix(); return; }   // (a track listed but not there)
             Playing = true;
-            if (current.track.combat != fighting) Over(fighting);
-            else if (Time.time >= nextChange && !Fading) ChangeTrack(cycleFade);
-            // (in step: the arrangement fading out kept with the one fading in)
-            foreach (var o in voices)
-                if (o != current && o.track.pair == current.track && Mathf.Abs(o.src.timeSamples - current.src.timeSamples) > 2048)
-                    o.src.timeSamples = current.src.timeSamples;
+            var clip = current.src.clip;
+            bool ending = !current.track.loops && clip != null && clip.length - current.src.time < cycleFade + 1f;
+            if (current.track.combat != settled) Over(settled);
+            else if ((Time.time >= nextChange && !Fading) || ending) ChangeTrack(cycleFade);
+            // (in step: the arrangement fading out kept with the one fading in, once it has started,
+            // and only when they have drifted noticeably: a seek re-buffers a streamed track)
+            if (current != null && current.src.isPlaying && Time.unscaledTime - lastSync > 1f)
+                foreach (var o in voices)
+                    if (o != current && o.track.pair == current.track && o.src.clip != null &&
+                        Mathf.Abs(o.src.timeSamples - current.src.timeSamples) > o.src.clip.frequency / 4)
+                    {
+                        o.src.timeSamples = current.src.timeSamples;
+                        lastSync = Time.unscaledTime;
+                    }
             Mix();
         }
 

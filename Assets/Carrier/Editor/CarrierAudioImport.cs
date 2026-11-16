@@ -5,10 +5,14 @@ namespace Carrier.EditorTools
 {
     /// <summary>Import settings for the game's library sounds (Resources/CarrierAudio):
     /// effects are mono and decompressed on load so they start instantly; the engine and ambience
-    /// loops and the music stay compressed in memory (music in stereo).</summary>
+    /// loops and the music stay compressed in memory (music in stereo); the playlist's tracks
+    /// stream (a web build loads them as the page does any audio).</summary>
     public class CarrierAudioImport : AssetPostprocessor
     {
         const string Root = "Assets/Carrier/Resources/CarrierAudio/";
+
+        // (raised when the settings change, so every sound is imported again with them)
+        public override uint GetVersion() => 3;
 
         void OnPreprocessAudio()
         {
@@ -17,13 +21,20 @@ namespace Carrier.EditorTools
             bool music = assetPath.StartsWith(Root + "Music/");
             bool loop = music || assetPath.Contains("/EngineLoop/") || assetPath.Contains("/AmbientLoop/");
 
+            // the playlist (Music/Calm, Music/Combat: fifty tracks): streamed from the disk, only
+            // what is playing in memory, not loaded until played
+            bool playlist = music && (assetPath.Contains("/Music/Calm/") || assetPath.Contains("/Music/Combat/"));
+            // (a piece with both arrangements, calm and combat, kept in step by seeking one to the
+            // other: in memory, where a seek is cheap, rather than streamed)
+            bool paired = playlist && System.IO.File.Exists(assetPath.Contains("/Music/Calm/")
+                ? assetPath.Replace("/Music/Calm/", "/Music/Combat/") : assetPath.Replace("/Music/Combat/", "/Music/Calm/"));
             importer.forceToMono = !music;
-            importer.loadInBackground = false;
+            importer.loadInBackground = playlist;
             var s = importer.defaultSampleSettings;
             s.compressionFormat = AudioCompressionFormat.Vorbis;
-            s.quality = music ? 0.6f : 0.75f;
-            s.loadType = loop ? AudioClipLoadType.CompressedInMemory : AudioClipLoadType.DecompressOnLoad;
-            s.preloadAudioData = true;
+            s.quality = playlist ? 0.45f : music ? 0.6f : 0.75f;
+            s.loadType = playlist && !paired ? AudioClipLoadType.Streaming : loop ? AudioClipLoadType.CompressedInMemory : AudioClipLoadType.DecompressOnLoad;
+            s.preloadAudioData = !playlist;
             s.sampleRateSetting = AudioSampleRateSetting.PreserveSampleRate;
             importer.defaultSampleSettings = s;
         }

@@ -6,7 +6,8 @@ namespace CarrierGame.Demo
 {
     /// <summary>
     /// The pause menu: Esc on the keyboard, Start on the pad. The game stops while it is open.
-    /// Resume, Restart (the level from the beginning), Sound on/off, the HUD's settings (its size:
+    /// Resume, Restart (the level from the beginning), Sound on/off, Music on/off, the song playing
+    /// (left/right, or click its &lt; or &gt; side, for the one before or the next), the HUD's settings (its size:
     /// left/right, or click the &lt; or &gt; side of the row), and Quit. Restart and Quit ask for a
     /// second press to make sure. The captain, chosen on the start menu, is shown but can't be
     /// changed once the game has started. Mouse (hover and click), keyboard (up/down or W/S,
@@ -29,8 +30,8 @@ namespace CarrierGame.Demo
         // (no frigate here: the frigate is chosen at the start of the game, on the start menu,
         // and kept for the game: its crew, parts and hold go with it)
         // (nor the captain: she is chosen on the start menu too, and stays for the game)
-        enum Item { Resume, Restart, Sound, Coop, HudCaptain, HudSize, HudFleet, Quit }
-        static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Coop, Item.HudCaptain, Item.HudSize, Item.HudFleet, Item.Quit };
+        enum Item { Resume, Restart, Sound, Music, Song, Coop, HudCaptain, HudSize, HudFleet, Quit }
+        static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Music, Item.Song, Item.Coop, Item.HudCaptain, Item.HudSize, Item.HudFleet, Item.Quit };
 
         int selected;
         Item? confirming;
@@ -82,6 +83,8 @@ namespace CarrierGame.Demo
                 case Item.Resume: return "Resume";
                 case Item.Restart: return sure ? "Restart: press again to confirm" : "Restart";
                 case Item.Sound: return SoundFX.Muted ? "Sound: off" : "Sound: on";
+                case Item.Music: return MusicDirector.On ? "Music: on" : "Music: off";
+                case Item.Song: return MusicDirector.On && MusicDirector.NowPlaying.Length > 0 ? $"Song:  <   {MusicDirector.NowPlaying}   >" : "Song:  <   (music off)   >";
                 case Item.Coop: return CoopClient.Active ? $"Co-op: {CoopClient.Instance.Players.Count} playing" : "Co-op: join a game";
                 case Item.HudCaptain: return HudSettings.ShowCaptain ? "HUD: the captain shown" : "HUD: the captain hidden";
                 case Item.HudSize: return $"HUD size:  <   {Mathf.RoundToInt(HudSettings.Size * 100f)}%   >";
@@ -108,6 +111,8 @@ namespace CarrierGame.Demo
                 case Item.HudSize: HudSettings.NextSize(); return;   // (Enter: a step bigger, round to the smallest)
                 case Item.Resume: Close(); break;
                 case Item.Sound: SoundFX.Muted = !SoundFX.Muted; break;
+                case Item.Music: MusicDirector.Toggle(); return;
+                case Item.Song: MusicDirector.Next(); return;
                 case Item.Coop:
                     Close();
                     var coop = FindAnyObjectByType<CoopMenu>();
@@ -173,11 +178,16 @@ namespace CarrierGame.Demo
                 if (k.escapeKey.wasPressedThisFrame || k.pKey.wasPressedThisFrame) { Close(); return; }
                 if (k.upArrowKey.wasPressedThisFrame || k.wKey.wasPressedThisFrame) Move(-1);
                 if (k.downArrowKey.wasPressedThisFrame || k.sKey.wasPressedThisFrame) Move(+1);
-                // left/right on the HUD size: smaller, bigger
+                // left/right on the HUD size: smaller, bigger; on the song: the one before, the next
                 if (Items[selected] == Item.HudSize)
                 {
                     if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame) HudSettings.ChangeSize(-1);
                     if (k.rightArrowKey.wasPressedThisFrame || k.dKey.wasPressedThisFrame) HudSettings.ChangeSize(+1);
+                }
+                if (Items[selected] == Item.Song)
+                {
+                    if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame) MusicDirector.Previous();
+                    if (k.rightArrowKey.wasPressedThisFrame || k.dKey.wasPressedThisFrame) MusicDirector.Next();
                 }
                 if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame || k.spaceKey.wasPressedThisFrame) { Activate(selected); return; }
             }
@@ -190,6 +200,11 @@ namespace CarrierGame.Demo
                 {
                     if (pad.dpad.left.wasPressedThisFrame) HudSettings.ChangeSize(-1);
                     if (pad.dpad.right.wasPressedThisFrame) HudSettings.ChangeSize(+1);
+                }
+                if (Items[selected] == Item.Song)
+                {
+                    if (pad.dpad.left.wasPressedThisFrame) MusicDirector.Previous();
+                    if (pad.dpad.right.wasPressedThisFrame) MusicDirector.Next();
                 }
                 // the left stick steps through the items, repeating while held
                 float y = pad.leftStick.y.ReadValue();
@@ -211,12 +226,16 @@ namespace CarrierGame.Demo
                     {
                         if (mouse.delta.ReadValue().sqrMagnitude > 0.01f && selected != i) { selected = i; confirming = null; }
                         if (!mouse.leftButton.wasPressedThisFrame) continue;
-                        // the HUD size: the < side of the row smaller, the > side bigger
-                        if (Items[i] == Item.HudSize)
+                        // the HUD size: the < side of the row smaller, the > side bigger; the song:
+                        // the < side the one before, the > side the next
+                        if (Items[i] == Item.HudSize || Items[i] == Item.Song)
                         {
                             selected = i;
                             confirming = null;
-                            HudSettings.ChangeSize(gui.x < itemRects[i].center.x ? -1 : +1);
+                            bool back = gui.x < itemRects[i].center.x;
+                            if (Items[i] == Item.HudSize) HudSettings.ChangeSize(back ? -1 : +1);
+                            else if (back) MusicDirector.Previous();
+                            else MusicDirector.Next();
                             return;
                         }
                         Activate(i);

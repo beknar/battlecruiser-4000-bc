@@ -180,7 +180,7 @@ namespace CarrierGame.Demo
                 lines.Add("Right-drag orbit   mouse wheel zoom");
                 if (demo.Warp != null && Modes.Current != ModeOfPlay.Navigation) lines.Add("M system map");
                 if (PlanetLanding.Instance != null) lines.Add(Docking.Instance != null ? "K land / take off, dock / undock" : "K land / take off (in orbit)");
-                lines.Add("H hide help   +/- text size   N sound");
+                lines.Add("H hide help   +/- text size   N sound   Shift+N next song");
                 lines.Add(OnWeb ? "F11 full screen   Esc or P menu" : "F11 window   Esc or P menu");
                 return keyHelp = string.Join("\n", lines);
             }

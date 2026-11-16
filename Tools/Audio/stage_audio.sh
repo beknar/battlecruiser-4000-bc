@@ -85,4 +85,6 @@ cp "$MU/Deepness of Space [Ambient Loop].wav" "$OUT/Music/Travel_Calm.wav"
 cp "$SF/Action - Battle Ensued LOOP.wav" "$OUT/Music/Ambush_Combat.wav"
 echo "Music/Travel_Calm.wav  <-  gamedevmarket assets/Space and Science Fiction Music Pack Vol 1/.../Deepness of Space [Ambient Loop].wav  [as is]" >> "$MAN"
 echo "Music/Ambush_Combat.wav  <-  gamedevmarket assets/Sci Fi Fantasy Music/.../Action - Battle Ensued LOOP.wav  [as is]" >> "$MAN"
+# the soundtrack's playlist: calm and combat tracks (Music/Calm, Music/Combat, Music/playlist.txt)
+bash "$(dirname "$0")/stage_music.sh"
 echo "staged:"; find "$OUT" -name "*.wav" | wc -l

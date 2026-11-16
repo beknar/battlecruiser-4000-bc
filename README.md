@@ -372,10 +372,19 @@ Enemy guns lead their target and have some spread. The enemies fly orbits around
   Tests, reels and AI players use the defaults and keep nothing.
 - **Sound.** Sound effects come from a sound library, with several recordings of each so repeats
   don't sound identical. Any sound with no recording is synthesised in code instead, and the
-  frigate's bow beam is always synthesised. The music has calm tracks and a combat track, and
-  crossfades to the combat one while fighting is going on nearby. While it is calm, the
-  atmospheric music changes every one to five minutes, crossfading to the next calm track. A
-  master limiter stops the mix from clipping.
+  frigate's bow beam is always synthesised. A master limiter stops the mix from clipping.
+- **Music.** A playlist of 26 calm tracks and 24 combat tracks, from the Space and Science
+  Fiction Music Packs (Vol 1 and 2), Sci Fi Fantasy Music and the Space Journey Music Pack, all
+  brought to the same loudness (`Tools/Audio/stage_music.sh`).
+  - It plays the calm tracks while it is quiet, and crossfades to the combat tracks while
+    fighting is going on nearby, then back. A piece with both a calm and a combat arrangement
+    carries on in step in the other one.
+  - Whichever is playing, it changes track every one to three minutes, the next fading in as
+    the last fades out. It goes through all of a list, shuffled, before it plays one again.
+  - The pause menu turns the music on or off (the rest of the sound goes on; kept for next
+    time), and its Song row skips to the next song or back to the one before (left/right, or
+    click its < or > side). Shift+N is the next song anywhere in the game.
+  - Only the tracks playing are loaded; on Windows they stream from the disk.
 
 ### The original carrier
 
@@ -1083,6 +1092,7 @@ menu (only the pause menu stops it).
 | Orbit camera / zoom | Right-drag / mouse wheel | Right stick / Back + D-pad ← → |
 | Help / text size | H / + − | Back / Back + D-pad ↑↓ |
 | Sound on/off | N | (pause menu) |
+| Next song (the music on or off, and the song before: the pause menu) | Shift+N | (pause menu) |
 | Pause menu: resume, restart, sound, co-op, the HUD, quit | Esc or P | Start |
 | Window / full screen | F11 | |
 

@@ -10,7 +10,11 @@ its HTTP API, and through the MCP server (coop_ai_mcp.py):
     talk that isn't to it is left alone
   - the API: /say reaches the players, /order is carried out (and a nonsense one refused),
     /messages has the channel (who it was to), /destinations has the places to warp to
+  - talk to it is answered with its orders while nobody listens, and left alone once a listener
+    reads the channel; a waiting /messages call answers as soon as something is said
   - the MCP server's status and say tools work against the live bot
+  - after selling ore: 'cargo' reports the hold, 'give me N credits' sends a gift the player's game
+    acknowledges, a gift with no receipt comes back to the bot, and it won't give more than it has
   - /quit closes it (the runner checks the game ends)
 
 Prints a line a check ("[AIBot] PASS ..." or "[AIBot] FAIL ...") and exits 1 if any failed.
@@ -68,6 +72,8 @@ class Player:
         self.ws = ws
         self.my_id = 0
         self.heard = []          # (who, text) of each chat message from someone else
+        self.gifts = []          # credits received
+        self.receipts = True     # answer a gift with a receipt, as a game does
 
     async def run(self):
         last_ping = 0.0
@@ -80,6 +86,11 @@ class Player:
                 elif m.get("t") == "chat":
                     self.heard.append((m.get("from"), m.get("text", "")))
                     log(f"heard #{m.get('from')}: {m.get('text', '')}")
+                elif m.get("t") == "gift":
+                    self.gifts.append(m.get("a", 0))
+                    log(f"gift of {m.get('a')} cr from #{m.get('from')}{'' if self.receipts else ' (no receipt sent)'}")
+                    if self.receipts:
+                        await self.ws.send(json.dumps({"t": "giftok", "to": m.get("from"), "a": m.get("a"), "gid": m.get("gid")}))
             except asyncio.TimeoutError:
                 pass
             if time.monotonic() - last_ping > 2.0:
@@ -191,6 +202,26 @@ async def main():
             check(len(d) > 0 and all("name" in x and "km" in x for x in d), "/destinations lists the places to warp to",
                   ", ".join(x["name"] for x in d[:5]))
 
+            # talk to it: with nobody listening it gives its orders; with a listener, it leaves talk alone
+            n = len(me.heard)
+            await me.say(f"{BOT}, how's it going out there?")
+            r = await me.hear("orders only", 10, n)
+            check(r is not None, "talk to it, with nobody listening, is answered with its orders", r or "no answer")
+            last = (await api("/messages?listener=1&after=0")).get("last", 0)
+            n = len(me.heard)
+            await me.say(f"{BOT}, nice flying back there")
+            await asyncio.sleep(4)
+            answers = [t for _, t in me.heard[n:] if t.lower().startswith(BOT.lower() + ":")]
+            check(not answers, "with a listener reading, talk to it is left for the listener", "; ".join(answers))
+            t0 = time.monotonic()
+            waiter = asyncio.create_task(asyncio.to_thread(http, f"/messages?listener=1&after={last + 1}&wait=20", None, 30))
+            await asyncio.sleep(2)
+            await me.say("anyone there?")
+            got = await waiter
+            took = time.monotonic() - t0
+            check(any(m.get("text") == "anyone there?" for m in got.get("messages", [])) and took < 10,
+                  "a waiting /messages call answers when something is said", f"after {took:.1f} s")
+
             # the MCP server, against the live bot
             n = len(me.heard)
             replies = await asyncio.to_thread(mcp_session, [
@@ -233,6 +264,37 @@ async def main():
             s = await wait_status(lambda s: s.get("order", {}).get("step") in ("tofield", "scan", "approach", "cut") and not s.get("ship", {}).get("docked"), 120)
             check(s.get("order", {}).get("step") in ("tofield", "scan", "approach", "cut"), "then it goes back to mining", s.get("order", {}).get("doing", ""))
             await me.say(f"{BOT}, hold")
+
+            # the hold and its credits
+            n = len(me.heard)
+            await me.say(f"{BOT}, what's in your hold?")
+            r = await me.hear("cr aboard", 10, n)
+            cargo = await api("/cargo")
+            check(r is not None and "hold" in r and cargo.get("capacity_t", 0) > 0 and "items" in cargo,
+                  "'what's in your hold?' is answered with the cargo, and /cargo has it", f"{r}; {json.dumps(cargo)[:160]}")
+            s = await api("/status")
+            have = s.get("ship", {}).get("credits", 0)
+            n = len(me.heard)
+            await me.say(f"{BOT}, give me 100 credits")
+            r = await me.hear("transferred", 10, n)
+            await asyncio.sleep(12)          # (past the receipt's wait: a gift received stays given)
+            after = (await api("/status")).get("ship", {}).get("credits", 0)
+            check(r is not None and me.gifts == [100] and abs(have - 100 - after) < 1,
+                  "'give me 100 credits' sends them to the player, who keeps them", f"{r}; gifts {me.gifts}; {have:.0f} -> {after:.0f} cr")
+            me.receipts = False
+            n = len(me.heard)
+            await me.say(f"{BOT}, transfer 50 credits")
+            await me.hear("transferred", 10, n)
+            mid = (await api("/status")).get("ship", {}).get("credits", 0)
+            await asyncio.sleep(13)
+            back = (await api("/status")).get("ship", {}).get("credits", 0)
+            me.receipts = True
+            check(abs(after - 50 - mid) < 1 and abs(back - after) < 1, "a gift that is never received comes back to the bot",
+                  f"{after:.0f} -> {mid:.0f} -> {back:.0f} cr")
+            n = len(me.heard)
+            await me.say(f"{BOT}, give me 99999999 credits")
+            r = await me.hear("only", 10, n)
+            check(r is not None, "it won't give more credits than it has", r or "no answer")
 
             r = await api("/quit", {})
             check(r.get("ok") is True, "/quit is accepted")

@@ -1498,26 +1498,37 @@ ships`, `everyone` or `wingmen` reaches every bot. It answers each order on the 
 | `dock` | Docks at the station it is at. |
 | `mine` or `mine at <field>` | Mines asteroids: warps to the field (the one it is at, or the nearest), scans, flies to the nearest deposit and cuts it until the hold is full, then warps to the nearest market (a station or base that buys ore), docks, sells the ore and goes back for more, over and over. `start mining` and `mine asteroids` do the same. |
 | `sell` | Takes the ore aboard to the nearest market now, sells it, then goes back to mining. |
-| `status` | Reports its hull, shield, missiles, what it is doing and where it is. |
+| `cargo` | Reports what is in its hold (ore by mineral, goods, parts), how full the hold is, and its credits. `what's in your hold?`, `how full is your hold?`, `inventory` and `manifest` do the same. |
+| `give [N] credits [to <name>]` | Transfers credits from its hold to that player (whoever asked, if no name is given): all of them, half (`give half your credits`), or N (`give me 500 credits`, `transfer 2k credits to Ann`, `pay me`). The player's game adds them to the ship's hold and says so. Credits go only to human players in the same level, and come back to the wingman if the player's game doesn't confirm them within 10 s. |
+| `status` | Reports its hull, shield, missiles, hold, credits, what it is doing and where it is. |
 | `help` | Lists these orders. |
 
 It also says when it starts a fight, when the target is destroyed, when it arrives, when it sells a
 load (how much, where, and for how much), and when it can't do what it was told.
 
+A message to it that isn't an order (`Wingman, how's it going?`) is talk, and the bot leaves talk
+for whoever is listening on the channel through its API (see **Talking to the wingman** below).
+When nothing has listened for 90 s, it answers talk with its list of orders, at most once every
+30 s.
+
 **An AI at the controls.** The bot game answers a small HTTP API on this machine only
 (`127.0.0.1`, port `-botport`, 7781 by default):
 
 - `GET /status`: its ship, its order and what it is doing, what is near it, and the players.
-- `GET /messages?after=N`: the comms channel after message N, marked by who each message was to.
+- `GET /messages?after=N[&wait=S][&listener=1]`: the comms channel after message N, marked by who each
+  message was to. With `wait`, if nothing new has been said, the answer waits up to S seconds (60
+  at most) for the next message. `listener=1` tells the bot a listener is answering talk.
+- `GET /cargo`: what is in the hold, item by item, how full it is, and the credits.
 - `GET /destinations`: the places to warp to, nearest first.
 - `POST /say {"text"}`: sends a message on the channel.
-- `POST /order {"order","target"}`: gives an order.
+- `POST /order {"order","target"}`: gives an order (`give` takes the target `<N|all|half>[ to <name>]`).
 - `POST /quit`: closes the game.
 
 `Tools/CoopAI/coop_ai_mcp.py` turns that API into an MCP server over stdio. It needs no
-packages. Its tools are `status`, `read_messages`, `say`, `order`, `destinations`,
-`launch_bot` (starts the bot game headless and connects it) and `stop_bot`. Claude or any MCP
-client can then fly the wingman and talk to the players:
+packages. Its tools are `status`, `read_messages`, `wait_messages` (waits for the next message),
+`cargo`, `give_credits`, `say`, `order`, `destinations`, `launch_bot` (starts the bot game headless
+and connects it) and `stop_bot`. Claude or any MCP client can then fly the wingman and talk to
+the players:
 
 ```
 claude mcp add coop-ai -- python "<repo>/Tools/CoopAI/coop_ai_mcp.py"
@@ -1525,6 +1536,24 @@ claude mcp add coop-ai -- python "<repo>/Tools/CoopAI/coop_ai_mcp.py"
 
 The environment variables `COOP_BOT_API` and `COOP_GAME_EXE` point it at another port or
 build. See `Tools/CoopAI/README.md`.
+
+**Talking to the wingman.** Players can chat with the wingman, and Claude answers in its voice
+through Claude Code:
+
+1. The bot game's API listens on the server's `127.0.0.1` only. Tunnel it to this machine:
+   `ssh -N -L 7781:127.0.0.1:7781 root@<server>` (leave it running).
+2. Add the MCP server, which then reaches the bot through the tunnel:
+   `claude mcp add coop-ai -- python "<repo>/Tools/CoopAI/coop_ai_mcp.py"`.
+3. In a Claude Code session, run `python Tools/CoopAI/listen.py` as a background monitor. It
+   prints a line for each message addressed to the wingman (`--all` for every message), and
+   each line wakes the session. Claude reads it, checks `status` or `cargo` if the answer needs
+   facts, and answers with `say`. It can also act on what it's asked with `order` or
+   `give_credits`. While a listener is reading the channel, the bot leaves talk to it.
+4. `Tools/CoopAI/WINGMAN.md` is the voice brief: short radio lines, facts only from its
+   instruments, quiet in a fight.
+
+This works only while the session is open. A reply takes a few seconds, and every message costs
+tokens.
 
 **Tests.**
 - `Tools/Tests/test_coop_ai_mcp.py` (in the tools stage) tests the MCP server without the game:
@@ -1535,6 +1564,8 @@ build. See `Tools/CoopAI/README.md`.
   - its orders by name, the API, and the MCP server against the live bot;
   - that told to mine it mines a field, and told to sell it docks at a market, sells the ore
     and goes back to mining;
+  - that it reports its cargo, and that `give` moves its credits to the test player (with the
+    receipt) and refuses more than it has;
   - that it quits when told.
 
 ### Testing co-op

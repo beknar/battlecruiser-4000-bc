@@ -80,7 +80,53 @@ namespace CarrierGame.Tests
             Assert.That(bot.Command("help", 0), Does.Contain("follow me"));
             Assert.That(bot.Command("nice weather out here", 0), Is.Null, "talk, left for whoever reads the channel");
             Assert.That(bot.Command("holdup", 0), Is.Null, "a whole word only");
+            Assert.That(bot.Command("what's in your hold?", 0), Is.EqualTo("not ready yet"), "a cargo report, not 'hold'");
+            Assert.That(bot.Command("give me 500 credits", 2), Is.EqualTo("not ready yet"));
+            Assert.That(bot.Command("give me a hand", 2), Is.Null, "giving, but not credits: talk");
             Assert.That(bot.Orders, Is.Zero);
+        }
+
+        [TestCase("give me 500 credits", "500")]
+        [TestCase("Give me 1,500 cr.", "1500")]
+        [TestCase("transfer 2k credits to Ann", "2000 to Ann")]
+        [TestCase("send your credits to Bob the Bold", "all to Bob the Bold")]
+        [TestCase("transfer credits", "all")]
+        [TestCase("give me half your credits", "half")]
+        [TestCase("pay me", "all")]
+        [TestCase("please pay me 300", "300")]
+        [TestCase("hand over the money to me", "all")]
+        [TestCase("give us 12.9 credits", "12")]
+        public void CreditOrdersAreRead(string said, string args)
+        {
+            Assert.That(CoopBot.GiveArgs(said), Is.EqualTo(args));
+        }
+
+        [TestCase("give me a hand")]
+        [TestCase("send help")]
+        [TestCase("transfer the ore")]
+        [TestCase("credits please")]
+        [TestCase("")]
+        [TestCase(null)]
+        public void OtherThingsAreNotCreditOrders(string said)
+        {
+            Assert.That(CoopBot.GiveArgs(said), Is.Null);
+        }
+
+        [Test]
+        public void TheCargoLineSaysHowFullAndWhatIsAboard()
+        {
+            var go = new GameObject("hold");
+            made.Add(go);
+            var hold = go.AddComponent<CargoHold>();
+            hold.capacity = 600f;
+            Assert.That(CoopBot.CargoLine(hold), Is.EqualTo("hold 0 of 600 t (0% full), empty; 0 cr aboard.").Or.Contain("empty"));
+            hold.Add(Mineral.Iron, 120f);
+            hold.Earn(918f);
+            string line = CoopBot.CargoLine(hold);
+            Assert.That(line, Does.StartWith("hold 120 of 600 t ("));
+            Assert.That(line, Does.Contain("120 t "));
+            Assert.That(line, Does.Contain("918 cr aboard"));
+            Assert.That(CoopBot.CargoLine(null), Is.EqualTo("no cargo hold."));
         }
 
         [Test]

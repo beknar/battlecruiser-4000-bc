@@ -35,6 +35,8 @@ namespace CarrierGame
         public const string Shot = "shot", Missile = "msl", Beam = "beam";
         // a message on the comms channel, to everyone in the room (CoopChat): {text}
         public const string Chat = "chat";
+        // credits handed to one player by an AI wingman: {to, a, gid}; and the receipt back: {to, a, gid}
+        public const string Gift = "gift", GiftReceipt = "giftok";
 
         // how a game message is routed: to one player, to the room's host, or (neither) to
         // everyone else in the room; the server adds who it came from

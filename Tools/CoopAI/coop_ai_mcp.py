@@ -8,6 +8,9 @@ server turns that API into MCP tools, over stdio:
 
     status          the bot's ship, its orders, what is near, who is playing
     read_messages   the comms channel since the last read (players' messages, the bot's own)
+    wait_messages   the same, but waiting (up to a minute) for a new message if there is none yet
+    cargo           what is in the bot's hold, how full it is, and its credits
+    give_credits    hand the bot's credits to a player (their game adds them to their hold)
     say             send a message on the comms channel (every player in its level sees it)
     order           give the pilot an order: follow <player>, hold, attack [target], goto <place>,
                     regroup, dock, mine [field], sell
@@ -16,8 +19,9 @@ server turns that API into MCP tools, over stdio:
     stop_bot        close the bot game started here
 
 Players talk to the bot in the game: a message starting with its name ("Wingman, follow me",
-"@Wingman attack") is an order it carries out by itself; anything else is just read, by whoever
-is reading the channel through this server.
+"@Wingman attack") is an order it carries out by itself; anything else is left for whoever is
+reading the channel through this server (read_messages and wait_messages tell the bot a listener
+is there; with nobody listening for 90 s, it answers talk with its list of orders instead).
 
 No packages are needed (Python 3.8+). Add it to Claude Code with:
 
@@ -41,6 +45,7 @@ GAME = os.environ.get("COOP_GAME_EXE", os.path.normpath(os.path.join(HERE, "..",
                                                                      "StarSystem.exe" if os.name == "nt" else "StarSystem")))
 PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"]
 ORDERS = ["follow", "hold", "attack", "goto", "regroup", "dock", "mine", "sell"]
+WAIT_MAX = 55
 
 bot_process = None
 cursor = 0
@@ -76,10 +81,37 @@ def t_status(_):
 def t_read_messages(args):
     global cursor
     after = args.get("after")
-    r = call("/messages?after=" + str(cursor if after is None else int(after)))
+    r = call("/messages?listener=1&after=" + str(cursor if after is None else int(after)))
     if isinstance(r, dict) and "last" in r:
         cursor = max(cursor, int(r["last"]))
     return r
+
+
+def t_wait_messages(args):
+    global cursor
+    wait = max(1, min(WAIT_MAX, int(args.get("timeout", 25) or 25)))
+    r = call(f"/messages?listener=1&after={cursor}&wait={wait}", timeout=wait + 10)
+    if isinstance(r, dict) and "last" in r:
+        cursor = max(cursor, int(r["last"]))
+    return r
+
+
+def t_cargo(_):
+    return call("/cargo")
+
+
+def t_give_credits(args):
+    amount = str(args.get("amount", "all") if args.get("amount") is not None else "all").strip().lower()
+    if amount not in ("all", "half"):
+        try:
+            n = float(amount)
+        except ValueError:
+            raise ValueError(f"amount must be a number, 'all' or 'half', not '{amount}'")
+        if n < 1:
+            raise ValueError("give at least 1 credit")
+        amount = str(int(n))
+    to = str(args.get("to", "") or "").strip()
+    return call("/order", {"order": "give", "target": f"{amount} to {to}" if to else amount})
 
 
 def t_say(args):
@@ -151,6 +183,16 @@ TOOLS = [
                       "and the bot's own. A message addressed to the bot by name is marked to_me; the bot carries "
                       "out simple orders in those by itself and says so.",
      {"after": {"type": "integer", "description": "read from after this message number instead"}}, [], t_read_messages),
+    ("wait_messages", "Like read_messages, but if nothing new has been said, waits up to 'timeout' seconds for "
+                      "the next message before answering. Use it to listen for players talking to the wingman.",
+     {"timeout": {"type": "integer", "description": f"seconds to wait, 1 to {WAIT_MAX} (default 25)"}}, [], t_wait_messages),
+    ("cargo", "What is in the bot's hold: each item (ore by mineral, refined goods, parts) with its amount, the tonnes "
+              "used of the hold's capacity, how full it is, and the credits it has. 'line' is the same as one sentence.",
+     {}, [], t_cargo),
+    ("give_credits", "Hand the bot's credits to a player: their game adds them to their ship's hold. With no 'to', the "
+                     "last player to speak (or the nearest). The bot can't give more than it has.",
+     {"amount": {"type": "string", "description": "a number of credits, 'all' (the default) or 'half'"},
+      "to": {"type": "string", "description": "the player's name (or part of it)"}}, [], t_give_credits),
     ("say", "Send a message on the co-op comms channel, as the bot. Every player in its level sees it.",
      {"text": {"type": "string", "description": "the message (240 characters at most)"}}, ["text"], t_say),
     ("order", "Order the bot's pilot. follow [player name] (no name: the last player to speak): fly in formation, "
@@ -199,8 +241,11 @@ def handle(msg):
                             "capabilities": {"tools": {}},
                             "serverInfo": {"name": "coop-ai", "version": "1.0"},
                             "instructions": "You are flying a ship in a co-op space game, as the players' wingman. "
-                                            "Read the comms channel (read_messages) often and answer players with say; "
-                                            "carry out what they ask with order. Check status before acting."})
+                                            "Listen on the comms channel (wait_messages, or read_messages) and answer players "
+                                            "with say, in short radio lines (240 characters at most). Orders addressed to the "
+                                            "bot by name are carried out by it already; answer the talk. Carry out what they ask "
+                                            "with order or give_credits; facts come from status and cargo, never made up. "
+                                            "Tools/CoopAI/WINGMAN.md has the voice."})
     if method == "ping":
         return result(id_, {})
     if method == "tools/list":

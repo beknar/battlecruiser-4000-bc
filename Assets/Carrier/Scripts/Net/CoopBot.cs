@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using UnityEngine;
 
@@ -50,6 +51,13 @@ namespace CarrierGame.Demo
         Thread listener;
         readonly ConcurrentQueue<(HttpListenerContext ctx, string body)> requests = new ConcurrentQueue<(HttpListenerContext, string)>();
         int lastSpeaker;
+        // when something last read the channel as a listener (a person, or Claude through the MCP
+        // server): talk that isn't an order is left for it to answer
+        float listenerSeen = -1000f, toldOrdersOnly = -1000f;
+        /// <summary>Something is reading the channel to answer talk (it read it in the last 90 s).</summary>
+        public bool Listened => Time.realtimeSinceStartup - listenerSeen < 90f;
+        // /messages calls waiting for a new message (long polls): answered when one comes, or at their deadline
+        readonly List<(HttpListenerContext ctx, int after, float until)> waiting = new List<(HttpListenerContext, int, float)>();
         // (the leader, kept when the level restarts and the pilot with it)
         int lastLeader;
         bool greeted;
@@ -113,7 +121,7 @@ namespace CarrierGame.Demo
                 greeted = true;
                 var human = Humans().FirstOrDefault();
                 if (human != null) { Pilot.Follow(human.id); lastLeader = lastSpeaker = human.id; }
-                CoopChat.Say($"{Me} on station{(human != null ? $", forming up on {human.name}" : "")}. Orders by name: \"{Me}, follow me / hold / attack / warp to <place> / dock / mine / sell / status\".");
+                CoopChat.Say($"{Me} on station{(human != null ? $", forming up on {human.name}" : "")}. Orders by name: \"{Me}, follow me / hold / attack / warp to <place> / dock / mine / sell / cargo / give credits / status\".");
             }
             if (!CoopClient.Active) greeted = false;
             // says what it starts doing, when it's worth saying
@@ -133,6 +141,14 @@ namespace CarrierGame.Demo
             }
             wasFighting = fighting;
             while (requests.TryDequeue(out var r)) Serve(r.ctx, r.body);
+            CoopGifts.Tick();
+            for (int i = waiting.Count - 1; i >= 0; i--)
+            {
+                var (ctx, after, until) = waiting[i];
+                if (CoopChat.LastSeq <= after && Time.realtimeSinceStartup < until) continue;
+                waiting.RemoveAt(i);
+                Respond(ctx, 200, MessagesJson(after));
+            }
         }
 
         IEnumerable<CoopPlayer> Humans()
@@ -163,6 +179,13 @@ namespace CarrierGame.Demo
             if (rest == null) return;
             string reply = Command(rest, line.from);
             if (!string.IsNullOrEmpty(reply)) CoopChat.Say($"{Me}: {reply}");
+            // talk, not an order: whoever is listening answers it; with nobody listening, say so
+            // (not more than once in half a minute)
+            else if (!Listened && Time.realtimeSinceStartup - toldOrdersOnly > 30f)
+            {
+                toldOrdersOnly = Time.realtimeSinceStartup;
+                CoopChat.Say($"{Me}: nobody on comms here, orders only: follow, hold, attack, warp to, dock, mine, sell, cargo, give credits, status.");
+            }
         }
 
         /// <summary>What follows the bot's name (or "@name", "all ships", "everyone", "wingmen") at
@@ -185,7 +208,7 @@ namespace CarrierGame.Demo
         /// <summary>Carry out an order in words; the answer to give (null: talk, not an order).</summary>
         public string Command(string words, int fromId)
         {
-            string w = (words ?? "").Trim();
+            string w = (words ?? "").Trim().TrimEnd('?', '!', '.').TrimEnd();
             string lw = w.ToLowerInvariant();
             string Arg(params string[] verbs)
             {
@@ -196,6 +219,12 @@ namespace CarrierGame.Demo
             string a;
             if ((a = Arg("follow", "escort", "form up on", "form on")) != null) return Order("follow", a.Length == 0 || a.ToLowerInvariant() == "me" ? "" : a, fromId);
             if (Arg("regroup", "form up", "come here", "return", "rtb") != null) return Order("follow", "", fromId);
+            // (before "hold": "hold report", "what's in your hold")
+            if (Arg("cargo", "manifest", "inventory", "hold report", "report hold", "hold status", "what's in your hold", "whats in your hold",
+                    "what is in your hold", "what's in the hold", "what is in the hold", "how full is your hold", "how full is the hold",
+                    "what are you carrying", "what have you got", "check your hold", "check the hold") != null)
+                return Order("cargo", "", fromId);
+            if ((a = GiveArgs(w.TrimEnd('?', '.', '!'))) != null) return Order("give", a, fromId);
             if (Arg("hold", "stop", "wait", "stay") != null) return Order("hold", "", fromId);
             if ((a = Arg("attack", "engage", "fire on", "kill")) != null) return Order("attack", a.StartsWith("the ", StringComparison.OrdinalIgnoreCase) ? a.Substring(4) : a, fromId);
             if ((a = Arg("warp to", "go to", "goto", "jump to", "warp")) != null) return Order("goto", a, fromId);
@@ -204,8 +233,54 @@ namespace CarrierGame.Demo
                 return Order("mine", a.StartsWith("the ", StringComparison.OrdinalIgnoreCase) ? a.Substring(4) : a, fromId);
             if (Arg("sell the ore", "sell ore", "sell") != null) return Order("sell", "", fromId);
             if (Arg("status", "report", "sitrep") != null) return Report();
-            if (Arg("help", "orders") != null) return "orders: follow me / follow <name>, hold, attack [target], warp to <place>, dock, regroup, mine [at <field>], sell, status.";
+            if (Arg("help", "orders") != null) return "orders: follow me / follow <name>, hold, attack [target], warp to <place>, dock, regroup, mine [at <field>], sell, cargo, give [N] credits [to <name>], status.";
             return null;
+        }
+
+        const RegexOptions RxOpt = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant;
+        static readonly Regex GiveRx = new Regex(@"^(?:please\s+)?(?<verb>give|transfer|send|pay|hand\s+over|hand|wire)\b(?<rest>.*)$", RxOpt);
+        static readonly Regex MoneyRx = new Regex(@"\b(?:credits?|cr|money|cash|earnings|funds)\b", RxOpt);
+        static readonly Regex ToRx = new Regex(@"\bto\s+(?<to>[^,.!?]+?)\s*$", RxOpt);
+        static readonly Regex AmountRx = new Regex(@"(?<n>\d[\d,]*(?:\.\d+)?)\s*(?<k>k\b|thousand\b)?", RxOpt);
+        static readonly Regex HalfRx = new Regex(@"\bhalf\b", RxOpt);
+
+        /// <summary>An order to hand over credits ("give me 500 credits", "transfer your credits to
+        /// Ann", "pay me 2k"), as the "give" order's target: "&lt;amount&gt;[ to &lt;name&gt;]", the
+        /// amount "all" when none is given, or "half". Null if it isn't one.</summary>
+        public static string GiveArgs(string words)
+        {
+            var m = GiveRx.Match((words ?? "").Trim());
+            if (!m.Success) return null;
+            string rest = m.Groups["rest"].Value.Trim();
+            if (!m.Groups["verb"].Value.Equals("pay", StringComparison.OrdinalIgnoreCase) && !MoneyRx.IsMatch(rest)) return null;
+            string to = "";
+            var tm = ToRx.Match(rest);
+            if (tm.Success)
+            {
+                to = tm.Groups["to"].Value.Trim();
+                rest = rest.Substring(0, tm.Index).Trim();
+                if (to.Equals("me", StringComparison.OrdinalIgnoreCase) || to.Equals("us", StringComparison.OrdinalIgnoreCase)) to = "";
+            }
+            string amount = "all";
+            var nm = AmountRx.Match(rest);
+            if (nm.Success && double.TryParse(nm.Groups["n"].Value.Replace(",", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out double n))
+                amount = Math.Floor(nm.Groups["k"].Success ? n * 1000.0 : n).ToString(CultureInfo.InvariantCulture);
+            else if (HalfRx.IsMatch(rest)) amount = "half";
+            return to.Length > 0 ? $"{amount} to {to}" : amount;
+        }
+
+        /// <summary>What a hold has aboard, in a line: how full, the cargo (largest first), the credits.</summary>
+        public static string CargoLine(CargoHold hold, int most = 5)
+        {
+            if (hold == null) return "no cargo hold.";
+            var table = IndustryTable.Get();
+            var items = hold.Contents().Where(e => e.amount > 0.005f).ToList();
+            var parts = new List<string>();
+            foreach (var e in items.Take(most))
+                parts.Add(table.Kind(e.id) == ItemKind.Part ? $"{e.amount:F0} x {table.Name(e.id)}" : $"{e.amount:F0} t {table.Name(e.id)}");
+            if (items.Count > most) parts.Add($"{items.Count - most} more");
+            string what = parts.Count > 0 ? ": " + string.Join(", ", parts) : ", empty";
+            return $"hold {hold.Used:F0} of {hold.capacity:F0} t ({hold.Fraction:P0} full){what}; {hold.Credits:N0} cr aboard.";
         }
 
         /// <summary>Give the pilot an order (from the comms or the API); the answer. `fromId`: who
@@ -295,6 +370,44 @@ namespace CarrierGame.Demo
                     Orders++;
                     return $"taking {hold.OreTonnes:F0} t of ore to the nearest market.";
                 }
+                case "cargo":
+                    return CargoLine(cc.GetComponentInChildren<CargoHold>());
+                case "give":
+                {
+                    var hold = cc.GetComponentInChildren<CargoHold>();
+                    if (hold == null || hold.Credits < 1f) return "I've no credits to give.";
+                    var c = CoopClient.Instance;
+                    if (c == null || !CoopClient.Active) return "not connected to anyone to give credits to.";
+                    // "<amount>[ to <name>]": all, half or a number
+                    string amountWord = target, name = "";
+                    int at = target.IndexOf(" to ", StringComparison.OrdinalIgnoreCase);
+                    if (at >= 0) { amountWord = target.Substring(0, at).Trim(); name = target.Substring(at + 4).Trim(); }
+                    else if (target.StartsWith("to ", StringComparison.OrdinalIgnoreCase)) { amountWord = ""; name = target.Substring(3).Trim(); }
+                    CoopPlayer who;
+                    if (name.Length > 0 && !name.Equals("me", StringComparison.OrdinalIgnoreCase))
+                    {
+                        who = c.Players.FirstOrDefault(p => p != null && p.id != c.MyId && p.name.ToLowerInvariant().Contains(name.ToLowerInvariant()));
+                        if (who == null) return $"there's no player called {name}.";
+                    }
+                    else who = c.Players.FirstOrDefault(p => p != null && p.id != c.MyId && !IsBot(p) && p.id == (fromId != 0 ? fromId : lastSpeaker))
+                               ?? NearestHuman(cc.transform.position);
+                    if (who == null) return "there's nobody to give credits to.";
+                    if (IsBot(who)) return $"{who.name} is a bot: credits go to players.";
+                    var mine = c.Players.FirstOrDefault(p => p != null && p.id == c.MyId);
+                    if (mine != null && who.level != mine.level) return $"{who.name} isn't in this part of space: credits go to players here.";
+                    float amount;
+                    string aw = amountWord.ToLowerInvariant();
+                    if (aw == "" || aw == "all" || aw == "everything") amount = hold.Credits;
+                    else if (aw == "half") amount = hold.Credits / 2f;
+                    else if (!float.TryParse(aw.Replace(",", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out amount) || !(amount >= 1f))
+                        return "how many credits? (\"give 500 credits\", or \"give all credits\")";
+                    amount = Mathf.Floor(amount);
+                    if (amount < 1f) return "I've not a whole credit to give.";
+                    if (amount > hold.Credits + 1e-3f) return $"I've only {hold.Credits:N0} cr.";
+                    if (!CoopGifts.Give(hold, who.id, amount)) return "couldn't send the credits.";
+                    Orders++;
+                    return $"transferred {amount:N0} cr to {who.name}; {hold.Credits:N0} cr left.";
+                }
                 default:
                     return $"don't understand '{order}'.";
             }
@@ -335,8 +448,10 @@ namespace CarrierGame.Demo
             var sh = cc.GetComponentInChildren<Shield>();
             var near = WarpPoint.Nearest(cc.transform.position);
             string missiles = cc.missiles == null ? "" : cc.missiles.Stock < 0 ? ", missiles ready" : $", {cc.missiles.Stock} missiles";
+            var hold = cc.GetComponentInChildren<CargoHold>();
+            string cargo = hold != null ? $", hold {hold.Used:F0}/{hold.capacity:F0} t, {hold.Credits:N0} cr" : "";
             return $"{cc.shipClass} {cc.shipName}, hull {Fraction(cc.GetComponent<Health>()):P0}, shield {(sh != null ? sh.Strength / Mathf.Max(1f, sh.capacity) : 0f):P0}" +
-                   $"{missiles}; {Pilot.Doing}{(near != null ? $", near {near.displayName}" : "")}.";
+                   $"{missiles}{cargo}; {Pilot.Doing}{(near != null ? $", near {near.displayName}" : "")}.";
         }
 
         // ------------------------------------------------------------ the API
@@ -409,9 +524,23 @@ namespace CarrierGame.Demo
                 {
                     case "/status" when !post: json = StatusJson(); break;
                     case "/messages" when !post:
+                    {
                         int.TryParse(ctx.Request.QueryString["after"], out int after);
+                        // (listener=1: the reader answers talk; wait=N: hold the answer up to N s for a new message)
+                        bool listening = ctx.Request.QueryString["listener"] == "1";
+                        if (listening) listenerSeen = Time.realtimeSinceStartup;
+                        float.TryParse(ctx.Request.QueryString["wait"], NumberStyles.Float, CultureInfo.InvariantCulture, out float wait);
+                        if (wait > 0f && CoopChat.LastSeq <= after && waiting.Count < 16)
+                        {
+                            float until = Time.realtimeSinceStartup + Mathf.Min(wait, 60f);
+                            if (listening) listenerSeen = until;
+                            waiting.Add((ctx, after, until));
+                            return;
+                        }
                         json = MessagesJson(after);
                         break;
+                    }
+                    case "/cargo" when !post: json = CargoJson(); break;
                     case "/destinations" when !post: json = DestinationsJson(); break;
                     case "/say" when post:
                     {
@@ -435,6 +564,7 @@ namespace CarrierGame.Demo
                         Invoke(nameof(Quit), 0.5f);
                         break;
                     case "/status":
+                    case "/cargo":
                     case "/messages":
                     case "/destinations":
                     case "/say":
@@ -447,6 +577,11 @@ namespace CarrierGame.Demo
                 }
             }
             catch (Exception e) { code = 500; json = "{\"error\":" + Q(e.Message) + "}"; }
+            Respond(ctx, code, json);
+        }
+
+        static void Respond(HttpListenerContext ctx, int code, string json)
+        {
             try
             {
                 var bytes = Encoding.UTF8.GetBytes(json);
@@ -570,6 +705,25 @@ namespace CarrierGame.Demo
                 sb.Append($"{{\"seq\":{l.seq},\"from\":{Q(l.name)},\"mine\":{B(mine)},\"to_me\":{B(toMe)},\"text\":{Q(l.text)}}}");
             }
             return sb.Append("]}").ToString();
+        }
+
+        string CargoJson()
+        {
+            var cc = Pilot != null && Pilot.demo != null ? Pilot.demo.carrier : null;
+            var hold = cc != null ? cc.GetComponentInChildren<CargoHold>() : null;
+            if (hold == null) return "{\"error\":\"no ship or no hold yet\"}";
+            var table = IndustryTable.Get();
+            var sb = new StringBuilder($"{{\"capacity_t\":{F(hold.capacity)},\"used_t\":{F(hold.Used)},\"free_t\":{F(hold.Free)},\"full\":{F(hold.Fraction)},\"ore_t\":{F(hold.OreTonnes)},\"credits\":{F(hold.Credits)},\"items\":[");
+            bool first = true;
+            foreach (var e in hold.Contents())
+            {
+                if (e.amount <= 0.005f) continue;
+                if (!first) sb.Append(',');
+                first = false;
+                var kind = table.Kind(e.id);
+                sb.Append($"{{\"id\":{Q(e.id)},\"name\":{Q(table.Name(e.id))},\"kind\":{Q(kind.ToString().ToLowerInvariant())},\"amount\":{F(e.amount)},\"unit\":{Q(kind == ItemKind.Part ? "parts" : "t")}}}");
+            }
+            return sb.Append($"],\"line\":{Q(CargoLine(hold))}}}").ToString();
         }
 
         string DestinationsJson()

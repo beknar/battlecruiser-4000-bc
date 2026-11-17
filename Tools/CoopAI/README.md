@@ -27,6 +27,9 @@ Two environment variables change where it looks. Add them with `-e NAME=value` b
 | `launch_bot` | Starts the bot game (headless by default) and connects it to a server (`server` is `host:port`, default `127.0.0.1:7777`), with a `name`, a `ship` class and the `apikey` the server issued for it (`CoopServer --new-key Wingman --ai`; default `COOP_KEY` from the MCP server's environment). Give it 20 to 60 s to load. |
 | `status` | The ship: hull, shield, crew, missiles, speed, warp, docked or landed. Also the pilot's order and what it is doing, what is near it (enemies first), and the players. |
 | `read_messages` | The comms channel since the last read (or since `after`). Messages addressed to the bot are marked `to_me`. |
+| `wait_messages` | The same, but if nothing new has been said, it waits up to `timeout` seconds (55 at most) for the next message. |
+| `cargo` | The hold: each item and its amount, tonnes used of the capacity, how full it is, and the credits. |
+| `give_credits` | Transfers credits from the bot's hold to a player (`amount`: a number, `all` or `half`; `to`: a name, or the last player to speak). |
 | `say` | Sends a message to every player in the bot's level. |
 | `order` | `follow [player]`, `hold`, `attack [target]`, `goto <place>`, `regroup` (the nearest player), `dock`, `mine [field]` (mine asteroids and sell the ore whenever the hold is full) or `sell` (the ore aboard, now). |
 | `destinations` | The places to warp to, nearest first. |
@@ -36,7 +39,18 @@ Players can also order the bot themselves. A message that starts with its name, 
 `Wingman, follow me` or `@Wingman attack the corsair`, is an order it carries out and answers
 by itself. Any other message is left for whoever reads the channel through this server. For
 example, an assistant connected here can answer questions, or turn "can you cover the station
-while I mine?" into `order goto`.
+while I mine?" into `order goto`. Reading with `read_messages` or `wait_messages` tells the bot
+that a listener is there. When nothing has read for 90 s, the bot answers talk with its list of
+orders instead.
+
+## Talking to the wingman from Claude Code
+
+1. If the bot runs on a server, tunnel its API here: `ssh -N -L 7781:127.0.0.1:7781 root@<server>`.
+2. `claude mcp add coop-ai -- python "<repo>/Tools/CoopAI/coop_ai_mcp.py"`.
+3. Run `python Tools/CoopAI/listen.py` as a background monitor in the session. It prints one
+   line per message addressed to the wingman (`--all`: every player message), which wakes the
+   session to answer with `say`.
+4. `WINGMAN.md` is the voice to answer in.
 
 ## Without MCP
 

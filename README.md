@@ -110,6 +110,30 @@ scenes cut through black.
   bow beam destroys a gun and a platform. Then the colony on Selene, and Cinder Fortress with its
   garrison firing.
 
+### Star System: the Vrask reel
+
+A reel of the fourth round of improvements, about 4 minutes, with a caption on each scene and cuts
+through black between them. It opens with a docking at Hollow Rock flown in by the docking
+computer (auto-travel, then K, with no fade) and the fleet's Halberd steering round its leader in
+a hard turn. Then the Vrask at Comet Mirren:
+- each of their four ships close up;
+- J aiming the guns at a Fang's engines until they are knocked out;
+- the Snares' ion fire and tractor lock;
+- the Fang's boarding pods, a breach and its clamp;
+- the Maw's artillery and a nuclear missile in space;
+- the Skinks shooting missiles down;
+- the whole group fighting as a fleet, phase by phase.
+
+It ends with a nuclear raid on Port Ochre from orbit and the ruins it leaves. Each scene has a time
+limit, so a scene that stalls is cut short and the reel still ends. To record it:
+
+```
+StarSystem.exe -reel <dir> -vrask -screen-fullscreen 0 -screen-width 1920 -screen-height 1080
+```
+
+The frames and `reel.wav` go into `<dir>`, with a log in `reel.txt`. Join them with ffmpeg as
+for the other reels.
+
 ## Playing the game
 
 ### A new game
@@ -2069,7 +2093,8 @@ Each part can also be run alone:
   (60 s, 76 s for the ambush or about 215 s for the star system) at 30 fps as JPG frames plus a WAV
   soundtrack, then quits. Add `-features` to `StarSystem.exe -reel <dir>` for the feature reel
   (about 310 s: mining, combat, landing and mini-warps), `-orbits` for the orbits and stations
-  reel (about 210 s), `-frigates` for the start menu and the five frigates, `-sea` for the sea
+  reel (about 210 s), `-vrask` for the Vrask reel (about 4 minutes: flown docking, ships keeping
+  clear, components, the Vrask and the siege of Port Ochre), `-frigates` for the start menu and the five frigates, `-sea` for the sea
   reel (about 200 s: each frigate comes down from orbit onto Pelagia's sea, sails in on an island
   base, dives on a torpedo base and launches out of the water), or `-all` for everything in one reel. That includes:
   - the ship's console and the captain

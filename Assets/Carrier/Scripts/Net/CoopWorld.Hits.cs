@@ -38,6 +38,9 @@ namespace CarrierGame.Demo
             // an enemy whose real self is in the host's game: my hits go there
             if (puppeting && entByHealth.TryGetValue(h, out var e))
             {
+                // (its shield, as the host has it, shows the hit here: the host takes it)
+                if (e.shields != null && e.shields.Length > 0 && e.shields[0] != null && e.shields[0].Up)
+                    e.shields[0].ShowHit(point, kind);
                 if (fromMe)
                 {
                     var np = ToNet(point);

@@ -13,11 +13,16 @@ namespace CarrierGame
         public string faction = "Hostile";
         public string weapons = "None detected";
         public string threat = "Low";
+        [Tooltip("Who it belongs to, shown beside its side (\"Vrask\"); empty for the pirates and corsairs. The side " +
+                 "itself stays `faction`: the co-op world, the CIWS and the wingmen go by \"Hostile\".")]
+        public string group = "";
         public Kind kind = Kind.Capital;
 
         public string Name => string.IsNullOrEmpty(displayName) ? gameObject.name : displayName;
         public bool IsSmallCraft => kind == Kind.Fighter || kind == Kind.Drone;
         public bool Hostile => faction == "Hostile";
+        /// <summary>Its side as the target display shows it: "Hostile", or "Hostile: Vrask".</summary>
+        public string FactionLabel => string.IsNullOrEmpty(group) ? faction : $"{faction}: {group}";
 
         /// <summary>Every ship with target info in the scene.</summary>
         public static readonly System.Collections.Generic.List<TargetInfo> All = new System.Collections.Generic.List<TargetInfo>();

@@ -158,6 +158,7 @@ namespace Carrier.EditorTools
             foreach (var path in FrigateModelPaths()) yield return path;
             foreach (var path in IndustryModelPaths()) yield return path;
             foreach (var path in SettlementModelPaths()) yield return path;
+            foreach (var path in VraskModelPaths()) yield return path;
         }
 
         static void ConfigureModels()
@@ -580,6 +581,8 @@ namespace Carrier.EditorTools
             public Missile missile;
             public CarrierTurret mainTurret;
             public GameObject enemyCruiser, enemyDrone, enemyFighter, enemyDestroyer, enemyDreadnought;
+            /// <summary>The Vrask's ships by id: Snare, Fang, Maw, Skink (CarrierBuilder.Vrask).</summary>
+            public readonly Dictionary<string, GameObject> vrask = new Dictionary<string, GameObject>();
         }
 
         static Projectile MakeBolt(string name, string mat, Vector3 size, float speed, float damage, Explosion hit)
@@ -703,6 +706,7 @@ namespace Carrier.EditorTools
                 p.explosion, 0.55f, "Hostile Fighter", "Strike fighter", "Medium", TargetInfo.Kind.Fighter, "Blaster cannons",
                 go => ArmFighter(go, p));
             MakeCapitalShips(p);
+            MakeVrask(p);          // the Vrask, the alien faction (Data/vrask.json)
             AssetDatabase.SaveAssets();
             return p;
         }

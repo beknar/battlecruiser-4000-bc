@@ -40,6 +40,16 @@ namespace CarrierGame
         [Header("Stand-off (capital ships)")]
         public float standoff = 1900f;
         public float circleSpeed = 4f;     // degrees per second round the target
+        [Tooltip("At its stand-off range it stops and holds its bow on the target instead of circling (a ship whose main " +
+                 "guns face forward: a spinal gun, a bow battery).")]
+        public bool holdFacing = false;
+
+        [Header("Escort")]
+        [Tooltip("The ship it screens: it fights within `guardLeash` of it while that ship is alive (none: it goes where it likes).")]
+        public Transform guard;
+        public float guardLeash = 2800f;
+        Transform guardOf;
+        Health guardHealth;
 
         [Header("Patrol")]
         [Tooltip("Go back into hiding when the target gets this far from the lurking place (0 = never).")]
@@ -318,6 +328,8 @@ namespace CarrierGame
                     if (!targetAlive) { desired = (lurkPoint - pos); wantSpeed = cruiseSpeed * 0.5f; break; }
                     if (style == Style.Fighter) desired = AttackRun(pos, ref wantSpeed);
                     else desired = StandOff(pos, dt, ref wantSpeed);
+                    // (holding at its range: already where it should be, not pulled back to its charge)
+                    if (!holding) Screen(pos, ref desired, ref wantSpeed);
                     break;
 
                 case State.Hide:
@@ -391,8 +403,11 @@ namespace CarrierGame
         }
 
         /// <summary>Hold the stand-off range, circling the target slowly.</summary>
+        bool holding;
+
         Vector3 StandOff(Vector3 pos, float dt, ref float wantSpeed)
         {
+            holding = false;
             Vector3 tp = target.position;
             Vector3 flat = Vector3.ProjectOnPlane(pos - tp, up);
             if (flat.sqrMagnitude < 1f) flat = Vector3.ProjectOnPlane(Vector3.forward, up);
@@ -400,11 +415,42 @@ namespace CarrierGame
             // off, further round, so it comes in at an angle with its broadside guns bearing rather
             // than nose on, where a big ship's turrets can't fire past its own bow
             float far = Mathf.Clamp01((flat.magnitude - standoff) / Mathf.Max(1f, standoff));
+            // its guns face forward: at its range (from 80 % of it out to it, in 3D, so every gun
+            // that reaches that far bears) it stops, bow on the target
+            float range3 = Vector3.Distance(pos, tp);
+            holding = holdFacing && range3 >= standoff * 0.8f && range3 <= standoff;
+            if (holding)
+            {
+                wantSpeed = 0f;
+                return tp - pos;
+            }
             Vector3 dir = Quaternion.AngleAxis(circleSpeed * 3f + far * 50f * Mathf.Sign(circleSpeed), up) * flat.normalized;
             Vector3 goal = tp + dir * standoff + up * Mathf.Clamp(Vector3.Dot(pos - tp, up), -400f, 400f);
             Vector3 to = goal - pos;
             wantSpeed = Mathf.Lerp(cruiseSpeed * 0.35f, cruiseSpeed, Mathf.Clamp01(to.magnitude / 800f));
             return to;
+        }
+
+        /// <summary>An escort keeps within its leash of the ship it screens: where it wants to go is
+        /// pulled back in to the leash, and there it turns to face the target. With the ship it
+        /// screens destroyed it fights on its own.</summary>
+        void Screen(Vector3 pos, ref Vector3 desired, ref float wantSpeed)
+        {
+            if (guard == null || guardLeash <= 0f || target == null) return;
+            if (guardOf != guard) { guardOf = guard; guardHealth = guard.GetComponent<Health>(); }
+            if (guardHealth != null && guardHealth.Dead) return;
+            Vector3 g = guard.position;
+            Vector3 off = pos + desired - g;
+            if (off.sqrMagnitude <= guardLeash * guardLeash) return;
+            Vector3 to = g + off.normalized * guardLeash - pos;
+            if (to.magnitude < 150f)
+            {
+                desired = target.position - pos;
+                wantSpeed = 0f;
+                return;
+            }
+            desired = to;
+            wantSpeed = Mathf.Lerp(cruiseSpeed * 0.35f, attackSpeed, Mathf.Clamp01(to.magnitude / 800f));
         }
     }
 }

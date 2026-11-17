@@ -73,6 +73,28 @@ namespace CarrierGame
             if (Strength > 0f) Strength = fraction * capacity;
         }
 
+        /// <summary>Co-op: as the game that owns the ship has it (how charged, up or down); hits
+        /// on it there show here through ShowHit.</summary>
+        public void NetSet(float fraction, bool up)
+        {
+            if (offline) return;
+            Strength = Mathf.Clamp01(fraction) * capacity;
+            if (up == Up) return;
+            Up = up;
+            if (!up) { flash = 1f; downUntil = float.MaxValue; }
+            else downUntil = 0f;
+            if (col) col.enabled = up;
+        }
+
+        /// <summary>A hit shown on the shield (its ripple, flash and sound), without taking any
+        /// of it: co-op shows hits on another game's ships so.</summary>
+        public void ShowHit(Vector3 point, HitKind kind)
+        {
+            if (!Up) return;
+            LastHitTime = Time.time;
+            Show(point, kind);
+        }
+
         /// <summary>Take a hit: returns the damage the shield couldn't stop (0 while it holds).</summary>
         public float Absorb(float damage, Vector3 point, HitKind kind)
         {
@@ -81,7 +103,14 @@ namespace CarrierGame
             LastHitTime = Time.time;
             float taken = Mathf.Min(damage, Strength);
             Strength -= taken;
+            Show(point, kind);
+            if (Strength <= 0f) Collapse();
+            return damage - taken;
+        }
 
+        /// <summary>How a hit looks and sounds on the shield.</summary>
+        void Show(Vector3 point, HitKind kind)
+        {
             // how the hit looks: (strength, size); a beam re-ripples its burning spot a few times a second
             Vector2 look = kind switch
             {
@@ -102,8 +131,6 @@ namespace CarrierGame
                                  kind == HitKind.Missile ? 0.75f : kind == HitKind.Projectile ? 1.25f : 1f);
                 }
             }
-            if (Strength <= 0f) Collapse();
-            return damage - taken;
         }
 
         float lastSound = -1f;

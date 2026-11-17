@@ -516,6 +516,9 @@ namespace Carrier.EditorTools
                 "A faint comet far out in the cold, its tails only beginning to grow. The dark nucleus is dirty ice: water, carbon dioxide, " +
                 "methane and ammonia, with a little deuterium.");
 
+            // the Vrask raiders, lying in wait round the comet far out (Data/vrask.json)
+            VraskRaiders(p, sys, Enemy);
+
             // stations, bases, the orbital battery, the Lagrange point installations
             var refs = new SystemRefs
             {

@@ -6,6 +6,7 @@ numbers come from the game's data and its scene builder:
 - player ships: `Assets/Carrier/Data/frigates.json` and the hardpoint files beside it
   (`frigate_*_hardpoints.json`, `destroyer_*_hardpoints.json`, `cruiser_sovereign_hardpoints.json`);
 - shipyard costs: `Assets/Carrier/Resources/Data/industry.json`;
+- the Vrask's ships: `Assets/Carrier/Data/vrask.json` (and `CarrierBuilder.Vrask.cs`);
 - enemy ships: `Assets/Carrier/Editor/CarrierBuilder.cs`, `CarrierBuilder.CapitalShips.cs`,
   `CarrierBuilder.FrigateSystems.cs`, `CarrierBuilder.StarSystem.cs` and `Scripts/PilotPresets.cs`;
 - planetary forces: `Assets/Carrier/Resources/Data/ground_units.json`.
@@ -150,8 +151,9 @@ The Sovereign needs a capacitor bank, a beam lens and fire control. `industry.js
 
 ## Enemy ships
 
-All enemies belong to the pirates and corsairs. Their hull is all there is: they carry no shields,
-so the numbers below are the whole of their toughness. In co-op they get tougher and hit harder
+The enemies in this table belong to the pirates and corsairs. Their hull is all there is: they carry
+no shields, so the numbers below are the whole of their toughness. (The Vrask, below, are shielded
+and armoured.) In co-op they get tougher and hit harder
 with each player in the level:
 
 - **Toughness:** hull grows 60 % for each player after the first.
@@ -204,6 +206,58 @@ cruiser (Asteroid Ambush the fighter too).
 - **Dreadnought, fortress.** Eight triple turrets, four-missile salvos and a heavy beam, all
   reaching 5.5 to 6 km, and 18,000 hull. It is too slow to chase anything, so a fast ship can disengage at will. A
   fleet, or the Sovereign, is the intended answer.
+
+## The Vrask
+
+An alien faction, lizard-like, who take prisoners, drain their life and capture ships. They are
+hostile like the pirates (the target display says "Hostile: Vrask"). They are the first enemies
+with **shields**, and their hulls carry **armour** plating, which stops a share of each hit that
+gets through the shield until it is worn through. Their ion bolts are twice as hard on a shield
+as their damage says and a quarter as hard on a hull; the Maw's spinal slugs go straight through
+armour. Numbers: `Assets/Carrier/Data/vrask.json`.
+
+| | Snare | Fang | Maw | Skink |
+| --- | ---: | ---: | ---: | ---: |
+| Shown as | Vrask Snare A, B | Vrask Fang | Vrask Maw | Vrask Skink A, B |
+| Class | Capture frigate | Assault frigate | Siege frigate | Escort frigate |
+| Threat (as targeted) | High | High | High | Medium |
+| Length (m) | 170 | 150 | 190 | 130 |
+| Hull | 2,600 | 2,800 | **3,000** | 2,200 |
+| Shield (recharge /s) | 1,500 (80) | 1,200 (70) | **1,800** (90) | 1,200 (90) |
+| Armour (share stopped, plating) | 32 %, 900 | 36 %, 1,100 | **40 %**, 1,400 | 30 %, 700 |
+| Cruise / attack speed | 120 / 150 | 160 / 240 | 70 / 85 | 170 / **260** |
+| Turn rate | 20 | 40 | 10 | **45** |
+| Acceleration | 30 | 60 | 12 | **70** |
+| Guns | 16 ion pods (turrets): 12 ion a bolt, every 4.5 s, 2.8 km; an ion battery of 6 tubes firing together, 12 each, every 3.5 s, 3 km, within 15° of the bow | 4 cheek guns (6 barrels): 40 a shell, every 2.4 s, 1.6 km, within 15° of the bow | spinal gun: 260 armour-piercing, every 7 s, **6.5 km**, within 4° of the bow; 3 twin dorsal turrets: 35 a shell, every 5.5 s, 5 km; 7 jaw and flank guns: 35, every 10 s, 4.5 km, within 6° | 8 point-defence guns: 3 a shot every 0.45 s, 2.4 km, swinging 130° |
+| Missiles | none | 2 every 14 s, 3.5 km | none (nuclear silos: not armed yet) | none |
+| Tactics | stops 1.8 to 2.2 km off, bow on | attack runs: in fast, breaks off at 450 m, extends 1.6 km | stops 3.6 to 4.5 km off, bow on, so all its guns bear | screens the Maw: stands off 1.5 km from the target, never more than 2.8 km from the Maw |
+| Respawn | with the spawns (below) | | | |
+
+### Where they are
+
+| Group | Ships | Where |
+| --- | --- | --- |
+| Vrask raiders | 2 Snares, 1 Fang, 1 Maw, 2 Skinks | Hidden round Comet Mirren, 2 to 3 km from it, spotting you at 4 km (a warp drops you 8.5 km out, so they spring as you close in to mine it) |
+
+They come back with the spawns like the pirates' bands: every 5 minutes, or 10 minutes after the
+place is cleared.
+
+### Roles
+
+- **Snare, disabler.** Its ion fire strips a shield fast (a pair of them, with the pods bearing,
+  can take down a frigate's in well under a minute) but does little to a hull. It holds its range
+  bow on, so a ship that closes on it fights it on its own terms. Kill it first, or keep moving.
+- **Fang, assault.** The heaviest guns at close range, in fast passes, with missiles. Its prow is
+  the best armoured part of the group after the Maw. Turrets that can track it, or a turn to meet
+  it, answer it.
+- **Maw, artillery.** Its spinal slugs reach 6.5 km and ignore armour; it is the slowest ship in
+  the system bar the dreadnought, and turns slowly to aim. Get round it, or past the Skinks to it.
+- **Skink, escort.** The fastest and most agile of them, with many light guns: a nuisance alone, a
+  screen for the Maw. It fights on its own once the Maw is destroyed.
+
+Later work gives them tractor beams and boarding (the Snare and Fang), artillery and nuclear
+missiles (the Maw), point defence against missiles and fighters and fleet tactics (the Skink and
+the group). The places on their hulls for those are in the models' hardpoint files already.
 
 ## Not ships, but they fight
 

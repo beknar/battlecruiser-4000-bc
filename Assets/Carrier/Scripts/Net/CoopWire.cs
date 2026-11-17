@@ -37,6 +37,9 @@ namespace CarrierGame
         public const string Chat = "chat";
         // credits handed to one player by an AI wingman: {to, a, gid}; and the receipt back: {to, a, gid}
         public const string Gift = "gift", GiftReceipt = "giftok";
+        // the host's tractor beams on one player's ship: {to, on, x, y, z, rf, n, held}, sent as a
+        // hold starts, changes or ends, and every half second while it lasts (CoopWorld.Tractor)
+        public const string Tractor = "tr";
 
         // how a game message is routed: to one player, to the room's host, or (neither) to
         // everyone else in the room; the server adds who it came from

@@ -219,7 +219,11 @@ namespace CarrierGame
 
         /// <summary>What a ship (by its root) is aiming its fire at: Hull for nothing in particular.</summary>
         public static ShipSystem AimOf(Transform shipRoot) =>
-            shipRoot != null && aims.TryGetValue(shipRoot, out var s) ? s : ShipSystem.Hull;
+            shipRoot == null ? UnseenAim : aims.TryGetValue(shipRoot, out var s) ? s : ShipSystem.Hull;
+
+        /// <summary>The aim of a hit from a ship this game doesn't have (co-op: the host's enemy
+        /// hitting me), set around that hit.</summary>
+        public static ShipSystem UnseenAim = ShipSystem.Hull;
 
         /// <summary>Aim a ship's (by its root) fire at a component of whatever it hits (Hull: none
         /// in particular). The player's choice (J) and an AI's.</summary>

@@ -83,6 +83,7 @@ namespace CarrierGame.Demo
             var s = Installation.ApproachableNear(carrier.transform.position, NavigationMode.Flying);
             if (s == null) return null;
             if (carrier.Destroyed) why = "the frigate is destroyed";
+            else if (carrier.Tractored) why = "held by a tractor beam";
             else if (drive != null && drive.Current != WarpDrive.State.Ready) why = "in warp";
             else if (drive != null && drive.InCombat(out string c)) why = c;
             else if (PlanetLanding.Instance != null && PlanetLanding.Instance.Autopilot) why = "the landing auto-pilot is flying her";
@@ -243,7 +244,7 @@ namespace CarrierGame.Demo
             var d = Demo;
             if (d == null) yield break;
             Approaching = true;
-            float start = Time.time, throttleSet = -1f, checkAt = Time.time + 15f;
+            float start = Time.time, throttleSet = -1f, checkAt = Time.time + 15f, logAt = Time.time + 60f;
             Vector3 checkFrom = carrier.transform.position;
             bool final = false;
             cancelWhy = null;
@@ -286,7 +287,21 @@ namespace CarrierGame.Demo
                         aim = inFront ? so : s.ApproachPoint(me);
                         float left = Vector3.Distance(me, aim) + (inFront ? 0f : Vector3.Distance(aim, so));
                         want = Mathf.Clamp(Mathf.Sqrt(2f * accel * 0.6f * Mathf.Max(0f, left - 40f)), 6f, approachSpeed);
+                        // (slow enough to turn onto it: its turning circle no wider than the way left
+                        // to the point, and easing off while the bow is well off it; at full speed
+                        // she circled the stand-off point and never settled on the way in)
+                        float toAim = Vector3.Distance(me, aim);
+                        float turnable = Mathf.Max(6f, carrier.turnRate * Mathf.Deg2Rad * toAim * 0.5f);
+                        float bowOff = ShipAutopilot.BowError(carrier, aim);
+                        want = Mathf.Min(want, turnable) * Mathf.Lerp(1f, 0.25f, Mathf.Clamp01(bowOff / 90f));
                         Phase = $"lining up, {CombatMode.Distance(Vector3.Distance(me, so))} to go";
+                        // (a long time about it: what it is doing, for the log)
+                        if (Time.time >= logAt)
+                        {
+                            logAt = Time.time + 15f;
+                            Debug.Log($"[Docking] {s.displayName}: still lining up after {Time.time - start:F0} s: {Vector3.Distance(me, so):F0} m from the stand-off point, " +
+                                      $"{along:F0} m out along the way in, {lateral:F0} m off its line, in front {inFront}, aiming {Vector3.Distance(me, aim):F0} m off, speed {carrier.Speed:F0}");
+                        }
                         // (at the stand-off point, or already in nearer than it on the berth's line)
                         if (inFront && (Vector3.Distance(me, so) < 70f || (along < standOff + 30f && lateral < Mathf.Max(60f, along * 0.3f)))) final = true;
                     }

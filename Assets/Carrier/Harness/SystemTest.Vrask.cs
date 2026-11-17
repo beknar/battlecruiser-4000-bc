@@ -16,6 +16,9 @@ namespace CarrierGame.Demo
     /// can't be destroyed, its shield made too strong to fall so every hit is counted by its kind)
     /// warps there and closes on the comet until they spring; while they fight the warp drive is
     /// locked, and each of the four fires on it, ion bolts and armour-piercing slugs among the hits.
+    /// The Snares then capture it: ion knocks out its shield generator and engines, a tractor beam
+    /// holds it and pulls it in, the warp drive is refused, and the beam lets go when its Snare
+    /// dies (SystemTest.Tractor).
     /// Then each is destroyed, coming apart with its shield down, and once the place's quiet is
     /// over they are back, whole, shields up. No screenshots.
     /// </summary>
@@ -127,6 +130,11 @@ namespace CarrierGame.Demo
             float cap0 = shieldF != null ? shieldF.capacity : 0f;
             // (the frigate's shield made too strong to fall: every hit lands on it, counted by its kind)
             if (shieldF != null) { shieldF.SetOffline(false); shieldF.SetCapacity(1e7f); }
+            // (and its components too tough to wear for now, so the shield stays up for the count:
+            // the Snares' ion goes for its generator; the capture, after, lets them)
+            var sysF = cc.GetComponent<ShipSystems>();
+            float tough0 = sysF != null ? sysF.toughness : 0.12f;
+            if (sysF != null) sysF.toughness = 1e6f;
             cc.throttle = 1f;
             until = Time.time + 120f;
             while (Time.time < until && !group.Active)
@@ -176,6 +184,11 @@ namespace CarrierGame.Demo
             Check(Hits(HitKind.Ion) > ion0 && Hits(HitKind.Penetrator) > pen0,
                   $"their hits on the frigate's shield: {Hits(HitKind.Ion) - ion0} ion, {Hits(HitKind.Penetrator) - pen0} armour-piercing, {Hits(HitKind.Cannon) - cannon0} cannon " +
                   $"(hull {health0?.Current:F0})");
+
+            // ---- the Snares' capture: ion, the tractor, no warp, let go (SystemTest.Tractor)
+            if (sysF != null) sysF.toughness = tough0;
+            yield return SnareCapture(ships, Check);
+            if (sysF != null) sysF.RepairAll();
 
             // ---- each can be destroyed: it comes apart, its shield down
             foreach (var r in roles)

@@ -51,6 +51,13 @@ namespace CarrierGame
         Transform guardOf;
         Health guardHealth;
 
+        /// <summary>A ship's own way of fighting on top of the pilot's (SnareTactics): it has the
+        /// last word on where the pilot goes while it fights.</summary>
+        public interface ITactics { void Steer(Vector3 pos, ref Vector3 desired, ref float wantSpeed); }
+        [System.NonSerialized] public ITactics tactics;
+        /// <summary>Its target is chosen for it (SnareTactics' pack): it doesn't go for the nearest.</summary>
+        [System.NonSerialized] public bool keepTarget;
+
         [Header("Patrol")]
         [Tooltip("Go back into hiding when the target gets this far from the lurking place (0 = never).")]
         public float leashDistance = 0f;
@@ -179,6 +186,7 @@ namespace CarrierGame
         /// <summary>With more than one player ship about (co-op), go for the nearest now and then.</summary>
         void Retarget()
         {
+            if (keepTarget) return;
             var nearest = PlayerShips.Retarget(target, transform.position, ref nextRetarget);
             if (nearest == target) return;
             target = nearest;
@@ -330,6 +338,7 @@ namespace CarrierGame
                     else desired = StandOff(pos, dt, ref wantSpeed);
                     // (holding at its range: already where it should be, not pulled back to its charge)
                     if (!holding) Screen(pos, ref desired, ref wantSpeed);
+                    if (tactics != null) tactics.Steer(pos, ref desired, ref wantSpeed);
                     break;
 
                 case State.Hide:
@@ -418,14 +427,15 @@ namespace CarrierGame
             // its guns face forward: at its range (from 80 % of it out to it, in 3D, so every gun
             // that reaches that far bears) it stops, bow on the target
             float range3 = Vector3.Distance(pos, tp);
-            holding = holdFacing && range3 >= standoff * 0.8f && range3 <= standoff;
+            holding = holdFacing && range3 >= standoff * 0.8f && range3 <= standoff * 1.05f;
             if (holding)
             {
                 wantSpeed = 0f;
                 return tp - pos;
             }
             Vector3 dir = Quaternion.AngleAxis(circleSpeed * 3f + far * 50f * Mathf.Sign(circleSpeed), up) * flat.normalized;
-            Vector3 goal = tp + dir * standoff + up * Mathf.Clamp(Vector3.Dot(pos - tp, up), -400f, 400f);
+            // (one that stops at its range makes for the middle of its band, not the edge of it)
+            Vector3 goal = tp + dir * (holdFacing ? standoff * 0.9f : standoff) + up * Mathf.Clamp(Vector3.Dot(pos - tp, up), -400f, 400f);
             Vector3 to = goal - pos;
             wantSpeed = Mathf.Lerp(cruiseSpeed * 0.35f, cruiseSpeed, Mathf.Clamp01(to.magnitude / 800f));
             return to;

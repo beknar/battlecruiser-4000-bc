@@ -155,10 +155,12 @@ namespace CarrierGame
         /// <summary>When the ship last took a hit, on the shield or the hull.</summary>
         float LastHitTime => Mathf.Max(health != null ? health.LastHitTime : -100f, shield != null ? shield.LastHitTime : -100f);
 
-        /// <summary>Is the ship in a fight (so the drive is locked)? Says why.</summary>
+        /// <summary>Is the ship in a fight (so the drive is locked)? Says why. Held by a tractor
+        /// beam counts (docking and landing ask this too).</summary>
         public bool InCombat(out string why)
         {
             why = "";
+            if (ship != null && ship.Tractored) { why = "held by a tractor beam"; return true; }
             if (Time.time - LastHitTime < recentHitSeconds) { why = "under fire"; return true; }
             if (CombatPilot.AnyEngagedNear(transform.position, combatRange)) { why = "hostiles nearby"; return true; }
             if (DefenseGrid.AnyEngagedNear(transform.position, combatRange, out string grid)) { why = $"in range of {grid}"; return true; }
@@ -228,6 +230,7 @@ namespace CarrierGame
                     SetEngines(0.3f + 0.7f * k);
                     fx.Charging(k, dt);
                     if (LastHitTime > chargeHitTime) { Cancel("warp interrupted: under fire"); break; }
+                    if (ship.Tractored) { Cancel("warp interrupted: held by a tractor beam"); break; }
                     if (k >= 1f) Jump();
                     break;
                 }

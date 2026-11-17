@@ -45,6 +45,7 @@ namespace CarrierGame.Demo
             public Quaternion q0 = Quaternion.identity, q1 = Quaternion.identity;
             public Shield[] shields;
             public ShipSystems sys;
+            public TractorBeam beam;
         }
 
         readonly Dictionary<string, Ent> ents = new Dictionary<string, Ent>();
@@ -84,7 +85,7 @@ namespace CarrierGame.Demo
         {
             typeof(Health), typeof(Shield), typeof(TargetInfo), typeof(ShipBreakup), typeof(MainBeam), typeof(Explosion),
             typeof(ThrusterFlare), typeof(EngineThrust), typeof(BarrelSpin), typeof(Drift), typeof(Obstacle), typeof(NetPuppet),
-            typeof(OrbitHome), typeof(Beacon),
+            typeof(OrbitHome), typeof(Beacon), typeof(TractorBeam),
         };
 
         void Awake() => Instance = this;
@@ -177,6 +178,7 @@ namespace CarrierGame.Demo
             {
                 nextEnts = Time.unscaledTime + 0.1f;
                 SendEntities();
+                SendTractors();
             }
             // players who have gone
             foreach (var id in remotes.Keys.ToArray())
@@ -227,9 +229,16 @@ namespace CarrierGame.Demo
                     if (myHealth != null && !myHealth.Dead)
                     {
                         Health.Source = null;
+                        // (aimed where the host's ship aimed it: its engines, say)
+                        ShipSystems.UnseenAim = ShipSystems.FromWire(m.cp);
                         myHealth.Damage(m.a, FromNet(m.rf, new Double3(m.x, m.y, m.z)), DamageTable.FromWire(m.kd, m.kx));
+                        ShipSystems.UnseenAim = ShipSystem.Hull;
                         HitsTaken++;
                     }
+                    break;
+                case CoopWire.Tractor:
+                    // the host's tractor beams on my ship
+                    if (!IsHost) TakeTractor(m);
                     break;
                 case CoopWire.Leave:
                     RemoveRemote(m.id);

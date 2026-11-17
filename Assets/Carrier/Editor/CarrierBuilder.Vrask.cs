@@ -232,6 +232,8 @@ namespace Carrier.EditorTools
             var vs = root.AddComponent<VraskShip>();
             vs.role = (VraskShip.Role)Enum.Parse(typeof(VraskShip.Role), s.id);
             vs.points = points;
+            // the Snare's tractor beam, at its projector, and how it fights with it
+            if (s.tractorRange > 0f) AddTractor(root, vs, s);
 
             Log($"{s.prefab}: {turrets.Count} guns ({string.Join(", ", turrets.GroupBy(t => t.projectilePrefab.name).Select(g => $"{g.Count()} x {g.Key}"))}), " +
                 $"{engines.Length} engines, {points.Length} points ({string.Join(", ", points.Select(pt => pt.kind).Distinct())}), " +
@@ -239,6 +241,28 @@ namespace Carrier.EditorTools
             fs = null;
             mhp = null;
             return SavePrefab(root, s.prefab);
+        }
+
+        /// <summary>A tractor beam (TractorBeam) from the ship's "tractor" point (its bow if it has
+        /// none), drawn as a green line while it holds a ship, and the Snare's tactics with it.</summary>
+        static void AddTractor(GameObject root, VraskShip vs, VraskShipStats s)
+        {
+            var beam = root.AddComponent<TractorBeam>();
+            var at = vs.PointOf("tractor");
+            beam.emitter = at != null ? at : root.transform;
+            beam.range = s.tractorRange;
+            var lr = Node("TractorBeam", beam.emitter).AddComponent<LineRenderer>();
+            lr.useWorldSpace = true;
+            lr.positionCount = 2;
+            lr.numCapVertices = 4;
+            lr.widthMultiplier = beam.width;
+            lr.shadowCastingMode = ShadowCastingMode.Off;
+            lr.receiveShadows = false;
+            lr.sharedMaterial = Additive("FX_VraskTractor", new Color(0.35f, 1.4f, 0.6f) * 2.5f);
+            lr.enabled = false;
+            beam.line = lr;
+            root.AddComponent<SnareTactics>();
+            Log($"{s.displayName}: tractor beam from {(at != null ? at.name : "the hull (no tractor point)")}, {s.tractorRange / 1000f:0.#} km");
         }
 
         /// <summary>A turret cut out of the model, given the Vrask gun's numbers (it fires on what

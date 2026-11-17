@@ -25,7 +25,7 @@ namespace CarrierGame.Demo
                 string id = PathOf(t);
                 string unique = id;
                 for (int n = 2; ents.ContainsKey(unique); n++) unique = $"{id}#{n}";
-                var e = new Ent { id = unique, t = t, h = t.GetComponent<Health>(), pilot = t.GetComponent<CombatPilot>(), shields = t.GetComponentsInChildren<Shield>(true), sys = t.GetComponent<ShipSystems>() };
+                var e = new Ent { id = unique, t = t, h = t.GetComponent<Health>(), pilot = t.GetComponent<CombatPilot>(), shields = t.GetComponentsInChildren<Shield>(true), sys = t.GetComponent<ShipSystems>(), beam = t.GetComponent<TractorBeam>() };
                 ents[unique] = e;
                 entByTransform[t] = e;
                 if (e.h != null) entByHealth[e.h] = e;
@@ -161,6 +161,7 @@ namespace CarrierGame.Demo
                     dead = e.h != null && e.h.Dead,
                     lurk = e.pilot != null && e.pilot.Current == CombatPilot.State.Lurk,
                     sy = ShipSystems.ToWire(e.sys),
+                    tr = TractorOf(e),
                     sf = e.shields != null && e.shields.Length > 0 && e.shields[0] != null ? 1f + e.shields[0].Fraction : 0f,
                     sd = e.shields != null && e.shields.Length > 0 && e.shields[0] != null && !e.shields[0].Up,
                 });
@@ -184,6 +185,7 @@ namespace CarrierGame.Demo
                     }
                 }
                 if (e.sys != null) e.sys.NetSet(s.sy);
+                ShowTractor(e, s.gone || s.dead ? 0 : s.tr);
                 if (s.sf > 0f && e.shields != null && e.shields.Length > 0 && e.shields[0] != null) e.shields[0].NetSet(s.sf - 1f, !s.sd);
                 if (s.gone || s.dead) continue;
                 if (e.pilot != null) e.pilot.NetLurk(s.lurk);

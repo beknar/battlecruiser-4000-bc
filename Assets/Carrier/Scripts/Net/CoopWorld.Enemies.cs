@@ -161,6 +161,8 @@ namespace CarrierGame.Demo
                     dead = e.h != null && e.h.Dead,
                     lurk = e.pilot != null && e.pilot.Current == CombatPilot.State.Lurk,
                     sy = ShipSystems.ToWire(e.sys),
+                    sf = e.shields != null && e.shields.Length > 0 && e.shields[0] != null ? 1f + e.shields[0].Fraction : 0f,
+                    sd = e.shields != null && e.shields.Length > 0 && e.shields[0] != null && !e.shields[0].Up,
                 });
             }
             Client.Send(new EntitiesMsg { ts = Client.ServerNow, e = list.ToArray() });
@@ -182,6 +184,7 @@ namespace CarrierGame.Demo
                     }
                 }
                 if (e.sys != null) e.sys.NetSet(s.sy);
+                if (s.sf > 0f && e.shields != null && e.shields.Length > 0 && e.shields[0] != null) e.shields[0].NetSet(s.sf - 1f, !s.sd);
                 if (s.gone || s.dead) continue;
                 if (e.pilot != null) e.pilot.NetLurk(s.lurk);
                 // the last two updates, to go between

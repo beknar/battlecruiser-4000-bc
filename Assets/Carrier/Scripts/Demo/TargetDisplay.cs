@@ -319,7 +319,7 @@ namespace CarrierGame.Demo
             var sb = new System.Text.StringBuilder();
             var inst = info == null && shown != null ? shown.GetComponent<Installation>() : null;
             string cls = info != null ? info.shipClass : inst != null ? inst.kind.ToString() : "Unknown";
-            string faction = info != null ? info.faction : inst != null && !inst.hostile ? "Friendly" : "Unknown";
+            string faction = info != null ? info.FactionLabel : inst != null && !inst.hostile ? "Friendly" : "Unknown";
             sb.Append($"Class  <b>{cls}</b>   ({faction})\n");
             if (health != null)
             {

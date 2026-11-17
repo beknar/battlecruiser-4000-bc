@@ -1,0 +1,78 @@
+{
+    "note": "The Vrask, an alien faction (lizard-like) that takes prisoners, drains their life and captures ships: their bolts, their four ships and the raiding group in the star system. The scene builder (CarrierBuilder.Vrask) reads this and bakes the numbers into the prefabs (Prefabs/VraskSnare, VraskFang, VraskMaw, VraskSkink) and the level: run Tools > Carrier > Build Everything after changing anything here. Models and hardpoints: Models/Lizard_FrigateN.fbx and Data/lizard_frigateN_hardpoints.json (Tools/Blender/convert_lizards.py). Speeds in m/s, turns in degrees a second, ranges and distances in metres, intervals and respawns in seconds, damage per shot. A bolt's kind is a HitKind (DamageTable: Ion is twice as hard on a shield and a quarter on the hull; Penetrator goes straight through armour). armor is the share of a hit the plating stops when whole (Armor.rating); plating is how much it can stop. A gun set's 'on' is where its guns are: 'turrets' (cut out of the model), 'guns' (fixed in the hull) or a kind of hardpoint point; cone is how far (degrees) a fixed gun's line of fire can swing.",
+    "bolts": [
+        { "name": "VraskIonBolt", "material": "FX_VraskIon", "kind": "Ion", "damage": 12, "speed": 1700, "size": [0.9, 0.9, 10], "color": [0.35, 0.6, 1.6, 5] },
+        { "name": "VraskCannonShell", "material": "FX_VraskCannon", "kind": "Cannon", "damage": 40, "speed": 1600, "size": [1.5, 1.5, 12], "color": [0.55, 1.0, 0.3, 7] },
+        { "name": "VraskSiegeShell", "material": "FX_VraskCannon", "kind": "Cannon", "damage": 35, "speed": 1700, "size": [1.4, 1.4, 12], "color": [0.55, 1.0, 0.3, 7] },
+        { "name": "VraskSpinalSlug", "material": "FX_VraskSpinal", "kind": "Penetrator", "damage": 260, "speed": 2600, "size": [2.4, 2.4, 32], "color": [1.0, 0.8, 0.35, 9] },
+        { "name": "VraskNeedle", "material": "FX_VraskNeedle", "kind": "Projectile", "damage": 3, "speed": 2100, "size": [0.4, 0.4, 7], "color": [0.75, 1.0, 0.45, 6] }
+    ],
+    "ships": [
+        {
+            "id": "Snare", "prefab": "VraskSnare", "model": "Lizard_Frigate1", "texture": "Lizard_Frigate1_BaseColor.png", "hardpoints": "lizard_frigate1_hardpoints.json",
+            "displayName": "Vrask Snare", "shipClass": "Capture frigate", "threat": "High", "weapons": "Ion battery, 16 ion pods",
+            "role": "Capture and disable: ion fire to strip shields and systems from medium range, in pairs or threes",
+            "hull": 2600, "shield": 1500, "shieldRecharge": 80, "armor": 0.32, "plating": 900, "explosion": 2.0, "respawn": 75,
+            "style": "Capital", "cruiseSpeed": 120, "attackSpeed": 150, "turnRate": 20, "acceleration": 30,
+            "standoff": 2200, "circleSpeed": 3, "holdFacing": true, "hideBelow": 0,
+            "engineColor": [0.4, 0.75, 1.0],
+            "guns": [
+                { "label": "Ion pods", "on": "turrets", "bolt": "VraskIonBolt", "interval": 4.5, "range": 2800, "yawSpeed": 35 },
+                { "label": "Ion battery", "on": "ion_muzzle", "bolt": "VraskIonBolt", "volley": true, "interval": 3.5, "range": 3000, "cone": 15, "yawSpeed": 20 }
+            ]
+        },
+        {
+            "id": "Fang", "prefab": "VraskFang", "model": "Lizard_Frigate2", "texture": "Lizard_Frigate2_BaseColor.png", "hardpoints": "lizard_frigate2_hardpoints.json",
+            "displayName": "Vrask Fang", "shipClass": "Assault frigate", "threat": "High", "weapons": "Heavy cheek guns, missile pods",
+            "role": "Assault and boarding: fast closing runs, heavy guns at short range, a reinforced prow",
+            "hull": 2800, "shield": 1200, "shieldRecharge": 70, "armor": 0.36, "plating": 1100, "explosion": 2.0, "respawn": 75,
+            "style": "Fighter", "cruiseSpeed": 160, "attackSpeed": 240, "turnRate": 40, "acceleration": 60,
+            "breakOffDistance": 450, "extendDistance": 1600, "hideBelow": 0,
+            "salvoSize": 2, "salvoInterval": 14, "missileRange": 3500,
+            "engineColor": [0.45, 1.0, 0.55],
+            "guns": [
+                { "label": "Cheek guns", "on": "guns", "bolt": "VraskCannonShell", "interval": 2.4, "range": 1600, "cone": 15, "yawSpeed": 30 }
+            ]
+        },
+        {
+            "id": "Maw", "prefab": "VraskMaw", "model": "Lizard_Frigate3", "texture": "Lizard_Frigate3_BaseColor.png", "hardpoints": "lizard_frigate3_hardpoints.json",
+            "displayName": "Vrask Maw", "shipClass": "Siege frigate", "threat": "High", "weapons": "Spinal gun (armour-piercing), 3 twin turrets, jaw and flank guns",
+            "role": "Long-range fire support and siege: holds well back and fires its spinal gun bow-on",
+            "hull": 3000, "shield": 1800, "shieldRecharge": 90, "armor": 0.40, "plating": 1400, "explosion": 2.4, "respawn": 90,
+            "style": "Capital", "cruiseSpeed": 70, "attackSpeed": 85, "turnRate": 10, "acceleration": 12,
+            "standoff": 4500, "circleSpeed": 1.5, "holdFacing": true, "hideBelow": 0,
+            "engineColor": [0.45, 1.0, 0.55],
+            "guns": [
+                { "label": "Dorsal turrets", "on": "turrets", "bolt": "VraskSiegeShell", "interval": 5.5, "range": 5000, "yawSpeed": 22 },
+                { "label": "Spinal gun", "on": "spinal_muzzle", "bolt": "VraskSpinalSlug", "interval": 7, "range": 6500, "cone": 4, "yawSpeed": 8 },
+                { "label": "Jaw and flank guns", "on": "guns", "bolt": "VraskSiegeShell", "interval": 10, "range": 4500, "cone": 6, "yawSpeed": 10 }
+            ]
+        },
+        {
+            "id": "Skink", "prefab": "VraskSkink", "model": "Lizard_Frigate4", "texture": "Lizard_Frigate4_BaseColor.png", "hardpoints": "lizard_frigate4_hardpoints.json",
+            "displayName": "Vrask Skink", "shipClass": "Escort frigate", "threat": "Medium", "weapons": "8 rapid-fire point-defence guns",
+            "role": "Interceptor and escort: screens the Maw, its many light guns firing fast",
+            "hull": 2200, "shield": 1200, "shieldRecharge": 90, "armor": 0.30, "plating": 700, "explosion": 1.8, "respawn": 60,
+            "style": "Capital", "cruiseSpeed": 170, "attackSpeed": 260, "turnRate": 45, "acceleration": 70,
+            "standoff": 1500, "circleSpeed": 6, "hideBelow": 0, "guard": "Maw", "guardLeash": 2800,
+            "engineColor": [0.45, 1.0, 0.55],
+            "guns": [
+                { "label": "PD guns", "on": "pd", "bolt": "VraskNeedle", "interval": 0.45, "range": 2400, "cone": 130, "yawSpeed": 120 }
+            ]
+        }
+    ],
+    "group": {
+        "name": "Vrask raiders",
+        "at": "Comet Mirren",
+        "note": "Vrask raiders lie in wait in its coma for the ships that come to mine it.",
+        "spotRange": 4000,
+        "slots": [
+            { "ship": "Maw", "name": "", "angle": 180, "distance": 2800, "height": 250 },
+            { "ship": "Snare", "name": "A", "angle": 35, "distance": 2100, "height": -150 },
+            { "ship": "Snare", "name": "B", "angle": -35, "distance": 2100, "height": 150 },
+            { "ship": "Fang", "name": "", "angle": 0, "distance": 2400, "height": 0 },
+            { "ship": "Skink", "name": "A", "angle": 120, "distance": 2300, "height": 300 },
+            { "ship": "Skink", "name": "B", "angle": -120, "distance": 2300, "height": -300 }
+        ]
+    }
+}

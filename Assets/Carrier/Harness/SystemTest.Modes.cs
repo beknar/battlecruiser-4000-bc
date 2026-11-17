@@ -70,7 +70,8 @@ namespace CarrierGame.Demo
                 Check(MusicDirector.Cycles > cycles1 && song2 != song1, "Shift+N: the next song");
                 MusicDirector.Previous();
                 yield return new WaitForSeconds(1f);
-                Check(MusicDirector.NowPlaying == song1, $"and the one before again ('{MusicDirector.NowPlaying}')");
+                Log($"  back to '{MusicDirector.NowPlaying}'");
+                Check(MusicDirector.NowPlaying == song1, "and the one before again");
                 // off: silent, the rest of the sound going on; on again
                 MusicDirector.Toggle();
                 yield return new WaitForSeconds(2f);
@@ -78,7 +79,7 @@ namespace CarrierGame.Demo
                 MusicDirector.Toggle();
                 yield return new WaitForSeconds(2.5f);
                 bool musicBack = MusicDirector.Playing && MusicDirector.Volume > 0.05f && MusicDirector.On;
-                Check(silent && musicBack, $"the music turns off (silent {silent}, the sound still on) and on again ({musicBack}, '{MusicDirector.NowPlaying}')");
+                Check(silent && musicBack, $"the music turns off (silent {silent}, the sound still on) and on again ({musicBack})");
                 music.cycleFade = fade0;
             }
             else Log("  (no music here: the music check is skipped)");

@@ -78,6 +78,8 @@ namespace CarrierGame.Demo
             t.servicesOnly = LaunchArgs.Switch("servicestest");
             // -fleettest (or ?fleettest): only the fleet (joining, towing, orders, warping together)
             t.fleetOnly = LaunchArgs.Switch("fleettest");
+            // -vrasktest (or ?vrasktest): only the Vrask (their four ships, the raiders at Comet Mirren)
+            t.vraskOnly = LaunchArgs.Switch("vrasktest");
             // -cooptest (or ?cooptest), with -connect address:port (?server=...&connect): co-op with
             // the scripted second player (Tools/CoopTest/bot.py); -coopquick (?coopquick) skips the
             // part at Corsair Haven
@@ -175,6 +177,13 @@ namespace CarrierGame.Demo
             if (coopOnly)
             {
                 yield return CoopTest(kb, coopQuick);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
+            if (vraskOnly)
+            {
+                yield return VraskTest(kb);
                 Log("done");
                 if (!web) Application.Quit();
                 yield break;

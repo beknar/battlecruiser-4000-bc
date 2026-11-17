@@ -171,13 +171,16 @@ namespace CarrierGame.Demo
             string es = null;
             yield return BotSays("es=", 10f, v => es = v);
             int.TryParse(es ?? "-1", out int esN);
-            float before = th != null ? th.Current : 0f;
+            // (the hull and any shield: a Vrask ship's shield takes the first hits)
+            var tsh = th != null ? th.GetComponentInChildren<Shield>() : null;
+            float Toughness() => (th != null ? th.Current : 0f) + (tsh != null && tsh.Up ? tsh.Strength : 0f);
+            float before = Toughness();
             int applied0 = world.HitsAppliedForOthers;
             Note($"hit|target={target}");
             until = Time.realtimeSinceStartup + 8f;
             while (world.HitsAppliedForOthers - applied0 < 3 && Time.realtimeSinceStartup < until) yield return null;
-            float after = th != null ? th.Current : 0f;
-            Log($"  the bot back as a guest: it got {esN} enemies from this game; its hits applied {world.HitsAppliedForOthers - applied0} ('{target}' hull {before:F0} -> {after:F0})");
+            float after = Toughness();
+            Log($"  the bot back as a guest: it got {esN} enemies from this game; its hits applied {world.HitsAppliedForOthers - applied0} ('{target}' hull and shield {before:F0} -> {after:F0})");
             results.Add(("as host, the enemies go to the guests", esN == world.Entities));
             results.Add(("a guest's hits land on the real enemy", world.HitsAppliedForOthers - applied0 >= 3 && after < before));
 

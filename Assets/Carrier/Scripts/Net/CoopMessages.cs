@@ -30,6 +30,8 @@ namespace CarrierGame.Demo
         public float hu;          // hull, 0 to 1
         public bool dead, gone, lurk;
         public int sy;            // its components (ShipSystems.ToWire; 0, from an older game: whole)
+        public float sf;          // its shield: 1 + how charged (0: none, or not sent)
+        public bool sd;           // its shield down
     }
 
     /// <summary>Anything that arrives.</summary>

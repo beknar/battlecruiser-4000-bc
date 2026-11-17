@@ -1,0 +1,157 @@
+{
+    "note": "What convert_lizards.py needs to know about the four lizardman (enemy) frigates, ai models/lizardman-frigate1..4.glb, kept in their own paint. Each is aligned from the raw GLB (align: align_glb.py's turn/long3d steps plus the yaw/roll found by align_grid.py --sym), then all positions are in the aligned frame: bow at -X, +Z up, keel on z = 0, 1 unit long, centred in X and Y (the frame of work/lfN.glb, which align_grid.py writes with the same steps). Boxes are [x0, x1, y0, y1, z0, z1]; +Y is starboard. Turrets, engines, ciws, extra_mounts and missile_cells as in Tools/Blender/frigates_spec.json; guns are fixed guns left in the hull (pos = mount, muzzles), points are role-specific points (kind, pos, dir, size = radius). Read off align_grid.py / zoom.py renders, islands_render.py and probe.py ray hits.",
+    "ships": [
+        {
+            "id": "Frigate1",
+            "prefix": "Lizard",
+            "faction": "lizard",
+            "role": "capture / ion-tractor ship",
+            "source": "lizardman-frigate1.glb",
+            "align": {"turn": "pca", "long3d": true, "sym_yaw": -0.1, "sym_roll": -0.1},
+            "length": 170,
+            "notes": "Fish/whale-shaped hull: a blunt head with a jaw holding six forward tubes (ion cannons), a tail with a vertical fin and curved ventral fins, two glowing blue half-cylinder shells over a transverse tunnel amidships, and sixteen egg-shaped gun pods with blue lenses (loose parts: cut out as turrets, traversing about the flank normal like Vanguard's flank domes). No engine nozzles are modelled: the engines are put at the after rims of the blue shells (read as ion drive rings).",
+            "turrets": [
+                {"name": "PodFwdUpperStbd", "facing": "-X", "up": "+Y", "single_muzzle": true, "housing": [-0.230, -0.144, 0.118, 0.204, 0.252, 0.303]},
+                {"name": "PodFwdUpperPort", "facing": "-X", "up": "-Y", "single_muzzle": true, "housing": [-0.226, -0.141, -0.205, -0.117, 0.251, 0.303]},
+                {"name": "PodFwdMidStbd", "facing": "-X", "up": "+Y", "single_muzzle": true, "housing": [-0.231, -0.146, 0.121, 0.237, 0.190, 0.245]},
+                {"name": "PodFwdMidPort", "facing": "-X", "up": "-Y", "single_muzzle": true, "housing": [-0.230, -0.147, -0.236, -0.120, 0.186, 0.243]},
+                {"name": "PodFwdLowStbd", "facing": "-X", "up": "+Y", "single_muzzle": true, "housing": [-0.251, -0.165, 0.123, 0.206, 0.126, 0.177]},
+                {"name": "PodFwdLowPort", "facing": "-X", "up": "-Y", "single_muzzle": true, "housing": [-0.248, -0.161, -0.196, -0.123, 0.126, 0.177]},
+                {"name": "PodCrestStbdA", "facing": "-X", "up": "+Y", "single_muzzle": true, "housing": [-0.193, -0.130, 0.132, 0.183, 0.286, 0.321]},
+                {"name": "PodCrestStbdB", "facing": "-X", "up": "+Y", "single_muzzle": true, "housing": [-0.138, -0.080, 0.109, 0.155, 0.316, 0.350]},
+                {"name": "PodAftLowStbd", "facing": "-X", "up": "+Y", "single_muzzle": true, "housing": [0.135, 0.205, 0.111, 0.200, 0.157, 0.208]},
+                {"name": "PodAftLowPort", "facing": "-X", "up": "-Y", "single_muzzle": true, "housing": [0.136, 0.205, -0.194, -0.105, 0.156, 0.208]},
+                {"name": "PodAftMidStbd", "facing": "-X", "up": "+Y", "single_muzzle": true, "housing": [0.141, 0.193, 0.112, 0.181, 0.214, 0.250]},
+                {"name": "PodAftMidPort", "facing": "-X", "up": "-Y", "single_muzzle": true, "housing": [0.141, 0.193, -0.175, -0.106, 0.214, 0.251]},
+                {"name": "PodAftUpperStbd", "facing": "-X", "up": "+Y", "single_muzzle": true, "housing": [0.107, 0.156, 0.079, 0.160, 0.270, 0.311]},
+                {"name": "PodAftUpperPort", "facing": "-X", "up": "-Y", "single_muzzle": true, "housing": [0.107, 0.156, -0.153, -0.073, 0.270, 0.311]},
+                {"name": "PodSternStbd", "facing": "+X", "up": "+Y", "single_muzzle": true, "housing": [0.240, 0.290, 0.062, 0.131, 0.159, 0.198]},
+                {"name": "PodSternPort", "facing": "+X", "up": "-Y", "single_muzzle": true, "housing": [0.240, 0.290, -0.116, -0.057, 0.159, 0.198]}
+            ],
+            "engines": [
+                {"pos": [0.100, 0.180, 0.212], "r": 0.055},
+                {"pos": [0.100, -0.180, 0.212], "r": 0.055}
+            ],
+            "ciws": [[-0.25, 0.0], [0.20, 0.0]],
+            "points": [
+                {"name": "Tractor", "kind": "tractor", "pos": [-0.430, 0.0, 0.160], "dir": "-X", "size": 0.035},
+                {"name": "IonStbdUpperOuter", "kind": "ion_muzzle", "pos": [-0.468, 0.1025, 0.190], "dir": "-X", "size": 0.02},
+                {"name": "IonStbdUpperInner", "kind": "ion_muzzle", "pos": [-0.477, 0.0625, 0.190], "dir": "-X", "size": 0.02},
+                {"name": "IonStbdLower", "kind": "ion_muzzle", "pos": [-0.447, 0.070, 0.135], "dir": "-X", "size": 0.02},
+                {"name": "IonPortUpperInner", "kind": "ion_muzzle", "pos": [-0.465, -0.0775, 0.1825], "dir": "-X", "size": 0.02},
+                {"name": "IonPortUpperOuter", "kind": "ion_muzzle", "pos": [-0.468, -0.110, 0.175], "dir": "-X", "size": 0.02},
+                {"name": "IonPortLower", "kind": "ion_muzzle", "pos": [-0.439, -0.0775, 0.130], "dir": "-X", "size": 0.02}
+            ]
+        },
+        {
+            "id": "Frigate2",
+            "prefix": "Lizard",
+            "faction": "lizard",
+            "role": "assault / boarding ship",
+            "source": "lizardman-frigate2.glb",
+            "align": {"turn": "pca+180", "long3d": true, "sym_yaw": -0.8, "sym_roll": -0.4},
+            "length": 150,
+            "notes": "Crocodile-headed ram: a long armoured snout with toothed jaws (the reinforced prow), three green domes on the back of the head (read as boarding-pod hatches), a twin-barrelled gun and a single heavy barrel on each cheek (barrels only are loose parts, so left in the hull as fixed guns), a crown of swept spikes aft and one large recessed exhaust plus two smaller ones in the stern. The model's own centre line is ~0.017 units (2.5 m) to starboard of the bounding-box centre because the spikes are not symmetric.",
+            "engines": [
+                {"pos": [0.285, 0.009, 0.172], "r": 0.050},
+                {"pos": [0.225, -0.078, 0.298], "r": 0.030},
+                {"pos": [0.233, 0.090, 0.298], "r": 0.030}
+            ],
+            "ciws": [[-0.25, 0.01], [0.30, 0.01]],
+            "guns": [
+                {"name": "CheekTwinStbd", "pos": [-0.030, 0.140, 0.262], "facing": "-X", "muzzles": [[-0.099, 0.1305, 0.256], [-0.092, 0.142, 0.275]]},
+                {"name": "CheekTwinPort", "pos": [-0.030, -0.105, 0.262], "facing": "-X", "muzzles": [[-0.0935, -0.1075, 0.2745], [-0.0915, -0.103, 0.255]]},
+                {"name": "CheekHeavyStbd", "pos": [-0.060, 0.1105, 0.183], "facing": "-X", "muzzles": [[-0.109, 0.1105, 0.183]]},
+                {"name": "CheekHeavyPort", "pos": [-0.065, -0.076, 0.184], "facing": "-X", "muzzles": [[-0.117, -0.076, 0.184]]}
+            ],
+            "points": [
+                {"name": "Breach", "kind": "breach", "pos": [-0.495, 0.010, 0.225], "dir": "-X", "size": 0.04},
+                {"name": "PodLaunchCentre", "kind": "boarding_pod", "pos": [0.020, 0.018, 0.443], "dir": [0, 0, 1], "size": 0.021},
+                {"name": "PodLaunchStbd", "kind": "boarding_pod", "pos": [0.128, 0.076, 0.408], "dir": [0, 0.3, 0.954], "size": 0.021},
+                {"name": "PodLaunchPort", "kind": "boarding_pod", "pos": [0.120, -0.042, 0.4105], "dir": [0, -0.3, 0.954], "size": 0.021}
+            ]
+        },
+        {
+            "id": "Frigate3",
+            "prefix": "Lizard",
+            "faction": "lizard",
+            "role": "artillery / siege ship",
+            "source": "lizardman-frigate3.glb",
+            "align": {"turn": "pca+180", "long3d": true, "sym_yaw": -0.2, "sym_roll": 0.0},
+            "length": 190,
+            "notes": "Long, low gun barge with a crocodile head: a central heavy barrel (the spinal gun) and three lighter barrels jut from the lower jaw, two very long cannons run along each flank (inner pair firing past the jaw, outer pair from amidships), three green-domed twin turrets on the dorsal spine (loose parts: cut out; the forward two are one part, split by box), two small green domes aft (read as nuke silos) and a cage-like stern with two oval drive bays.",
+            "turrets": [
+                {"name": "DorsalAft", "facing": "-X", "up": "+Z", "pivot": [0.218, 0.001, 0.200],
+                 "housing": [0.100, 0.300, -0.070, 0.070, 0.190, 0.270]},
+                {"name": "DorsalFwd", "facing": "-X", "up": "+Z", "pivot": [-0.099, 0.001, 0.200], "housing_mode": "faces",
+                 "housing": [[-0.230, -0.052, -0.070, 0.070, 0.190, 0.270], [-0.052, 0.000, -0.070, 0.070, 0.190, 0.229]],
+                 "exclude": [-0.250, -0.180, -0.0015, 0.0015, 0.200, 0.216]},
+                {"name": "DorsalMid", "facing": "-X", "up": "+Z", "pivot": [0.056, 0.001, 0.200], "housing_mode": "faces",
+                 "housing": [-0.052, 0.135, -0.070, 0.070, 0.190, 0.270]}
+            ],
+            "engines": [
+                {"pos": [0.460, 0.0315, 0.103], "r": 0.030},
+                {"pos": [0.460, -0.0315, 0.103], "r": 0.030}
+            ],
+            "ciws": [[-0.30, 0.0], [0.31, 0.0]],
+            "guns": [
+                {"name": "JawStbd", "pos": [-0.400, 0.037, 0.090], "facing": "-X", "muzzles": [[-0.493, 0.037, 0.090]]},
+                {"name": "JawPort", "pos": [-0.300, -0.041, 0.079], "facing": "-X", "muzzles": [[-0.396, -0.041, 0.079]]},
+                {"name": "JawKeel", "pos": [-0.290, 0.005, 0.058], "facing": "-X", "muzzles": [[-0.352, 0.005, 0.058]]},
+                {"name": "LongCannonStbdInner", "pos": [-0.150, 0.105, 0.112], "facing": "-X", "muzzles": [[-0.390, 0.105, 0.112]]},
+                {"name": "LongCannonPortInner", "pos": [-0.150, -0.105, 0.112], "facing": "-X", "muzzles": [[-0.390, -0.105, 0.112]]},
+                {"name": "LongCannonStbdOuter", "pos": [0.250, 0.152, 0.130], "facing": "-X", "muzzles": [[0.030, 0.152, 0.130]]},
+                {"name": "LongCannonPortOuter", "pos": [0.250, -0.150, 0.130], "facing": "-X", "muzzles": [[0.049, -0.150, 0.130]]}
+            ],
+            "missile_cells": [[-0.02, 0.06, 0.187], [-0.02, -0.06, 0.187], [0.15, 0.05, 0.192], [0.15, -0.05, 0.192], [0.3465, 0.045, 0.2097], [0.3465, -0.045, 0.2097]],
+            "points": [
+                {"name": "Spinal", "kind": "spinal_muzzle", "pos": [-0.498, 0.004, 0.096], "dir": "-X", "size": 0.012},
+                {"name": "NukeSiloStbd", "kind": "nuke_cell", "pos": [0.3465, 0.045, 0.2097], "dir": "+Z", "size": 0.016},
+                {"name": "NukeSiloPort", "kind": "nuke_cell", "pos": [0.3465, -0.045, 0.2097], "dir": "+Z", "size": 0.016},
+                {"name": "CellFwdStbd", "kind": "missile_cell", "pos": [-0.02, 0.06, 0.187], "dir": "+Z"},
+                {"name": "CellFwdPort", "kind": "missile_cell", "pos": [-0.02, -0.06, 0.187], "dir": "+Z"},
+                {"name": "CellAftStbd", "kind": "missile_cell", "pos": [0.15, 0.05, 0.192], "dir": "+Z"},
+                {"name": "CellAftPort", "kind": "missile_cell", "pos": [0.15, -0.05, 0.192], "dir": "+Z"}
+            ]
+        },
+        {
+            "id": "Frigate4",
+            "prefix": "Lizard",
+            "faction": "lizard",
+            "role": "interceptor / escort",
+            "source": "lizardman-frigate4.glb",
+            "align": {"turn": "pca", "long3d": true, "sym_yaw": -1.1, "sym_roll": -12.1},
+            "length": 130,
+            "notes": "Swept arrowhead with a beaked prow, broad swept wings and tall dorsal fins, four rounded dorsal domes (ball-mount positions), clusters of short twin-barrelled rapid-fire guns on the wing roots (the barrels are loose parts but the pods are joined to the hull, so left in place: point-defence mounts), and a stern packed with ten round nozzles. The source was rolled ~12 deg; levelled by the symmetry search. The model's centre line is ~0.025 units (3 m) to starboard of the bounding-box centre (the wings are not symmetric).",
+            "engines": [
+                {"pos": [0.449, -0.0625, 0.190], "r": 0.0225},
+                {"pos": [0.450, 0.075, 0.1875], "r": 0.0225},
+                {"pos": [0.440, -0.0475, 0.1275], "r": 0.0225},
+                {"pos": [0.453, 0.000, 0.125], "r": 0.0225},
+                {"pos": [0.447, 0.1375, 0.110], "r": 0.025},
+                {"pos": [0.4525, 0.155, 0.160], "r": 0.025},
+                {"pos": [0.4576, -0.160, 0.160], "r": 0.0275},
+                {"pos": [0.451, -0.1525, 0.105], "r": 0.025},
+                {"pos": [0.350, -0.1625, 0.070], "r": 0.0175},
+                {"pos": [0.344, 0.1675, 0.070], "r": 0.0175}
+            ],
+            "ciws": [[-0.25, 0.01], [0.38, 0.03]],
+            "extra_mounts": [
+                {"pos": [0.021, 0.016, 0.2954], "side": "top"},
+                {"pos": [0.305, 0.037, 0.2733], "side": "top"},
+                {"pos": [0.200, 0.137, 0.2743], "side": "top"},
+                {"pos": [0.200, -0.084, 0.2761], "side": "top"}
+            ],
+            "points": [
+                {"name": "PDStbdFwd", "kind": "pd", "pos": [-0.176, 0.190, 0.124], "dir": "-X", "size": 0.01},
+                {"name": "PDStbdMidUpper", "kind": "pd", "pos": [-0.046, 0.2385, 0.162], "dir": "-X", "size": 0.01},
+                {"name": "PDStbdMidLower", "kind": "pd", "pos": [-0.035, 0.2555, 0.098], "dir": "-X", "size": 0.01},
+                {"name": "PDStbdAft", "kind": "pd", "pos": [0.067, 0.234, 0.193], "dir": "-X", "size": 0.01},
+                {"name": "PDPortFwd", "kind": "pd", "pos": [-0.184, -0.158, 0.136], "dir": "-X", "size": 0.01},
+                {"name": "PDPortMidUpper", "kind": "pd", "pos": [-0.031, -0.205, 0.172], "dir": "-X", "size": 0.01},
+                {"name": "PDPortMidLower", "kind": "pd", "pos": [-0.031, -0.237, 0.110], "dir": "-X", "size": 0.01},
+                {"name": "PDPortAft", "kind": "pd", "pos": [0.096, -0.219, 0.1975], "dir": "-X", "size": 0.01}
+            ]
+        }
+    ]
+}

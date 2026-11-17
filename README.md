@@ -683,6 +683,17 @@ system to travel around.
   | Cinder Fortress (on the ground) | Gun batteries, missile sites, tanks, a gunship and fighters |
   | Corsair Haven | Six gun emplacements |
   | Glacis | Dreadnought battle group: a dreadnought and two escort destroyers |
+  | Comet Mirren | Vrask raiders: two Snares, a Fang, a Maw and two Skinks, hidden round the comet |
+
+  **The Vrask.** An alien faction, lizard-like, who take prisoners, drain their life and capture
+  ships. Their raiders lie in wait round Comet Mirren, far out from the corsairs' haunts, for the
+  ships that come to mine its ice, and spring at 4 km. They are the first enemies with shields,
+  and their hulls are armoured. Each of their four ships has its own job: the **Snare** strips
+  shields with ion fire from medium range, bow on; the **Fang** makes fast runs with heavy guns
+  and missiles; the **Maw** holds well back and fires an armour-piercing spinal gun; the
+  **Skink** screens the Maw with eight rapid-fire guns. They are hostile like the pirates, shown
+  as "Hostile: Vrask" on the target display. Their numbers are in `Assets/Carrier/Data/vrask.json`
+  (see `docs/allships.md`).
 
   **They come back, location by location.** Each band is a location. Every 5 minutes, the
   destroyed enemies of a location spawn there again, back in their hiding places. But once all
@@ -1708,7 +1719,7 @@ The games run one at a time, in a 1280x720 window.
 | `build` | the builds (with `--build`) |
 | `serverproc` | the server program, end to end |
 | `autotest` | the deprecated Carrier Demo and Asteroid Ambush autotests: run only when named (`--only autotest --build`) |
-| `hud`, `modes`, `nav`, `services`, `fleet`, `ships`, `water`, `industry`, `crew`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
+| `hud`, `modes`, `nav`, `services`, `fleet`, `ships`, `water`, `industry`, `crew`, `strike`, `vrask`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
 | `web` | the web build's co-op test |
 
 `--quick` runs `tools`, `server`, `unity`, `serverproc`, `autotest`, `hud` and `coop`.
@@ -1826,6 +1837,11 @@ Each part can also be run alone:
   Port Ochre, the frigate's rod on Cinder Fortress (Y) destroying its ground forces, landing there
   to find them gone and the crater in the ground, the rubble at Port Ochre, the ion satellite
   destroyed and striking no more, and the save holding the craters and the satellites' clocks.
+  Add `-vrasktest` (or `?vrasktest` on the web) to test the Vrask: their raiders round Comet
+  Mirren, all four of their ships there, hostile, armoured, shielded and each with its own
+  weapons, the Maw the slowest; the frigate warps there and closes in until they spring; the
+  warp drive locked while they fight; each of the four firing on the frigate, ion bolts and
+  armour-piercing slugs among the hits; each destroyed; and all of them back with the spawns.
   Add `-modestest` (or `?modestest` on the web) to test the modes of play: a game starts in
   combat mode; 1 to 5 change mode, each with its keys in the controls box; a mode's keys work
   in it and not in another (V scans in mining mode, not in combat); services away from a site

@@ -3,8 +3,10 @@ using UnityEngine.Events;
 
 namespace CarrierGame
 {
-    /// <summary>What kind of weapon a hit came from (shields react to each).</summary>
-    public enum HitKind { Projectile, Cannon, Missile, Beam }
+    /// <summary>What kind of weapon a hit came from: shields react to each, and each does its
+    /// own share to a shield, armour, the hull and a ship's components (DamageTable). The
+    /// numbers go over the co-op wire, so a kind is only ever added at the end.</summary>
+    public enum HitKind { Projectile, Cannon, Missile, Beam, Ion, Penetrator, Nullifier, Artillery, Nuclear }
 
     /// <summary>
     /// Hit points. Spawns an explosion and fires onDestroyed when they run out. Also keeps the
@@ -50,6 +52,7 @@ namespace CarrierGame
         public void SetRespawnAt(float t) { if (respawnHeld && Dead) RespawnAt = t; }
 
         Shield shield;
+        Armor armor;
         bool shieldLooked;
 
         /// <summary>Co-op: looks at each hit first, and takes it (returns true) when it belongs
@@ -68,21 +71,35 @@ namespace CarrierGame
             onRespawned ??= new UnityEvent();
         }
 
-        /// <summary>A hit at a point from a kind of weapon: the shield (if any, and up) takes it
-        /// first, and only what gets through reaches the hull.</summary>
+        /// <summary>A hit at a point from a kind of weapon, from the outside in: the shield (if
+        /// any, and up) takes it first, as hard as that kind is on shields; what gets through
+        /// does that kind's share to the hull, less what the armour (if any) stops.</summary>
         public void Damage(float amount, Vector3 point, HitKind kind)
         {
             if (Dead || amount <= 0f) return;
             if (Intercept != null && Intercept(this, amount, point, kind)) return;
-            if (!shieldLooked) { shield = GetComponentInChildren<Shield>(true); shieldLooked = true; }
-            if (shield != null && shield.Up) amount = shield.Absorb(amount, point, kind);
+            if (!shieldLooked) { shield = GetComponentInChildren<Shield>(true); armor = GetComponent<Armor>(); shieldLooked = true; }
+            var row = DamageTable.Of(kind);
+            if (shield != null && shield.Up && row.shield > 0f) amount = shield.Absorb(amount * row.shield, point, kind) / row.shield;
+            amount *= row.hull;
+            if (armor != null) amount = armor.Reduce(amount, kind);
+            LastHitKind = kind;
             if (amount > 0f) Damage(amount);
         }
+
+        /// <summary>The kind of the last hit from a weapon (Damage with a kind).</summary>
+        public HitKind LastHitKind { get; private set; }
+
+        /// <summary>Armour added (or taken off) in play (parts fitted): looked for again.</summary>
+        public void Relook() => shieldLooked = false;
 
         /// <summary>Put the hull back to full (between the scenes of a demo reel).</summary>
         public void Repair()
         {
-            if (!Dead) Current = maxHealth;
+            if (Dead) return;
+            Current = maxHealth;
+            var a = GetComponent<Armor>();
+            if (a != null) a.Repair();
         }
 
         float builtMax = -1f;
@@ -207,6 +224,8 @@ namespace CarrierGame
         {
             Current = maxHealth;
             Dead = false;
+            var a = GetComponent<Armor>();
+            if (a != null) a.Repair();
             var breakup = GetComponent<ShipBreakup>();
             // a ship that came apart is put back together; one that was hidden is shown again
             if (breakup != null) breakup.Restore();

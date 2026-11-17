@@ -1092,7 +1092,7 @@ namespace CarrierGame.Demo
             { "hull", "hull" }, { "shield", "shield" }, { "recharge", "shield recharge" }, { "speed", "top speed" },
             { "acceleration", "acceleration" }, { "turn", "turn rate" }, { "cargo", "hold" }, { "gunDamage", "gun damage" },
             { "gunRange", "gun range" }, { "gunRate", "rate of fire" }, { "beamDamage", "beam damage" }, { "beamCharge", "beam charge time" },
-            { "miningRate", "mining rate" },
+            { "miningRate", "mining rate" }, { "armour", "armour" },
         };
 
         public static string StatName(string stat) => StatNames.TryGetValue(stat, out var n) ? n : stat;
@@ -1104,7 +1104,9 @@ namespace CarrierGame.Demo
             foreach (var e in p.effects)
             {
                 float pc = (e.factor - 1f) * 100f;
-                parts.Add($"{StatName(e.stat)} {(pc >= 0f ? "+" : "")}{pc:F0}%");
+                // (armour isn't more of something: it stops that share of each hit)
+                if (e.stat == "armour") parts.Add($"armour stops {pc:F0}% of each hit");
+                else parts.Add($"{StatName(e.stat)} {(pc >= 0f ? "+" : "")}{pc:F0}%");
             }
             return string.Join(", ", parts);
         }
@@ -1219,7 +1221,8 @@ namespace CarrierGame.Demo
                 float f = fit.Factor(stat);
                 if (Mathf.Approximately(f, 1f)) continue;
                 float pc = (f - 1f) * 100f;
-                lines.Append($"{StatName(stat)}  <color=#7ee08a>{(pc >= 0 ? "+" : "")}{pc:F0}%</color>\n");
+                if (stat == "armour") lines.Append($"armour  <color=#7ee08a>stops {pc:F0}% of each hit</color>\n");
+                else lines.Append($"{StatName(stat)}  <color=#7ee08a>{(pc >= 0 ? "+" : "")}{pc:F0}%</color>\n");
             }
             if (lines.Length == 0) lines.Append("<color=#9aa4b0>No parts fitted: the frigate is as built.</color>");
             GUI.Label(new Rect(x, y, area.width - 20f * s, area.height - 34f * s), lines.ToString(), Hud.Text(12, false, TextAnchor.UpperLeft));

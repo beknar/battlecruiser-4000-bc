@@ -211,7 +211,7 @@ namespace CarrierGame.Demo
                     if (IsHost && ents.TryGetValue(m.tg ?? "", out var e) && e.h != null && !e.h.Dead)
                     {
                         Health.Source = remotes.TryGetValue(m.from, out var who) && who != null ? who.transform : null;
-                        e.h.Damage(m.a, FromNet(m.rf, new Double3(m.x, m.y, m.z)), (HitKind)m.kd);
+                        e.h.Damage(m.a, FromNet(m.rf, new Double3(m.x, m.y, m.z)), DamageTable.FromWire(m.kd, m.kx));
                         Health.Source = null;
                         HitsAppliedForOthers++;
                     }
@@ -221,7 +221,7 @@ namespace CarrierGame.Demo
                     if (myHealth != null && !myHealth.Dead)
                     {
                         Health.Source = null;
-                        myHealth.Damage(m.a, FromNet(m.rf, new Double3(m.x, m.y, m.z)), (HitKind)m.kd);
+                        myHealth.Damage(m.a, FromNet(m.rf, new Double3(m.x, m.y, m.z)), DamageTable.FromWire(m.kd, m.kx));
                         HitsTaken++;
                     }
                     break;

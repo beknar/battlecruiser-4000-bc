@@ -99,7 +99,7 @@ namespace CarrierGame
         public const string Resource = "Data/industry";
         /// <summary>The numbers a part can change on a frigate.</summary>
         public static readonly string[] Stats = { "hull", "shield", "recharge", "speed", "acceleration", "turn", "cargo",
-                                                  "gunDamage", "gunRange", "gunRate", "beamDamage", "beamCharge", "miningRate" };
+                                                  "gunDamage", "gunRange", "gunRate", "beamDamage", "beamCharge", "miningRate", "armour" };
 
         static IndustryTable loaded;
         [NonSerialized] Dictionary<string, RefinedSpec> refinedById;

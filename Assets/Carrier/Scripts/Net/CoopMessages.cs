@@ -53,9 +53,9 @@ namespace CarrierGame.Demo
         // shots and beams
         public string src, k, pf, tg;
         public float dx, dy, dz;
-        // damage
+        // damage (kd: the kind as games before the new kinds know it; kx: the kind + 1, 0 if not sent)
         public float a;
-        public int kd;
+        public int kd, kx;
         // a gift of credits (its number, for the receipt)
         public int gid;
         // a message on the comms channel
@@ -97,11 +97,11 @@ namespace CarrierGame.Demo
 
     /// <summary>A hit on an enemy, to the host (whose game has the real one).</summary>
     [Serializable]
-    class HitEnemyMsg { public string t = CoopWire.HitEnemy; public bool toHost = true; public string tg, rf = ""; public float a; public double x, y, z; public int kd; }   // tg: the enemy
+    class HitEnemyMsg { public string t = CoopWire.HitEnemy; public bool toHost = true; public string tg, rf = ""; public float a; public double x, y, z; public int kd, kx; }   // tg: the enemy
 
     /// <summary>A hit on a player's ship, from the host to that player.</summary>
     [Serializable]
-    class HitPlayerMsg { public string t = CoopWire.HitPlayer; public int to; public float a; public string rf = ""; public double x, y, z; public int kd; }
+    class HitPlayerMsg { public string t = CoopWire.HitPlayer; public int to; public float a; public string rf = ""; public double x, y, z; public int kd, kx; }
 
     /// <summary>Credits for one player (from the AI wingman's hold to theirs).</summary>
     [Serializable]

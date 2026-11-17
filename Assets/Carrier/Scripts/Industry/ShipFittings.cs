@@ -24,7 +24,8 @@ namespace CarrierGame
 
         // the numbers as built
         bool captured;
-        float hull, shield, recharge, speed, acceleration, turn, cargo, beamDamage, beamCharge, miningRate;
+        float hull, shield, recharge, speed, acceleration, turn, cargo, beamDamage, beamCharge, miningRate, armour, plating;
+        Armor armorC;
         readonly List<(CarrierTurret gun, float range, float interval)> guns = new List<(CarrierTurret, float, float)>();
 
         Health health;
@@ -61,6 +62,9 @@ namespace CarrierGame
             cargo = hold != null ? hold.capacity : 0f;
             if (beam != null) { beamDamage = beam.damagePerSecond; beamCharge = beam.chargeTime; }
             miningRate = laser != null ? laser.rate : 0f;
+            armorC = GetComponent<Armor>();
+            armour = armorC != null ? armorC.rating : 0f;
+            plating = armorC != null ? armorC.plating : 0f;
         }
 
         void OnDestroy()
@@ -116,6 +120,7 @@ namespace CarrierGame
             switch (stat)
             {
                 case "hull": return hull;
+                case "armour": return armour;
                 case "shield": return shield;
                 case "recharge": return recharge;
                 case "speed": return speed;
@@ -192,6 +197,17 @@ namespace CarrierGame
             // (the hull and the hold: the parts' alone, a crew never changes them)
             if (health != null) health.SetMax(hull * Factor("hull"));
             if (hold != null) hold.capacity = cargo * Factor("cargo");
+            // armour: what the parts add (the factor's excess is the share of a hit they stop),
+            // on top of any the ship was built with; plating a third of the hull, or as built
+            float extra = Factor("armour") - 1f;
+            if (extra > 0.001f || armorC != null)
+            {
+                bool made = armorC == null;
+                if (made) armorC = gameObject.AddComponent<Armor>();
+                armorC.rating = Mathf.Clamp(armour + Mathf.Max(0f, extra), 0f, 0.8f);
+                armorC.SetPlating(plating > 0f ? plating * Factor("hull") : (health != null ? health.maxHealth / 3f : 1000f));
+                if (made && health != null) health.Relook();
+            }
             ApplyCrew();
             Changed?.Invoke();
         }

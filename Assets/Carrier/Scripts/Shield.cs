@@ -28,7 +28,7 @@ namespace CarrierGame
         public float Fraction => capacity > 0f ? Strength / capacity : 0f;
         public float LastHitTime { get; private set; } = -100f;
         /// <summary>Hits taken, counted per weapon kind (for the HUD and the self-test).</summary>
-        public readonly int[] HitsByKind = new int[4];
+        public readonly int[] HitsByKind = new int[DamageTable.Count];
         public int Collapses { get; private set; }
 
         const int MaxHits = 8;

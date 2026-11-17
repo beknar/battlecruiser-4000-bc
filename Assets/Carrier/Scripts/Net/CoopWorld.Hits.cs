@@ -27,7 +27,8 @@ namespace CarrierGame.Demo
                 {
                     var np = ToNet(point);
                     Double3 p = np.p;
-                    Client.Send(new HitPlayerMsg { to = rp.Id, a = amount, kd = (int)kind, rf = np.rf, x = p.x, y = p.y, z = p.z });
+                    var (kd, kx) = DamageTable.ToWire(kind);
+                    Client.Send(new HitPlayerMsg { to = rp.Id, a = amount, kd = kd, kx = kx, rf = np.rf, x = p.x, y = p.y, z = p.z });
                     HitsSentToPlayers++;
                 }
                 return true;
@@ -41,7 +42,8 @@ namespace CarrierGame.Demo
                 {
                     var np = ToNet(point);
                     Double3 p = np.p;
-                    Client.Send(new HitEnemyMsg { tg = e.id, a = amount, kd = (int)kind, rf = np.rf, x = p.x, y = p.y, z = p.z });
+                    var (kd, kx) = DamageTable.ToWire(kind);
+                    Client.Send(new HitEnemyMsg { tg = e.id, a = amount, kd = kd, kx = kx, rf = np.rf, x = p.x, y = p.y, z = p.z });
                     HitsSentToHost++;
                 }
                 return true;

@@ -180,6 +180,17 @@ class Tools(unittest.TestCase):
                                           {"order": "give", "target": "250"}])
         self.assertTrue(call("give_credits", {"amount": "lots"})["result"]["isError"])
         self.assertTrue(call("give_credits", {"amount": "0"})["result"]["isError"])
+        self.assertTrue(call("give_credits", {"amount": "inf"})["result"]["isError"])
+        self.assertFalse(call("give_credits", {"amount": "1,500"})["result"]["isError"])
+        self.assertEqual(FakeBot.orders[-1], {"order": "give", "target": "1500"})
+
+    def test_a_restarted_bot_game_is_read_from_its_first_message(self):
+        M.cursor = 50          # (the old game had got that far; the fake one is at 3)
+        r = json.loads(body(call("read_messages")))
+        self.assertEqual([m["seq"] for m in r["messages"]], [1, 2, 3])
+        M.cursor = 50
+        r = json.loads(body(call("wait_messages", {"timeout": 1})))
+        self.assertEqual([m["seq"] for m in r["messages"]], [1, 2, 3])
 
     def test_say_and_order_reach_the_game(self):
         self.assertFalse(call("say", {"text": " on my way "})["result"]["isError"])

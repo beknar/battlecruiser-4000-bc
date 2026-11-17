@@ -222,7 +222,7 @@ namespace CarrierGame.Demo
             // (before "hold": "hold report", "what's in your hold")
             if (Arg("cargo", "manifest", "inventory", "hold report", "report hold", "hold status", "what's in your hold", "whats in your hold",
                     "what is in your hold", "what's in the hold", "what is in the hold", "how full is your hold", "how full is the hold",
-                    "what are you carrying", "what have you got", "check your hold", "check the hold") != null)
+                    "what are you carrying", "check your hold", "check the hold") != null)
                 return Order("cargo", "", fromId);
             if ((a = GiveArgs(w.TrimEnd('?', '.', '!'))) != null) return Order("give", a, fromId);
             if (Arg("hold", "stop", "wait", "stay") != null) return Order("hold", "", fromId);
@@ -239,33 +239,51 @@ namespace CarrierGame.Demo
 
         const RegexOptions RxOpt = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant;
         static readonly Regex GiveRx = new Regex(@"^(?:please\s+)?(?<verb>give|transfer|send|pay|hand\s+over|hand|wire)\b(?<rest>.*)$", RxOpt);
-        static readonly Regex MoneyRx = new Regex(@"\b(?:credits?|cr|money|cash|earnings|funds)\b", RxOpt);
+        static readonly Regex MoneyRx = new Regex(@"\b(?:credits?|cr|money|cash)\b", RxOpt);
+        // ("pay me", "pay us 300", "pay up": not "pay attention")
+        static readonly Regex PayRx = new Regex(@"^(?:me|us|up)\b", RxOpt);
         static readonly Regex ToRx = new Regex(@"\bto\s+(?<to>[^,.!?]+?)\s*$", RxOpt);
         static readonly Regex AmountRx = new Regex(@"(?<n>\d[\d,]*(?:\.\d+)?)\s*(?<k>k\b|thousand\b)?", RxOpt);
         static readonly Regex HalfRx = new Regex(@"\bhalf\b", RxOpt);
+        static readonly Regex AllRx = new Regex(@"\b(?:all|everything|every|your)\b", RxOpt);
+        // ("give Ann 500 credits": a name first, then the amount)
+        static readonly Regex NameFirstRx = new Regex(@"^(?<who>[a-z][\w\-]*)\s+(?=\d|all\b|half\b|your\b|the\b|some\b|credits?\b|cr\b)", RxOpt);
+        static readonly string[] NotNames = { "me", "us", "them", "him", "her", "your", "the", "my", "our", "all", "half", "some", "a", "every", "everything" };
 
         /// <summary>An order to hand over credits ("give me 500 credits", "transfer your credits to
-        /// Ann", "pay me 2k"), as the "give" order's target: "&lt;amount&gt;[ to &lt;name&gt;]", the
-        /// amount "all" when none is given, or "half". Null if it isn't one.</summary>
+        /// Ann", "give Ann 2k credits", "pay me 300"), as the "give" order's target:
+        /// "&lt;amount&gt;[ to &lt;name&gt;]", the amount a number, "all", "half", or "?" when it
+        /// doesn't say how many ("give me some credits"). Null if it isn't one.</summary>
         public static string GiveArgs(string words)
         {
             var m = GiveRx.Match((words ?? "").Trim());
             if (!m.Success) return null;
             string rest = m.Groups["rest"].Value.Trim();
-            if (!m.Groups["verb"].Value.Equals("pay", StringComparison.OrdinalIgnoreCase) && !MoneyRx.IsMatch(rest)) return null;
+            bool pay = m.Groups["verb"].Value.Equals("pay", StringComparison.OrdinalIgnoreCase);
+            if (pay ? !PayRx.IsMatch(rest) && !MoneyRx.IsMatch(rest) : !MoneyRx.IsMatch(rest)) return null;
             string to = "";
             var tm = ToRx.Match(rest);
             if (tm.Success)
             {
                 to = tm.Groups["to"].Value.Trim();
                 rest = rest.Substring(0, tm.Index).Trim();
-                if (to.Equals("me", StringComparison.OrdinalIgnoreCase) || to.Equals("us", StringComparison.OrdinalIgnoreCase)) to = "";
             }
-            string amount = "all";
+            else
+            {
+                var nf = NameFirstRx.Match(rest);
+                if (nf.Success && Array.IndexOf(NotNames, nf.Groups["who"].Value.ToLowerInvariant()) < 0)
+                {
+                    to = nf.Groups["who"].Value;
+                    rest = rest.Substring(nf.Length).Trim();
+                }
+            }
+            if (Array.IndexOf(NotNames, to.ToLowerInvariant()) >= 0) to = "";
+            string amount = "?";
             var nm = AmountRx.Match(rest);
             if (nm.Success && double.TryParse(nm.Groups["n"].Value.Replace(",", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out double n))
                 amount = Math.Floor(nm.Groups["k"].Success ? n * 1000.0 : n).ToString(CultureInfo.InvariantCulture);
             else if (HalfRx.IsMatch(rest)) amount = "half";
+            else if (AllRx.IsMatch(rest)) amount = "all";
             return to.Length > 0 ? $"{amount} to {to}" : amount;
         }
 
@@ -397,6 +415,7 @@ namespace CarrierGame.Demo
                     if (mine != null && who.level != mine.level) return $"{who.name} isn't in this part of space: credits go to players here.";
                     float amount;
                     string aw = amountWord.ToLowerInvariant();
+                    if (aw == "?") return $"how many credits? I've {hold.Credits:N0} cr (\"give me 500 credits\", or \"give me all your credits\").";
                     if (aw == "" || aw == "all" || aw == "everything") amount = hold.Credits;
                     else if (aw == "half") amount = hold.Credits / 2f;
                     else if (!float.TryParse(aw.Replace(",", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out amount) || !(amount >= 1f))

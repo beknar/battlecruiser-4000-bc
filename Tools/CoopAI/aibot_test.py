@@ -211,14 +211,19 @@ async def main():
             n = len(me.heard)
             await me.say(f"{BOT}, nice flying back there")
             await asyncio.sleep(4)
-            answers = [t for _, t in me.heard[n:] if t.lower().startswith(BOT.lower() + ":")]
+            answers = [t for _, t in me.heard[n:] if t.lower().startswith(BOT.lower() + ":")
+                       and not t[len(BOT) + 1:].strip().lower().startswith(own)]
             check(not answers, "with a listener reading, talk to it is left for the listener", "; ".join(answers))
+            last = (await api("/messages?listener=1&after=0")).get("last", 0)
             t0 = time.monotonic()
-            waiter = asyncio.create_task(asyncio.to_thread(http, f"/messages?listener=1&after={last + 1}&wait=20", None, 30))
+            waiter = asyncio.create_task(asyncio.to_thread(http, f"/messages?listener=1&after={last}&wait=20", None, 30))
             await asyncio.sleep(2)
             await me.say("anyone there?")
             got = await waiter
             took = time.monotonic() - t0
+            # (the bot may have said something by itself first, which also answers the wait)
+            if not any(m.get("text") == "anyone there?" for m in got.get("messages", [])):
+                got = await api(f"/messages?after={last}")
             check(any(m.get("text") == "anyone there?" for m in got.get("messages", [])) and took < 10,
                   "a waiting /messages call answers when something is said", f"after {took:.1f} s")
 

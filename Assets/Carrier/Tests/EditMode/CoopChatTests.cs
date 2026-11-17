@@ -90,12 +90,17 @@ namespace CarrierGame.Tests
         [TestCase("Give me 1,500 cr.", "1500")]
         [TestCase("transfer 2k credits to Ann", "2000 to Ann")]
         [TestCase("send your credits to Bob the Bold", "all to Bob the Bold")]
-        [TestCase("transfer credits", "all")]
+        [TestCase("transfer credits", "?")]
+        [TestCase("give me some credits", "?")]
         [TestCase("give me half your credits", "half")]
-        [TestCase("pay me", "all")]
+        [TestCase("give me all your credits", "all")]
+        [TestCase("pay me", "?")]
+        [TestCase("pay up", "?")]
         [TestCase("please pay me 300", "300")]
-        [TestCase("hand over the money to me", "all")]
+        [TestCase("hand over the money to me", "?")]
         [TestCase("give us 12.9 credits", "12")]
+        [TestCase("give Ann 500 credits", "500 to Ann")]
+        [TestCase("give them all your credits", "all")]
         public void CreditOrdersAreRead(string said, string args)
         {
             Assert.That(CoopBot.GiveArgs(said), Is.EqualTo(args));
@@ -105,6 +110,8 @@ namespace CarrierGame.Tests
         [TestCase("send help")]
         [TestCase("transfer the ore")]
         [TestCase("credits please")]
+        [TestCase("pay attention")]
+        [TestCase("give me your earnings report")]
         [TestCase("")]
         [TestCase(null)]
         public void OtherThingsAreNotCreditOrders(string said)

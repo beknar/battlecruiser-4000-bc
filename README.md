@@ -1499,7 +1499,7 @@ ships`, `everyone` or `wingmen` reaches every bot. It answers each order on the 
 | `mine` or `mine at <field>` | Mines asteroids: warps to the field (the one it is at, or the nearest), scans, flies to the nearest deposit and cuts it until the hold is full, then warps to the nearest market (a station or base that buys ore), docks, sells the ore and goes back for more, over and over. `start mining` and `mine asteroids` do the same. |
 | `sell` | Takes the ore aboard to the nearest market now, sells it, then goes back to mining. |
 | `cargo` | Reports what is in its hold (ore by mineral, goods, parts), how full the hold is, and its credits. `what's in your hold?`, `how full is your hold?`, `inventory` and `manifest` do the same. |
-| `give [N] credits [to <name>]` | Transfers credits from its hold to that player (whoever asked, if no name is given): all of them, half (`give half your credits`), or N (`give me 500 credits`, `transfer 2k credits to Ann`, `pay me`). The player's game adds them to the ship's hold and says so. Credits go only to human players in the same level, and come back to the wingman if the player's game doesn't confirm them within 10 s. |
+| `give [N] credits [to <name>]` | Transfers credits from its hold to that player (whoever asked, if no name is given): N (`give me 500 credits`, `transfer 2k credits to Ann`, `give Ann 500 credits`, `pay me 300`), half (`give me half your credits`) or all (`give me all your credits`). Without an amount it asks how many. The player's game adds them to the ship's hold and says so. Credits go only to human players in the same level, and only from a player the server let in with an AI key (on an open server, one that says it is a bot). They come back to the wingman if the player's game doesn't confirm them within 10 s, and a game that only sees them after 6 s refuses them. |
 | `status` | Reports its hull, shield, missiles, hold, credits, what it is doing and where it is. |
 | `help` | Lists these orders. |
 
@@ -1545,7 +1545,7 @@ through Claude Code:
 2. Add the MCP server, which then reaches the bot through the tunnel:
    `claude mcp add coop-ai -- python "<repo>/Tools/CoopAI/coop_ai_mcp.py"`.
 3. In a Claude Code session, run `python Tools/CoopAI/listen.py` as a background monitor. It
-   prints a line for each message addressed to the wingman (`--all` for every message), and
+   prints a line for each message addressed to the wingman (`--all` for every player's message), and
    each line wakes the session. Claude reads it, checks `status` or `cargo` if the answer needs
    facts, and answers with `say`. It can also act on what it's asked with `order` or
    `give_credits`. While a listener is reading the channel, the bot leaves talk to it.

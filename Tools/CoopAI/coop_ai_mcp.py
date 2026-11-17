@@ -82,14 +82,30 @@ def t_read_messages(args):
     global cursor
     after = args.get("after")
     r = call("/messages?listener=1&after=" + str(cursor if after is None else int(after)))
+    if after is None and restarted(r):
+        r = call("/messages?listener=1&after=0")
     if isinstance(r, dict) and "last" in r:
         cursor = max(cursor, int(r["last"]))
     return r
 
 
+def restarted(r):
+    """The bot game has started again since the last read (its messages are numbered from 0 again):
+    the cursor goes back to the start."""
+    global cursor
+    if isinstance(r, dict) and "last" in r and int(r["last"]) < cursor:
+        cursor = 0
+        return True
+    return False
+
+
 def t_wait_messages(args):
     global cursor
-    wait = max(1, min(WAIT_MAX, int(args.get("timeout", 25) or 25)))
+    t = args.get("timeout")
+    wait = max(1, min(WAIT_MAX, int(25 if t is None else t)))
+    # (a restarted game would never get past the old cursor: start again from its first message)
+    if restarted(call(f"/messages?listener=1&after={cursor}")):
+        pass
     r = call(f"/messages?listener=1&after={cursor}&wait={wait}", timeout=wait + 10)
     if isinstance(r, dict) and "last" in r:
         cursor = max(cursor, int(r["last"]))
@@ -101,14 +117,14 @@ def t_cargo(_):
 
 
 def t_give_credits(args):
-    amount = str(args.get("amount", "all") if args.get("amount") is not None else "all").strip().lower()
+    amount = str(args.get("amount") if args.get("amount") is not None else "all").strip().lower().replace(",", "")
     if amount not in ("all", "half"):
         try:
             n = float(amount)
         except ValueError:
             raise ValueError(f"amount must be a number, 'all' or 'half', not '{amount}'")
-        if n < 1:
-            raise ValueError("give at least 1 credit")
+        if not (1 <= n < 1e12):
+            raise ValueError("give at least 1 credit (and a believable number of them)")
         amount = str(int(n))
     to = str(args.get("to", "") or "").strip()
     return call("/order", {"order": "give", "target": f"{amount} to {to}" if to else amount})
@@ -133,9 +149,10 @@ def t_destinations(_):
 
 
 def t_launch_bot(args):
-    global bot_process
+    global bot_process, cursor
     if bot_process is not None and bot_process.poll() is None:
         return {"ok": True, "note": "already running", "pid": bot_process.pid}
+    cursor = 0
     exe = args.get("game") or GAME
     if not os.path.exists(exe):
         raise RuntimeError(f"no game at {exe}: set COOP_GAME_EXE or give 'game'")

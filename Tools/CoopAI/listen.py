@@ -9,7 +9,7 @@ and leaves talk that isn't an order unanswered for it.
 
     python3 listen.py [--all] [--api http://127.0.0.1:7781]
 
---all prints every player's message, not only those addressed to the wingman. Only the standard
+--all prints every player's message (not the bot's own), not only those addressed to the wingman. Only the standard
 library is used. Ctrl+C stops it.
 """
 import argparse
@@ -49,10 +49,18 @@ def main(argv=None):
                 # (from now on: what was said before this started isn't news)
                 cursor = int(get(api, "/messages?listener=1&after=0", 10).get("last", 0))
                 print(f"listening on {api} from message {cursor}", flush=True)
-            r = get(api, f"/messages?listener=1&after={cursor}&wait={WAIT}", WAIT + 10)
             if down:
-                print("the bot game is answering again", flush=True)
+                # (it may have started again, numbering its messages from 0: from its latest)
+                last = int(get(api, "/messages?listener=1&after=0", 10).get("last", 0))
+                if last < cursor:
+                    cursor = last
+                print(f"the bot game is answering again (from message {cursor})", flush=True)
                 down = False
+            r = get(api, f"/messages?listener=1&after={cursor}&wait={WAIT}", WAIT + 10)
+            if int(r.get("last", cursor)) < cursor:
+                cursor = int(r.get("last", 0))
+                print(f"the bot game started again: from message {cursor}", flush=True)
+                continue
             for m in r.get("messages", []):
                 cursor = max(cursor, int(m.get("seq", cursor)))
                 if wanted(m, args.all):

@@ -15,6 +15,8 @@ namespace CarrierGame.Demo
         public string level;
         public string client;
         public int captain;
+        /// <summary>Joined with one of the server's AI keys (the server says so; a game can't).</summary>
+        public bool ai;
     }
 
     /// <summary>One enemy, as the host has it.</summary>
@@ -103,7 +105,7 @@ namespace CarrierGame.Demo
 
     /// <summary>Credits for one player (from the AI wingman's hold to theirs).</summary>
     [Serializable]
-    class GiftMsg { public string t = CoopWire.Gift; public int to, gid; public float a; }
+    class GiftMsg { public string t = CoopWire.Gift; public int to, gid; public float a; public double ts; }
 
     /// <summary>For the self-test's bot: what this game can see (enemy ids and such).</summary>
     [Serializable]

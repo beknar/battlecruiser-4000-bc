@@ -58,7 +58,8 @@ public sealed class Hub
         // what is waiting to go out; a player this far behind is let go rather than have
         // messages dropped (a lost 'room' would leave them wrong about who hosts)
         public readonly Channel<string> Out = Channel.CreateBounded<string>(new BoundedChannelOptions(QueueLength) { FullMode = BoundedChannelFullMode.Wait });
-        public JsonObject Public() => new() { ["id"] = Id, ["name"] = Name, ["level"] = Level, ["client"] = Client, ["captain"] = Captain };
+        // (ai: joined with an AI key, which only the server knows, so a game can trust it)
+        public JsonObject Public() => new() { ["id"] = Id, ["name"] = Name, ["level"] = Level, ["client"] = Client, ["captain"] = Captain, ["ai"] = KeyAi };
     }
 
     sealed class Room

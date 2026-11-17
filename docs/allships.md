@@ -19,8 +19,8 @@ ship is meant to be used, judged from its numbers, not rules the game enforces.
 ## Player ships
 
 There are eleven: five frigates to choose from on the start menu, and five destroyers and a
-cruiser built at a shipyard. You fly one at a time; ships you've built and crewed can sail with you
-as your fleet (up to ten in all, ordered in fleet mode, key 5).
+cruiser built at a shipyard. You fly one at a time; ships you've built can sail with you, crewed (or
+towed, which halves your speed), as your fleet (up to ten in all, ordered in fleet mode, key 5).
 
 ### Every player ship has
 
@@ -35,7 +35,7 @@ as your fleet (up to ten in all, ordered in fleet mode, key 5).
 | Cargo hold | Ore, refined materials and parts all count against it. |
 | Part slots | Fittings bought or made at industry sites (`industry.json` parts). |
 | Crew | Short of 90 % of its complement, a ship works less well. |
-| Docking and landing | Docks at stations and surface bases; flies down to the planets and moons that can be landed on. |
+| Docking and landing | Docks at stations and surface bases; flies down to the planets, moons and asteroid fields that can be landed on. |
 
 ### Frigates (chosen on the start menu)
 
@@ -132,7 +132,7 @@ The Sovereign needs a capacitor bank, a beam lens and fire control. `industry.js
 - **Stiletto, strike.** Eight cells, the most of any destroyer, launch its twenty missiles in big
   salvos fast. It suits alpha strikes on a single target: a dreadnought's escorts, or a
   weapons platform.
-- **Sovereign, flagship.** Twice the hull and shield of any destroyer, with the heaviest beam,
+- **Sovereign, flagship.** Nearly twice the hull and shield of the toughest destroyer, with the heaviest beam,
   guns and missile load, six CIWS mounts and the biggest hold. It is the only player ship meant to
   fight the dreadnought battle group head-on, and the best fleet leader. Its cost (400 t steel,
   100 t titanium, a crew of 800, 20 minutes) and its slowness are the price.
@@ -171,7 +171,7 @@ Destroyed ships come back after their respawn time, at their post: the field shi
 | Guns | blaster cannons: 4-shot bursts every 0.9 s, 6 a shot, 1.5 km, only within 18° of the nose | blasters: 3-shot bursts every 1.2 s, 6 a shot, 1.8 km, within 35° of the nose | cannons: 3-shell bursts every 4 s, 30 a shell, 3.5 km | 2 triple turrets: every 3.2 s, 30 a shell, 4.2 km | 8 triple turrets: every 6.5 s, 30 a shell, 5.5 km |
 | Missiles (250 each) | none | none | 3 every 20 s, 4.5 km | 2 every 18 s, 5 km | 4 every 16 s, 6 km |
 | Beam | none | none | 260/s for 1.6 s after a 4 s charge, every 16 s, 4.5 km | none | 320/s for 2 s after a 5 s charge, every 18 s, 6 km |
-| Tactics | attack runs: in fast, break off at 420 m, extend 1.4 km, come round again; hides in rock when hurt | shorter, tighter passes; hides in rock when hurt | stands off about 1.8 km and circles; hides when below half hull | stands off 2.3 km and circles | stands off 3.3 km and circles slowly |
+| Tactics | attack runs: in fast, break off at 420 m, extend 1.4 km, come round again; hides in rock when hurt | shorter, tighter passes; hides in rock when hurt | stands off about 1.8 km and circles; hides when below half hull (the Corsair cruiser: 1.9 km, never hides) | stands off 2.3 km and circles | stands off 3.3 km and circles slowly |
 | Respawn | 40 s | 40 s | 40 s in the Outer Drift, 75 s with the Corsair patrol | 60 s | 120 s |
 
 ### Where they are
@@ -182,10 +182,10 @@ Destroyed ships come back after their respawn time, at their post: the field shi
 | Pirate cruiser | 1 cruiser, 2 drones | Hidden in the Outer Drift, spotting you at 5 km |
 | Corsair patrol | 1 cruiser, 2 destroyers | On station in the open on the way in to Cinder, spotting you at 9 km |
 | Dreadnought battle group | 1 dreadnought, 2 escort destroyers | On station on the way in to Glacis, spotting you at 9 km |
-| Planetary defence | fighters and gunships (the destroyer hull) | Over the planets' surfaces, rebuilt 8 min (fighters) and 15 min (gunships) after they're destroyed |
+| Planetary defence | patrol fighters, plus pad fighters and drones and sometimes a gunship (the destroyer hull) | Over the planets' surfaces. Same guns and hull as in space, but slower (fighters 200/290 m/s, turn 85; gunships 100/130 m/s, 1.8 km standoff), and they don't hide. Rebuilt 8 min (fighters, drones) and 15 min (gunships) after they're destroyed |
 
-The two older levels (Carrier Demo and Asteroid Ambush, both deprecated) use the same fighter,
-drone and cruiser.
+The two older levels (Carrier Demo and Asteroid Ambush, both deprecated) use the same drone and
+cruiser (Asteroid Ambush the fighter too).
 
 ### Roles
 
@@ -212,6 +212,6 @@ game's target read-outs.
 
 - **Cinder Orbital Battery:** three gun platforms and a beam lance over Cinder's pole.
 - **Corsair strike satellites:** an ion cannon over Port Ochre and a mass driver over Pyrois
-  Domes. They bombard those settlements every 30 and 20 minutes until destroyed.
+  Domes. They bombard those settlements every 30 and 20 minutes until destroyed (put back after half an hour).
 - **Ground defences:** batteries, missile sites, hover tanks, sea bases and submarines on the
   planets (`ground_units.json`).

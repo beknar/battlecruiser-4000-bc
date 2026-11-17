@@ -120,7 +120,7 @@ namespace CarrierGame.Demo
             ship.enginesCut = false;
             // the leader in warp (or being docked): it waits, and is put on its station as the
             // leader arrives (FleetDirector); down on a planet or docked, it waits in orbit
-            if (leader.externalMotion || leaderAway)
+            if (leader.externalMotion || leaderAway || Docking.Busy)
             {
                 ship.throttle = 0f;
                 ship.rudder = 0f;

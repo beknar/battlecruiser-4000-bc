@@ -145,6 +145,19 @@ namespace CarrierGame
             }
         }
 
+        /// <summary>The way in to the berth, as a direction out from it: out from what it is built
+        /// into (a pier's end; a pad on a rock's face: up from it), or, at a berth in the middle of
+        /// a station, its own way out.</summary>
+        public Vector3 ApproachAxis
+        {
+            get
+            {
+                Vector3 f = BerthPosition - Centre;
+                if (f.sqrMagnitude > 200f * 200f) return f.normalized;
+                return berth != null ? berth.forward : transform.forward;
+            }
+        }
+
         /// <summary>Where to steer for on the way in: out in front of the berth (out from what it
         /// is built into: a pad on a rock's face from above it), so the ship comes in on the open
         /// side rather than through the rock or the hull; round it first when the straight way
@@ -158,8 +171,7 @@ namespace CarrierGame
             float r = ClearRadius + 300f + margin;
             // the way in: out from what it is built into (a pier's end, a pad on a rock's face:
             // in from above it), or, at a berth in the middle of a station, its own way out
-            Vector3 f = b - c;
-            f = f.sqrMagnitude > 200f * 200f ? f.normalized : berth.forward;
+            Vector3 f = ApproachAxis;
             Vector3 rel = from - b;
             float ahead = Vector3.Dot(rel, f);
             // (in front, and near the line out from the berth: straight in, over the open side)

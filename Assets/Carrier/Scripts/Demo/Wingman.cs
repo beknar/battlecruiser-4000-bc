@@ -211,9 +211,10 @@ namespace CarrierGame.Demo
                         Doing = $"flying in to dock at {inn.displayName}";
                         break;
                     }
+                    if (d != null && d.Current != Docking.State.Free) { Doing = "docking"; break; }   // (docking flies her in: wait for it)
                     Steer(0f, 0f);
                     cc.throttle = 0f;
-                    if (d == null || d.Current != Docking.State.Free) break;   // (docking: wait for it)
+                    if (d == null) break;
                     if (d.Candidate(out string why) == null) { Doing = $"can't dock: {why}"; Current = Order.Hold; break; }
                     if (d.Dock()) Doing = "docking";
                     break;
@@ -235,7 +236,8 @@ namespace CarrierGame.Demo
             var d = Docking.Instance;
             if (d == null || d.Current == Docking.State.Free) return false;
             if (d.Current == Docking.State.Docked) d.Undock();
-            Steer(0f, 0f);
+            // (flying in to dock: called off for the new order; undocking: docking flies her out)
+            else if (d.Current == Docking.State.Docking) d.CancelApproach("new orders");
             return true;
         }
 

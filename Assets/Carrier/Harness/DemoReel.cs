@@ -68,6 +68,7 @@ namespace CarrierGame.Demo
             demo = FindAnyObjectByType<CarrierDemoInput>();
             cc = demo != null ? demo.carrier : null;
             cam = demo != null ? demo.orbitCamera : null;
+            Docking.QuickDock = true;   // (the reels' timings: docked the quick way)
             if (cc == null || cam == null) { Log("no demo controller in scene"); Application.Quit(); yield break; }
             // every reel with the same captain, Yuki Tanaka (automated runs no longer read the saved one)
             Captain.Index = 2;

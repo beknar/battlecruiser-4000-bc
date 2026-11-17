@@ -268,8 +268,8 @@ namespace CarrierGame.Demo
             if (finishing && (PlanetLanding.OnSurface || Docking.Docked)) { Arrived(); return; }
             if (finishing && Docking.Busy)
             {
+                // (the docking computer has the helm and the throttle)
                 throttleSet = -1f;
-                demo.autoRudder = null; demo.autoPitch = null;
                 Phase = "docking";
                 return;
             }

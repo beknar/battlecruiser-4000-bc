@@ -578,9 +578,15 @@ system to travel around.
     the frigate in to it. Farther out, but where a warp or an auto-flight there leaves the ship
     (a few kilometres off: Deepcut at the edge of the Inner Belt, the Lantern Arcology, Kestrel
     Deep Yard), K flies her in to the berth first, round to its open side, then docks: it
-    doesn't land on the field or the body nearby. There it is repaired, hull
-    and shield, and where there is a market (all but the shipyard) the whole hold is sold. The
-    HUD keeps the credits. K again undocks, and the ship pulls away under its own power.
+    doesn't land on the field or the body nearby. The last of the way in is flown by the docking
+    computer, with no fade: it lines her up at a point 300 m out along the berth's way in, then
+    takes her in, down onto a pad from over it on the lift thrusters or nose first into a pier,
+    and draws her in the last few metres (about half a minute to a minute; the HUD says which
+    step it is on). Steering, moving the throttle or a fight calls it off; if it gets nowhere
+    (blocked for 15 s, or over two and a half minutes) it finishes the old way, with a fade. The
+    fleet waits outside while she docks. There it is repaired, hull and shield, and where there
+    is a market (all but the shipyard) the whole hold is sold. The HUD keeps the credits. K
+    again undocks, and the ship pulls away under its own power, up off a pad first.
   - **The hostile ones fight.** Their guns are cold until the frigate comes within range in
     plain sight: 5.2 km of Corsair Haven's guns, 6.5 km of the battery's platforms. Then
     everything that can see it opens fire, and the warp drive is locked. Each gun and platform

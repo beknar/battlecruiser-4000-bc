@@ -81,7 +81,7 @@ SELFTESTS = {
     "approach": (["-approachtest"], 1500),
     "strike": (["-striketest"], 1200),
     "modes": (["-modestest"], 600),
-    "nav": (["-navtest"], 1500),
+    "nav": (["-navtest"], 2100),
     "services": (["-servicestest"], 900),
     "fleet": (["-fleettest"], 900),
     "system": ([], 1500),

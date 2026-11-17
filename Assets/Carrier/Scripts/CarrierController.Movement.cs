@@ -118,6 +118,7 @@ namespace CarrierGame
             }
             if (externalMotion)
             {
+                tractorPull = Vector3.zero;   // (no tractor beam's pull while something else flies her)
                 UpdateLiftFlares(0f);
                 if (enginesCut)
                 {
@@ -126,7 +127,11 @@ namespace CarrierGame
                 }
                 return;
             }
-            speed = Mathf.MoveTowards(speed, throttle * maxSpeed * speedScale * towScale * engineScale, acceleration * accelScale * engineAccelScale * dt);
+            // (held by tractor beams: their pull, and the speed they leave her, CarrierController.Tractor)
+            UpdateTractor(dt);
+            float accel = acceleration * accelScale * engineAccelScale;
+            if (speed > tractorCap) accel = Mathf.Max(accel, TractorBeam.Brake);
+            speed = Mathf.MoveTowards(speed, Mathf.Min(throttle * maxSpeed * speedScale * towScale * engineScale, tractorCap), accel * dt);
 
             // attitude: heading turns about the vertical (the up frame's), the nose pitches up or down, and
             // the ship rolls about its own length (all the way round, if the pilot keeps on)
@@ -148,7 +153,9 @@ namespace CarrierGame
             float liftChange = wantLift - liftSpeed;
             liftSpeed = Mathf.MoveTowards(liftSpeed, wantLift, elevatorAcceleration * dt);
             liftSpeed = Mathf.Max(liftSpeed, -maxDescent);
-            transform.position += Collide((transform.forward * speed + transform.up * liftSpeed) * dt);
+            // (held by a tractor: no faster up or down than its cap allows ahead)
+            if (tractorCap < float.MaxValue) liftSpeed = Mathf.Clamp(liftSpeed, -tractorCap, tractorCap);
+            transform.position += Collide((transform.forward * speed + transform.up * liftSpeed + tractorPull) * dt);
             transform.position = SeparateFromShips(transform.position);
             if (Cover.Active) transform.position = Depenetrate(transform.position);
             UpdateLiftFlares(liftChange);

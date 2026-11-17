@@ -287,6 +287,14 @@ repainted like the frigates and turned to lie bow first along the axis with
   speed and 30% of acceleration, or the shield drops and doesn't recharge. Components repair
   slowly after 20 s without a hit, and all at once docked or respawned. Their condition isn't
   saved: a ship comes into a game whole.
+- **Tractor beams.** The Vrask Snare's tractor beam locks onto a ship within 2.5 km and pulls it
+  in at 30 m/s, holding down its speed and turning it slowly stern on to the Snare, until it is
+  held 1.5 km off. One beam can be out-flown: at full thrust straight away the ship is faster
+  than the pull, and the lock breaks at 3.25 km. Two beams on one ship, or one on a ship whose
+  engines are knocked out, hold it fast. The lock also breaks when the Snare is destroyed or its
+  weapons are knocked out. While held, the warp drive, docking and landing are refused ("held by
+  a tractor beam"). The HUD shows "Tractor lock: N beams" in red at the top of the screen, with
+  whether full thrust can break it; a notice says when the lock comes on and when it is gone.
 - **Breakup.** When a ship dies, its hull splits into chunks and its turrets break off one after
   another, outer parts first. Then the main blast throws the wreckage outward, where it drifts and
   shrinks away.
@@ -694,6 +702,14 @@ system to travel around.
   **Skink** screens the Maw with eight rapid-fire guns. They are hostile like the pirates, shown
   as "Hostile: Vrask" on the target display. Their numbers are in `Assets/Carrier/Data/vrask.json`
   (see `docs/allships.md`).
+
+  **The Snares' capture.** The Snares hold 1.8 to 2.2 km off (1.45 to 1.8 km while holding a ship) and don't close. Their ion fire
+  goes for your shield generator, then, with the shield down, your engines. Once the engines are
+  knocked out, or you are crawling with your shield down, a Snare locks its tractor beam on you
+  and pulls you in (see Tractor beams). Two Snares work as a pack: one keeps up the ion fire and
+  the other holds you in its beam and turns its guns on any other ship that comes near. Close to
+  within 900 m and a Snare breaks away, to come back in at its range. For now they only hold a
+  ship they have caught; boarding it is still to come.
 
   **They come back, location by location.** Each band is a location. Every 5 minutes, the
   destroyed enemies of a location spawn there again, back in their hiding places. But once all
@@ -1342,6 +1358,9 @@ kept.
   which applies it, so a kill counts for everyone. Enemies go for whichever player is nearest,
   and their hits land on that player's ship.
 - **Fire.** Shots, missiles and main-gun beams appear in every game.
+- **Tractor beams.** The host's game tells a player's game when its enemies' beams hold that
+  player's ship, and that game pulls its own ship; a hold not renewed for 1.5 s lets go. Every
+  game shows the beams.
 - **Hand-over.** When the host leaves, the next player takes the enemies over where they are.
 - **More players, harder enemies.** Every encounter in space is scaled for the number of
   players flying in the level. This covers raiders, ambushes, capital ships and station guns.
@@ -1841,7 +1860,10 @@ Each part can also be run alone:
   Mirren, all four of their ships there, hostile, armoured, shielded and each with its own
   weapons, the Maw the slowest; the frigate warps there and closes in until they spring; the
   warp drive locked while they fight; each of the four firing on the frigate, ion bolts and
-  armour-piercing slugs among the hits; each destroyed; and all of them back with the spawns.
+  armour-piercing slugs among the hits; the Snares' capture (their ion fire knocking out the
+  frigate's shield generator and engines, a tractor lock pulling it in, the warp drive refused
+  while held, the beam letting go when its Snare is destroyed); each destroyed; and all of them
+  back with the spawns.
   Add `-modestest` (or `?modestest` on the web) to test the modes of play: a game starts in
   combat mode; 1 to 5 change mode, each with its keys in the controls box; a mode's keys work
   in it and not in another (V scans in mining mode, not in combat); services away from a site

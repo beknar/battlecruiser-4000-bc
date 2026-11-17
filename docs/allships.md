@@ -230,7 +230,8 @@ armour. Numbers: `Assets/Carrier/Data/vrask.json`.
 | Acceleration | 30 | 60 | 12 | **70** |
 | Guns | 16 ion pods (turrets): 12 ion a bolt, every 4.5 s, 2.8 km; an ion battery of 6 tubes firing together, 12 each, every 3.5 s, 3 km, within 15° of the bow | 4 cheek guns (6 barrels): 40 a shell, every 2.4 s, 1.6 km, within 15° of the bow | spinal gun: 260 armour-piercing, every 7 s, **6.5 km**, within 4° of the bow; 3 twin dorsal turrets: 35 a shell, every 5.5 s, 5 km; 7 jaw and flank guns: 35, every 10 s, 4.5 km, within 6° | 8 point-defence guns: 3 a shot every 0.45 s, 2.4 km, swinging 130° |
 | Missiles | none | 2 every 14 s, 3.5 km | none (nuclear silos: not armed yet) | none |
-| Tactics | stops 1.8 to 2.2 km off, bow on | attack runs: in fast, breaks off at 450 m, extends 1.6 km | stops 3.6 to 4.5 km off, bow on, so all its guns bear | screens the Maw: stands off 1.5 km from the target, never more than 2.8 km from the Maw |
+| Tractor beam | 2.5 km: pulls at 30 m/s to 1.5 km off; out-flown alone, but not two of them, or with your engines out; lets go at 3.25 km | none | none | none |
+| Tactics | stops 1.8 to 2.2 km off (1.45 to 1.8 km while holding), bow on; ion on your shield generator, then your engines; its tractor once they are out; breaks away inside 900 m | attack runs: in fast, breaks off at 450 m, extends 1.6 km | stops 3.6 to 4.5 km off, bow on, so all its guns bear | screens the Maw: stands off 1.5 km from the target, never more than 2.8 km from the Maw |
 | Respawn | with the spawns (below) | | | |
 
 ### Where they are
@@ -244,9 +245,14 @@ place is cleared.
 
 ### Roles
 
-- **Snare, disabler.** Its ion fire strips a shield fast (a pair of them, with the pods bearing,
-  can take down a frigate's in well under a minute) but does little to a hull. It holds its range
-  bow on, so a ship that closes on it fights it on its own terms. Kill it first, or keep moving.
+- **Snare, disabler and captor.** Its ion fire strips a shield fast (a pair of them, with the pods
+  bearing, can take down a frigate's in well under a minute) but does little to a hull. It holds
+  1.8 to 2.2 km off (1.45 to 1.8 km while it holds a ship), bow on, and breaks away from any ship that closes within 900 m. Its ion goes
+  for your shield generator, then your engines; once they are knocked out (or you are crawling
+  with your shield down) it locks its tractor beam on you and pulls you in, to be held 1.5 km off.
+  One beam can be broken at full thrust straight away; two Snares work as a pack,
+  one firing and one holding, and two beams, or one with your engines out, can't be broken. While
+  held you can't warp, dock or land. Destroy it, or knock out its weapons, and its beam lets go.
 - **Fang, assault.** The heaviest guns at close range, in fast passes, with missiles. Its prow is
   the best armoured part of the group after the Maw. Turrets that can track it, or a turn to meet
   it, answer it.
@@ -255,7 +261,7 @@ place is cleared.
 - **Skink, escort.** The fastest and most agile of them, with many light guns: a nuisance alone, a
   screen for the Maw. It fights on its own once the Maw is destroyed.
 
-Later work gives them tractor beams and boarding (the Snare and Fang), artillery and nuclear
+Later work gives them boarding (the Snare and Fang), artillery and nuclear
 missiles (the Maw), point defence against missiles and fighters and fleet tactics (the Skink and
 the group). The places on their hulls for those are in the models' hardpoint files already.
 

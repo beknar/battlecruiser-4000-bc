@@ -78,6 +78,9 @@ namespace CarrierGame
         /// <summary>The ship (by id) it screens, and how far from it it fights.</summary>
         public string guard;
         public float guardLeash;
+        /// <summary>Its tractor beam's reach (m), at its "tractor" point, and the Snare's tactics
+        /// with it (SnareTactics); 0: none.</summary>
+        public float tractorRange;
 
         // missiles (EnemyWeapons): none if salvoSize is 0
         public int salvoSize;

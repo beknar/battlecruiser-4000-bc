@@ -145,6 +145,7 @@ namespace CarrierGame.Demo
                     w.arrivalDistance < best.arrivalDistance &&
                     Vector3.Distance(carrier.transform.position, w.Position) < w.arrivalDistance * 1.1f) return null;
             if (carrier.Destroyed) why = "the frigate is destroyed";
+            else if (carrier.Tractored) why = "held by a tractor beam";
             else if (Docking.Busy) why = "undock first";
             else if (drive != null && drive.Current != WarpDrive.State.Ready) why = "in warp";
             else if (drive != null && drive.InCombat(out string c)) why = c;

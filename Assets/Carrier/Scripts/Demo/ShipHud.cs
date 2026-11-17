@@ -269,6 +269,19 @@ namespace CarrierGame.Demo
                 GUI.Label(br, msg, big);
             }
 
+            // held by tractor beams: how many, and whether full thrust can break free
+            if (!carrier.Destroyed && carrier.Tractored)
+            {
+                int n = carrier.TractorBeams;
+                var ws = Hud.Text(24, true, TextAnchor.MiddleCenter);
+                var wc = new GUIContent($"<color=#ff6050>Tractor lock: {n} beam{(n == 1 ? "" : "s")}</color>\n" +
+                                        $"<size={Mathf.RoundToInt(16 * s)}>{(carrier.TractorFirm ? "held fast: no warp, docking or landing" : "full thrust away to break free")}</size>");
+                Vector2 wsz = ws.CalcSize(wc);
+                var wr = new Rect((Screen.width - wsz.x) * 0.5f - pad2 * 2f, Screen.height * 0.16f, wsz.x + pad2 * 4f, wsz.y + pad2 * 2f);
+                Hud.Panel(wr);
+                GUI.Label(wr, wc, ws);
+            }
+
             if (toast != null && Clock < toastUntil)
             {
                 var ts = Hud.Text(20, true, TextAnchor.MiddleCenter);

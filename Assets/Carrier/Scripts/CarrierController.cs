@@ -74,7 +74,7 @@ namespace CarrierGame
         /// <summary>How loud the engine hum is now (for the self-test).</summary>
         public float HumVolume => hum != null ? hum.volume : 0f;
 
-        public Vector3 Velocity => transform.forward * speed + transform.up * liftSpeed;
+        public Vector3 Velocity => transform.forward * speed + transform.up * liftSpeed + tractorPull;
         /// <summary>Compass heading in degrees (0 = +Z of the up frame: the world's in space).</summary>
         public float Heading => heading;
         /// <summary>Nose angle above the horizon in degrees (negative = nose down).</summary>

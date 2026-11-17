@@ -54,6 +54,8 @@ namespace CarrierGame.Tests
             Assert.That(t.Find("Maw").guns.Where(g => t.Bolt(g.bolt).Kind == HitKind.Penetrator).Max(g => g.range),
                         Is.GreaterThan(t.Find("Snare").guns.Max(g => g.range)), "the spinal gun outranges the Snare");
             Assert.That(t.Find("Skink").guns.Min(g => g.interval), Is.LessThan(1f), "the Skink's guns fire fast");
+            Assert.That(t.Find("Snare").tractorRange, Is.InRange(2000f, 3000f), "the Snare's tractor beam");
+            Assert.That(t.ships.Count(s => s.tractorRange > 0f), Is.EqualTo(1), "only the Snare has one");
         }
 
         [Test]

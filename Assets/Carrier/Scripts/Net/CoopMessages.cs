@@ -32,6 +32,7 @@ namespace CarrierGame.Demo
         public int sy;            // its components (ShipSystems.ToWire; 0, from an older game: whole)
         public float sf;          // its shield: 1 + how charged (0: none, or not sent)
         public bool sd;           // its shield down
+        public int tr;            // the player its tractor beam holds: 1 + their id (0: none, or from an older game)
     }
 
     /// <summary>Anything that arrives.</summary>
@@ -62,6 +63,9 @@ namespace CarrierGame.Demo
         public int kd, kx, cp;
         // a gift of credits (its number, for the receipt)
         public int gid;
+        // a tractor beam's hold on my ship, from the host: on or let go, how many beams, held fast
+        public bool on, held;
+        public int n;
         // a message on the comms channel
         public string text;
         // the self-test's bot
@@ -107,7 +111,12 @@ namespace CarrierGame.Demo
 
     /// <summary>A hit on a player's ship, from the host to that player.</summary>
     [Serializable]
-    class HitPlayerMsg { public string t = CoopWire.HitPlayer; public int to; public float a; public string rf = ""; public double x, y, z; public int kd, kx; }
+    class HitPlayerMsg { public string t = CoopWire.HitPlayer; public int to; public float a; public string rf = ""; public double x, y, z; public int kd, kx, cp; }
+
+    /// <summary>The host's tractor beams on one player's ship: on (or let go), pulling toward
+    /// x, y, z (from the reach rf), n beams, held fast (it can't fly free).</summary>
+    [Serializable]
+    class TractorMsg { public string t = CoopWire.Tractor; public int to; public bool on, held; public int n; public string rf = ""; public double x, y, z; }
 
     /// <summary>Credits for one player (from the AI wingman's hold to theirs).</summary>
     [Serializable]

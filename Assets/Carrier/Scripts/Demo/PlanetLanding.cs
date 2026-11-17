@@ -132,7 +132,7 @@ namespace CarrierGame.Demo
             if (best == null) return null;
             // in the approach to a station or base to dock at (Deepcut, out at the edge of the
             // Inner Belt): K docks there, it doesn't land on the field
-            if (Installation.ApproachableNear(carrier.transform.position) is Installation dockHere)
+            if (Installation.ApproachableNear(carrier.transform.position, NavigationMode.Flying) is Installation dockHere)
             {
                 why = $"K docks at {dockHere.displayName} here";
                 return null;
@@ -786,6 +786,8 @@ namespace CarrierGame.Demo
             if (Landed && !wasLanded && Time.time - touchedAt > 3f)
             {
                 Touchdowns++;
+                // (down: the engines throttled back, so they don't burn on with her sat there)
+                carrier.throttle = 0f;
                 Notices.Post(OnPad ? "Touchdown on the landing pad" : $"Touchdown on {Body.displayName}");
                 PadSupport.Rumble(0.5f, 0.3f, 0.3f);
                 SoundFX.PlayPeaceful(Sfx.Impact, tr.position, 0.5f, 0.5f);

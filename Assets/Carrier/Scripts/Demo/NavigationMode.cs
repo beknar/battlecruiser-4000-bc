@@ -47,6 +47,13 @@ namespace CarrierGame.Demo
         Vector3 markAt;
         float markDist;
 
+        /// <summary>Where auto-travel is flying the ship now (null when it isn't): K docks at
+        /// that station anywhere in its approach, even nearer the middle of the field it is in.</summary>
+        public static WarpPoint Flying { get; private set; }
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetFlying() => Flying = null;
+        void OnDisable() { Flying = null; }
+
         // ------------------------------------------------------------ the menu
 
         public string Title
@@ -191,6 +198,7 @@ namespace CarrierGame.Demo
             string why = ship.Destroyed ? "the ship is destroyed"
                        : Drive != null && Drive.Current != WarpDrive.State.Ready ? "in warp"
                        : PlanetLanding.Busy ? "take off first (K)"
+                       : PlanetLanding.Instance != null && PlanetLanding.Instance.Autopilot ? "the landing auto-pilot is flying her (K stops it)"
                        : Docking.Busy ? "undock first (K)" : null;
             // (only to the points of interest at the place the ship is: the map warps to others)
             var place = Places.PlaceOf(p) ?? p;
@@ -247,14 +255,31 @@ namespace CarrierGame.Demo
             }
             if (Course != null && ship != null)
             {
-                markAt = Destination(Course, ship.transform.position);
+                // (a station: its berth, which is what the distance means to a pilot docking)
+                var berthOf = DockAt(Course);
+                markAt = berthOf != null ? berthOf.BerthPosition : Destination(Course, ship.transform.position);
                 markDist = Vector3.Distance(ship.transform.position, markAt);
             }
+            Flying = Travelling ? Course : null;
             if (!Travelling) return;
             if (ship == null || ship.Destroyed || Course == null) { Stop(); return; }
             // landing or docking: done once down, or docked (before anything else: a site's
             // screen opening there changes the mode)
             if (finishing && (PlanetLanding.OnSurface || Docking.Docked)) { Arrived(); return; }
+            if (finishing && Docking.Busy)
+            {
+                throttleSet = -1f;
+                demo.autoRudder = null; demo.autoPitch = null;
+                Phase = "docking";
+                return;
+            }
+            // landed, or docked, some other way (K on the way): the trip is over, not flown on
+            // over the surface or carried on after take-off
+            if (!finishing && (PlanetLanding.Busy || Docking.Busy || (PlanetLanding.Instance != null && PlanetLanding.Instance.Autopilot)))
+            {
+                Stop();
+                return;
+            }
             if (demo.PilotFlying) { Stop($"Auto-travel off: you have the helm. {Course.displayName} stays marked"); return; }
             // (the throttle moved by the pilot: theirs, and auto-travel is off)
             if (throttleSet >= 0f && Mathf.Abs(ship.throttle - throttleSet) > 0.01f) { Stop($"Auto-travel off: you have the throttle. {Course.displayName} stays marked"); return; }
@@ -263,7 +288,7 @@ namespace CarrierGame.Demo
             if (Drive != null && Drive.Current != WarpDrive.State.Ready) { Stop(); return; }
             if (finishing)
             {
-                if (Finish == Then.Dock) FlyDock(ship);
+                if (Finish == Then.Dock || Finish == Then.Arrive) FlyDock(ship);
                 // (the auto-lander flying her down from orbit is still "in space" till the ground
                 // takes over: it is the lander being off that means it gave up)
                 else if (!PlanetLanding.Busy && !(PlanetLanding.Instance != null && PlanetLanding.Instance.Autopilot) && Time.time > nextNotice)
@@ -337,20 +362,26 @@ namespace CarrierGame.Demo
                 if (landing == null || !landing.LandAt(Course)) Stop($"At {Course.displayName}: couldn't land");
                 return;
             }
-            if (Finish == Then.Dock && DockAt(Course) != null)
+            // (to a station: the last of the way in to its berth, then docked, or (just going
+            // there) stopped in docking range, where K docks)
+            if ((Finish == Then.Dock || Finish == Then.Arrive) && DockAt(Course) != null)
             {
                 finishing = true;
                 dockLegStart = Time.time;
                 dockStall = -1f;
+                backOffs = 0;
+                backOffUntil = 0f;
                 Phase = "closing on the berth";
                 return;
             }
             Arrived();
         }
 
-        float dockLegStart, dockStall = -1f;
+        float dockLegStart, dockStall = -1f, backOffUntil;
+        int backOffs;
 
-        /// <summary>The last of the way in to dock: to the berth, then dock.</summary>
+        /// <summary>The last of the way in to a station: to the berth, then dock (or, only going
+        /// there, stop in docking range).</summary>
         void FlyDock(CarrierController ship)
         {
             var inst = DockAt(Course);
@@ -362,25 +393,43 @@ namespace CarrierGame.Demo
                 ship.throttle = 0f;
                 throttleSet = -1f;
                 demo.autoRudder = null; demo.autoPitch = null;
+                if (Finish == Then.Arrive) { Arrived(); return; }
                 if (why == "" && docking.Dock()) Phase = "docking";
                 else if (why != "") { Stop($"Can't dock at {inst.displayName}: {why}"); }
                 return;
             }
-            // (stuck against something, or far too long about it: given up, with a word)
-            if (ship.Speed < 2f) { if (dockStall < 0f) dockStall = Time.time; } else dockStall = -1f;
-            if ((dockStall > 0f && Time.time - dockStall > 12f) || Time.time - dockLegStart > 180f)
+            // stuck against something (the rock's bumps, the buildings by the pad): backed off
+            // out from it and tried again; given up, with a word, after a few goes, or far too long
+            if (ship.Speed < 2f && Time.time >= backOffUntil) { if (dockStall < 0f) dockStall = Time.time; } else dockStall = -1f;
+            if (dockStall > 0f && Time.time - dockStall > 4f)
+            {
+                backOffs++;
+                dockStall = -1f;
+                backOffUntil = Time.time + 6f;
+            }
+            if (backOffs > 3 || Time.time - dockLegStart > 180f)
             {
                 Stop($"Couldn't get in to {inst.displayName}'s berth: fly in by hand, then K");
                 return;
             }
+            Vector3 aim;
+            if (Time.time < backOffUntil)
+            {
+                // (out, away from what it is built into, and up the berth's way out)
+                Vector3 me = ship.transform.position, c = inst.Centre;
+                Vector3 outward = (me - c).sqrMagnitude > 1f ? (me - c).normalized : -ship.transform.forward;
+                aim = me + outward * 1500f + (inst.BerthPosition - c).normalized * 500f;
+                Phase = "backing off for another way in";
+            }
             // (round to the open side of the berth first: not through the rock it is dug into)
-            Vector3 aim = inst.ApproachPoint(ship.transform.position);
+            else aim = inst.ApproachPoint(ship.transform.position);
             var v = ShipAutopilot.BowOn(ship, aim);
             demo.autoRudder = v.x;
             demo.autoPitch = v.y;
             float d = Vector3.Distance(ship.transform.position, aim);
             ship.throttle = d > 3000f ? 0.6f : 0.3f;
             throttleSet = ship.throttle;
+            if (Time.time >= backOffUntil) Phase = "closing on the berth";
         }
 
         void Arrived()
@@ -388,8 +437,10 @@ namespace CarrierGame.Demo
             LastTrip = Time.time - started;
             Arrivals++;
             string where = Course.displayName;
+            bool dockable = DockAt(Course) != null;
             End(null);
-            Notices.Post(PlanetLanding.OnSurface ? $"Down at {where}" : Docking.Docked ? $"Docked at {where}" : $"Arrived at {where}");
+            Notices.Post(PlanetLanding.OnSurface ? $"Down at {where}" : Docking.Docked ? $"Docked at {where}"
+                         : dockable ? $"Arrived at {where}: K docks" : $"Arrived at {where}");
         }
 
         // ------------------------------------------------------------ on screen

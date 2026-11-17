@@ -90,8 +90,10 @@ namespace CarrierGame
         }
 
         /// <summary>The friendly place to dock whose approach a point is in (where a warp or an
-        /// auto-flight there leaves the ship), the one in docking range first, else the nearest; null if none.</summary>
-        public static Installation ApproachableNear(Vector3 p)
+        /// auto-flight there leaves the ship), the one in docking range first, else the nearest; null if none.
+        /// `course`: where navigation is flying (or has marked): that place's approach is its own
+        /// even nearer the middle of the field it is in.</summary>
+        public static Installation ApproachableNear(Vector3 p, WarpPoint course = null)
         {
             var close = DockableNear(p);
             if (close != null) return close;
@@ -106,7 +108,8 @@ namespace CarrierGame
                 // as it always has; only on its own side of the place is it the station's)
                 var wp = s.Point;
                 var place = wp != null ? Places.PlaceOf(wp) : null;
-                if (place != null && place.surface != SurfaceKind.None &&
+                bool own = wp != null && (wp == course || Vector3.Distance(p, wp.Position) < wp.arrivalDistance * 1.1f);
+                if (!own && place != null && place.surface != SurfaceKind.None &&
                     Vector3.Distance(p, place.Position) - (place.kind == WarpPoint.Kind.AsteroidField ? 0f : place.bodyRadius) < d) continue;
                 bestD = d; best = s;
             }
@@ -116,30 +119,64 @@ namespace CarrierGame
         /// <summary>The ship at `p` is close enough to be brought in to the berth now.</summary>
         public bool InDockRange(Vector3 p) => Vector3.Distance(p, BerthPosition) < dockRange;
 
+        /// <summary>The middle of what it is built into (its rock, its station).</summary>
+        public Vector3 Centre => Point != null ? Point.Position : transform.position;
+
+        float clearRadius = -1f;
+        /// <summary>How far from its middle (Centre) a ship has to keep, going round: out past the
+        /// berth, and past the rock it is built into (its Obstacle, the rock's bumps and all).</summary>
+        public float ClearRadius
+        {
+            get
+            {
+                Vector3 c = Centre;
+                float r = Vector3.Distance(BerthPosition, c);
+                if (clearRadius >= 0f) return Mathf.Max(r, clearRadius);
+                float rock = 0f;
+                foreach (var o in Obstacle.All)
+                {
+                    if (o == null) continue;
+                    float d = Vector3.Distance(o.transform.position, c);
+                    if (d < o.radius) rock = Mathf.Max(rock, d + o.radius);
+                }
+                // (once there are obstacles to look at: they are made with the place)
+                if (Obstacle.All.Count > 0) clearRadius = rock;
+                return Mathf.Max(r, rock);
+            }
+        }
+
         /// <summary>Where to steer for on the way in: out in front of the berth (out from what it
         /// is built into: a pad on a rock's face from above it), so the ship comes in on the open
         /// side rather than through the rock or the hull; round it first when the straight way
-        /// there would cross it; the berth itself once in front of it.</summary>
-        public Vector3 ApproachPoint(Vector3 from)
+        /// there would cross it (out to the side, then up level with the berth); the berth itself
+        /// once in front of it, near its line. `margin`: room for the ship's own size.</summary>
+        public Vector3 ApproachPoint(Vector3 from, float margin = 150f)
         {
             if (berth == null) return BerthPosition;
             Vector3 b = BerthPosition;
-            // (what the berth is built into, round its middle: as far out as the berth, and a margin)
-            Vector3 c = Point != null ? Point.Position : transform.position;
-            float r = Vector3.Distance(b, c) + 300f;
+            Vector3 c = Centre;
+            float r = ClearRadius + 300f + margin;
             // the way in: out from what it is built into (a pier's end, a pad on a rock's face:
             // in from above it), or, at a berth in the middle of a station, its own way out
             Vector3 f = b - c;
             f = f.sqrMagnitude > 200f * 200f ? f.normalized : berth.forward;
-            float ahead = Vector3.Dot(from - b, f);
-            if (ahead > dockRange * 0.25f) return b;
+            Vector3 rel = from - b;
+            float ahead = Vector3.Dot(rel, f);
+            // (in front, and near the line out from the berth: straight in, over the open side)
+            if (ahead > dockRange * 0.25f && Vector3.ProjectOnPlane(rel, f).magnitude < ahead * 0.7f) return b;
             Vector3 front = b + f * Mathf.Min(dockRange * 0.6f, 1000f);
             if (SegmentClear(from, front, c, r)) return front;
-            // the way to the front blocked: out to the side first, level with the berth
+            // the way to the front blocked: out to the side first (level with the berth, or
+            // level with the middle, or level with the ship, whichever is the first clear way)
             Vector3 side = Vector3.ProjectOnPlane(from - c, f);
             if (side.sqrMagnitude < 1f) side = Vector3.Cross(f, Vector3.up);
             if (side.sqrMagnitude < 1f) side = Vector3.Cross(f, Vector3.right);
-            return c + side.normalized * (r + 500f) + f * Mathf.Max(0f, Vector3.Dot(b - c, f));
+            Vector3 sd = side.normalized * (r + 500f);
+            Vector3 level = c + sd + f * Mathf.Max(0f, Vector3.Dot(b - c, f));
+            if (SegmentClear(from, level, c, r)) return level;
+            Vector3 middle = c + sd;
+            if (SegmentClear(from, middle, c, r)) return middle;
+            return c + sd + f * Vector3.Dot(from - c, f);
         }
 
         /// <summary>The straight way from a to b keeps more than r from c.</summary>

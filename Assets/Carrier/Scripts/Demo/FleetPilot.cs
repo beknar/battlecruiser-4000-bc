@@ -101,6 +101,7 @@ namespace CarrierGame.Demo
             if (Towed && leaderAway)
             {
                 ship.externalMotion = true;
+                ship.enginesCut = true;
                 ship.SetTarget(null);
                 Doing = "waiting in orbit";
                 return;
@@ -109,12 +110,14 @@ namespace CarrierGame.Demo
             {
                 // on the tow: held behind the leader, its own flying off
                 ship.externalMotion = true;
+                ship.enginesCut = true;
                 ship.SetTarget(null);
                 transform.SetPositionAndRotation(TowPoint(), leader.transform.rotation);
                 Doing = "under tow";
                 return;
             }
             ship.externalMotion = false;
+            ship.enginesCut = false;
             // the leader in warp (or being docked): it waits, and is put on its station as the
             // leader arrives (FleetDirector); down on a planet or docked, it waits in orbit
             if (leader.externalMotion || leaderAway)

@@ -26,7 +26,8 @@ namespace CarrierGame.Demo
             {
                 ts = Client.ServerNow,
                 rf = np.rf, x = p.x, y = p.y, z = p.z, qx = q.x, qy = q.y, qz = q.z, qw = q.w, vx = v.x, vy = v.y, vz = v.z,
-                th = me.throttle,
+                // (docked or on a tow: no plume in the other games either)
+                th = me.enginesCut ? 0f : me.throttle,
                 sh = shield != null ? shield.Fraction : 0f, su = shield != null && shield.Up,
                 hu = myHealth != null ? myHealth.Current / Mathf.Max(1f, myHealth.maxHealth) : 1f,
                 dead = me.Destroyed,

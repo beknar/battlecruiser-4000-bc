@@ -133,5 +133,35 @@ namespace CarrierGame.Tests
             foreach (var id in Enum.GetNames(typeof(VraskShip.Role)))
                 Assert.That(t.group.slots.Any(x => x.ship == id), Is.True, $"a {id} in the group");
         }
+
+        [Test]
+        public void TheSkinkScreensAndTheFleetHasItsOrder()
+        {
+            var t = Table();
+            var skink = t.Find("Skink");
+            Assert.That(t.fleet, Is.Not.Null, "the fleet's numbers");
+            var f = t.fleet;
+            Assert.That(skink.sensorRange, Is.GreaterThan(f.sensorRange), "the Skink sees further than the rest: the group's eyes");
+            Assert.That(skink.cap, Has.Length.EqualTo(2));
+            Assert.That(skink.cap[0], Is.InRange(1000f, 2000f), "a loose patrol orbit, 1.5 to 2.5 km");
+            Assert.That(skink.cap[1], Is.InRange(skink.cap[0], 3000f));
+            Assert.That(skink.interceptRange, Is.InRange(4000f, 8000f), "threats run down within about 6 km");
+            float needle = t.Bolt(skink.guns[0].bolt).damage * skink.pdMissileScale;
+            Assert.That(needle, Is.InRange(5f, 16f), "a needle does to a missile about what a CIWS bolt does (8)");
+            Assert.That(t.ships.Count(s => s.interceptRange > 0f), Is.EqualTo(1), "only the Skink escorts");
+            // held at the line, the Snares and the Fang can't fire on the target, nor launch pods
+            // or missiles at it: the artillery opens first, and reaches past them
+            float reach = t.ships.Where(s => s.id != "Maw").SelectMany(s => s.guns).Max(g => g.range);
+            float launch = Math.Max(t.ships.Max(s => s.podRange), t.ships.Max(s => s.missileRange));
+            Assert.That(f.holdLine, Is.GreaterThan(Math.Max(reach, launch)), "the hold line beyond the Snares' and the Fang's reach");
+            Assert.That(f.holdLine, Is.LessThan(t.Find("Maw").artillery.range));
+            Assert.That(f.reactRange, Is.LessThan(f.holdLine));
+            Assert.That(f.picketStandoff, Is.GreaterThan(skink.guns.Max(g => g.range)), "on picket out of its own guns' reach");
+            Assert.That(f.picketStandoff + f.picketLead, Is.LessThan(skink.sensorRange + f.holdLine), "and close enough to see");
+            Assert.That(f.bombardTime, Is.InRange(15f, 120f));
+            Assert.That(f.bombardShield, Is.InRange(0.1f, 0.9f));
+            Assert.That(f.recoverTime, Is.GreaterThan(0f));
+            Assert.That(f.engageRange, Is.GreaterThan(t.Find("Maw").artillery.range));
+        }
     }
 }

@@ -7,7 +7,8 @@ namespace CarrierGame
     /// toward its target, exploding on contact or when it runs out of fuel. A torpedo
     /// (`underwater`) is a slow one that keeps under the sea's surface: it can reach a ship in the
     /// water, or one afloat (it runs into the hull below the waterline), but nothing above.
-    /// Point defence can shoot one down (a hostile one: CiwsDirector, Projectile): `toughness`
+    /// Point defence can shoot one down (a hostile one: CiwsDirector, Projectile; a players' one:
+    /// a Vrask Skink's, PointDefence): `toughness`
     /// of damage from bolts passing within `hitRadius` of it. A Vrask boarding pod is one too
     /// (BoardingPod).
     /// </summary>
@@ -60,7 +61,7 @@ namespace CarrierGame
         void Start()
         {
             speed = boostSpeed;
-            OrbitHome.Inherit(gameObject, owner);
+            OrbitHome.Inherit(gameObject, owner, target);
             SoundFX.Play(Sfx.MissileLaunch, transform.position);
             Spawned?.Invoke(this);
         }
@@ -173,18 +174,22 @@ namespace CarrierGame
             Finish(explosion);
         }
 
-        /// <summary>The hostile missile nearest along a shot's path (from `from`, `length` along
-        /// `dir`) that the shot passes within its hit radius of, and how far along: null if none.</summary>
-        public static Missile InPath(Vector3 from, Vector3 dir, float length, out float at)
+        /// <summary>The hostile missile (`players`: the players' missile, one with an owner)
+        /// nearest along a shot's path (from `from`, `length` along `dir`) that the shot passes
+        /// within its hit radius of, and how far along: null if none.</summary>
+        /// `reach`: how much farther than its hit radius a shot can pass and still get it (a
+        /// Skink's proximity-fused needles).
+        public static Missile InPath(Vector3 from, Vector3 dir, float length, out float at, bool players = false, float reach = 1f)
         {
             Missile best = null;
             at = float.MaxValue;
             foreach (var m in Active)
             {
-                if (m == null || m.gone || !m.Hostile) continue;
+                if (m == null || m.gone || m.Hostile == players || (players && m.owner == null)) continue;
                 Vector3 w = m.transform.position - from;
                 float t = Mathf.Clamp(Vector3.Dot(w, dir), 0f, length);
-                if (t >= at || (w - dir * t).sqrMagnitude > m.hitRadius * m.hitRadius) continue;
+                float r = m.hitRadius * reach;
+                if (t >= at || (w - dir * t).sqrMagnitude > r * r) continue;
                 at = t;
                 best = m;
             }

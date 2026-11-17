@@ -86,7 +86,8 @@ namespace CarrierGame.Tests
             yield return new WaitForSeconds(0.6f);
             Assert.That(cc.Speed, Is.GreaterThan(350f), "free, it goes as fast as it can");
             Assert.That(beam.Lock(cc.transform, out string why), Is.True, why);
-            yield return new WaitForSeconds(0.5f);
+            // (time to brake from 400 m/s down to the cap)
+            yield return new WaitForSeconds(1f);
             Assert.That(cc.tractorCap, Is.EqualTo(400f * TractorBeam.EscapeShare).Within(0.01f));
             Assert.That(cc.Speed, Is.LessThanOrEqualTo(cc.tractorCap + 0.01f), "held to its share of top speed");
             beam.Release("test");

@@ -261,7 +261,8 @@ repainted like the frigates and turned to lie bow first along the axis with
 - **CIWS.** Four rotary point-defence mounts sit on the top deck by the conning tower. They fire only
   at enemy drones and fighters and at hostile missiles and boarding pods in flight, and each
   targets whatever is nearest and in reach, a missile or pod over a craft unless the craft is less than half as far. A missile takes two
-  of their bolts to shoot down, a Vrask boarding pod five.
+  of their bolts to shoot down, a Vrask boarding pod five. (The Vrask Skink's point-defence guns
+  do the same to your missiles: see The Vrask.)
 - **Main gun.** The bow beam charges for 10 s: particles are drawn into the emitter and the glow
   builds over a deep, rising growl. It then fires for 2.5 s as a stream of white particles pouring
   from the bow, with a low roar. It fires straight ahead and locks onto the target if the target is
@@ -735,12 +736,14 @@ system to travel around.
   and their hulls are armoured. Each of their four ships has its own job: the **Snare** strips
   shields with ion fire from medium range, bow on; the **Fang** makes fast runs with heavy guns
   and missiles; the **Maw** holds well back and shells what the others spot with its spinal
-  artillery, and carries two nuclear missiles; the **Skink** screens the Maw with eight
-  rapid-fire guns. They are hostile like the pirates, shown
-  as "Hostile: Vrask" on the target display. Their numbers are in `Assets/Carrier/Data/vrask.json`
-  (see `docs/allships.md`).
+  artillery, and carries two nuclear missiles; the **Skink** screens the others with eight
+  rapid-fire guns that shoot your missiles down, and runs ahead as the group's eyes. They fight
+  as a group, in a set order (see The Vrask, under Features). They are hostile like the pirates,
+  shown as "Hostile: Vrask" on the target display. Their numbers are in
+  `Assets/Carrier/Data/vrask.json` (see `docs/allships.md`).
 
-  **The Snares' capture.** The Snares hold 1.8 to 2.2 km off (1.45 to 1.8 km while holding a ship) and don't close. Their ion fire
+  **The Snares' capture.** The Snares hold about 1.8 to 2.2 km off (1.45 to 1.8 km while one holds
+  you) and don't close. Their ion fire
   goes for your shield generator, then, with the shield down, your engines. Once the engines are
   knocked out, or you are crawling with your shield down, a Snare locks its tractor beam on you
   and pulls you in (see Tractor beams). Two Snares work as a pack: one keeps up the ion fire and
@@ -758,10 +761,17 @@ system to travel around.
 
   **The Maw's bombardment.** The Maw keeps 8 to 12 km from its target, on the far side of the
   rest of the Vrask, bow on, and once there hardly moves. It has no firing solution of its own:
-  it fires only at a ship one of the others has within 6 km (a Skink, a Snare, the Fang), so
-  kill the ships near you and its shells stop. Two Maws fire their salvos together, on one beat.
+  it fires only at a ship one of the others has within 6 km (a Snare, the Fang), or a Skink
+  within 9 km, so kill the ships near you and its shells stop. Two Maws fire their salvos together, on one beat.
   Its shells go for your shield generator while your shield is up, then your weapons. Come within 3 km and it falls
   back toward its escorts, slowly: it is the slowest ship in the system bar the dreadnought.
+
+  **The Skinks' screen.** Each Skink flies a loose patrol 1.5 to 2.5 km round the Maw or a Snare
+  that holds a ship. Your missile on its way to one of the group, your fighters and drones, or
+  your ship near the Maw (within 3 km, or closing on it within 6 km), and a Skink goes for it at twice its acceleration,
+  across a missile's path; its guns take your missiles and craft before anything else, and two
+  of its needles bring a missile down. While the group closes in, the Skinks run ahead as its
+  eyes (they see 9 km). A light or damaged ship that runs, they chase, in fast hit-and-run passes.
 
   **They come back, location by location.** Each band is a location. Every 5 minutes, the
   destroyed enemies of a location spawn there again, back in their hiding places. But once all
@@ -1184,6 +1194,76 @@ fortress's walls, towers and gate (`Tools/Blender/build_settlements.py`).
 
 Crew can also be recruited at Thalassa Highport, Deepcut Station, Brontes Shipyard, Selene Base,
 Ochre Foundry, Mnemos Works and the Kestrel Deep Yard.
+
+### The Vrask
+
+The Vrask are the game's alien enemy: lizard-like raiders who take prisoners, drain their life and
+capture ships rather than destroy them. They have four ships, each with its own job, and they fight
+as a group in a set order. Their numbers are in `Assets/Carrier/Data/vrask.json`, and every
+ship's statistics in `docs/allships.md`.
+
+| Ship | Its job | What it brings |
+|---|---|---|
+| Snare (capture frigate) | Disable and hold | Ion fire on your shield generator, then your engines; a tractor beam; boarding pods at the ship it holds |
+| Fang (assault frigate) | Board | Heavy guns on your weapons, missiles, waves of boarding pods, a prow that clamps to your hull |
+| Maw (siege frigate) | Bombard | Spinal artillery to 13 km (shield nullifier, armour penetrator), two nuclear missiles; fires only at what the others see |
+| Skink (escort frigate) | Screen, picket, chase | Eight rapid point-defence guns that shoot your missiles down; sees 9 km; the fastest of them |
+
+Shields, armour, ion, tractor beams, boarding and capture, artillery and nuclear missiles are
+under Defence and damage; each ship's way of fighting is under Star System's encounters.
+
+**How they fight together.** A group runs its fight in phases (`VraskFleet`), each moving on when
+something is so on the ship it is working:
+
+1. **Approach and picket.** The Skinks run up to 2.5 km ahead of the rest as the group's eyes;
+   the Snares and the Fang come no nearer than 5.5 km. Contact is made when one of them has you
+   within its sensors (a Skink's reach 9 km, the others' 6 km).
+2. **Bombard.** The Maw's artillery opens at long range, on what the others see, while the rest
+   hold back: for up to 45 s, or until your shield is under half, or you close within 4 km of a
+   Snare or the Fang.
+3. **Screen and disable.** The Snares go in: ion on your shield generator and engines, then the
+   tractor. The Skinks patrol round the Maw and any Snare holding a ship, running down your
+   missiles, fighters and drones, and any ship closing on them. The Fang still waits.
+4. **Board.** Once you are disabled (engines out, held fast by two beams, held with your shield
+   down, or boarders already aboard), the Fang surges in with its pods and its clamp. Get free for
+   15 s and it is back to the Snares.
+5. **Pursue.** With the ship taken or destroyed, or a light or damaged one running, the Skinks
+   chase the cripples in hit-and-run passes; 20 s later the group takes up its next target.
+6. **Withdraw.** A group that loses its Maw and both Snares breaks off: the rest go back into
+   hiding and don't spring again until the spawns bring the others back.
+
+Their target is a player's ship first (the nearest, in co-op). Without one, it is the ship most
+worth taking that is easiest to disable: its hull and shield, against how worn its shield and
+engines are, the nearer the better.
+
+**Where they are.** The raiders (two Snares, a Fang, a Maw and two Skinks) lie in wait round Comet
+Mirren and spring at 4 km; a warp drops you 8.5 km out, so they don't set on you on arrival.
+The siege group (a Maw and two Skinks) holds station 160 km over Port Ochre and shells the city
+every two hours (see Strikes from orbit). Its Skinks spot for the Maw and shoot your missiles
+down, and with the Maw destroyed they go quiet until it is back.
+
+**Fighting them.**
+
+- Kill the Skinks, or get past them, and the Maw is blind: it fires only at what another Vrask
+  ship sees.
+- Keep your shield up and your engines whole. One tractor beam can be out-flown at full thrust;
+  two, or one with your engines out, can't.
+- Knock out a Snare's weapons and its beam lets go. J (Back + L3 on the pad) aims your fire at a
+  target's weapons, engines or shield generator.
+- Fire missiles from outside the Skinks' patrol (they take any aimed at a Vrask ship): two of
+  their needles bring a missile down, as two CIWS bolts do.
+- A big crew repels boarders. Boarders who bring the crew down to its survivors take the ship.
+- When a shell is on its way, change course: it flies to where you would have been.
+
+**In co-op** the host's game runs the Vrask, their fleet and their tactics, and the others' games
+show them. With more players they are tougher and hit a little harder, as every enemy does
+(`CoopScaling`): hull and shields ×1.6 with two players and ×2.2 with three, damage ×1.12 and
+×1.24. A Skink that shoots down a player's missile in the host's game takes it down in that
+player's game too.
+
+There are no new keys for the Vrask. The HUD warns of a tractor lock and of boarders aboard.
+Tests: `-vrasktest` (the `vrask` stage), and `VraskDataTests`, `TractorBeamTests`,
+`BoardingTests`, `ArtilleryTests` and `VraskFleetTests`.
 
 ## Controls
 
@@ -1946,7 +2026,12 @@ Each part can also be run alone:
   without destroying it, the silos holding two); the Vrask siege over Port Ochre (on station over
   a city on a world with air, its raids on the game's clock and saved, a scripted nuclear strike
   ruining every building in the city for longer than a kinetic strike and killing its people);
-  each destroyed; and all of them back with the spawns.
+  the fleet engagement (the whole group against the frigate, whose crew is too big to be taken:
+  the Skinks on picket making contact, the Maw's artillery first while the Snares and the Fang
+  hold back, a Skink shooting down a missile the frigate fires at the Maw, the Snares disabling
+  the frigate and a tractor holding it, then the Fang boarding; the Maw and both Snares
+  destroyed and the rest withdrawing into hiding); each destroyed; and all of them back with the
+  spawns, no longer holding off.
   Add `-modestest` (or `?modestest` on the web) to test the modes of play: a game starts in
   combat mode; 1 to 5 change mode, each with its keys in the controls box; a mode's keys work
   in it and not in another (V scans in mining mode, not in combat); services away from a site

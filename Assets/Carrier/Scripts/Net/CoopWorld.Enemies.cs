@@ -65,6 +65,7 @@ namespace CarrierGame.Demo
                 }
                 // the things that start fights (ambushes, defence grids) are the host's too
                 foreach (var b in FindObjectsByType<EncounterGroup>(FindObjectsSortMode.None)) Off(b);
+                foreach (var b in FindObjectsByType<VraskFleet>(FindObjectsSortMode.None)) Off(b);
                 foreach (var b in FindObjectsByType<DefenseGrid>(FindObjectsSortMode.None)) Off(b);
                 foreach (var b in FindObjectsByType<AmbushDirector>(FindObjectsSortMode.None)) Off(b);
                 foreach (var b in FindObjectsByType<SpawnDirector>(FindObjectsSortMode.None)) Off(b);

@@ -1,0 +1,217 @@
+# All ships: statistics, capabilities and roles
+
+Every ship in Star System, the player's and the enemies', as the game builds them today. The
+numbers come from the game's data and its scene builder:
+
+- player ships: `Assets/Carrier/Data/frigates.json` and the hardpoint files beside it
+  (`frigate_*_hardpoints.json`, `destroyer_*_hardpoints.json`, `cruiser_sovereign_hardpoints.json`);
+- shipyard costs: `Assets/Carrier/Resources/Data/industry.json`;
+- enemy ships: `Assets/Carrier/Editor/CarrierBuilder.cs`, `CarrierBuilder.CapitalShips.cs`,
+  `CarrierBuilder.FrigateSystems.cs`, `CarrierBuilder.StarSystem.cs` and `Scripts/PilotPresets.cs`;
+- planetary forces: `Assets/Carrier/Resources/Data/ground_units.json`.
+
+Change those and rebuild (**Tools > Carrier > Build Everything**), and this page goes out of date.
+
+Units: speeds in m/s, turns in degrees a second, ranges in metres, damage in hit points (a gun's
+per shot, a beam's per second), times in seconds. The **Roles** sections are projections: how each
+ship is meant to be used, judged from its numbers, not rules the game enforces.
+
+## Player ships
+
+There are eleven: five frigates to choose from on the start menu, and five destroyers and a
+cruiser built at a shipyard. You fly one at a time; ships you've built and crewed can sail with you
+as your fleet (up to ten in all, ordered in fleet mode, key 5).
+
+### Every player ship has
+
+| System | What it does |
+| --- | --- |
+| Shield and hull | The shield takes hits first and recharges; the hull doesn't. |
+| Turret and ball-mounted guns | Fire on the target on their own. Each ship's guns are in its row below. |
+| CIWS mounts | Close-in guns that pick their own targets: the nearest drone or fighter they can bring to bear (never a capital ship), 8 damage a shot. Nothing shoots down missiles: the shield takes them. |
+| Warp drive | Jumps between the system's places, from the map or navigation mode. |
+| Mining laser | 8 t of ore a second, out to 1.5 km; the ore goes in the hold. |
+| Kinetic strike (Y, combat mode) | A tungsten rod dropped from orbit onto a planet or moon, 3 km up to twice the body's radius: everything within 450 m destroyed, a crater left, one every 20 s. It aims at the nearest ground forces within 30 km, or the ground below. |
+| Cargo hold | Ore, refined materials and parts all count against it. |
+| Part slots | Fittings bought or made at industry sites (`industry.json` parts). |
+| Crew | Short of 90 % of its complement, a ship works less well. |
+| Docking and landing | Docks at stations and surface bases; flies down to the planets and moons that can be landed on. |
+
+### Frigates (chosen on the start menu)
+
+| | Sentinel | Lancer | Warden | Talon | Vanguard |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Class | Gun frigate | Fast attack frigate | Heavy escort frigate | Strike frigate | Line frigate |
+| Length (m) | 180 | 170 | 200 | 175 | 190 |
+| Hull | 6,000 | 4,500 | 8,500 | 5,500 | 9,000 |
+| Shield | 6,000 | 5,000 | 8,000 | 5,500 | 7,000 |
+| Shield recharge (/s) | 250 | 300 | 220 | 260 | 200 |
+| Hull + shield | 12,000 | 9,500 | 16,500 | 11,000 | 16,000 |
+| Max speed | 150 | **190** | 120 | 165 | 115 |
+| Acceleration | 30 | **42** | 22 | 34 | 18 |
+| Turn rate | 20 | **28** | 15 | 22 | 13 |
+| Guns | 2 ball mounts | 2 twin turrets | 3 twin turrets | 2 heavy twin turrets | 6 turrets, all bearing forward |
+| Gun damage / shot | 90 | 55 | 70 | **130** | 75 |
+| Gun interval | 0.5 | 0.55 | 0.8 | 1.0 | 0.7 |
+| Gun range | 4,500 | 4,200 | 5,000 | 5,200 | 5,200 |
+| Bow beam (dmg/s) | 1,400 | 1,200 | 1,400 | 1,800 | **2,400** |
+| Beam charge | 10 | 9 | 12 | **7** | 14 |
+| Missiles | none | none | none | none | none |
+| CIWS mounts | 4 | 2 | 4 | 1 | 4 |
+| Cargo (t) | 600 | 450 | **800** | 550 | 500 |
+| Part slots | 4 | 3 | **5** | 4 | 3 |
+| Crew | 140 | 90 | 220 | 110 | 300 |
+
+**Roles**
+
+- **Sentinel, all-rounder.** The starting ship and the balanced choice. Its two ball-mounted guns
+  reach almost any bearing, and it has the fastest-firing guns of the frigates. Four CIWS mounts
+  make it comfortable against fighters and drones. Good for learning, mining runs and mixed patrols.
+- **Lancer, fast attack and scouting.** The fastest and most agile ship in the game, but the
+  lightest-built. It picks fights it can win and runs from the rest: hunting fighters and drones,
+  scouting ahead, and getting to a distress call first. Its 4,500 hull is the thinnest of all, so it
+  can't trade blows with capital ships for long.
+- **Warden, escort and hauler.** The thickest frigate shield, with four CIWS mounts and the biggest
+  frigate hold and slot count. It suits guarding stations, escorting the fleet, absorbing a
+  battle group's fire while others do the killing, and long mining-and-hauling runs.
+- **Talon, strike.** Heavy single shots (130) and the quickest bow beam to charge (7 s). It kills
+  capital ships fast in hit-and-run attacks. Its single CIWS mount leaves it exposed to fighter
+  swarms, so it wants an escort or a quick exit.
+- **Vanguard, line ship.** The toughest frigate hull and the heaviest frigate beam, with six turrets
+  firing forward. It suits head-on fights against cruisers and destroyers, and bombarding
+  ground defences from orbit. It is slow to arrive and slow to turn, so fighters can get behind it.
+
+### Destroyers and cruiser (built at a shipyard)
+
+These are built at a shipyard: Ochre Foundry, Mnemos Works, Kestrel Deep Yard, Belt Smelter,
+Steropes Heavy Industries or Ochre Orbital Works. Their missiles fire from launch cells and are
+refilled when docked or landed at a site. The destroyers have no bow beam; the cruiser does.
+
+| | Halberd | Rapier | Claymore | Bulwark | Stiletto | Sovereign |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Class | Missile destroyer | Fast destroyer | Gun destroyer | Heavy destroyer | Strike destroyer | Heavy cruiser |
+| Length (m) | 300 | 280 | 300 | 290 | 270 | 420 |
+| Hull | 12,000 | 11,000 | 13,000 | 15,000 | 11,500 | **26,000** |
+| Shield | 10,000 | 9,500 | 10,500 | 12,000 | 9,000 | **20,000** |
+| Shield recharge (/s) | 320 | 340 | 330 | 300 | 350 | **450** |
+| Hull + shield | 22,000 | 20,500 | 23,500 | 27,000 | 20,500 | **46,000** |
+| Max speed | 108 | **112** | 105 | 100 | 110 | 90 |
+| Acceleration | 17 | **19** | 16 | 15 | 18 | 12 |
+| Turn rate | 12 | **13** | 11 | 10 | 12 | 8 |
+| Guns | 5 turrets (quad forward) + 3 ball mounts | 4 turrets + 3 ball mounts | 3 heavy single turrets + 5 ball mounts | 4 twin turrets + 4 flank mounts | 1 big dorsal turret + 6 ball mounts | 8 turrets + 4 ball mounts |
+| Gun damage / shot | 70 | 65 | 120 | 95 | 80 | **125** |
+| Gun interval | 0.75 | 0.6 | 0.9 | 0.85 | 0.7 | 0.8 |
+| Gun range | 5,000 | 4,800 | 5,400 | 5,200 | 5,000 | **5,600** |
+| Bow beam (dmg/s) | none | none | none | none | none | **3,200** (16 s charge) |
+| Missiles (cells) | 24 (6) | 12 (4) | 12 (6) | 16 (4) | 20 (8) | **32** (8) |
+| CIWS mounts | 2 | 1 | 2 | 2 | 1 | **6** |
+| Cargo (t) | 900 | 700 | 850 | 1,100 | 750 | **1,600** |
+| Part slots | 5 | 5 | 6 | 6 | 5 | **8** |
+| Crew | 380 | 360 | 420 | 460 | 350 | 800 |
+| Shipyard time | 10 min | 9 min | 10 min | 11 min | 9 min 20 s | 20 min |
+| Steel plate (t) | 150 | 120 | 160 | 200 | 120 | 400, plus 100 t titanium billet |
+
+Every one also needs parts: hull frames, turret mounts, missile cells, a bridge module, crew
+quarters, a reactor core, fusion thrusters, a shield emitter and armour plating. On top of those,
+the Halberd and Stiletto need fire control, the Rapier vectoring jets and the Claymore rail barrels.
+The Sovereign needs a capacitor bank, a beam lens and fire control. `industry.json` has the tonnes.
+
+**Roles**
+
+- **Halberd, missile boat.** Twenty-four missiles fired from six cells, about 6,000 damage when
+  they all hit. It opens a fight from range against a capital ship, then finishes with its guns.
+  It is best kept behind a tougher ship.
+- **Rapier, fast escort.** The quickest destroyer, with the fastest-firing guns of the class. It
+  screens the fleet against fighters and drones and chases down what runs. Its single CIWS mount
+  is its weakness.
+- **Claymore, gunship.** The hardest-hitting destroyer guns (120 a shot, 5.4 km). It suits
+  sustained gun duels with cruisers and destroyers, and knocking out stations' turrets.
+- **Bulwark, tank and freighter.** The toughest destroyer and the biggest destroyer hold. It
+  draws fire in fleet fights, guards a mining operation, and carries a whole shipyard's worth of
+  materials.
+- **Stiletto, strike.** Eight cells, the most of any destroyer, launch its twenty missiles in big
+  salvos fast. It suits alpha strikes on a single target: a dreadnought's escorts, or a
+  weapons platform.
+- **Sovereign, flagship.** Twice the hull and shield of any destroyer, with the heaviest beam,
+  guns and missile load, six CIWS mounts and the biggest hold. It is the only player ship meant to
+  fight the dreadnought battle group head-on, and the best fleet leader. Its cost (400 t steel,
+  100 t titanium, a crew of 800, 20 minutes) and its slowness are the price.
+
+### The player fleet at a glance
+
+| Want | Take |
+| --- | --- |
+| Speed, scouting, catching fighters | Lancer, then Rapier |
+| Killing capital ships quickly | Talon (beam), Stiletto or Halberd (missiles), Sovereign |
+| Taking punishment | Warden, Vanguard, then Bulwark, then Sovereign |
+| Fighter and drone defence (CIWS) | Sentinel, Warden or Vanguard (4 CIWS each), Sovereign (6) |
+| Mining and hauling | Warden (800 t) among frigates; Bulwark (1,100 t) and Sovereign (1,600 t) among the rest |
+| Bombarding a planet | Any (all have the kinetic strike). Vanguard or Warden survive ground fire best |
+
+## Enemy ships
+
+All enemies belong to the pirates and corsairs. Their hull is all there is: they carry no shields,
+so the numbers below are the whole of their toughness. In co-op they get tougher and hit harder
+with each player in the level:
+
+- **Toughness:** hull grows 60 % for each player after the first.
+- **Firepower:** damage grows 12 % for each player after the first.
+
+Destroyed ships come back after their respawn time, at their post: the field ships in the rocks, the battle groups on station.
+
+| | Fighter | Drone | Cruiser | Destroyer | Dreadnought |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Shown as | Raider Fighter, Hostile Fighter | Raider / Pirate Drone, Hostile Drone | Pirate / Corsair / Hostile Cruiser | Corsair / Escort Destroyer | Pirate Dreadnought |
+| Class | Strike fighter | Recon drone | Heavy cruiser | Destroyer | Dreadnought |
+| Threat (as targeted) | Medium | Low | Medium | High | Extreme |
+| Size | small | small | large freighter hull | the Sentinel's hull at 85 % (≈150 m) | 700 m (the carrier hull) |
+| Hull | 260 | 300 | 3,000 | 2,200 | **18,000** |
+| Cruise / attack speed | 230 / **320** | 190 / 250 | 75 / 90 | 110 / 140 | 45 / 55 |
+| Turn rate | 90 | **110** | 12 | 18 | 6 |
+| Guns | blaster cannons: 4-shot bursts every 0.9 s, 6 a shot, 1.5 km, only within 18° of the nose | blasters: 3-shot bursts every 1.2 s, 6 a shot, 1.8 km, within 35° of the nose | cannons: 3-shell bursts every 4 s, 30 a shell, 3.5 km | 2 triple turrets: every 3.2 s, 30 a shell, 4.2 km | 8 triple turrets: every 6.5 s, 30 a shell, 5.5 km |
+| Missiles (250 each) | none | none | 3 every 20 s, 4.5 km | 2 every 18 s, 5 km | 4 every 16 s, 6 km |
+| Beam | none | none | 260/s for 1.6 s after a 4 s charge, every 16 s, 4.5 km | none | 320/s for 2 s after a 5 s charge, every 18 s, 6 km |
+| Tactics | attack runs: in fast, break off at 420 m, extend 1.4 km, come round again; hides in rock when hurt | shorter, tighter passes; hides in rock when hurt | stands off about 1.8 km and circles; hides when below half hull | stands off 2.3 km and circles | stands off 3.3 km and circles slowly |
+| Respawn | 40 s | 40 s | 40 s in the Outer Drift, 75 s with the Corsair patrol | 60 s | 120 s |
+
+### Where they are
+
+| Group | Ships | Where |
+| --- | --- | --- |
+| Raiders | 4 fighters, 2 drones | Hidden among the big rocks of the Jovara Trojans, spotting you at 4.5 km |
+| Pirate cruiser | 1 cruiser, 2 drones | Hidden in the Outer Drift, spotting you at 5 km |
+| Corsair patrol | 1 cruiser, 2 destroyers | On station in the open on the way in to Cinder, spotting you at 9 km |
+| Dreadnought battle group | 1 dreadnought, 2 escort destroyers | On station on the way in to Glacis, spotting you at 9 km |
+| Planetary defence | fighters and gunships (the destroyer hull) | Over the planets' surfaces, rebuilt 8 min (fighters) and 15 min (gunships) after they're destroyed |
+
+The two older levels (Carrier Demo and Asteroid Ambush, both deprecated) use the same fighter,
+drone and cruiser.
+
+### Roles
+
+- **Fighter, harasser.** It does little damage on its own (about 27 a second while on target),
+  but it is the fastest thing in the system and comes in groups. It chips at shields and keeps
+  a slow ship turning. Ships with ball mounts or many turrets handle fighters best (the Sentinel
+  and the Vanguard). The Lancer can chase them.
+- **Drone, picket.** It is weaker still, turns tightest, and is there to find you and add to the
+  noise of a fight. It runs into the rocks when hurt.
+- **Cruiser, ambusher.** It waits in the rocks and opens with cannons, a missile salvo and a
+  charged beam. It is the main threat in the asteroid fields, and it retreats into cover when below
+  half its hull. A frigate's bow beam is the quickest answer to it.
+- **Destroyer, line escort.** Its missile pairs are the main danger, and only the shield stops
+  them. It protects the cruiser or the dreadnought and comes back a minute after it is destroyed, so
+  killing the flagship first is usually the better plan.
+- **Dreadnought, fortress.** Eight triple turrets, four-missile salvos and a heavy beam, all
+  reaching 5.5 to 6 km, and 18,000 hull. It is too slow to chase anything, so a fast ship can disengage at will. A
+  fleet, or the Sovereign, is the intended answer.
+
+## Not ships, but they fight
+
+Stations and installations aren't covered here, but some of them fight. Their profiles are in the
+game's target read-outs.
+
+- **Cinder Orbital Battery:** three gun platforms and a beam lance over Cinder's pole.
+- **Corsair strike satellites:** an ion cannon over Port Ochre and a mass driver over Pyrois
+  Domes. They bombard those settlements every 30 and 20 minutes until destroyed.
+- **Ground defences:** batteries, missile sites, hover tanks, sea bases and submarines on the
+  planets (`ground_units.json`).

@@ -31,6 +31,12 @@ namespace CarrierGame
         public float Efficiency => complement > 0 ? CrewTable.Get().Efficiency(Share) : 1f;
         /// <summary>Crew killed so far.</summary>
         public float TotalLost { get; private set; }
+        /// <summary>The fewest it is ever left with (CrewTable.survivors of the complement): losses
+        /// stop there, IndustryLedger.DropOff keeps that many, and boarders who bring a crew down
+        /// to it take the ship (Boarders).</summary>
+        public float Floor => complement * CrewTable.Get().survivors;
+        /// <summary>Down to its survivors (Floor).</summary>
+        public bool AtFloor => complement > 0 && Current <= Floor + 0.01f;
 
         public event Action Changed;
 
@@ -82,7 +88,7 @@ namespace CarrierGame
         public void Lose(float n)
         {
             if (complement <= 0 || n <= 0f) return;
-            float floor = complement * CrewTable.Get().survivors;
+            float floor = Floor;
             float before = Current;
             float after = before <= floor ? before : Mathf.Max(floor, before - n);
             if (after >= before) return;

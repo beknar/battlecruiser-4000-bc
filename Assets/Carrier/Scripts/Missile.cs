@@ -7,8 +7,11 @@ namespace CarrierGame
     /// toward its target, exploding on contact or when it runs out of fuel. A torpedo
     /// (`underwater`) is a slow one that keeps under the sea's surface: it can reach a ship in the
     /// water, or one afloat (it runs into the hull below the waterline), but nothing above.
+    /// Point defence can shoot one down (a hostile one: CiwsDirector, Projectile): `toughness`
+    /// of damage from bolts passing within `hitRadius` of it. A Vrask boarding pod is one too
+    /// (BoardingPod).
     /// </summary>
-    public class Missile : MonoBehaviour
+    public class Missile : MonoBehaviour, IVelocity
     {
         public Transform target;
         public float boostTime = 1.2f;
@@ -27,8 +30,24 @@ namespace CarrierGame
         [System.NonSerialized] public Transform owner;
         /// <summary>Co-op: a missile has been launched (announced to the other players' games).</summary>
         public static event System.Action<Missile> Spawned;
+        [Tooltip("Damage from point-defence bolts that shoots it down.")]
+        public float toughness = 16f;
+        [Tooltip("How near (m) a point-defence bolt must pass to hit it.")]
+        public float hitRadius = 7f;
+        /// <summary>Shot down by point defence: the missile, and the ship whose shot it was (null:
+        /// told by another player's game).</summary>
+        public static event System.Action<Missile, Transform> Downed;
+        /// <summary>Missiles and pods shot down since the level started.</summary>
+        public static int ShotDownCount { get; private set; }
 
-        float age, speed;
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetDowned() => ShotDownCount = 0;
+
+        float age, speed, hurt;
+        int side = -1;   // 1: launched by a hostile ship, 0: not (worked out on first use)
+        bool gone;
+        /// <summary>Exploded, breached or shot down (it goes at the frame's end).</summary>
+        protected bool Gone => gone;
         Transform moverOf;
         IVelocity mover;
 
@@ -85,15 +104,27 @@ namespace CarrierGame
             if (age > lifetime) Detonate();
         }
 
-        void Detonate()
+        protected virtual void Detonate()
         {
-            if (target != null && Vector3.Distance(target.position, transform.position) < Mathf.Max(proximity * 2f, TargetRadius()))
+            if (gone) return;
+            if (AtTarget())
             {
                 Health.Source = owner;
                 target.GetComponentInParent<Health>()?.Damage(damage, transform.position, HitKind.Missile);
                 Health.Source = null;
             }
-            if (explosion != null) Pool.Take(explosion, transform.position, Quaternion.identity);
+            Finish(explosion);
+        }
+
+        /// <summary>Near enough its target that it counts as reaching it.</summary>
+        protected bool AtTarget() =>
+            target != null && Vector3.Distance(target.position, transform.position) < Mathf.Max(proximity * 2f, TargetRadius());
+
+        /// <summary>Gone: an explosion where it is (or none), a torpedo's wake left behind.</summary>
+        protected void Finish(Explosion fx)
+        {
+            gone = true;
+            if (fx != null) Pool.Take(fx, transform.position, Quaternion.identity);
             // (a torpedo's bubbles and wake stay behind, fading)
             if (underwater && TryGetComponent(out TorpedoWake wake)) wake.Leave();
             Destroy(gameObject);
@@ -104,6 +135,59 @@ namespace CarrierGame
         {
             var col = target.GetComponentInChildren<Collider>();
             return col != null ? col.bounds.extents.magnitude + 5f : 0f;
+        }
+
+        /// <summary>How fast it is going (for point defence to lead it).</summary>
+        public Vector3 Velocity => transform.forward * speed + inheritedVelocity;
+
+        /// <summary>Launched by a hostile ship (the players' point defence shoots these down).</summary>
+        public bool Hostile
+        {
+            get
+            {
+                if (side < 0)
+                {
+                    var oi = owner != null ? owner.GetComponentInParent<TargetInfo>() : null;
+                    side = oi != null && oi.Hostile ? 1 : 0;
+                }
+                return side == 1;
+            }
+        }
+
+        /// <summary>A point-defence hit: shot down once its toughness is used up.</summary>
+        public void Shoot(float amount, Transform by)
+        {
+            if (gone || amount <= 0f) return;
+            hurt += amount;
+            if (hurt >= toughness) ShootDown(by);
+        }
+
+        /// <summary>Shot down: a burst where it is, nothing to its target. `by`: the ship whose
+        /// shot it was (null: told by another player's game, CoopWorld.Boarding).</summary>
+        public void ShootDown(Transform by)
+        {
+            if (gone) return;
+            ShotDownCount++;
+            Downed?.Invoke(this, by);
+            Finish(explosion);
+        }
+
+        /// <summary>The hostile missile nearest along a shot's path (from `from`, `length` along
+        /// `dir`) that the shot passes within its hit radius of, and how far along: null if none.</summary>
+        public static Missile InPath(Vector3 from, Vector3 dir, float length, out float at)
+        {
+            Missile best = null;
+            at = float.MaxValue;
+            foreach (var m in Active)
+            {
+                if (m == null || m.gone || !m.Hostile) continue;
+                Vector3 w = m.transform.position - from;
+                float t = Mathf.Clamp(Vector3.Dot(w, dir), 0f, length);
+                if (t >= at || (w - dir * t).sqrMagnitude > m.hitRadius * m.hitRadius) continue;
+                at = t;
+                best = m;
+            }
+            return best;
         }
     }
 

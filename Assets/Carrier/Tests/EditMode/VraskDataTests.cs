@@ -56,6 +56,10 @@ namespace CarrierGame.Tests
             Assert.That(t.Find("Skink").guns.Min(g => g.interval), Is.LessThan(1f), "the Skink's guns fire fast");
             Assert.That(t.Find("Snare").tractorRange, Is.InRange(2000f, 3000f), "the Snare's tractor beam");
             Assert.That(t.ships.Count(s => s.tractorRange > 0f), Is.EqualTo(1), "only the Snare has one");
+            Assert.That(t.Find("Fang").pods, Is.InRange(2, 4), "the Fang's boarding pods a wave");
+            Assert.That(t.Find("Snare").pods, Is.GreaterThan(0), "the Snare boards what it holds");
+            Assert.That(t.Find("Fang").podInterval, Is.LessThan(t.Find("Snare").podInterval), "the Fang's waves come faster");
+            Assert.That(t.ships.Where(s => s.pods > 0).All(s => s.podRange >= 2000f && s.podInterval > 0f), Is.True);
         }
 
         [Test]

@@ -81,6 +81,11 @@ namespace CarrierGame
         /// <summary>Its tractor beam's reach (m), at its "tractor" point, and the Snare's tactics
         /// with it (SnareTactics); 0: none.</summary>
         public float tractorRange;
+        /// <summary>Boarding pods (PodLauncher): how many a wave, how often (s), how far (m); 0: none.
+        /// The Fang's come from its boarding_pod hatches as it closes (FangTactics); the Snare's from
+        /// its tractor projector, at the ship its beam holds.</summary>
+        public int pods;
+        public float podInterval, podRange;
 
         // missiles (EnemyWeapons): none if salvoSize is 0
         public int salvoSize;

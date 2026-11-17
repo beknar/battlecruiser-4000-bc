@@ -13,7 +13,7 @@ namespace Carrier.EditorTools
     /// <summary>
     /// The frigate's combat systems and the enemies' weapons:
     /// - CIWS: two clusters of two rotary-cannon mounts on the top deck beside the conning
-    ///   tower, which engage only drones and fighters (CiwsDirector picks their targets);
+    ///   tower, which engage drones, fighters and hostile missiles and pods (CiwsDirector picks their targets);
     /// - the main gun: a bow beam emitter that charges for 10 s and fires a stream of white
     ///   particles (MainBeam);
     /// - the shield: the StylizedShieldsVol1 hexagon sphere round the whole ship, which ripples

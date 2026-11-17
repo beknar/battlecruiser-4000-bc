@@ -499,7 +499,7 @@ namespace CarrierGame
         {
             if (crew == null || want <= 0) return 0;
             // (never below the few a ship keeps through anything: enough to sail her)
-            int keep = Mathf.CeilToInt(crew.complement * CrewTable.Get().survivors);
+            int keep = Mathf.CeilToInt(crew.Floor);
             int n = Mathf.Min(want, crew.Aboard - keep);
             if (n <= 0) return 0;
             crew.SetAboard(crew.Current - n);

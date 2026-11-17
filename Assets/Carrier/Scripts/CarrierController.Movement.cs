@@ -129,6 +129,7 @@ namespace CarrierGame
             }
             // (held by tractor beams: their pull, and the speed they leave her, CarrierController.Tractor)
             UpdateTractor(dt);
+            UpdateClamp();   // (a boarding ship clamped to the hull holds her to a crawl: CarrierController.Boarding)
             float accel = acceleration * accelScale * engineAccelScale;
             if (speed > tractorCap) accel = Mathf.Max(accel, TractorBeam.Brake);
             speed = Mathf.MoveTowards(speed, Mathf.Min(throttle * maxSpeed * speedScale * towScale * engineScale, tractorCap), accel * dt);

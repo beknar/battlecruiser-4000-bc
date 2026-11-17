@@ -8,7 +8,8 @@ namespace CarrierGame
     /// The frigate's hold: so many tonnes of each mineral, and the refined materials and ship
     /// parts it carries between the industrial sites (IndustryTable), up to `capacity` tonnes in
     /// all. What the mining laser brings in goes here; the cheapest mineral can be jettisoned to
-    /// make room for better. The cargo is lost if the ship is destroyed. At a market, the
+    /// make room for better. The cargo is lost if the ship is destroyed, and seized if boarders
+    /// take it (the credits are kept). At a market, the
     /// services screen's trade page sells it (and buys), for the credits kept here.
     /// </summary>
     public class CargoHold : MonoBehaviour
@@ -30,6 +31,8 @@ namespace CarrierGame
         public float TotalJettisoned { get; private set; }
         /// <summary>Tonnes lost with the ship.</summary>
         public float TotalLost { get; private set; }
+        /// <summary>Tonnes seized with the ship by boarders (counted in TotalLost too).</summary>
+        public float TotalSeized { get; private set; }
         /// <summary>Credits earned selling ore.</summary>
         public float Credits { get; private set; }
         public float TotalSold { get; private set; }
@@ -146,12 +149,12 @@ namespace CarrierGame
 
         void Start()
         {
-            if (TryGetComponent(out Health h)) h.onDestroyed.AddListener(LoseAll);
+            if (TryGetComponent(out Health h)) { h.onDestroyed.AddListener(LoseAll); h.Taken += Seize; }
         }
 
         void OnDestroy()
         {
-            if (TryGetComponent(out Health h) && h.onDestroyed != null) h.onDestroyed.RemoveListener(LoseAll);
+            if (TryGetComponent(out Health h)) { if (h.onDestroyed != null) h.onDestroyed.RemoveListener(LoseAll); h.Taken -= Seize; }
         }
 
         /// <summary>Load up to `t` tonnes of a mineral; returns how much there was room for.</summary>
@@ -243,6 +246,14 @@ namespace CarrierGame
             TotalSold += tonnesSold;
             Changed?.Invoke();
             return v;
+        }
+
+        /// <summary>Taken by boarders: the cargo seized (the hold emptied, as when the ship is
+        /// destroyed), the credits kept.</summary>
+        void Seize()
+        {
+            TotalSeized += Used;
+            LoseAll();
         }
 
         /// <summary>Empty the hold (the ship was destroyed).</summary>

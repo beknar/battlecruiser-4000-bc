@@ -4,9 +4,11 @@ namespace CarrierGame
 {
     /// <summary>
     /// Close-in weapon systems: picks targets for the ship's CIWS mounts on its own, separately
-    /// from the ship's main target. A mount only ever engages small craft (drones and fighters),
-    /// never a capital ship: each one takes the nearest live drone or fighter it can bring to
-    /// bear, re-checked a few times a second, and stows when there is none.
+    /// from the ship's main target. A mount only ever engages small craft (drones and fighters)
+    /// and hostile missiles and boarding pods in flight, never a capital ship: each one takes the
+    /// nearest it can bring to bear (a missile or pod first: counted at half its distance),
+    /// re-checked a few times a second, and stows when there is none. Its bolts shoot a missile
+    /// or pod down (Missile.toughness).
     /// </summary>
     public class CiwsDirector : MonoBehaviour
     {
@@ -53,6 +55,16 @@ namespace CarrierGame
                 if (d >= bestDist || !mount.CanBear(p)) continue;
                 bestDist = d;
                 best = info.transform;
+            }
+            // hostile missiles and boarding pods in flight (on their way in: first)
+            foreach (var m in Missile.Active)
+            {
+                if (m == null || !m.Hostile) continue;
+                Vector3 p = m.transform.position;
+                float d = (p - mount.transform.position).sqrMagnitude * 0.25f;
+                if (d >= bestDist || !mount.CanBear(p)) continue;
+                bestDist = d;
+                best = m.transform;
             }
             return best;
         }

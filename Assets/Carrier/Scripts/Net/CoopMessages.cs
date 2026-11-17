@@ -66,6 +66,10 @@ namespace CarrierGame.Demo
         // a tractor beam's hold on my ship, from the host: on or let go, how many beams, held fast
         public bool on, held;
         public int n;
+        // a player's ship: boarders aboard it now, and taken by them (with dead; the "board"
+        // message's count is n)
+        public int bd;
+        public bool cpt;
         // a message on the comms channel
         public string text;
         // the self-test's bot
@@ -95,6 +99,10 @@ namespace CarrierGame.Demo
         public string fr = "";
         /// <summary>Its components (ShipSystems.ToWire; older games leave it out: whole).</summary>
         public int sy;
+        /// <summary>Boarders aboard (older games leave it out: none), and taken by them (with
+        /// dead: no explosion in the other games).</summary>
+        public int bd;
+        public bool cpt;
     }
 
     /// <summary>The enemies, from the host to everyone else in the room.</summary>
@@ -117,6 +125,14 @@ namespace CarrierGame.Demo
     /// x, y, z (from the reach rf), n beams, held fast (it can't fly free).</summary>
     [Serializable]
     class TractorMsg { public string t = CoopWire.Tractor; public int to; public bool on, held; public int n; public string rf = ""; public double x, y, z; }
+
+    /// <summary>Boarders the host's pods have put aboard one player's ship (n of them).</summary>
+    [Serializable]
+    class BoardMsg { public string t = CoopWire.Board; public int to, n; }
+
+    /// <summary>A missile or pod shot down: whose it was (src), and where.</summary>
+    [Serializable]
+    class ShotDownMsg { public string t = CoopWire.ShotDown; public string src, rf = ""; public double x, y, z; }
 
     /// <summary>Credits for one player (from the AI wingman's hold to theirs).</summary>
     [Serializable]

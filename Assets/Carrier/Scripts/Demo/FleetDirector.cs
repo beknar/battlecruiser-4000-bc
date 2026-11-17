@@ -15,7 +15,8 @@ namespace CarrierGame.Demo
     /// orders, the ship chosen in the menu or all of them: follow, guard (protect me), form up,
     /// attack my target, hold. The fleet warps with the leader and keeps up in cruise; it can't
     /// be sent off on its own elsewhere in the system (that's an AI player). A fleet ship
-    /// destroyed is lost, and its crew. The fleet is only in this game: in co-op the others don't
+    /// destroyed is lost, and its crew; one captured by boarders is lost too, her crew prisoners
+    /// of the Vrask. The fleet is only in this game: in co-op the others don't
     /// see it.
     /// </summary>
     public class FleetDirector : MonoBehaviour, IMenuSource
@@ -29,6 +30,8 @@ namespace CarrierGame.Demo
         public FleetPilot Selected { get; private set; }
         /// <summary>Ships lost since the level started (for the self-test).</summary>
         public int Lost { get; private set; }
+        /// <summary>Of those, the ones taken by boarders.</summary>
+        public int Captured { get; private set; }
 
         CarrierController Leader => demo != null ? demo.carrier : null;
         WarpDrive.State driveWas;
@@ -81,6 +84,7 @@ namespace CarrierGame.Demo
             {
                 h.respawnDelay = 0f;
                 h.onDestroyed.AddListener(() => Destroyed(pilot));
+                h.Taken += () => Taken(pilot);
             }
             var crew = go.GetComponent<Crew>();
             if (crew != null) crew.SetAboard(e.towed ? 0f : IndustryLedger.CrewOf(e.id) ?? 0f);
@@ -100,6 +104,27 @@ namespace CarrierGame.Demo
             Renumber();
             SoundFX.Ui(Sfx.UiAlert);
             Notices.Post($"The {p.displayName} is lost, with all her crew");
+        }
+
+        /// <summary>A fleet ship taken by boarders (Boarders): lost from the fleet as a destroyed one
+        /// is, but counted as captured; those of her crew still aboard are prisoners of the Vrask
+        /// too. She is taken away (Health.Capture).</summary>
+        void Taken(FleetPilot p)
+        {
+            if (p == null || !Ships.Contains(p)) return;
+            int aboard = p.TryGetComponent(out Crew c) ? c.Aboard : 0;
+            int taken = aboard + (p.TryGetComponent(out Boarders b) ? b.Prisoners : 0);
+            WorldState.TakePrisoners(aboard);          // (the boarders' own prisoners are counted already)
+            WorldState.ShipTaken();
+            Ships.Remove(p);
+            Lost++;
+            Captured++;
+            IndustryLedger.LoseFleetShip(p.entry);
+            if (Selected == p) Selected = null;
+            if (viewing == p) View(null);
+            Renumber();
+            SoundFX.Ui(Sfx.UiAlert);
+            Notices.Post($"The {p.displayName} is captured by the Vrask: {taken} of her crew taken prisoner");
         }
 
         void Renumber()

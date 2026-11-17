@@ -110,6 +110,8 @@ namespace CarrierGame.Demo
             }
             foreach (var l in ship.GetComponentsInChildren<MissileLauncher>(true))
                 if (l.missilePrefab is T lm && (found == null || l.missilePrefab.name == name)) found = lm;
+            foreach (var pl in ship.GetComponentsInChildren<PodLauncher>(true))
+                if (pl.podPrefab is T pp && (found == null || pl.podPrefab.name == name)) found = pp;
             prefabCache[key] = found;
             return found;
         }

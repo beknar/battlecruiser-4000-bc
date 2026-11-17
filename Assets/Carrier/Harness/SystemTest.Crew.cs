@@ -89,7 +89,7 @@ namespace CarrierGame.Demo
             var automated = all.Where(i => table.CrewOf(i.displayName) == 0).ToList();
             var crewed = all.Where(i => i.GetComponent<Crew>() != null).ToList();
             Check(automated.Count >= 3 && automated.All(i => i.GetComponent<Crew>() == null) && crewed.Count >= all.Count - automated.Count,
-                  $"every installation has its crew ({crewed.Count}) but the automated ones ({string.Join(", ", automated.Select(i => i.displayName))})");
+                  $"every installation has its crew ({crewed.Count}) but the automated ones ({string.Join(", ", automated.Select(i => i.displayName).OrderBy(n => n))})");
             var haven = all.FirstOrDefault(i => i.displayName == "Corsair Haven");
             var havenCrew = haven != null ? haven.GetComponent<Crew>() : null;
             if (havenCrew != null)

@@ -134,7 +134,7 @@ namespace CarrierGame.Demo
             var few = bodies.Where(b => Places.PointsOfInterest(b, b.Position).Count < 2).Select(b => b.displayName).ToList();
             var tPois = Places.PointsOfInterest(thalassa, cc.transform.position).Select(w => w.displayName).ToList();
             Check(Landmarks.All.Count > 0 && few.Count == 0 && tPois.Contains("Thalassa Northern Reach") && tPois.Contains("Thalassa High Orbit"),
-                  $"every planet, moon and field has 2 or more points of interest ({Landmarks.All.Count} landmarks{(few.Count > 0 ? "; fewer at " + string.Join(", ", few) : "")}); Thalassa's: {string.Join(", ", tPois)}");
+                  $"every planet, moon and field has 2 or more points of interest ({Landmarks.All.Count} landmarks{(few.Count > 0 ? "; fewer at " + string.Join(", ", few) : "")}); Thalassa's: {string.Join(", ", tPois.OrderBy(n => n))}");
             var north = Point("Thalassa Northern Reach");
             Check(north != null && Places.PlaceOf(north) == thalassa && Vector3.Distance(north.Position, thalassa.Position) > thalassa.bodyRadius * 0.99f
                   && Vector3.Distance(north.ArrivalPoint(cc.transform.position), north.Position) > 10000f,
@@ -189,6 +189,120 @@ namespace CarrierGame.Demo
                       $"{name}: K {berthOff / 1000f:F1} km from the berth, where the warp left her ('{hud}'), flies in and docks ({docked}, landed instead {landed}; in navigation's menu {inMenu})");
                 if (Docking.Docked) { yield return Key(kb, K.K); float uu = Time.time + 8f; while (Time.time < uu && Docking.Busy) yield return null; }
                 cc.throttle = 0f;
+            }
+
+            // ---- Hollow Rock from the Inner Belt's side (nearer the belt's middle than the
+            // berth, where K used to land on the belt): flying there, K docks; docked, the engines
+            // are out; just flying there ends in docking range; landing mid-trip ends the trip
+            {
+                var inst = Installation.All.FirstOrDefault(i => i != null && i.displayName == "Hollow Rock");
+                var wp = Point("Hollow Rock");
+                var belt = Point("Inner Belt");
+                if (inst == null || wp == null || belt == null) Check(false, "Hollow Rock and the Inner Belt: there");
+                else
+                {
+                    // (undocked from the last station first: a shipyard's screen, open there, has the keys)
+                    if (IndustryPanel.IsOpen) yield return Key(kb, K.Escape);
+                    if (Docking.Docked) Docking.Instance.Undock();
+                    float uw = Time.time + 10f;
+                    while (Time.time < uw && Docking.Busy) yield return null;
+                    yield return WarpTo(kb, "Hollow Rock", "nav_hr_beltside");
+                    yield return Key(kb, K.Digit3);
+                    Vector3 BeltSide()
+                    {
+                        Vector3 toBelt = (belt.Position - wp.Position).normalized;
+                        Vector3 across = Vector3.Cross(toBelt, Vector3.up).normalized;
+                        return wp.Position + toBelt * 4000f + across * 3000f;
+                    }
+                    IEnumerator PutBeltSide()
+                    {
+                        cc.transform.position = BeltSide();
+                        cc.SetMotion(0f);
+                        cc.throttle = 0f;
+                        yield return null;
+                        yield return null;
+                    }
+                    float Plume() => cc.GetComponentsInChildren<EngineThrust>().Select(e => e.throttle).DefaultIfEmpty(0f).Max();
+
+                    yield return PutBeltSide();
+                    float toBerth = Vector3.Distance(cc.transform.position, inst.BerthPosition);
+                    float toMiddle = Vector3.Distance(cc.transform.position, belt.Position);
+                    bool hrGoing = nav.TravelTo(wp, NavigationMode.Then.Arrive);
+                    yield return new WaitForSeconds(1f);
+                    yield return Key(kb, K.K);
+                    float du = Time.time + 150f;
+                    bool landed = false;
+                    while (Time.time < du && !(Docking.Docked && Docking.Instance.At == inst))
+                    {
+                        if (PlanetLanding.Busy) landed = true;
+                        yield return null;
+                    }
+                    bool docked = Docking.Docked && Docking.Instance.At == inst;
+                    yield return new WaitForSeconds(1.5f);
+                    float plume = Plume();
+                    Shot("nav_hr_beltside_docked");
+                    Check(hrGoing && docked && !landed,
+                          $"Hollow Rock from the belt's side ({toBerth / 1000f:F1} km from the berth, {toMiddle / 1000f:F1} km from the belt's middle): flying there, K docks ({docked}, landed instead {landed})");
+                    Check(docked && plume < EngineThrust.Off, $"docked, the engines are out (plume {plume:F2})");
+                    if (Docking.Docked) { yield return Key(kb, K.K); float uu = Time.time + 8f; while (Time.time < uu && Docking.Busy) yield return null; }
+
+                    // just going there: it ends in docking range, where K docks
+                    yield return PutBeltSide();
+                    int arrivals = nav.Arrivals;
+                    hrGoing = nav.TravelTo(wp, NavigationMode.Then.Arrive);
+                    float au = Time.time + 150f;
+                    while (Time.time < au && nav.Travelling) yield return null;
+                    float hrOff = Vector3.Distance(cc.transform.position, inst.BerthPosition);
+                    var cand = Docking.Instance != null ? Docking.Instance.Candidate(out _) : null;
+                    Check(hrGoing && nav.Arrivals == arrivals + 1 && inst.InDockRange(cc.transform.position) && cand == inst,
+                          $"flying to Hollow Rock from the belt's side ends in docking range ({hrOff:F0} m from the berth; arrived {nav.Arrivals - arrivals}; K docks at {(cand != null ? cand.displayName : "nothing")})");
+
+                    // landing on the belt mid-trip ends the trip (it isn't flown on over the surface)
+                    Vector3 away = (belt.Position - wp.Position).normalized;
+                    cc.transform.position = belt.Position + away * 2500f + Vector3.up * 1500f;
+                    cc.SetMotion(0f);
+                    cc.throttle = 0f;
+                    yield return null;
+                    yield return null;
+                    hrGoing = nav.TravelTo(wp, NavigationMode.Then.Arrive);
+                    yield return new WaitForSeconds(1f);
+                    bool canLand = landing.CanLand(out var lb, out string lwhy);
+                    bool down = false, endedAtOnce = false;
+                    if (canLand && landing.Land())
+                    {
+                        yield return null;
+                        yield return null;
+                        endedAtOnce = !nav.Travelling;
+                        float lu = Time.time + 90f;
+                        while (Time.time < lu && !PlanetLanding.OnSurface) yield return null;
+                        // (set down: a crawl of throttle left on, down on the lift thrusters)
+                        cc.throttle = 5f / Mathf.Max(1f, cc.maxSpeed);
+                        demo.autoElevator = -1f;
+                        float su = Time.time + 60f;
+                        while (Time.time < su && PlanetLanding.OnSurface && !landing.Landed) yield return null;
+                        demo.autoElevator = null;
+                        down = PlanetLanding.OnSurface && landing.Landed;
+                        yield return new WaitForSeconds(2f);
+                    }
+                    plume = Plume();
+                    float throttleDown = cc.throttle;
+                    Shot("nav_landed_midtrip");
+                    Check(hrGoing && down && endedAtOnce && plume < EngineThrust.Off,
+                          $"landing on the belt mid-trip ({(canLand ? lb.displayName : "can't land: " + lwhy)}; down {down}) ends the trip at once ({endedAtOnce}); set down with a crawl of throttle on, it is throttled back ({throttleDown:F2}) and the engines are out (plume {plume:F2})");
+                    // (and the engines burn again with the throttle up on the ground)
+                    cc.throttle = 0.4f;
+                    yield return new WaitForSeconds(0.5f);
+                    float burning = Plume();
+                    cc.throttle = 0f;
+                    Check(burning > 0.3f, $"throttle up on the ground, the engines burn (plume {burning:F2})");
+                    if (PlanetLanding.OnSurface)
+                    {
+                        yield return Key(kb, K.K);
+                        float tu = Time.time + 90f;
+                        while (Time.time < tu && PlanetLanding.Busy) yield return null;
+                    }
+                    Check(!nav.Travelling, $"after taking off again, no trip carries on ({nav.Travelling})");
+                }
             }
 
             yield return Key(kb, K.Digit1);

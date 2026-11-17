@@ -99,6 +99,10 @@ namespace CarrierGame
             liftSpeed = 0f;
         }
 
+        /// <summary>The main engines are out whatever the throttle says (docked at a berth, on
+        /// a tow): no plume, light or hum. (In warp they burn on as they were.)</summary>
+        [System.NonSerialized] public bool enginesCut;
+
         void Update()
         {
             float dt = Time.deltaTime;
@@ -111,6 +115,11 @@ namespace CarrierGame
             if (externalMotion)
             {
                 UpdateLiftFlares(0f);
+                if (enginesCut)
+                {
+                    if (engines != null) foreach (var e in engines) if (e) e.throttle = 0f;
+                    if (hum != null) hum.volume = Mathf.MoveTowards(hum.volume, 0f, dt * 1.5f);
+                }
                 return;
             }
             speed = Mathf.MoveTowards(speed, throttle * maxSpeed * speedScale * towScale, acceleration * accelScale * dt);
@@ -139,13 +148,13 @@ namespace CarrierGame
             if (Cover.Active) transform.position = Depenetrate(transform.position);
             UpdateLiftFlares(liftChange);
             // the main engines burn with the throttle, and go out (plume, light and hum) without it
-            if (engines != null) foreach (var e in engines) if (e) e.throttle = throttle;
+            if (engines != null) foreach (var e in engines) if (e) e.throttle = enginesCut ? 0f : throttle;
             wing.RemoveAll(c => c == null);
             if (hum != null)
             {
                 float f = Mathf.InverseLerp(0f, maxSpeed, speed);
                 // (the lift thrusters are thrust too)
-                float thrust = Mathf.Max(throttle, Mathf.Abs(elevator) * 0.5f);
+                float thrust = enginesCut ? 0f : Mathf.Max(throttle, Mathf.Abs(elevator) * 0.5f);
                 float want = thrust < EngineThrust.Off ? 0f : 0.2f + 0.4f * thrust;
                 hum.volume = Mathf.MoveTowards(hum.volume, want, dt * 1.5f);
                 hum.pitch = 0.8f + 0.45f * f;

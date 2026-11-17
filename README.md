@@ -244,7 +244,7 @@ repainted like the frigates and turned to lie bow first along the axis with
 - **Attitude.** The nose pitches up or down by up to 60°, and a level-off command brings it back.
 - **Elevator thrusters.** These move the ship straight up or down. Dorsal and ventral thruster
   flares show which way it is pushing.
-- **Engines.** Engine plumes and a hum both grow with the throttle.
+- **Engines.** Engine plumes and a hum both grow with the throttle. They are out while the ship is docked or on a tow, and touching down throttles back.
 
 ### Weapons
 
@@ -611,8 +611,14 @@ system to travel around.
     destination as there is still way to go (cruise is faster higher up), so it comes in fast
     and slows smoothly, the throttle easing off at the end. Across a field it flies straight.
     K flies there and then lands on that base's pad (the auto-lander takes her down) or docks
-    at the station. The trip takes time: a few minutes round a planet. Auto-travel goes only to
-    the points of interest at the place the ship is at; the map warps to the others.
+    at the station. Enter to a station ends in docking range, on the open side of its berth
+    ("Arrived at Hollow Rock: K docks"); the distance shown for a station is to its berth. On the
+    way in, the ship keeps clear of the rock or hull the berth is built into, going round it by
+    the open side, and if it gets stuck it backs off and tries another way (three times, then it
+    says so). K pressed while flying to a station docks there, even where the ship is nearer the
+    middle of the asteroid field than the station. Landing or docking any other way ends the
+    trip. The trip takes time: a few minutes round a planet. Auto-travel goes only to the points
+    of interest at the place the ship is at; the map warps to the others.
   - **By hand.** C sets the course without flying it. The point of interest is marked on screen
     with its distance and the time to it at the speed the ship is making, or with a pointer at
     the screen's edge when it is behind. The menu opens on the course, so Tab, then Enter, flies

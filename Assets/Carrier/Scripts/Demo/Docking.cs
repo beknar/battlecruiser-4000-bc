@@ -56,7 +56,7 @@ namespace CarrierGame.Demo
         {
             why = "";
             if (carrier == null || PlanetLanding.Busy) return null;
-            var s = Installation.ApproachableNear(carrier.transform.position);
+            var s = Installation.ApproachableNear(carrier.transform.position, NavigationMode.Flying);
             if (s == null) return null;
             if (carrier.Destroyed) why = "the frigate is destroyed";
             else if (drive != null && drive.Current != WarpDrive.State.Ready) why = "in warp";
@@ -118,6 +118,7 @@ namespace CarrierGame.Demo
             if (drive != null) drive.lockedBecause = "undock first";
             carrier.SetTarget(null);
             carrier.externalMotion = true;
+            carrier.enginesCut = true;
             SoundFX.Ui(Sfx.UiLock);
             Notices.Post($"Docking at {s.displayName}");
             for (float t = 0f; t < fadeTime; t += Time.deltaTime)
@@ -189,6 +190,7 @@ namespace CarrierGame.Demo
             SoundFX.Ui(Sfx.UiClear);
             Park();
             carrier.externalMotion = false;
+            carrier.enginesCut = false;
             carrier.SetMotion(30f);
             carrier.throttle = Mathf.Max(carrier.throttle, 0.3f);
             for (float t = 0f; t < 2f && !carrier.Destroyed; t += Time.deltaTime) yield return null;
@@ -199,6 +201,7 @@ namespace CarrierGame.Demo
         {
             if (Current == State.Free) return;
             if (Current == State.Docking || Current == State.Docked) carrier.externalMotion = false;
+            carrier.enginesCut = false;
             if (drive != null && drive.lockedBecause == "undock first") drive.lockedBecause = null;
             Current = State.Free;
             At = null;

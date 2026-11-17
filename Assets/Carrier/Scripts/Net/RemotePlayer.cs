@@ -60,7 +60,7 @@ namespace CarrierGame.Demo
             Shield = m.sh; Hull = m.hu; Dead = m.dead;
             Warp = m.warp; Surface = m.surf ?? "";
             // its engines as its player's throttle (out, without thrust)
-            if (engines != null) foreach (var e in engines) if (e != null) e.throttle = Mathf.Clamp01(m.th);
+            if (engines != null) foreach (var e in engines) if (e != null) e.throttle = m.dock ? 0f : Mathf.Clamp01(m.th);
             // it blew up: an explosion where it was
             if (Dead && !wasDead && health != null && health.deathEffect != null && shown)
             {

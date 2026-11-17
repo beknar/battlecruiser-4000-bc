@@ -25,7 +25,8 @@ namespace Carrier.EditorTools
     /// The Maw's spinal gun is its artillery, with its silos (CarrierBuilder.Artillery).
     ///
     /// The raiding group goes in the star system with VraskRaiders; the siege group over a city
-    /// with VraskSiege.
+    /// with VraskSiege; each fights as a fleet (VraskFleet), the Skinks as its escorts and eyes
+    /// (CarrierBuilder.Escort).
     /// </summary>
     public static partial class CarrierBuilder
     {
@@ -242,6 +243,9 @@ namespace Carrier.EditorTools
             if (s.pods > 0) AddBoarding(root, vs, s);
             // the Maw's spinal artillery, its nuclear silos and its tactics (CarrierBuilder.Artillery)
             if (s.artillery != null && s.artillery.range > 0f) AddArtillery(p, root, vs, s);
+            // the Skink's sensors, point defence and escort tactics (CarrierBuilder.Escort)
+            vs.sensorRange = s.sensorRange;
+            if (s.interceptRange > 0f) AddEscort(root, vs, s, turrets);
 
             Log($"{s.prefab}: {turrets.Count} guns ({string.Join(", ", turrets.GroupBy(t => t.projectilePrefab.name).Select(g => $"{g.Count()} x {g.Key}"))}), " +
                 $"{engines.Length} engines, {points.Length} points ({string.Join(", ", points.Select(pt => pt.kind).Distinct())}), " +
@@ -357,6 +361,8 @@ namespace Carrier.EditorTools
             eg.groupName = g.name;
             eg.pilots = pilots.Select(x => x.pilot).ToArray();
             eg.spotRange = g.spotRange;
+            // how they fight together (CarrierBuilder.Escort)
+            AddFleet(eg.gameObject, pilots.Select(x => x.pilot.GetComponent<VraskShip>()), eg, null);
             float nearest = pilots.Count > 0 ? pilots.Min(x => Vector3.Distance(x.pilot.transform.position, c)) : 0f;
             Log($"{g.name}: {pilots.Count} ships lying in wait round {g.at} ({string.Join(", ", pilots.Select(x => x.pilot.name))}), " +
                 $"the nearest {nearest / 1000f:F1} km from it, the arrival {at.arrivalDistance / 1000f:F1} km out; spotting at {g.spotRange / 1000f:F1} km");

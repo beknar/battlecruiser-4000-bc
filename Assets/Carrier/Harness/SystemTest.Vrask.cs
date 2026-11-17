@@ -11,8 +11,8 @@ namespace CarrierGame.Demo
     /// -vrasktest (?vrasktest): the Vrask, the alien faction. Their raiding group lies in wait
     /// round Comet Mirren: all four of their ships are there (Snare, Fang, Maw, Skink), each
     /// hostile and of the Vrask, armoured, shielded, with its systems and its own weapons (ion
-    /// bolts; heavy short-range guns and missiles; a siege gun (artillery); rapid light
-    /// guns), the Maw the slowest; they are a location the SpawnDirector spawns. The frigate (that
+    /// bolts; heavy short-range guns and missiles; spinal artillery and nuclear missiles; rapid
+    /// light guns), the Maw the slowest; they are a location the SpawnDirector spawns. The frigate (that
     /// can't be destroyed, its shield made too strong to fall so every hit is counted by its kind)
     /// warps there and closes on the comet until they spring; while they fight the warp drive is
     /// locked, and each of the four fires on it, ion bolts among the hits.
@@ -25,6 +25,11 @@ namespace CarrierGame.Demo
     /// near, a shell landing in a wide blast; a nuclear missile hurting the frigate but not
     /// destroying it, the silos holding two; and the siege over Port Ochre, a scripted nuclear
     /// strike ruining the whole city for longer than a kinetic strike (SystemTest.Artillery).
+    /// Then the whole group fights as a fleet (SystemTest.VraskFleet): the Skinks on picket make
+    /// contact, the artillery opens first, a Skink shoots down a missile the frigate fires at the
+    /// Maw, the Snares disable the frigate and a tractor holds it, then the Fang boards; the Maw
+    /// and both Snares destroyed, the rest withdraw. (The fleet and the Skinks' escort tactics are
+    /// off until then, so each section before it tests its own ships' tactics alone.)
     /// Then each is destroyed, coming apart with its shield down, and once the place's quiet is
     /// over they are back, whole, shields up. No screenshots.
     /// </summary>
@@ -56,6 +61,12 @@ namespace CarrierGame.Demo
             var byRole = new Dictionary<VraskShip.Role, VraskShip>();
             foreach (var v in ships) if (!byRole.ContainsKey(v.role)) byRole[v.role] = v;
             var roles = (VraskShip.Role[])System.Enum.GetValues(typeof(VraskShip.Role));
+            // (PR 9's fleet coordination and the Skinks' escort tactics are off until the fleet
+            // engagement at the end: the sections before it test each ship's own tactics alone)
+            var fleet = group.GetComponent<VraskFleet>();
+            if (fleet != null) fleet.enabled = false;
+            var escorts = ships.SelectMany(v => new Behaviour[] { v.GetComponent<SkinkTactics>(), v.GetComponent<PointDefence>() }).Where(b => b != null).ToList();
+            foreach (var b in escorts) b.enabled = false;
 
             CarrierTurret[] Guns(VraskShip v) => v.GetComponentsInChildren<CarrierTurret>(true);
             // (the Maw's spinal artillery: shells fired, and at whom)
@@ -224,6 +235,11 @@ namespace CarrierGame.Demo
             yield return MawArtillery(ships, Check, shieldF, cap0);
             yield return Bombardment(Check);
 
+            // ---- the whole group as a fleet: picket, artillery first, a Skink shooting down a
+            // missile, the Snares' disable and tractor, then the Fang's boarding; the Maw and the
+            // Snares lost, the rest withdraw (SystemTest.VraskFleet)
+            yield return FleetEngagement(group, ships, escorts, Check, shieldF, cap0);
+
             // ---- each can be destroyed: it comes apart, its shield down
             foreach (var r in roles)
             {
@@ -255,6 +271,10 @@ namespace CarrierGame.Demo
             Check(back && whole && site != null && site.spawns > 0,
                   $"they come back with the spawns: {ships.Count(v => !v.GetComponent<Health>().Dead)} of {ships.Count} back, whole and shielded {whole} " +
                   $"({site?.spawns ?? 0} spawns)");
+            // (their Maw and Snares back: the withdrawal is over)
+            if (fleet != null)
+                Check(fleet.Current != VraskFleet.Phase.Withdraw && !group.holdOff,
+                      $"with the Maw and the Snares back the group no longer holds off: {VraskFleet.Name(fleet.Current)}, holding off {group.holdOff}");
 
             if (shieldF != null) shieldF.SetCapacity(cap0);
             if (hull != null) hull.cannotDie = false;

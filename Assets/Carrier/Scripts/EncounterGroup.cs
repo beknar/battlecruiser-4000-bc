@@ -6,13 +6,16 @@ namespace CarrierGame
     /// A band of enemies lying in wait somewhere in the star system (in an asteroid field). They
     /// all attack together as soon as one of them can see the player within `spotRange`, or one of
     /// them is shot. When the player leaves (warps out, or runs further than the pilots' leash)
-    /// they go back into hiding, so the place is dangerous again on the next visit.
+    /// they go back into hiding, so the place is dangerous again on the next visit. A band told to
+    /// hold off (a Vrask group that has withdrawn: VraskFleet) doesn't spring until it is let go.
     /// </summary>
     public class EncounterGroup : MonoBehaviour
     {
         public string groupName = "Hostiles";
         public CombatPilot[] pilots;
         public float spotRange = 4000f;
+        /// <summary>Don't spring (VraskFleet: withdrawn, until its lost ships are back).</summary>
+        [System.NonSerialized] public bool holdOff;
 
         public bool Active { get; private set; }
         public int TimesSprung { get; private set; }
@@ -44,7 +47,7 @@ namespace CarrierGame
             // with more than one player ship about (co-op): the one nearest the group
             if (pilots.Length > 0 && pilots[0] != null)
                 player = PlayerShips.Retarget(player, pilots[0].transform.position, ref nextLook, 0f);
-            if (!Active)
+            if (!Active && !holdOff)
             {
                 Vector3 pp = player.position;
                 bool spotted = anyEngaged;   // one of them was shot (and has already come out)

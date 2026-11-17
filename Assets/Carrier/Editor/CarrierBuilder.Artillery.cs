@@ -171,6 +171,8 @@ namespace Carrier.EditorTools
             grid.weapons = guns.Where(w => w != null).ToArray();
             grid.engageRange = g.engageRange > 0f ? g.engageRange : 12000f;
             grid.disengageRange = grid.engageRange + 4000f;
+            // (its fleet coordination, on station: the Skinks spot and screen, and go quiet with the Maw lost)
+            AddFleet(station, guns.Where(w => w != null).Select(w => w.GetComponent<VraskShip>()), null, grid);
             var siege = maw.AddComponent<CarrierGame.Demo.VraskBombardment>();
             siege.target = g.at;
             siege.battery = maw.GetComponent<Health>();

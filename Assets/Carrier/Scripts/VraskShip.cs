@@ -39,6 +39,9 @@ namespace CarrierGame
 
         public Point[] points = new Point[0];
 
+        [Tooltip("How far (m) its own sensors reach, beyond what any of them sees (a Skink's: the group's eyes); 0: no further.")]
+        public float sensorRange;
+
         /// <summary>Every Vrask ship in the scene (kept while a co-op puppet, too).</summary>
         public static readonly List<VraskShip> All = new List<VraskShip>();
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]

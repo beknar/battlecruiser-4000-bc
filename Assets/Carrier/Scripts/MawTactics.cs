@@ -11,8 +11,9 @@ namespace CarrierGame
     /// - Backline station-keeping: it holds 8 to 12 km from its target, on the far side of the
     ///   rest of the Vrask fighting near it (they screen it), bow on, and once there it hardly
     ///   moves.
-    /// - Spotting: it fires only at a target another Vrask ship has within its sensors (6 km): a
-    ///   Skink's, a Snare's, a Fang's. On its own it has no firing solution.
+    /// - Spotting: it fires only at a target another Vrask ship has within its sensors (6 km, or
+    ///   further for a Skink: VraskShip.sensorRange): a Skink's, a Snare's, a Fang's. On its own it
+    ///   has no firing solution.
     /// - Salvos: its gun fires on a beat every Maw keeps (SalvoTick), so two Maws fire together;
     ///   one fires alone on the same beat.
     /// - Siege breaker: its shells go for a ship's shield generator while the shield is up, then
@@ -140,14 +141,16 @@ namespace CarrierGame
         {
             by = null;
             if (target == null) return false;
-            float r2 = range * range, best = float.MaxValue;
+            float best = float.MaxValue;
             foreach (var v in VraskShip.All)
             {
                 if (v == null || v == self || !v.gameObject.activeInHierarchy) continue;
                 var h = v.GetComponent<Health>();
                 if (h != null && h.Dead) continue;
                 float d = (v.transform.position - target.position).sqrMagnitude;
-                if (d <= r2 && d < best) { best = d; by = v; }
+                // (a Skink's sensors reach further: the group's picket)
+                float reach = Mathf.Max(range, v.sensorRange);
+                if (d <= reach * reach && d < best) { best = d; by = v; }
             }
             return by != null;
         }

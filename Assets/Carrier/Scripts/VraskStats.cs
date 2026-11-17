@@ -19,6 +19,8 @@ namespace CarrierGame
         public VraskGroup group;
         /// <summary>The siege of a city from orbit (VraskBombardment).</summary>
         public VraskSiege siege;
+        /// <summary>How a group of them fights together (VraskFleet).</summary>
+        public VraskFleetStats fleet;
 
         public static VraskTable Parse(string json) => JsonUtility.FromJson<VraskTable>(json);
 
@@ -92,6 +94,13 @@ namespace CarrierGame
         /// (NukeLauncher: the Maw's silos); a range of 0, or a stock of 0: none.</summary>
         public VraskArtillery artillery;
         public VraskNukes nukes;
+        /// <summary>An escort's work (the Skink: SkinkTactics, PointDefence): how far its sensors
+        /// reach (m; the Maw fires at what they see), its patrol orbit round the ships it screens
+        /// (m: nearest, farthest), how near the formation (m) it runs a threat down, and how many
+        /// times as hard its point-defence shots are on a missile; 0 or none: not an escort.</summary>
+        public float sensorRange;
+        public float[] cap;
+        public float interceptRange, pdMissileScale;
 
         // missiles (EnemyWeapons): none if salvoSize is 0
         public int salvoSize;
@@ -141,6 +150,21 @@ namespace CarrierGame
         public float altitude, side, arrival, engageRange, respawnMinutes, intervalMinutes, shellRadius, siegeReach;
         public bool fortified;
         public float nukeChance, nukeRestockMinutes, nukeRebuildMinutes, nukeMargin, nukePopulationShare;
+    }
+
+    /// <summary>How a group fights together (VraskFleet), phase by phase: the line (m) the Snares
+    /// and the Fang hold until their phase, the longest the bombardment goes on alone (s) and the
+    /// target's shield share that ends it, how near a Snare or the Fang (m) the target is reacting,
+    /// how long (s) a disabled target is free before the boarding is off, how long (s) the
+    /// pursuit goes on before the next target, how far ahead of the rest (m) the Skinks picket and
+    /// no nearer the target than (m), how far (m) any of its ships sees, and how near the group
+    /// (m) a ship can be its target.</summary>
+    [Serializable]
+    public class VraskFleetStats
+    {
+        public string note;
+        public float holdLine, bombardTime, bombardShield, reactRange, recoverTime, pursueTime;
+        public float picketLead, picketStandoff, sensorRange, engageRange;
     }
 
     /// <summary>One ship's place in the raiding group, round the place it hunts at (degrees round

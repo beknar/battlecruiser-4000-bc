@@ -1,5 +1,5 @@
 {
-    "note": "The Vrask, an alien faction (lizard-like) that takes prisoners, drains their life and captures ships: their bolts, their four ships and the raiding group in the star system. The scene builder (CarrierBuilder.Vrask) reads this and bakes the numbers into the prefabs (Prefabs/VraskSnare, VraskFang, VraskMaw, VraskSkink) and the level: run Tools > Carrier > Build Everything after changing anything here. Models and hardpoints: Models/Lizard_FrigateN.fbx and Data/lizard_frigateN_hardpoints.json (Tools/Blender/convert_lizards.py). Speeds in m/s, turns in degrees a second, ranges and distances in metres, intervals and respawns in seconds, damage per shot. The Maw's artillery and nukes: its spinal gun's shells (ArtilleryGun, ArtilleryShell: a nullifier at a shield that is up, a penetrator at armour or a shield down, high explosive at anything else) and its nuclear silos (NukeLauncher, NukeMissile); damage is at the centre of the blast, edge the share at its rim. The siege: the Maw and its escorts over a city on a world with air, raiding it on the game's clock (VraskBombardment); minutes of game time. A bolt's kind is a HitKind (DamageTable: Ion is twice as hard on a shield and a quarter on the hull; Penetrator goes straight through armour). armor is the share of a hit the plating stops when whole (Armor.rating); plating is how much it can stop. A gun set's 'on' is where its guns are: 'turrets' (cut out of the model), 'guns' (fixed in the hull) or a kind of hardpoint point; cone is how far (degrees) a fixed gun's line of fire can swing.",
+    "note": "The Vrask, an alien faction (lizard-like) that takes prisoners, drains their life and captures ships: their bolts, their four ships and the raiding group in the star system. The scene builder (CarrierBuilder.Vrask) reads this and bakes the numbers into the prefabs (Prefabs/VraskSnare, VraskFang, VraskMaw, VraskSkink) and the level: run Tools > Carrier > Build Everything after changing anything here. Models and hardpoints: Models/Lizard_FrigateN.fbx and Data/lizard_frigateN_hardpoints.json (Tools/Blender/convert_lizards.py). Speeds in m/s, turns in degrees a second, ranges and distances in metres, intervals and respawns in seconds, damage per shot. The Maw's artillery and nukes: its spinal gun's shells (ArtilleryGun, ArtilleryShell: a nullifier at a shield that is up, a penetrator at armour or a shield down, high explosive at anything else) and its nuclear silos (NukeLauncher, NukeMissile); damage is at the centre of the blast, edge the share at its rim. The siege: the Maw and its escorts over a city on a world with air, raiding it on the game's clock (VraskBombardment); minutes of game time. The Skink's escort work (SkinkTactics, PointDefence): sensorRange is how far its sensors reach (the Maw fires at what they see), cap its patrol orbit round the ships it screens (nearest, farthest), interceptRange how near the formation it runs a threat down, pdMissileScale how many times as hard its needles are on a missile. The fleet: how a group of them fights together, phase by phase (VraskFleet). A bolt's kind is a HitKind (DamageTable: Ion is twice as hard on a shield and a quarter on the hull; Penetrator goes straight through armour). armor is the share of a hit the plating stops when whole (Armor.rating); plating is how much it can stop. A gun set's 'on' is where its guns are: 'turrets' (cut out of the model), 'guns' (fixed in the hull) or a kind of hardpoint point; cone is how far (degrees) a fixed gun's line of fire can swing.",
     "bolts": [
         { "name": "VraskIonBolt", "material": "FX_VraskIon", "kind": "Ion", "damage": 12, "speed": 1700, "size": [0.9, 0.9, 10], "color": [0.35, 0.6, 1.6, 5] },
         { "name": "VraskCannonShell", "material": "FX_VraskCannon", "kind": "Cannon", "damage": 40, "speed": 1600, "size": [1.5, 1.5, 12], "color": [0.55, 1.0, 0.3, 7] },
@@ -54,10 +54,11 @@
         {
             "id": "Skink", "prefab": "VraskSkink", "model": "Lizard_Frigate4", "texture": "Lizard_Frigate4_BaseColor.png", "hardpoints": "lizard_frigate4_hardpoints.json",
             "displayName": "Vrask Skink", "shipClass": "Escort frigate", "threat": "Medium", "weapons": "8 rapid-fire point-defence guns",
-            "role": "Interceptor and escort: screens the Maw, its many light guns firing fast",
+            "role": "Interceptor and escort: a loose patrol round the Maw and any Snare holding a ship, running down the players' missiles, fighters and ships closing on them, its point-defence guns shooting their missiles down; the group's picket, seeing furthest; chases cripples",
             "hull": 2200, "shield": 1200, "shieldRecharge": 90, "armor": 0.30, "plating": 700, "explosion": 1.8, "respawn": 60,
             "style": "Capital", "cruiseSpeed": 170, "attackSpeed": 260, "turnRate": 45, "acceleration": 70,
             "standoff": 1500, "circleSpeed": 6, "hideBelow": 0, "guard": "Maw", "guardLeash": 2800,
+            "sensorRange": 9000, "cap": [1500, 2500], "interceptRange": 6000, "pdMissileScale": 2.7,
             "engineColor": [0.45, 1.0, 0.55],
             "guns": [
                 { "label": "PD guns", "on": "pd", "bolt": "VraskNeedle", "interval": 0.45, "range": 2400, "cone": 130, "yawSpeed": 120 }
@@ -77,6 +78,11 @@
             { "ship": "Skink", "name": "A", "angle": 120, "distance": 2300, "height": 300 },
             { "ship": "Skink", "name": "B", "angle": -120, "distance": 2300, "height": -300 }
         ]
+    },
+    "fleet": {
+        "note": "How a group of them fights together (VraskFleet): approach and picket (the Skinks ahead, the rest no nearer than the hold line), bombard (the Maw's artillery alone, until the target's shield is under bombardShield, it closes within reactRange of a Snare or the Fang, or bombardTime is up), screen and disable (the Snares go in, the Skinks screen), board (the target disabled: the Fang goes in; free recoverTime and it is back to the Snares), pursue (the target taken or running: the Skinks chase cripples, for pursueTime), withdraw (the Maw and every Snare lost).",
+        "holdLine": 5500, "bombardTime": 45, "bombardShield": 0.5, "reactRange": 4000, "recoverTime": 15, "pursueTime": 20,
+        "picketLead": 2500, "picketStandoff": 4000, "sensorRange": 6000, "engageRange": 20000
     },
     "siege": {
         "name": "Vrask Siege Group",

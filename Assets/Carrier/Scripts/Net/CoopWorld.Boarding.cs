@@ -14,7 +14,8 @@ namespace CarrierGame.Demo
     ///   (RemotePlayer: cannotDie), so only its own game ever captures it.
     /// - A missile or pod shot down by my point defence is told to the others (CoopWire.ShotDown:
     ///   {src, x, y, z, rf}), and each takes down its own copy of it: the real one on the host,
-    ///   the copies shown elsewhere.
+    ///   the copies shown elsewhere. So is a players' missile the host's enemies shoot down (a
+    ///   Vrask Skink's point defence): the real one is in its player's game.
     /// </summary>
     public partial class CoopWorld
     {

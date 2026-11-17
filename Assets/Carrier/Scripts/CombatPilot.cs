@@ -60,6 +60,9 @@ namespace CarrierGame
         /// <summary>Moved by something else for now (FangTactics' clamp on a ship's hull): the pilot
         /// keeps its target, and its ship its weapons, but it doesn't fly.</summary>
         [System.NonSerialized] public bool externalMotion;
+        /// <summary>Its group's word, after its own tactics (VraskFleet: hold back at a line until
+        /// the group's phase sends it in).</summary>
+        [System.NonSerialized] public ITactics orders;
 
         [Header("Patrol")]
         [Tooltip("Go back into hiding when the target gets this far from the lurking place (0 = never).")]
@@ -343,6 +346,7 @@ namespace CarrierGame
                     // (holding at its range: already where it should be, not pulled back to its charge)
                     if (!holding) Screen(pos, ref desired, ref wantSpeed);
                     if (tactics != null) tactics.Steer(pos, ref desired, ref wantSpeed);
+                    if (orders != null) orders.Steer(pos, ref desired, ref wantSpeed);
                     break;
 
                 case State.Hide:

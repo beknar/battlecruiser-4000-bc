@@ -49,6 +49,9 @@ namespace CarrierGame
         /// <summary>How well its crew work it (Crew: 1 at full strength): short-handed, it fires
         /// less often.</summary>
         [System.NonSerialized] public float efficiency = 1f;
+        /// <summary>Turrets something else is aiming for now (a Vrask Skink's point defence:
+        /// PointDefence): they aren't handed the target.</summary>
+        [System.NonSerialized] public System.Func<CarrierTurret, bool> claimed;
         float Slow(float interval) => interval / Mathf.Max(0.05f, efficiency);
 
         /// <summary>Shots held back because an asteroid or wreck was in the way (for the reel log).</summary>
@@ -105,7 +108,7 @@ namespace CarrierGame
             {
                 bool armed = target != null && weaponsFree && Time.time >= turretsFrom &&
                              (health == null || !health.Dead) && (targetHealth == null || !targetHealth.Dead);
-                foreach (var t in turrets) if (t != null) t.target = armed ? target : null;
+                foreach (var t in turrets) if (t != null && (claimed == null || !claimed(t))) t.target = armed ? target : null;
             }
             // hold fire while we are destroyed, or while the target is (no shooting at wreckage)
             if (target == null || (health != null && health.Dead) || (targetHealth != null && targetHealth.Dead))

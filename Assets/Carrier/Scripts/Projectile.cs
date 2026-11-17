@@ -32,6 +32,7 @@ namespace CarrierGame
 
         float age, prefabDamage;
         int ownerSide = -1;   // 1: fired by a hostile ship, 0: not (worked out on first use)
+        float pdScale = -1f;  // a hostile shot's share of its damage on the players' missiles (on first use)
         bool announced;
 
         // the damage as the prefab has it: whoever fires one may change it (co-op scaling, or none
@@ -47,6 +48,7 @@ namespace CarrierGame
         {
             age = 0f;
             ownerSide = -1;
+            pdScale = -1f;
             announced = false;
             damage = prefabDamage;
             owner = null;
@@ -130,25 +132,41 @@ namespace CarrierGame
             return ownerSide == 1;
         }
 
+        /// <summary>What it does to a missile it meets: a player's shot its damage (to the
+        /// hostile ones); a hostile shot only from point defence (a Vrask Skink's: PointDefence),
+        /// scaled (to the players' ones); any other, nothing.</summary>
+        float MissileDamage()
+        {
+            if (!FromHostile()) return damage;
+            if (pdScale < 0f) pdScale = PointDefence.MissileScale(owner);
+            return damage * pdScale;
+        }
+
         /// <summary>Co-op: a shot has been fired (announced to the other players' games).</summary>
         public static event System.Action<Projectile> Spawned;
 
         void Update()
         {
             // announced once its owner and damage are set (as Start would, before its first move)
-            if (!announced) { announced = true; Spawned?.Invoke(this); }
+            // (and with the place its ship belongs to, as missiles and shells are: round a moving
+            // comet a shot left behind in open space misses whatever it was aimed at)
+            if (!announced) { announced = true; OrbitHome.Inherit(gameObject, owner); Spawned?.Invoke(this); }
             float step = speed * Time.deltaTime;
             Vector3 from = transform.position;
             // point defence: a player's shot that meets a hostile missile or boarding pod on its way
             // this frame hits it, unless something solid is nearer (a shot shown from another
-            // player's game, without damage, does nothing)
-            if (Missile.Active.Count > 0 && damage > 0f && !FromHostile())
+            // player's game, without damage, does nothing); a Vrask Skink's point-defence shot
+            // meets the players' missiles the same way (PointDefence)
+            float vsMissile = Missile.Active.Count > 0 && damage > 0f ? MissileDamage() : 0f;
+            if (vsMissile > 0f)
             {
-                var m = Missile.InPath(from, transform.forward, step, out float at);
+                // (a Skink's needles are proximity-fused: they get a missile they pass close by)
+                bool pd = FromHostile();
+                var m = Missile.InPath(from, transform.forward, step, out float at, pd, pd ? 2.5f : 1f);
                 if (m != null && !(Physics.Raycast(from, transform.forward, out var nearer, at, ~0, QueryTriggerInteraction.Ignore)
                                    && (owner == null || !nearer.transform.IsChildOf(owner))))
                 {
-                    m.Shoot(damage, owner);
+                    m.Shoot(vsMissile, owner);
                     if (hitEffect != null) Pool.Take(hitEffect, from + transform.forward * at, Quaternion.identity);
                     Wake(from, from + transform.forward * at);
                     Pool.Give(gameObject);

@@ -233,7 +233,8 @@ three times as hard (the nullifier) or go straight through armour (the penetrato
 | Missiles | none | 2 every 14 s, 3.5 km | 2 nuclear missiles (refilled on respawn), 9 km, at most one every 90 s: 320 m/s, shot down by 4 CIWS bolts; a 1.2 km blast, 3,000 at the centre, in space | none |
 | Boarding pods | 2 every 30 s, at the ship its beam holds once its shield is down | 3 every 18 s from its 3 hatches, 3.5 km, as it closes; then its prow clamped on, a party of 12 | none | none |
 | Tractor beam | 2.5 km: pulls at 30 m/s to 1.5 km off; out-flown alone, but not two of them, or with your engines out; lets go at 3.25 km | none | none | none |
-| Tactics | stops 1.8 to 2.2 km off (1.45 to 1.8 km while holding), bow on; ion on your shield generator, then your engines; its tractor once they are out; breaks away inside 900 m | goes for a held or disabled ship; in fast from above, below or behind a Vrask ship; guns on your weapons; clamps on with your shield down, casts off when its boarders are done or its hull is under 30%; attack runs (breaks off at 450 m, extends 1.6 km) while your shield holds | holds 8 to 12 km from the target behind the others, bow on, hardly moving; fires only at what another Vrask ship sees within 6 km; salvos on a beat shared with any other Maw; shells on your shield generator, then your weapons (at an installation, its generators and batteries); falls back to its escorts inside 3 km; a nuke at a big ship whose shield holds, or ships bunched | screens the Maw: stands off 1.5 km from the target, never more than 2.8 km from the Maw |
+| Sees (spots for the Maw) | 6 km | 6 km | 6 km (not for itself) | **9 km** |
+| Tactics | stops 1.8 to 2.2 km off (1.45 to 1.8 km while holding), bow on; ion on your shield generator, then your engines; its tractor once they are out; breaks away inside 900 m | goes for a held or disabled ship; in fast from above, below or behind a Vrask ship; guns on your weapons; clamps on with your shield down, casts off when its boarders are done or its hull is under 30%; attack runs (breaks off at 450 m, extends 1.6 km) while your shield holds | holds 8 to 12 km from the target behind the others, bow on, hardly moving; fires only at what another Vrask ship sees (6 km, a Skink 9 km); salvos on a beat shared with any other Maw; shells on your shield generator, then your weapons (at an installation, its generators and batteries); falls back to its escorts inside 3 km; a nuke at a big ship whose shield holds, or ships bunched | patrols 1.5 to 2.5 km round the Maw or a Snare holding a ship; runs down your missiles, fighters and drones, and ships closing on them, within 6 km, at twice its acceleration; its guns take your missiles first (a needle does 8 to one: two bring it down); runs ahead as the picket; chases light or damaged ships that run, in to 500 m and out 1.5 km; with nothing to screen, stands off 1.5 km from you within 2.8 km of the Maw |
 | Respawn | with the spawns (below) | | | |
 
 ### Where they are
@@ -241,7 +242,7 @@ three times as hard (the nullifier) or go straight through armour (the penetrato
 | Group | Ships | Where |
 | --- | --- | --- |
 | Vrask raiders | 2 Snares, 1 Fang, 1 Maw, 2 Skinks | Hidden round Comet Mirren, 2 to 3 km from it, spotting you at 4 km (a warp drops you 8.5 km out, so they spring as you close in to mine it) |
-| Vrask Siege Group | 1 Maw, 2 Skinks | On station 160 km over Port Ochre, turning with Ochre; a hostile destination. Not piloted: the guns open up within 12 km, the Maw turns in place to bring its artillery to bear on a ship its Skinks see. It raids the city every two hours (see Not ships, but they fight). The Maw is back 30 minutes after it is destroyed |
+| Vrask Siege Group | 1 Maw, 2 Skinks | On station 160 km over Port Ochre, turning with Ochre; a hostile destination. Not piloted: the guns open up within 12 km, the Maw turns in place to bring its artillery to bear on a ship its Skinks see (9 km); the Skinks' point defence shoots your missiles down, and they go quiet while the Maw is destroyed. It raids the city every two hours (see Not ships, but they fight). The Maw is back 30 minutes after it is destroyed |
 
 They come back with the spawns like the pirates' bands: every 5 minutes, or 10 minutes after the
 place is cleared.
@@ -269,19 +270,55 @@ place is cleared.
   taken prisoner; it comes back at the last warp point with the survivors.
 - **Maw, artillery and siege.** Its spinal artillery reaches 13 km, much further than anything
   else in the system, but it is blind on its own: it fires only at what another Vrask ship sees
-  within 6 km, so it sits 8 to 12 km back behind the others and shells the ships they find, its
-  salvos together with any other Maw's. The shells are slow (15 to 25 s in flight) and burst
+  within 6 km (a Skink within 9 km), so it sits 8 to 12 km back behind the others and shells the
+  ships they find, its salvos together with any other Maw's. The shells are slow (15 to 25 s in flight) and burst
   500 m round where you were going to be: change course when one is on its way. A nullifier
   round strips shields, a penetrator goes through armour. It saves its two nuclear missiles for
   a big ship whose shield holds, or a bunch of ships; a nuke breaks a frigate's shield but in
   space doesn't destroy a whole one, and the CIWS can shoot it down. It is the slowest ship in
   the system bar the dreadnought, and turns slowly to aim; close within 3 km and it falls back
   to its escorts. Kill its spotters, or get round it, past the Skinks.
-- **Skink, escort.** The fastest and most agile of them, with many light guns: a nuisance alone, a
-  screen for the Maw. It fights on its own once the Maw is destroyed.
+- **Skink, escort, picket and hunter.** The fastest and most agile of them, with eight rapid
+  light guns. It flies a loose patrol 1.5 to 2.5 km round one of the group's high-value ships
+  (the Maw, or a Snare holding a ship), each Skink its own. A threat within 6 km of the group and
+  it goes for it at twice its acceleration (140 m/s2): your missile on its way to one of them (it
+  crosses the missile's path), your fighters and drones, your ship closing on the Maw or a holding
+  Snare (it fights it 1.2 km out). Its guns take your missiles, fighters and drones before
+  anything else: a needle does 8 to a missile (its 3, times 2.7), so two bring one down, as two
+  CIWS bolts do. Its sensors reach 9 km against the others' 6, so it runs ahead of the group as
+  its picket and is usually what the Maw fires by. A light (hull 3,000 or less) or damaged (under
+  half) ship of yours that runs, it chases in hit-and-run passes, in to 500 m and out 1.5 km;
+  after the main fight it runs down any cripple. With nothing to screen it stands off 1.5 km from
+  you, within 2.8 km of the Maw.
 
-Later work gives them point defence against missiles and fighters and fleet tactics (the Skink
-and the group). The places on their hulls for those are in the models' hardpoint files already.
+### How they fight together
+
+A group runs its fight in phases (`VraskFleet`; the numbers are `vrask.json`'s "fleet"), each
+moving on when something is so on the ship it is working. The siege group has no Snares or Fang,
+so it stays in the bombardment.
+
+| Phase | Skinks | Snares | Fang | Maw | Moves on when |
+| --- | --- | --- | --- | --- | --- |
+| Approach and picket | up to 2.5 km ahead of the rest, no nearer you than 4 km | no nearer than 5.5 km | no nearer than 5.5 km | to its station, 8 to 12 km back | one of them has you in its sensors (contact) |
+| Bombard | patrol and intercept | hold at 5.5 km | hold at 5.5 km | shells you | 45 s, your shield under half, or you within 4 km of a Snare or the Fang |
+| Screen and disable | patrol and intercept | ion, then the tractor | holds at 5.5 km | shells you | you are disabled: engines out, held fast, held with your shield down, or boarders aboard |
+| Board | patrol and intercept | hold you | pods, then its clamp | shells you | free of it for 15 s: back to screen and disable |
+| Pursue | chase cripples | their own way | its own way | its own way | 20 s, then the next target |
+| Withdraw | back into hiding | lost | back into hiding | lost | the Maw or a Snare back with the spawns |
+
+- **With ships lost.** Without a Maw the bombardment is skipped; a target already disabled at
+  contact goes straight to the boarding. A ship holding the line fights if you come within
+  3.3 km of it.
+- **Their target.** A player's ship first (the nearest, in co-op); without one, the ship most
+  worth taking that is easiest to disable: its hull and shield, weighted up the more worn its
+  shield and engines are, and down the further off it is (within 20 km).
+- **Withdrawing.** With its Maw and both Snares destroyed the band breaks off and goes back into
+  hiding, and doesn't spring again until they are back (one shot at fights back). The siege
+  group's Skinks can't leave their station: they go quiet till the Maw is back.
+- **Co-op.** The host's game runs the fleet and the Vrask's tactics; the other games show them.
+  With more players every Vrask ship's hull and shield are tougher (×1.6 with two players, ×2.2
+  with three) and its guns, shells and missiles hit harder (×1.12, ×1.24), as every enemy's are.
+  A Skink that shoots down a player's missile in the host's game takes it down in that player's.
 
 ## Not ships, but they fight
 

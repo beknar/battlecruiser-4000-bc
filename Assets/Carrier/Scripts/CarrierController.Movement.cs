@@ -145,6 +145,7 @@ namespace CarrierGame
             liftSpeed = Mathf.MoveTowards(liftSpeed, wantLift, elevatorAcceleration * dt);
             liftSpeed = Mathf.Max(liftSpeed, -maxDescent);
             transform.position += Collide((transform.forward * speed + transform.up * liftSpeed) * dt);
+            transform.position = SeparateFromShips(transform.position);
             if (Cover.Active) transform.position = Depenetrate(transform.position);
             UpdateLiftFlares(liftChange);
             // the main engines burn with the throttle, and go out (plume, light and hum) without it

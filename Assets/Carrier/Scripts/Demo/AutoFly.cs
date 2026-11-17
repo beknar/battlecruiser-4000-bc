@@ -100,7 +100,7 @@ namespace CarrierGame.Demo
                 onArrival?.Invoke();
                 return;
             }
-            var v = ShipAutopilot.BowOn(ship, to);
+            var v = ShipAutopilot.Travel(ship, to, null, out float clear);
             demo.autoRudder = v.x;
             demo.autoPitch = v.y;
             // in cruise while far (it slows by itself near a station, in a fight, lower down);
@@ -111,7 +111,7 @@ namespace CarrierGame.Demo
             float want = Mathf.Max((Left - within) / 5f, ship.maxSpeed * 0.25f);
             // (and not hard at it while still turning onto the way there)
             float aligned = Mathf.Clamp01(1f - ShipAutopilot.BowError(ship, to) / 120f);
-            ship.throttle = Mathf.Clamp(want / Mathf.Max(1f, top), 0.05f, 1f) * (0.3f + 0.7f * aligned);
+            ship.throttle = Mathf.Clamp(want / Mathf.Max(1f, top), 0.05f, 1f) * (0.3f + 0.7f * aligned) * clear;
             throttleSet = ship.throttle;
         }
     }

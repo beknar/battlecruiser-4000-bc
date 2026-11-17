@@ -244,6 +244,11 @@ repainted like the frigates and turned to lie bow first along the axis with
 - **Attitude.** The nose pitches up or down by up to 60°, and a level-off command brings it back.
 - **Elevator thrusters.** These move the ship straight up or down. Dorsal and ventral thruster
   flares show which way it is pushing.
+- **Ships keep clear of each other.** Under an autopilot (auto-travel, auto-flight, the AI wingman, the fleet) a ship
+  steers round the other ships in its way rather than through them: it looks a few seconds ahead for any that would
+  come closer than the two hulls and a margin, and turns off to one side, easing the throttle for one ahead. The two
+  ships always turn opposite ways, in one game or in two (co-op). Ships alongside on the same course, and docked or
+  towed ones, are left alone. If two hulls ever do meet, each ship is pushed back out of the other.
 - **Engines.** Engine plumes and a hum both grow with the throttle. They are out while the ship is docked or on a tow, and touching down throttles back.
 
 ### Weapons

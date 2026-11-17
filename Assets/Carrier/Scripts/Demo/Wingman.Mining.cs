@@ -171,9 +171,9 @@ namespace CarrierGame.Demo
                     var field = FieldFor(me);
                     if (field != null && Time.time - stepSince > 6f)
                     {
-                        var v = ShipAutopilot.BowOn(cc, field.Position);
+                        var v = ShipAutopilot.Travel(cc, field.Position, null, out float clear);
                         Steer(v.x, v.y);
-                        cc.throttle = 0.5f;
+                        cc.throttle = 0.5f * clear;
                         Doing = $"looking for deposits in {field.displayName}";
                     }
                     return;
@@ -267,9 +267,9 @@ namespace CarrierGame.Demo
                         TryWarp(wp, $"warping to {Market.displayName} to sell {hold.OreTonnes:F0} t of ore");
                         return;
                     }
-                    var v = ShipAutopilot.BowOn(cc, Market.ApproachPoint(me));
+                    var v = ShipAutopilot.Travel(cc, Market.ApproachPoint(me), null, out float clear);
                     Steer(v.x, v.y);
-                    cc.throttle = 0.6f;
+                    cc.throttle = 0.6f * clear;
                     Doing = $"flying to {Market.displayName} to sell";
                     return;
                 }

@@ -183,10 +183,11 @@ namespace CarrierGame.Demo
 
         void Steer(Vector3 to, float throttle)
         {
-            var v = ShipAutopilot.BowOn(ship, to);
+            // (round the other ships on the way: its leader, the rest of the fleet, other players)
+            var v = ShipAutopilot.Travel(ship, to, null, out float clear);
             ship.rudder = v.x;
             ship.pitchInput = v.y;
-            ship.throttle = throttle;
+            ship.throttle = throttle * clear;
         }
 
         static bool Dead(Transform t) => t == null || (t.TryGetComponent(out Health h) && h.Dead);

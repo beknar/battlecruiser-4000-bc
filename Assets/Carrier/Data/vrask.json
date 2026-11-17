@@ -1,10 +1,9 @@
 {
-    "note": "The Vrask, an alien faction (lizard-like) that takes prisoners, drains their life and captures ships: their bolts, their four ships and the raiding group in the star system. The scene builder (CarrierBuilder.Vrask) reads this and bakes the numbers into the prefabs (Prefabs/VraskSnare, VraskFang, VraskMaw, VraskSkink) and the level: run Tools > Carrier > Build Everything after changing anything here. Models and hardpoints: Models/Lizard_FrigateN.fbx and Data/lizard_frigateN_hardpoints.json (Tools/Blender/convert_lizards.py). Speeds in m/s, turns in degrees a second, ranges and distances in metres, intervals and respawns in seconds, damage per shot. A bolt's kind is a HitKind (DamageTable: Ion is twice as hard on a shield and a quarter on the hull; Penetrator goes straight through armour). armor is the share of a hit the plating stops when whole (Armor.rating); plating is how much it can stop. A gun set's 'on' is where its guns are: 'turrets' (cut out of the model), 'guns' (fixed in the hull) or a kind of hardpoint point; cone is how far (degrees) a fixed gun's line of fire can swing.",
+    "note": "The Vrask, an alien faction (lizard-like) that takes prisoners, drains their life and captures ships: their bolts, their four ships and the raiding group in the star system. The scene builder (CarrierBuilder.Vrask) reads this and bakes the numbers into the prefabs (Prefabs/VraskSnare, VraskFang, VraskMaw, VraskSkink) and the level: run Tools > Carrier > Build Everything after changing anything here. Models and hardpoints: Models/Lizard_FrigateN.fbx and Data/lizard_frigateN_hardpoints.json (Tools/Blender/convert_lizards.py). Speeds in m/s, turns in degrees a second, ranges and distances in metres, intervals and respawns in seconds, damage per shot. The Maw's artillery and nukes: its spinal gun's shells (ArtilleryGun, ArtilleryShell: a nullifier at a shield that is up, a penetrator at armour or a shield down, high explosive at anything else) and its nuclear silos (NukeLauncher, NukeMissile); damage is at the centre of the blast, edge the share at its rim. The siege: the Maw and its escorts over a city on a world with air, raiding it on the game's clock (VraskBombardment); minutes of game time. A bolt's kind is a HitKind (DamageTable: Ion is twice as hard on a shield and a quarter on the hull; Penetrator goes straight through armour). armor is the share of a hit the plating stops when whole (Armor.rating); plating is how much it can stop. A gun set's 'on' is where its guns are: 'turrets' (cut out of the model), 'guns' (fixed in the hull) or a kind of hardpoint point; cone is how far (degrees) a fixed gun's line of fire can swing.",
     "bolts": [
         { "name": "VraskIonBolt", "material": "FX_VraskIon", "kind": "Ion", "damage": 12, "speed": 1700, "size": [0.9, 0.9, 10], "color": [0.35, 0.6, 1.6, 5] },
         { "name": "VraskCannonShell", "material": "FX_VraskCannon", "kind": "Cannon", "damage": 40, "speed": 1600, "size": [1.5, 1.5, 12], "color": [0.55, 1.0, 0.3, 7] },
         { "name": "VraskSiegeShell", "material": "FX_VraskCannon", "kind": "Cannon", "damage": 35, "speed": 1700, "size": [1.4, 1.4, 12], "color": [0.55, 1.0, 0.3, 7] },
-        { "name": "VraskSpinalSlug", "material": "FX_VraskSpinal", "kind": "Penetrator", "damage": 260, "speed": 2600, "size": [2.4, 2.4, 32], "color": [1.0, 0.8, 0.35, 9] },
         { "name": "VraskNeedle", "material": "FX_VraskNeedle", "kind": "Projectile", "damage": 3, "speed": 2100, "size": [0.4, 0.4, 7], "color": [0.75, 1.0, 0.45, 6] }
     ],
     "ships": [
@@ -38,15 +37,17 @@
         },
         {
             "id": "Maw", "prefab": "VraskMaw", "model": "Lizard_Frigate3", "texture": "Lizard_Frigate3_BaseColor.png", "hardpoints": "lizard_frigate3_hardpoints.json",
-            "displayName": "Vrask Maw", "shipClass": "Siege frigate", "threat": "High", "weapons": "Spinal gun (armour-piercing), 3 twin turrets, jaw and flank guns",
-            "role": "Long-range fire support and siege: holds well back and fires its spinal gun bow-on",
+            "displayName": "Vrask Maw", "shipClass": "Siege frigate", "threat": "High", "weapons": "Spinal artillery (shield-nullifier and armour-piercing shells), 2 nuclear missiles, 3 twin turrets, jaw and flank guns",
+            "role": "Long-range fire support and siege: holds 8 to 12 km behind the others and shells what they spot, in salvos; breaks sieges; nuclear missiles, rarely",
             "hull": 3000, "shield": 1800, "shieldRecharge": 90, "armor": 0.40, "plating": 1400, "explosion": 2.4, "respawn": 90,
             "style": "Capital", "cruiseSpeed": 70, "attackSpeed": 85, "turnRate": 10, "acceleration": 12,
-            "standoff": 4500, "circleSpeed": 1.5, "holdFacing": true, "hideBelow": 0,
+            "standoff": 10000, "circleSpeed": 1.5, "holdFacing": true, "hideBelow": 0,
             "engineColor": [0.45, 1.0, 0.55],
+            "artillery": { "label": "Spinal artillery", "on": "spinal_muzzle", "interval": 16, "range": 13000, "minRange": 1500, "cone": 20,
+                           "shellSpeed": 550, "damage": 700, "blastRadius": 500, "edge": 0.2, "color": [0.7, 1.0, 0.45, 8] },
+            "nukes": { "stock": 2, "damage": 3000, "blastRadius": 1200, "edge": 0.3, "range": 9000, "interval": 90, "speed": 320, "toughness": 32 },
             "guns": [
                 { "label": "Dorsal turrets", "on": "turrets", "bolt": "VraskSiegeShell", "interval": 5.5, "range": 5000, "yawSpeed": 22 },
-                { "label": "Spinal gun", "on": "spinal_muzzle", "bolt": "VraskSpinalSlug", "interval": 7, "range": 6500, "cone": 4, "yawSpeed": 8 },
                 { "label": "Jaw and flank guns", "on": "guns", "bolt": "VraskSiegeShell", "interval": 10, "range": 4500, "cone": 6, "yawSpeed": 10 }
             ]
         },
@@ -76,5 +77,30 @@
             { "ship": "Skink", "name": "A", "angle": 120, "distance": 2300, "height": 300 },
             { "ship": "Skink", "name": "B", "angle": -120, "distance": 2300, "height": -300 }
         ]
+    },
+    "siege": {
+        "name": "Vrask Siege Group",
+        "at": "Port Ochre",
+        "body": "Ochre",
+        "ship": "Maw",
+        "escort": "Skink",
+        "escorts": 2,
+        "altitude": 160000,
+        "side": 30000,
+        "arrival": 16000,
+        "engageRange": 12000,
+        "respawnMinutes": 30,
+        "intervalMinutes": 120,
+        "shells": 4,
+        "shellRadius": 500,
+        "siegeReach": 3000,
+        "fortified": true,
+        "nukeChance": 0.1,
+        "nukeRestockMinutes": 360,
+        "nukeRebuildMinutes": 480,
+        "nukeMargin": 300,
+        "nukePopulationShare": 0.5,
+        "note": "A Vrask Maw and two Skinks on station 160 km over Port Ochre, besieging the city: every two hours its spinal artillery shells the city's defences and then its buildings, and now and then it sends a nuclear missile down that wipes the city out for eight hours. Its guns open up on a ship within 12 km; its artillery on one its escorts can see. Destroy the Maw to stop the raids (the Vrask send another in half an hour).",
+        "cityNote": "The Vrask besiege it from orbit (the Vrask Siege Group)."
     }
 }

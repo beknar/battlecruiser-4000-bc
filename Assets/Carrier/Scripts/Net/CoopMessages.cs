@@ -70,6 +70,14 @@ namespace CarrierGame.Demo
         // message's count is n)
         public int bd;
         public bool cpt;
+        // an artillery shell's aim (a fire message of kind "shell": from the reach arf)
+        public double ax, ay, az;
+        public string arf = "";
+        // a strike from orbit (CoopWire.Strike)
+        public string body, place, weapon;
+        public double u, v;
+        public float radius, cd, rb, pop;
+        public int cpb;
         // a message on the comms channel
         public string text;
         // the self-test's bot
@@ -112,6 +120,14 @@ namespace CarrierGame.Demo
     /// <summary>A shot, missile or beam, for show in the other games (k: CoopWire.Shot, Missile or Beam).</summary>
     [Serializable]
     class FireMsg { public string t = CoopWire.Fire; public string src, k, pf, tg = "", rf = ""; public double x, y, z; public float dx, dy, dz; }
+
+    /// <summary>An artillery shell, for show in the other games: a Fire with where it is going and its kind.</summary>
+    [Serializable]
+    class ShellMsg { public string t = CoopWire.Fire; public string src, k, pf, tg = "", rf = ""; public double x, y, z; public float dx, dy, dz; public double ax, ay, az; public string arf = ""; public int kx; }
+
+    /// <summary>A strike from orbit by the host's Vrask siege, for every game's world.</summary>
+    [Serializable]
+    class StrikeMsg { public string t = CoopWire.Strike; public string body, place, weapon; public double u, v; public float radius, cd, rb, pop; public int cpb; }
 
     /// <summary>A hit on an enemy, to the host (whose game has the real one).</summary>
     [Serializable]

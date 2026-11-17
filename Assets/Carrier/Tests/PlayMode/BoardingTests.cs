@@ -271,7 +271,7 @@ namespace CarrierGame.Tests
         public IEnumerator ABoltShootsAHostileMissileDown()
         {
             // (well away from the middle of the scene, where other tests' ships stand)
-            Vector3 here = new Vector3(5000f, 0f, 0f);
+            Vector3 here = new Vector3(-7300f, 4100f, 13900f);
             var m = SlowMissile(here + new Vector3(0f, 0f, 40f), "Hostile");
             m.toughness = 5f;
             Transform by = null;
@@ -290,7 +290,9 @@ namespace CarrierGame.Tests
                 go.transform.rotation = Quaternion.LookRotation(Vector3.forward);
                 go.SetActive(true);
                 p.owner = shooter.transform;
-                for (int i = 0; i < 30 && Missile.ShotDownCount == down0; i++) yield return null;
+                // (by time, not frames: with nothing drawn, frames can come thousands a second)
+                float until = Time.time + 1f;
+                while (Time.time < until && Missile.ShotDownCount == down0) yield return null;
                 Assert.That(Missile.ShotDownCount, Is.EqualTo(down0 + 1), "shot down");
                 Assert.That(by, Is.EqualTo(shooter.transform), "by the ship whose bolt it was");
                 yield return null;

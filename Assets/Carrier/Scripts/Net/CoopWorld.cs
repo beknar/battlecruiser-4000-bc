@@ -101,6 +101,7 @@ namespace CarrierGame.Demo
             Missile.Spawned += OnMissile;
             MainBeam.Began += OnBeam;
             HookBoarding(true);
+            HookArtillery(true);
             Health.Intercept = Intercept;
             PlayerShips.Available = t => !remoteByRoot.TryGetValue(t.root, out var rp) || !rp.Hidden;
         }
@@ -112,6 +113,7 @@ namespace CarrierGame.Demo
             Missile.Spawned -= OnMissile;
             MainBeam.Began -= OnBeam;
             HookBoarding(false);
+            HookArtillery(false);
             if (Health.Intercept == (Func<Health, float, Vector3, HitKind, bool>)Intercept) Health.Intercept = null;
             PlayerShips.Available = null;
             OrbitalSystem.ClockOverride = null;
@@ -249,6 +251,10 @@ namespace CarrierGame.Demo
                 case CoopWire.ShotDown:
                     // a missile or pod shot down in another game
                     TakeShotDown(m);
+                    break;
+                case CoopWire.Strike:
+                    // the host's Vrask siege struck a city: the same strike on my world
+                    if (!IsHost) TakeStrike(m);
                     break;
                 case CoopWire.Leave:
                     RemoveRemote(m.id);

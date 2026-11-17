@@ -11,16 +11,20 @@ namespace CarrierGame.Demo
     /// -vrasktest (?vrasktest): the Vrask, the alien faction. Their raiding group lies in wait
     /// round Comet Mirren: all four of their ships are there (Snare, Fang, Maw, Skink), each
     /// hostile and of the Vrask, armoured, shielded, with its systems and its own weapons (ion
-    /// bolts; heavy short-range guns and missiles; an armour-piercing spinal gun; rapid light
+    /// bolts; heavy short-range guns and missiles; a siege gun (artillery); rapid light
     /// guns), the Maw the slowest; they are a location the SpawnDirector spawns. The frigate (that
     /// can't be destroyed, its shield made too strong to fall so every hit is counted by its kind)
     /// warps there and closes on the comet until they spring; while they fight the warp drive is
-    /// locked, and each of the four fires on it, ion bolts and armour-piercing slugs among the hits.
+    /// locked, and each of the four fires on it, ion bolts among the hits.
     /// The Snares then capture it: ion knocks out its shield generator and engines, a tractor beam
     /// holds it and pulls it in, the warp drive is refused, and the beam lets go when its Snare
     /// dies (SystemTest.Tractor). Then the boarding: the CIWS shoot pods down; with the shield
     /// down pods breach, a full crew repels them and a crew near its survivors is overrun, the
     /// frigate captured and back at its respawn point; the Fang clamps on (SystemTest.Boarding).
+    /// Then the Maw's artillery: no fire without a spotter, then from beyond 8 km once a Skink is
+    /// near, a shell landing in a wide blast; a nuclear missile hurting the frigate but not
+    /// destroying it, the silos holding two; and the siege over Port Ochre, a scripted nuclear
+    /// strike ruining the whole city for longer than a kinetic strike (SystemTest.Artillery).
     /// Then each is destroyed, coming apart with its shield down, and once the place's quiet is
     /// over they are back, whole, shields up. No screenshots.
     /// </summary>
@@ -54,13 +58,20 @@ namespace CarrierGame.Demo
             var roles = (VraskShip.Role[])System.Enum.GetValues(typeof(VraskShip.Role));
 
             CarrierTurret[] Guns(VraskShip v) => v.GetComponentsInChildren<CarrierTurret>(true);
+            // (the Maw's spinal artillery: shells fired, and at whom)
+            ArtilleryGun Art(VraskShip v) => v.GetComponentInChildren<ArtilleryGun>(true);
+            int ArtFired(VraskShip v) { var a = Art(v); return a != null ? a.Fired : 0; }
             bool Fires(VraskShip v, HitKind kind) => Guns(v).Any(t => t.projectilePrefab != null && t.projectilePrefab.kind == kind);
             string Arms(VraskShip v)
             {
                 var w = v.GetComponent<EnemyWeapons>();
                 var guns = Guns(v).Where(t => t.projectilePrefab != null).GroupBy(t => t.projectilePrefab.kind)
                     .Select(g => $"{g.Count()} {g.Key} ({g.Min(t => t.fireInterval):0.##} s, {g.Max(t => t.range) / 1000f:0.#} km)");
-                return string.Join(", ", guns) + (w != null && w.missilePrefab != null ? $", missiles {w.salvoSize} every {w.salvoInterval:0} s" : "");
+                var art = Art(v);
+                var silo = v.GetComponent<NukeLauncher>();
+                return string.Join(", ", guns) + (w != null && w.missilePrefab != null ? $", missiles {w.salvoSize} every {w.salvoInterval:0} s" : "") +
+                       (art != null ? $", artillery every {art.reload:0} s to {art.range / 1000f:0.#} km" : "") +
+                       (silo != null ? $", {silo.Stock} of {silo.capacity} nuclear missiles" : "");
             }
             foreach (var r in roles)
             {
@@ -86,9 +97,11 @@ namespace CarrierGame.Demo
                         armed = guns.Any(t => t.projectilePrefab != null && t.projectilePrefab.kind == HitKind.Cannon && t.range <= 2000f) &&
                                 w != null && w.missilePrefab != null && v.PointOf("breach") != null; break;
                     case VraskShip.Role.Maw:
-                        armed = guns.Any(t => t.projectilePrefab != null && t.projectilePrefab.kind == HitKind.Penetrator && t.range >= 6000f) &&
-                                guns.Count(t => t.projectilePrefab != null && t.projectilePrefab.kind != HitKind.Penetrator) >= 3 &&
-                                v.PointsOf("nuke_cell").Length > 0; break;
+                        var mawArt = Art(v);
+                        var mawSilos = v.GetComponent<NukeLauncher>();
+                        armed = mawArt != null && mawArt.range >= 10000f && mawArt.shellPrefab != null &&
+                                guns.Count(t => t.projectilePrefab != null) >= 3 && v.PointsOf("nuke_cell").Length > 0 &&
+                                mawSilos != null && mawSilos.capacity > 0 && mawSilos.Stock == mawSilos.capacity && v.GetComponent<MawTactics>() != null; break;
                     default:
                         armed = guns.Count(t => t.projectilePrefab != null && t.fireInterval <= 0.6f) >= 8; break;
                 }
@@ -157,9 +170,9 @@ namespace CarrierGame.Demo
             demo.autoPitch = null;
 
             // ---- the fight: each of the four fires on the frigate
-            var shots0 = ships.ToDictionary(v => v, v => Guns(v).Sum(t => t.ShotsFired));
+            var shots0 = ships.ToDictionary(v => v, v => Guns(v).Sum(t => t.ShotsFired) + ArtFired(v));
             int Hits(HitKind k) => shieldF != null && (int)k < shieldF.HitsByKind.Length ? shieldF.HitsByKind[(int)k] : 0;
-            int ion0 = Hits(HitKind.Ion), pen0 = Hits(HitKind.Penetrator), cannon0 = Hits(HitKind.Cannon);
+            int ion0 = Hits(HitKind.Ion), pen0 = Hits(HitKind.Penetrator), cannon0 = Hits(HitKind.Cannon), null0 = Hits(HitKind.Nullifier);
             bool locked = false, engagedNear = false;
             string lockWhy = "";
             until = Time.time + 90f;
@@ -168,8 +181,8 @@ namespace CarrierGame.Demo
                 if (!locked && drive.InCombat(out lockWhy)) locked = true;
                 if (!engagedNear && CombatPilot.AnyEngagedNear(cc.transform.position, 15000f)) engagedNear = true;
                 // (done early once every kind has fired and the slugs and ion bolts have landed)
-                if (Time.time > until - 60f && roles.All(r => byRole.ContainsKey(r) && Guns(byRole[r]).Sum(t => t.ShotsFired) > shots0[byRole[r]]) &&
-                    Hits(HitKind.Ion) > ion0 && Hits(HitKind.Penetrator) > pen0) break;
+                if (Time.time > until - 60f && roles.All(r => byRole.ContainsKey(r) && Guns(byRole[r]).Sum(t => t.ShotsFired) + ArtFired(byRole[r]) > shots0[byRole[r]]) &&
+                    Hits(HitKind.Ion) > ion0) break;
                 yield return null;
             }
             Check(locked && engagedNear, $"in the fight the warp drive is locked ({lockWhy}), an enemy engaged near {engagedNear}");
@@ -177,14 +190,15 @@ namespace CarrierGame.Demo
             {
                 if (!byRole.TryGetValue(r, out var v)) continue;
                 var guns = Guns(v);
-                int fired = guns.Sum(t => t.ShotsFired) - shots0[v];
-                bool atMe = guns.Any(t => t.FiredAt.Contains(cc.name));
+                int fired = guns.Sum(t => t.ShotsFired) + ArtFired(v) - shots0[v];
+                bool atMe = guns.Any(t => t.FiredAt.Contains(cc.name)) || (Art(v) != null && Art(v).FiredAt.Contains(cc.name));
                 var pl = v.GetComponent<CombatPilot>();
                 Check(fired > 0 && atMe, $"the {r} fires on the frigate: {fired} shots, from {guns.Count(t => t.ShotsFired > 0)} of {guns.Length} guns, " +
                                          $"{Vector3.Distance(v.transform.position, cc.transform.position) / 1000f:F1} km off ({pl?.Current})");
             }
-            Check(Hits(HitKind.Ion) > ion0 && Hits(HitKind.Penetrator) > pen0,
-                  $"their hits on the frigate's shield: {Hits(HitKind.Ion) - ion0} ion, {Hits(HitKind.Penetrator) - pen0} armour-piercing, {Hits(HitKind.Cannon) - cannon0} cannon " +
+            Check(Hits(HitKind.Ion) > ion0,
+                  $"their hits on the frigate's shield: {Hits(HitKind.Ion) - ion0} ion, {Hits(HitKind.Nullifier) - null0} nullifier and {Hits(HitKind.Penetrator) - pen0} armour-piercing shells, " +
+                  $"{Hits(HitKind.Cannon) - cannon0} cannon " +
                   $"(hull {health0?.Current:F0})");
 
             // ---- the Snares' capture: ion, the tractor, no warp, let go (SystemTest.Tractor)
@@ -202,6 +216,13 @@ namespace CarrierGame.Demo
             // (repelled; captured, the hold seized, back at the respawn point), the Fang's clamp
             // (SystemTest.Boarding)
             yield return Boarding(ships, Check, shieldF, cap0);
+
+            // ---- the Maw's artillery (no fire without a spotter; from beyond 8 km once one is
+            // near; a shell's wide blast), its nuclear missiles (hurt, not destroyed; two, no more);
+            // the Vrask siege of Port Ochre (a scripted nuclear strike ruins it all, for longer
+            // than a kinetic strike) (SystemTest.Artillery)
+            yield return MawArtillery(ships, Check, shieldF, cap0);
+            yield return Bombardment(Check);
 
             // ---- each can be destroyed: it comes apart, its shield down
             foreach (var r in roles)

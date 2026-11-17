@@ -22,8 +22,10 @@ namespace Carrier.EditorTools
     /// plating, the ship's systems, hull points, breakup into chunks, and its target information
     /// (hostile, of the Vrask). The places on the hull the rest of their fighting will use (the
     /// tractor, the breaching prow, the boarding pods, the silos) are kept as points (VraskShip).
+    /// The Maw's spinal gun is its artillery, with its silos (CarrierBuilder.Artillery).
     ///
-    /// The raiding group goes in the star system with VraskRaiders.
+    /// The raiding group goes in the star system with VraskRaiders; the siege group over a city
+    /// with VraskSiege.
     /// </summary>
     public static partial class CarrierBuilder
     {
@@ -238,6 +240,8 @@ namespace Carrier.EditorTools
             if (s.tractorRange > 0f) AddTractor(root, vs, s);
             // boarding pods (the Fang's, with its tactics; the Snare's, at what it holds)
             if (s.pods > 0) AddBoarding(root, vs, s);
+            // the Maw's spinal artillery, its nuclear silos and its tactics (CarrierBuilder.Artillery)
+            if (s.artillery != null && s.artillery.range > 0f) AddArtillery(p, root, vs, s);
 
             Log($"{s.prefab}: {turrets.Count} guns ({string.Join(", ", turrets.GroupBy(t => t.projectilePrefab.name).Select(g => $"{g.Count()} x {g.Key}"))}), " +
                 $"{engines.Length} engines, {points.Length} points ({string.Join(", ", points.Select(pt => pt.kind).Distinct())}), " +

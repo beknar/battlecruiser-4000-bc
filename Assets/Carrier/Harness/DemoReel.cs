@@ -49,7 +49,9 @@ namespace CarrierGame.Demo
             Frigates = Hud.ReelMode && LaunchArgs.Has("-frigates");
             // -sea: the four frigates down on Pelagia's sea
             SeaReel = Hud.ReelMode && LaunchArgs.Has("-sea");
-            Features = Hud.ReelMode && (Orbits || All || Frigates || SeaReel || LaunchArgs.Has("-features"));
+            // -vrask: the Vrask and the rest of the fourth round of improvements
+            VraskReel = Hud.ReelMode && LaunchArgs.Has("-vrask");
+            Features = Hud.ReelMode && (Orbits || All || Frigates || SeaReel || VraskReel || LaunchArgs.Has("-features"));
             Hud.ReelShowsMarks = Features;
         }
 
@@ -78,7 +80,7 @@ namespace CarrierGame.Demo
             if (Features && sysMap != null)
             {
                 seconds = 1800f;                    // a cap: the shot list ends it
-                StartCoroutine(All ? AllReel() : Orbits ? OrbitReel() : Frigates ? FrigateReel() : SeaReel ? SeaShowReel() : FeatureReel());
+                StartCoroutine(All ? AllReel() : Orbits ? OrbitReel() : Frigates ? FrigateReel() : SeaReel ? SeaShowReel() : VraskReel ? VraskShowReel() : FeatureReel());
             }
             Log($"screen {Screen.width}x{Screen.height}, gfx {SystemInfo.graphicsDeviceType}, audio {AudioSettings.outputSampleRate} Hz {AudioSettings.speakerMode}, {seconds:F0} s");
 

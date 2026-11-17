@@ -11,10 +11,11 @@
         {
             "id": "Snare", "prefab": "VraskSnare", "model": "Lizard_Frigate1", "texture": "Lizard_Frigate1_BaseColor.png", "hardpoints": "lizard_frigate1_hardpoints.json",
             "displayName": "Vrask Snare", "shipClass": "Capture frigate", "threat": "High", "weapons": "Ion battery, 16 ion pods",
-            "role": "Capture and disable: ion fire to strip shields and engines from medium range, then a tractor beam to hold the ship, in pairs or threes",
+            "role": "Capture and disable: ion fire to strip shields and engines from medium range, then a tractor beam to hold the ship and boarding pods to take it, in pairs or threes",
             "hull": 2600, "shield": 1500, "shieldRecharge": 80, "armor": 0.32, "plating": 900, "explosion": 2.0, "respawn": 75,
             "style": "Capital", "cruiseSpeed": 120, "attackSpeed": 150, "turnRate": 20, "acceleration": 30,
             "standoff": 2200, "circleSpeed": 3, "holdFacing": true, "hideBelow": 0, "tractorRange": 2500,
+            "pods": 2, "podInterval": 30, "podRange": 3000,
             "engineColor": [0.4, 0.75, 1.0],
             "guns": [
                 { "label": "Ion pods", "on": "turrets", "bolt": "VraskIonBolt", "interval": 4.5, "range": 2800, "yawSpeed": 35 },
@@ -23,12 +24,13 @@
         },
         {
             "id": "Fang", "prefab": "VraskFang", "model": "Lizard_Frigate2", "texture": "Lizard_Frigate2_BaseColor.png", "hardpoints": "lizard_frigate2_hardpoints.json",
-            "displayName": "Vrask Fang", "shipClass": "Assault frigate", "threat": "High", "weapons": "Heavy cheek guns, missile pods",
-            "role": "Assault and boarding: fast closing runs, heavy guns at short range, a reinforced prow",
+            "displayName": "Vrask Fang", "shipClass": "Assault frigate", "threat": "High", "weapons": "Heavy cheek guns, missile pods, boarding pods",
+            "role": "Assault and boarding: fast closing runs from odd angles, heavy guns on the target's weapons, waves of boarding pods, then its reinforced prow clamped to the hull",
             "hull": 2800, "shield": 1200, "shieldRecharge": 70, "armor": 0.36, "plating": 1100, "explosion": 2.0, "respawn": 75,
             "style": "Fighter", "cruiseSpeed": 160, "attackSpeed": 240, "turnRate": 40, "acceleration": 60,
             "breakOffDistance": 450, "extendDistance": 1600, "hideBelow": 0,
             "salvoSize": 2, "salvoInterval": 14, "missileRange": 3500,
+            "pods": 3, "podInterval": 18, "podRange": 3500,
             "engineColor": [0.45, 1.0, 0.55],
             "guns": [
                 { "label": "Cheek guns", "on": "guns", "bolt": "VraskCannonShell", "interval": 2.4, "range": 1600, "cone": 15, "yawSpeed": 30 }

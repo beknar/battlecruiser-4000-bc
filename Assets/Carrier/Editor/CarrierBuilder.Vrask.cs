@@ -67,6 +67,8 @@ namespace Carrier.EditorTools
                 Log($"vrask bolt {b.name}: {b.kind} -> {bolt.kind}, {b.damage} a shot, {b.speed} m/s");
             }
             AssetDatabase.SaveAssets();
+            // their boarding pod (CarrierBuilder.Boarding)
+            vraskPod = MakeBoardingPod(p);
             foreach (var s in vrask.ships) p.vrask[s.id] = MakeVraskShip(p, s, bolts);
         }
 
@@ -234,6 +236,8 @@ namespace Carrier.EditorTools
             vs.points = points;
             // the Snare's tractor beam, at its projector, and how it fights with it
             if (s.tractorRange > 0f) AddTractor(root, vs, s);
+            // boarding pods (the Fang's, with its tactics; the Snare's, at what it holds)
+            if (s.pods > 0) AddBoarding(root, vs, s);
 
             Log($"{s.prefab}: {turrets.Count} guns ({string.Join(", ", turrets.GroupBy(t => t.projectilePrefab.name).Select(g => $"{g.Count()} x {g.Key}"))}), " +
                 $"{engines.Length} engines, {points.Length} points ({string.Join(", ", points.Select(pt => pt.kind).Distinct())}), " +

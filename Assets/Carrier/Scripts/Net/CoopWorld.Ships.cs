@@ -37,6 +37,8 @@ namespace CarrierGame.Demo
                 cap = Captain.Index,
                 fr = PlayerFrigate.Flying,
                 sy = ShipSystems.ToWire(me.GetComponent<ShipSystems>()),
+                bd = Boarders.CountOn(me.transform),
+                cpt = me.Captured,
             });
         }
 

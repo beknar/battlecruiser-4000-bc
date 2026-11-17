@@ -40,6 +40,11 @@ namespace CarrierGame
         // the host's tractor beams on one player's ship: {to, on, x, y, z, rf, n, held}, sent as a
         // hold starts, changes or ends, and every half second while it lasts (CoopWorld.Tractor)
         public const string Tractor = "tr";
+        // boarders the host's pods have put aboard one player's ship, for that game to fight: {to, n}
+        public const string Board = "board";
+        // a missile or boarding pod shot down by point defence, for the others to take theirs down:
+        // {src (whose it was), x, y, z, rf}
+        public const string ShotDown = "sd";
 
         // how a game message is routed: to one player, to the room's host, or (neither) to
         // everyone else in the room; the server adds who it came from

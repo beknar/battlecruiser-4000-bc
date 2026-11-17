@@ -161,6 +161,8 @@ namespace CarrierGame
         {
             why = "";
             if (ship != null && ship.Tractored) { why = "held by a tractor beam"; return true; }
+            if (ship != null && ship.Clamped) { why = "a boarding ship is clamped to the hull"; return true; }
+            if (ship != null && Boarders.CountOn(ship.transform) > 0) { why = "boarders aboard"; return true; }
             if (Time.time - LastHitTime < recentHitSeconds) { why = "under fire"; return true; }
             if (CombatPilot.AnyEngagedNear(transform.position, combatRange)) { why = "hostiles nearby"; return true; }
             if (DefenseGrid.AnyEngagedNear(transform.position, combatRange, out string grid)) { why = $"in range of {grid}"; return true; }
@@ -231,6 +233,8 @@ namespace CarrierGame
                     fx.Charging(k, dt);
                     if (LastHitTime > chargeHitTime) { Cancel("warp interrupted: under fire"); break; }
                     if (ship.Tractored) { Cancel("warp interrupted: held by a tractor beam"); break; }
+                    if (ship.Clamped) { Cancel("warp interrupted: a Vrask ship is clamped on"); break; }
+                    if (Boarders.CountOn(ship.transform) > 0) { Cancel("warp interrupted: boarders aboard"); break; }
                     if (k >= 1f) Jump();
                     break;
                 }

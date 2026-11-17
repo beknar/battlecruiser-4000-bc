@@ -31,9 +31,16 @@ namespace CarrierGame
         /// throws doesn't stop the death going on.</summary>
         public static event System.Action<Health> AnyDestroyed;
         public UnityEvent onRespawned;
+        /// <summary>Taken by boarders (Capture) rather than destroyed: told instead of onDestroyed.</summary>
+        public event System.Action Taken;
+        /// <summary>Anything with Health taken by boarders, every time.</summary>
+        public static event System.Action<Health> AnyCaptured;
 
         public float Current { get; private set; }
         public bool Dead { get; private set; }
+        /// <summary>Down because it was taken by boarders (Capture), not destroyed.</summary>
+        public bool Captured { get; private set; }
+        public int TimesCaptured { get; private set; }
 
         /// <summary>Damage taken since it was last at full strength (respawn resets it).</summary>
         public float DamageTaken => maxHealth - Mathf.Max(0f, Current);
@@ -185,6 +192,44 @@ namespace CarrierGame
             if (Dead) Respawn();
         }
 
+        /// <summary>
+        /// Taken by boarders (Boarders) rather than destroyed: down (Dead), but in one piece. Nothing
+        /// comes apart or explodes and no wreck is left: onDestroyed and AnyDestroyed aren't told,
+        /// Taken and AnyCaptured are. The hull is left as it was. One that respawns (the player's
+        /// ship) comes back after its delay, whole, as from a death (onRespawned: at its respawn
+        /// point); one that doesn't (a fleet ship) is taken away.
+        /// </summary>
+        public void Capture()
+        {
+            if (Dead) return;
+            Dead = true;
+            Captured = true;
+            DiedAt = Time.time;
+            TimesCaptured++;
+            if (Taken != null)
+                foreach (System.Action listener in Taken.GetInvocationList())
+                {
+                    try { listener(); }
+                    catch (System.Exception ex) { Debug.LogException(ex, this); }
+                }
+            if (AnyCaptured != null)
+                foreach (System.Action<Health> listener in AnyCaptured.GetInvocationList())
+                {
+                    try { listener(this); }
+                    catch (System.Exception ex) { Debug.LogException(ex, this); }
+                }
+            if (respawnDelay > 0f)
+            {
+                if (respawnHeld) RespawnAt = float.PositiveInfinity;   // (its SpawnDirector's to bring back)
+                else
+                {
+                    RespawnAt = Time.time + respawnDelay;
+                    Invoke(nameof(Respawn), respawnDelay);
+                }
+            }
+            else Destroy(gameObject, 2f);
+        }
+
         void Die()
         {
             Current = 0f;
@@ -234,6 +279,7 @@ namespace CarrierGame
         {
             Current = maxHealth;
             Dead = false;
+            Captured = false;
             var a = GetComponent<Armor>();
             if (a != null) a.Repair();
             // (before onRespawned: the ship's own systems come back on after its components)

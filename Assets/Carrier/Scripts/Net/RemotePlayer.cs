@@ -19,6 +19,9 @@ namespace CarrierGame.Demo
         public float Shield { get; private set; } = 1f;
         public float Hull { get; private set; } = 1f;
         public bool Dead { get; private set; }
+        /// <summary>Boarders aboard (as its game says), and down because they took it.</summary>
+        public int BoardersAboard { get; private set; }
+        public bool Captured { get; private set; }
         public int Warp { get; private set; }
         public string Surface { get; private set; } = "";
         /// <summary>Not in this space now (in warp, on a planet, destroyed, or not heard from).</summary>
@@ -62,12 +65,15 @@ namespace CarrierGame.Demo
             Updates++;
             bool wasDead = Dead;
             Shield = m.sh; Hull = m.hu; Dead = m.dead; Docked = m.dock;
+            BoardersAboard = m.bd; Captured = m.dead && m.cpt;
             Warp = m.warp; Surface = m.surf ?? "";
             if (systems != null) systems.NetSet(m.sy);   // (its components, for the target panel)
             // its engines as its player's throttle (out, without thrust)
             if (engines != null) foreach (var e in engines) if (e != null) e.throttle = m.dock ? 0f : Mathf.Clamp01(m.th);
+            // taken by the Vrask: no explosion (it is taken whole)
+            if (Dead && !wasDead && Captured) Notices.Post($"{Name}'s ship is captured by the Vrask");
             // it blew up: an explosion where it was
-            if (Dead && !wasDead && health != null && health.deathEffect != null && shown)
+            if (Dead && !wasDead && !Captured && health != null && health.deathEffect != null && shown)
             {
                 var e = Pool.Take(health.deathEffect, transform.position, Quaternion.identity);
                 e.transform.localScale *= health.deathEffectScale;

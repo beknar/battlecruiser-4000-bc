@@ -261,8 +261,12 @@ namespace CarrierGame.Demo
             if (carrier.Destroyed)
             {
                 var big = Hud.Text(40, true, TextAnchor.MiddleCenter);
-                var msg = new GUIContent($"<color=#ff6050>{carrier.shipName.ToUpper()} DESTROYED</color>\n" +
-                                         $"<size={Mathf.RoundToInt(22 * s)}>respawning in {Mathf.CeilToInt(carrier.RespawnIn)} s</size>");
+                var msg = carrier.Captured
+                    ? new GUIContent($"<color=#ff6050>{carrier.shipName.ToUpper()} CAPTURED BY THE VRASK</color>\n" +
+                                     $"<size={Mathf.RoundToInt(22 * s)}>{carrier.LastTaken} of the crew taken prisoner; " +
+                                     $"the survivors bring her back to the last warp point in {Mathf.CeilToInt(carrier.RespawnIn)} s</size>")
+                    : new GUIContent($"<color=#ff6050>{carrier.shipName.ToUpper()} DESTROYED</color>\n" +
+                                     $"<size={Mathf.RoundToInt(22 * s)}>respawning in {Mathf.CeilToInt(carrier.RespawnIn)} s</size>");
                 Vector2 bsz = big.CalcSize(msg);
                 var br = new Rect((Screen.width - bsz.x) * 0.5f - pad2 * 2f, Screen.height * 0.28f, bsz.x + pad2 * 4f, bsz.y + pad2 * 2f);
                 Hud.Panel(br);
@@ -280,6 +284,22 @@ namespace CarrierGame.Demo
                 var wr = new Rect((Screen.width - wsz.x) * 0.5f - pad2 * 2f, Screen.height * 0.16f, wsz.x + pad2 * 4f, wsz.y + pad2 * 2f);
                 Hud.Panel(wr);
                 GUI.Label(wr, wc, ws);
+            }
+
+            // boarders aboard: how many, and the crew fighting them (below the tractor warning)
+            string boarded = carrier.Destroyed ? "" : Boarders.HudText(carrier.transform);
+            if (boarded.Length > 0)
+            {
+                int cut = boarded.IndexOf('\n');
+                var bst = Hud.Text(24, true, TextAnchor.MiddleCenter);
+                var bct = new GUIContent($"<color=#ff6050>{(cut > 0 ? boarded.Substring(0, cut) : boarded)}</color>" +
+                                         (cut > 0 ? $"\n<size={Mathf.RoundToInt(16 * s)}>{boarded.Substring(cut + 1)}" +
+                                                    $"{(carrier.Clamped ? "; a boarding ship clamped to the hull" : "")}</size>" : ""));
+                Vector2 bsz2 = bst.CalcSize(bct);
+                var brect = new Rect((Screen.width - bsz2.x) * 0.5f - pad2 * 2f, Screen.height * (carrier.Tractored ? 0.25f : 0.16f),
+                                     bsz2.x + pad2 * 4f, bsz2.y + pad2 * 2f);
+                Hud.Panel(brect);
+                GUI.Label(brect, bct, bst);
             }
 
             if (toast != null && Clock < toastUntil)

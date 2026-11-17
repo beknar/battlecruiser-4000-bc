@@ -29,7 +29,7 @@ towed, which halves your speed), as your fleet (up to ten in all, ordered in fle
 | --- | --- |
 | Shield and hull | The shield takes hits first and recharges; the hull doesn't. |
 | Turret and ball-mounted guns | Fire on the target on their own. Each ship's guns are in its row below. |
-| CIWS mounts | Close-in guns that pick their own targets: the nearest drone or fighter they can bring to bear (never a capital ship), 8 damage a shot. Nothing shoots down missiles: the shield takes them. |
+| CIWS mounts | Close-in guns that pick their own targets: the nearest drone or fighter, hostile missile or Vrask boarding pod they can bring to bear (a missile or pod first, unless a craft is less than half as far; never a capital ship), 8 damage a shot. Two bolts shoot down a missile, five a boarding pod. |
 | Warp drive | Jumps between the system's places, from the map or navigation mode. |
 | Mining laser | 8 t of ore a second, out to 1.5 km; the ore goes in the hold. |
 | Kinetic strike (Y, combat mode) | A tungsten rod dropped from orbit onto a planet or moon, 3 km up to twice the body's radius: everything within 450 m destroyed, a crater left, one every 20 s. It aims at the nearest ground forces within 30 km, or the ground below. |
@@ -230,8 +230,9 @@ armour. Numbers: `Assets/Carrier/Data/vrask.json`.
 | Acceleration | 30 | 60 | 12 | **70** |
 | Guns | 16 ion pods (turrets): 12 ion a bolt, every 4.5 s, 2.8 km; an ion battery of 6 tubes firing together, 12 each, every 3.5 s, 3 km, within 15° of the bow | 4 cheek guns (6 barrels): 40 a shell, every 2.4 s, 1.6 km, within 15° of the bow | spinal gun: 260 armour-piercing, every 7 s, **6.5 km**, within 4° of the bow; 3 twin dorsal turrets: 35 a shell, every 5.5 s, 5 km; 7 jaw and flank guns: 35, every 10 s, 4.5 km, within 6° | 8 point-defence guns: 3 a shot every 0.45 s, 2.4 km, swinging 130° |
 | Missiles | none | 2 every 14 s, 3.5 km | none (nuclear silos: not armed yet) | none |
+| Boarding pods | 2 every 30 s, at the ship its beam holds once its shield is down | 3 every 18 s from its 3 hatches, 3.5 km, as it closes; then its prow clamped on, a party of 12 | none | none |
 | Tractor beam | 2.5 km: pulls at 30 m/s to 1.5 km off; out-flown alone, but not two of them, or with your engines out; lets go at 3.25 km | none | none | none |
-| Tactics | stops 1.8 to 2.2 km off (1.45 to 1.8 km while holding), bow on; ion on your shield generator, then your engines; its tractor once they are out; breaks away inside 900 m | attack runs: in fast, breaks off at 450 m, extends 1.6 km | stops 3.6 to 4.5 km off, bow on, so all its guns bear | screens the Maw: stands off 1.5 km from the target, never more than 2.8 km from the Maw |
+| Tactics | stops 1.8 to 2.2 km off (1.45 to 1.8 km while holding), bow on; ion on your shield generator, then your engines; its tractor once they are out; breaks away inside 900 m | goes for a held or disabled ship; in fast from above, below or behind a Vrask ship; guns on your weapons; clamps on with your shield down, casts off when its boarders are done or its hull is under 30%; attack runs (breaks off at 450 m, extends 1.6 km) while your shield holds | stops 3.6 to 4.5 km off, bow on, so all its guns bear | screens the Maw: stands off 1.5 km from the target, never more than 2.8 km from the Maw |
 | Respawn | with the spawns (below) | | | |
 
 ### Where they are
@@ -253,15 +254,23 @@ place is cleared.
   One beam can be broken at full thrust straight away; two Snares work as a pack,
   one firing and one holding, and two beams, or one with your engines out, can't be broken. While
   held you can't warp, dock or land. Destroy it, or knock out its weapons, and its beam lets go.
-- **Fang, assault.** The heaviest guns at close range, in fast passes, with missiles. Its prow is
-  the best armoured part of the group after the Maw. Turrets that can track it, or a turn to meet
-  it, answer it.
+  Holding a ship whose shield is down, it boards it: two pods every 30 s.
+- **Fang, assault and boarding.** The heaviest guns at close range, in fast passes, with
+  missiles, and boarding pods. It goes for a ship the Snares hold or have disabled, coming in
+  fast from above or below, or from behind another Vrask ship, its guns aimed at your weapons
+  (knock out your weapons and your CIWS go quiet too). As it closes it launches three pods every
+  18 s once your shield is under half; each that gets through a shield down or under a quarter
+  puts 8 to 12 breachers aboard. With your shield down it clamps its prow to your hull, sends 12
+  more through, and holds you to a crawl until they are repelled or have taken the ship, or its
+  hull is under 30%. Keep your shield up, keep your CIWS working, and a big crew aboard: boarders
+  who bring the crew down to its survivors (15%) capture the ship, its cargo seized and its crew
+  taken prisoner; it comes back at the last warp point with the survivors.
 - **Maw, artillery.** Its spinal slugs reach 6.5 km and ignore armour; it is the slowest ship in
   the system bar the dreadnought, and turns slowly to aim. Get round it, or past the Skinks to it.
 - **Skink, escort.** The fastest and most agile of them, with many light guns: a nuisance alone, a
   screen for the Maw. It fights on its own once the Maw is destroyed.
 
-Later work gives them boarding (the Snare and Fang), artillery and nuclear
+Later work gives them artillery and nuclear
 missiles (the Maw), point defence against missiles and fighters and fleet tactics (the Skink and
 the group). The places on their hulls for those are in the models' hardpoint files already.
 

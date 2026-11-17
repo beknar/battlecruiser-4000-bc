@@ -18,7 +18,9 @@ namespace CarrierGame.Demo
     /// locked, and each of the four fires on it, ion bolts and armour-piercing slugs among the hits.
     /// The Snares then capture it: ion knocks out its shield generator and engines, a tractor beam
     /// holds it and pulls it in, the warp drive is refused, and the beam lets go when its Snare
-    /// dies (SystemTest.Tractor).
+    /// dies (SystemTest.Tractor). Then the boarding: the CIWS shoot pods down; with the shield
+    /// down pods breach, a full crew repels them and a crew near its survivors is overrun, the
+    /// frigate captured and back at its respawn point; the Fang clamps on (SystemTest.Boarding).
     /// Then each is destroyed, coming apart with its shield down, and once the place's quiet is
     /// over they are back, whole, shields up. No screenshots.
     /// </summary>
@@ -187,8 +189,19 @@ namespace CarrierGame.Demo
 
             // ---- the Snares' capture: ion, the tractor, no warp, let go (SystemTest.Tractor)
             if (sysF != null) sysF.toughness = tough0;
+            // (the Fang holds its fire and its pods meanwhile, so its boarders can't take the
+            // frigate from the Snares: its boarding is SystemTest.Boarding's)
+            var fangT = ships.Select(v => v != null ? v.GetComponent<FangTactics>() : null).FirstOrDefault(x => x != null);
+            var fangW = fangT != null ? fangT.GetComponent<EnemyWeapons>() : null;
+            if (fangT != null) fangT.enabled = false;
+            if (fangW != null) fangW.weaponsFree = false;
             yield return SnareCapture(ships, Check);
             if (sysF != null) sysF.RepairAll();
+
+            // ---- boarding: pods shot down, pods breaching with the shield down, the crew's fight
+            // (repelled; captured, the hold seized, back at the respawn point), the Fang's clamp
+            // (SystemTest.Boarding)
+            yield return Boarding(ships, Check, shieldF, cap0);
 
             // ---- each can be destroyed: it comes apart, its shield down
             foreach (var r in roles)

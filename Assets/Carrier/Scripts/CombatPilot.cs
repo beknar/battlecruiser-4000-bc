@@ -57,6 +57,9 @@ namespace CarrierGame
         [System.NonSerialized] public ITactics tactics;
         /// <summary>Its target is chosen for it (SnareTactics' pack): it doesn't go for the nearest.</summary>
         [System.NonSerialized] public bool keepTarget;
+        /// <summary>Moved by something else for now (FangTactics' clamp on a ship's hull): the pilot
+        /// keeps its target, and its ship its weapons, but it doesn't fly.</summary>
+        [System.NonSerialized] public bool externalMotion;
 
         [Header("Patrol")]
         [Tooltip("Go back into hiding when the target gets this far from the lurking place (0 = never).")]
@@ -262,6 +265,7 @@ namespace CarrierGame
         {
             if (health != null && health.Dead) return;
             Retarget();
+            if (externalMotion) { speed = 0f; return; }
             float dt = Time.deltaTime;
             Vector3 pos = transform.position;
             // (not wanted by one lying still in wait: it would be a look through every warp point for nothing)

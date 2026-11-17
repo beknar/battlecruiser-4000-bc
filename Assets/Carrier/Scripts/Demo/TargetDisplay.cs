@@ -341,6 +341,11 @@ namespace CarrierGame.Demo
             sb.Append($"Range  {km:F2} km      Speed  {speed:F0} m/s\n");
             sb.Append($"Length  {length:F0} m\n");
             if (info != null) sb.Append($"Weapons  {info.weapons}      Threat  {info.threat}\n");
+            // the Vrask: the prisoners they hold; boarders on one of the players' ships
+            if (info != null && info.group == VraskShip.Faction && WorldState.Prisoners > 0)
+                sb.Append($"<color=#ffb060>The Vrask hold {WorldState.Prisoners:N0} of our people prisoner</color>\n");
+            int boardersOnIt = Boarders.CountOn(shown);
+            if (boardersOnIt > 0) sb.Append($"<color=#ff6050>Boarders aboard  {boardersOnIt}</color>\n");
             // its crew (an installation's, for one of its guns), and how well they work it
             var people = Crew.Of(shown);
             if (people != null)

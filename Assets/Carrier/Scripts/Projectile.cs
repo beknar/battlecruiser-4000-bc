@@ -118,6 +118,18 @@ namespace CarrierGame
             return hi != null && hi.Hostile;
         }
 
+        /// <summary>Fired by a hostile ship.</summary>
+        bool FromHostile()
+        {
+            if (owner == null) return false;
+            if (ownerSide < 0)
+            {
+                var oi = owner.GetComponentInParent<TargetInfo>();
+                ownerSide = oi != null && oi.Hostile ? 1 : 0;
+            }
+            return ownerSide == 1;
+        }
+
         /// <summary>Co-op: a shot has been fired (announced to the other players' games).</summary>
         public static event System.Action<Projectile> Spawned;
 
@@ -127,6 +139,22 @@ namespace CarrierGame
             if (!announced) { announced = true; Spawned?.Invoke(this); }
             float step = speed * Time.deltaTime;
             Vector3 from = transform.position;
+            // point defence: a player's shot that meets a hostile missile or boarding pod on its way
+            // this frame hits it, unless something solid is nearer (a shot shown from another
+            // player's game, without damage, does nothing)
+            if (Missile.Active.Count > 0 && damage > 0f && !FromHostile())
+            {
+                var m = Missile.InPath(from, transform.forward, step, out float at);
+                if (m != null && !(Physics.Raycast(from, transform.forward, out var nearer, at, ~0, QueryTriggerInteraction.Ignore)
+                                   && (owner == null || !nearer.transform.IsChildOf(owner))))
+                {
+                    m.Shoot(damage, owner);
+                    if (hitEffect != null) Pool.Take(hitEffect, from + transform.forward * at, Quaternion.identity);
+                    Wake(from, from + transform.forward * at);
+                    Pool.Give(gameObject);
+                    return;
+                }
+            }
             if (Physics.Raycast(transform.position, transform.forward, out var hit, step, ~0, QueryTriggerInteraction.Ignore)
                 && (owner == null || !hit.transform.IsChildOf(owner)) && !Friendly(hit.transform))
             {

@@ -149,6 +149,7 @@ namespace CarrierGame
             {
                 health.onDestroyed.AddListener(OnShipDestroyed);
                 health.onRespawned.AddListener(OnShipRespawned);
+                health.Taken += OnShipCaptured;
             }
         }
 

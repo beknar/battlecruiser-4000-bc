@@ -259,7 +259,9 @@ repainted like the frigates and turned to lie bow first along the axis with
   only once it is lined up, and never through its own hull (it checks for clearance before each
   shot). Auto-fire can be turned on or off.
 - **CIWS.** Four rotary point-defence mounts sit on the top deck by the conning tower. They fire only
-  at enemy drones and fighters, and each targets whatever hostile small craft is nearest and in reach.
+  at enemy drones and fighters and at hostile missiles and boarding pods in flight, and each
+  targets whatever is nearest and in reach, a missile or pod over a craft unless the craft is less than half as far. A missile takes two
+  of their bolts to shoot down, a Vrask boarding pod five.
 - **Main gun.** The bow beam charges for 10 s: particles are drawn into the emitter and the glow
   builds over a deep, rising growl. It then fires for 2.5 s as a stream of white particles pouring
   from the bow, with a low roar. It fires straight ahead and locks onto the target if the target is
@@ -295,6 +297,23 @@ repainted like the frigates and turned to lie bow first along the axis with
   weapons are knocked out. While held, the warp drive, docking and landing are refused ("held by
   a tractor beam"). The HUD shows "Tractor lock: N beams" in red at the top of the screen, with
   whether full thrust can break it; a notice says when the lock comes on and when it is gone.
+- **Boarding.** Vrask boarding pods fly at a ship like missiles (and the CIWS shoot them down
+  like missiles). One that reaches a ship whose shield is down, or under a quarter, breaches the
+  hull and puts 8 to 12 breachers aboard; against a stronger shield it bursts for a little
+  damage. Boarders fight the crew: each second every boarder overcomes a quarter of a crewman,
+  and every crewman who can get at them (four to a boarder) kills a fiftieth of one, so a big
+  crew wears a small party down and a small crew is overrun. Half the crew they overcome are
+  taken prisoner, half killed. Kill them all and they are repelled, and those they had taken are
+  freed. The HUD shows "BOARDERS ABOARD: N" in red with the crew fighting them, and the warp
+  drive, docking and landing are refused ("boarders aboard"). A Vrask Fang can clamp its prow to
+  your hull and send its own party through: clamped, you crawl at 4 m/s and can't warp.
+- **Capture.** Boarders who bring the crew down to its survivors (15% of the complement, the
+  fewest a crew is ever left with) take the ship. It isn't destroyed: nothing breaks up and no
+  wreck is left. The cargo is seized (the credits are kept), the crew the boarders took are
+  prisoners of the Vrask, and after 8 s the survivors bring the ship back to the last place it
+  warped to, whole; a notice says "Captured by the Vrask: N of your crew taken". A fleet ship
+  captured is lost from the fleet, her crew taken. The Vrask's prisoners are counted and saved,
+  and the target display shows how many they hold when a Vrask ship is targeted.
 - **Breakup.** When a ship dies, its hull splits into chunks and its turrets break off one after
   another, outer parts first. Then the main blast throws the wreckage outward, where it drifts and
   shrinks away.
@@ -708,8 +727,16 @@ system to travel around.
   knocked out, or you are crawling with your shield down, a Snare locks its tractor beam on you
   and pulls you in (see Tractor beams). Two Snares work as a pack: one keeps up the ion fire and
   the other holds you in its beam and turns its guns on any other ship that comes near. Close to
-  within 900 m and a Snare breaks away, to come back in at its range. For now they only hold a
-  ship they have caught; boarding it is still to come.
+  within 900 m and a Snare breaks away, to come back in at its range. A Snare that holds a ship
+  whose shield is down launches two boarding pods at it every 30 s (see Boarding).
+
+  **The Fang's assault.** The Fang goes first for a ship the Snares hold or have disabled. It
+  comes in fast from an odd angle: from well above or below you, or out from behind another
+  Vrask ship. Its heavy guns aim at your weapons, and as it closes it launches a wave of three
+  boarding pods every 18 s once your shield is under half. With your shield down it slows to
+  your speed and clamps its prow to your hull, sending a party of 12 through, and holds you
+  there while they fight. It casts off when they are repelled, your ship is taken, or its own
+  hull is under 30%, flies clear and comes round again.
 
   **They come back, location by location.** Each band is a location. Every 5 minutes, the
   destroyed enemies of a location spawn there again, back in their hiding places. But once all
@@ -1361,6 +1388,11 @@ kept.
 - **Tractor beams.** The host's game tells a player's game when its enemies' beams hold that
   player's ship, and that game pulls its own ship; a hold not renewed for 1.5 s lets go. Every
   game shows the beams.
+- **Boarding.** A player's crew is in their own game. When the host's pods (or a Fang's ram)
+  get aboard another player's ship, the host tells that player's game, which fights the boarders
+  and decides whether the ship is taken. Every ship's updates say how many boarders are aboard
+  and whether it was captured, so the other games show no explosion. A missile or pod shot down
+  by a game's own ships goes down in the others too.
 - **Hand-over.** When the host leaves, the next player takes the enemies over where they are.
 - **More players, harder enemies.** Every encounter in space is scaled for the number of
   players flying in the level. This covers raiders, ambushes, capital ships and station guns.
@@ -1862,8 +1894,13 @@ Each part can also be run alone:
   warp drive locked while they fight; each of the four firing on the frigate, ion bolts and
   armour-piercing slugs among the hits; the Snares' capture (their ion fire knocking out the
   frigate's shield generator and engines, a tractor lock pulling it in, the warp drive refused
-  while held, the beam letting go when its Snare is destroyed); each destroyed; and all of them
-  back with the spawns.
+  while held, the beam letting go when its Snare is destroyed); boarding (the Snares' pods at the
+  frigate they held, the CIWS shooting pods down, none getting aboard through the shield, a pod
+  breaching with the shield down and a full crew repelling its breachers, a crew near its
+  survivors overrun and the frigate captured, its cargo seized and its credits kept, the
+  prisoners counted, the frigate back at its respawn point; the Fang coming in, launching its
+  pods, clamping onto the hull and holding the frigate, then casting off); each destroyed; and
+  all of them back with the spawns.
   Add `-modestest` (or `?modestest` on the web) to test the modes of play: a game starts in
   combat mode; 1 to 5 change mode, each with its keys in the controls box; a mode's keys work
   in it and not in another (V scans in mining mode, not in combat); services away from a site

@@ -750,8 +750,14 @@ namespace CarrierGame.Demo
             Shot(950, maw.transform, Vector3.zero, Mathf.Clamp(size * 2f, 300f, 900f), Bearing(maw.transform.position, cc.transform.position) + 30f, 8f, 0f);
             yield return FadeIn();
             Caption("THE MAW", "Spinal artillery to 13 km, fired only at what another Vrask ship sees: here a Skink 3 km from her", 6f);
-            until = Time.time + 25f;
+            until = Time.time + 8f;
             while (Time.time < until && gun.Fired == fired0) yield return null;
+            if (gun.Fired == fired0)
+            {
+                // (by hand: the shot it would take, at where she is, the round it would choose)
+                bool byHand = gun.FireAt(cc.transform.position, ArtilleryGun.ChooseRound(cc.transform), cc.name);
+                Note($"the Maw's shell fired by hand: {byHand}");
+            }
             var shell = gun.LastShell;
             if (gun.Fired > fired0 && shell != null)
             {

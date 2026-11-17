@@ -197,6 +197,8 @@ namespace CarrierGame.Demo
             return p;
         }
 
+        static GUIStyle capSubStyle;
+
         void OnGUI()
         {
             if (!Features) return;
@@ -208,22 +210,28 @@ namespace CarrierGame.Demo
                 float a = Mathf.Clamp01(age / 0.6f) * Mathf.Clamp01((capFor - age) / 0.8f);
                 if (a > 0.01f)
                 {
-                    var big = Hud.Text(34, true);
-                    var small = Hud.Text(20);
+                    var big = Hud.Text(28, true);
+                    var plain = Hud.Text(18);
+                    if (capSubStyle == null || capSubStyle.fontSize != plain.fontSize)
+                        capSubStyle = new GUIStyle(plain) { wordWrap = true };
+                    var small = capSubStyle;
                     var c1 = new GUIContent(capTitle);
                     var c2 = new GUIContent(capSub ?? "");
-                    Vector2 s1 = big.CalcSize(c1), s2 = small.CalcSize(c2);
-                    // just above the ship's console (bottom left), or near the bottom without one
-                    float bottom = ShipConsole.Rect.height > 0f ? ShipConsole.Rect.yMin - 30f * s : Screen.height - 150f * s;
-                    float x = 44f * s, y = bottom - s1.y - s2.y;
-                    float w = Mathf.Max(s1.x, s2.x);
+                    Vector2 s1 = big.CalcSize(c1), s2 = plain.CalcSize(c2);
+                    // in the bottom right corner, the subtitle wrapped to a narrow column: clear of the
+                    // middle of the picture (where the reels frame the action), of the ship's console
+                    // (bottom left), the target panel (top right) and the crew's radio lines (bottom middle)
+                    float w = Mathf.Max(s1.x, Mathf.Min(s2.x, 560f * s));
+                    float h2 = string.IsNullOrEmpty(capSub) ? 0f : small.CalcHeight(c2, w);
+                    float h = s1.y + h2 + 2f * s;
+                    float x = Screen.width - 40f * s - w, y = Screen.height - 40f * s - h;
                     var old = GUI.color;
                     GUI.color = new Color(1f, 1f, 1f, a);
-                    Hud.Panel(new Rect(x - 18f * s, y - 12f * s, w + 36f * s, s1.y + s2.y + 24f * s));
-                    Hud.Fill(new Rect(x - 18f * s, y - 12f * s, 4f * s, s1.y + s2.y + 24f * s), new Color(1f, 0.72f, 0.3f, a));
+                    Hud.Panel(new Rect(x - 16f * s, y - 10f * s, w + 32f * s, h + 20f * s));
+                    Hud.Fill(new Rect(x - 16f * s, y - 10f * s, 4f * s, h + 20f * s), new Color(1f, 0.72f, 0.3f, a));
                     GUI.color = new Color(1f, 1f, 1f, a);
                     GUI.Label(new Rect(x, y, s1.x, s1.y), c1, big);
-                    GUI.Label(new Rect(x, y + s1.y + 2f * s, s2.x, s2.y), c2, small);
+                    if (h2 > 0f) GUI.Label(new Rect(x, y + s1.y + 2f * s, w, h2), c2, small);
                     GUI.color = old;
                 }
             }

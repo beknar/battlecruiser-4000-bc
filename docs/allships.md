@@ -213,8 +213,9 @@ An alien faction, lizard-like, who take prisoners, drain their life and capture 
 hostile like the pirates (the target display says "Hostile: Vrask"). They are the first enemies
 with **shields**, and their hulls carry **armour** plating, which stops a share of each hit that
 gets through the shield until it is worn through. Their ion bolts are twice as hard on a shield
-as their damage says and a quarter as hard on a hull; the Maw's spinal slugs go straight through
-armour. Numbers: `Assets/Carrier/Data/vrask.json`.
+as their damage says and a quarter as hard on a hull; the Maw's artillery shells strip a shield
+three times as hard (the nullifier) or go straight through armour (the penetrator). Numbers:
+`Assets/Carrier/Data/vrask.json`.
 
 | | Snare | Fang | Maw | Skink |
 | --- | ---: | ---: | ---: | ---: |
@@ -228,11 +229,11 @@ armour. Numbers: `Assets/Carrier/Data/vrask.json`.
 | Cruise / attack speed | 120 / 150 | 160 / 240 | 70 / 85 | 170 / **260** |
 | Turn rate | 20 | 40 | 10 | **45** |
 | Acceleration | 30 | 60 | 12 | **70** |
-| Guns | 16 ion pods (turrets): 12 ion a bolt, every 4.5 s, 2.8 km; an ion battery of 6 tubes firing together, 12 each, every 3.5 s, 3 km, within 15° of the bow | 4 cheek guns (6 barrels): 40 a shell, every 2.4 s, 1.6 km, within 15° of the bow | spinal gun: 260 armour-piercing, every 7 s, **6.5 km**, within 4° of the bow; 3 twin dorsal turrets: 35 a shell, every 5.5 s, 5 km; 7 jaw and flank guns: 35, every 10 s, 4.5 km, within 6° | 8 point-defence guns: 3 a shot every 0.45 s, 2.4 km, swinging 130° |
-| Missiles | none | 2 every 14 s, 3.5 km | none (nuclear silos: not armed yet) | none |
+| Guns | 16 ion pods (turrets): 12 ion a bolt, every 4.5 s, 2.8 km; an ion battery of 6 tubes firing together, 12 each, every 3.5 s, 3 km, within 15° of the bow | 4 cheek guns (6 barrels): 40 a shell, every 2.4 s, 1.6 km, within 15° of the bow | spinal artillery: a shell every 16 s, 1.5 to **13 km**, within 20° of the bow, 550 m/s, bursting 500 m wide (700 at the centre, a fifth at the edge): a nullifier at a shield that is up, a penetrator at armour or a shield down; 3 twin dorsal turrets: 35 a shell, every 5.5 s, 5 km; 7 jaw and flank guns: 35, every 10 s, 4.5 km, within 6° | 8 point-defence guns: 3 a shot every 0.45 s, 2.4 km, swinging 130° |
+| Missiles | none | 2 every 14 s, 3.5 km | 2 nuclear missiles (refilled on respawn), 9 km, at most one every 90 s: 320 m/s, shot down by 4 CIWS bolts; a 1.2 km blast, 3,000 at the centre, in space | none |
 | Boarding pods | 2 every 30 s, at the ship its beam holds once its shield is down | 3 every 18 s from its 3 hatches, 3.5 km, as it closes; then its prow clamped on, a party of 12 | none | none |
 | Tractor beam | 2.5 km: pulls at 30 m/s to 1.5 km off; out-flown alone, but not two of them, or with your engines out; lets go at 3.25 km | none | none | none |
-| Tactics | stops 1.8 to 2.2 km off (1.45 to 1.8 km while holding), bow on; ion on your shield generator, then your engines; its tractor once they are out; breaks away inside 900 m | goes for a held or disabled ship; in fast from above, below or behind a Vrask ship; guns on your weapons; clamps on with your shield down, casts off when its boarders are done or its hull is under 30%; attack runs (breaks off at 450 m, extends 1.6 km) while your shield holds | stops 3.6 to 4.5 km off, bow on, so all its guns bear | screens the Maw: stands off 1.5 km from the target, never more than 2.8 km from the Maw |
+| Tactics | stops 1.8 to 2.2 km off (1.45 to 1.8 km while holding), bow on; ion on your shield generator, then your engines; its tractor once they are out; breaks away inside 900 m | goes for a held or disabled ship; in fast from above, below or behind a Vrask ship; guns on your weapons; clamps on with your shield down, casts off when its boarders are done or its hull is under 30%; attack runs (breaks off at 450 m, extends 1.6 km) while your shield holds | holds 8 to 12 km from the target behind the others, bow on, hardly moving; fires only at what another Vrask ship sees within 6 km; salvos on a beat shared with any other Maw; shells on your shield generator, then your weapons (at an installation, its generators and batteries); falls back to its escorts inside 3 km; a nuke at a big ship whose shield holds, or ships bunched | screens the Maw: stands off 1.5 km from the target, never more than 2.8 km from the Maw |
 | Respawn | with the spawns (below) | | | |
 
 ### Where they are
@@ -240,6 +241,7 @@ armour. Numbers: `Assets/Carrier/Data/vrask.json`.
 | Group | Ships | Where |
 | --- | --- | --- |
 | Vrask raiders | 2 Snares, 1 Fang, 1 Maw, 2 Skinks | Hidden round Comet Mirren, 2 to 3 km from it, spotting you at 4 km (a warp drops you 8.5 km out, so they spring as you close in to mine it) |
+| Vrask Siege Group | 1 Maw, 2 Skinks | On station 160 km over Port Ochre, turning with Ochre; a hostile destination. Not piloted: the guns open up within 12 km, the Maw turns in place to bring its artillery to bear on a ship its Skinks see. It raids the city every two hours (see Not ships, but they fight). The Maw is back 30 minutes after it is destroyed |
 
 They come back with the spawns like the pirates' bands: every 5 minutes, or 10 minutes after the
 place is cleared.
@@ -265,14 +267,21 @@ place is cleared.
   hull is under 30%. Keep your shield up, keep your CIWS working, and a big crew aboard: boarders
   who bring the crew down to its survivors (15%) capture the ship, its cargo seized and its crew
   taken prisoner; it comes back at the last warp point with the survivors.
-- **Maw, artillery.** Its spinal slugs reach 6.5 km and ignore armour; it is the slowest ship in
-  the system bar the dreadnought, and turns slowly to aim. Get round it, or past the Skinks to it.
+- **Maw, artillery and siege.** Its spinal artillery reaches 13 km, much further than anything
+  else in the system, but it is blind on its own: it fires only at what another Vrask ship sees
+  within 6 km, so it sits 8 to 12 km back behind the others and shells the ships they find, its
+  salvos together with any other Maw's. The shells are slow (15 to 25 s in flight) and burst
+  500 m round where you were going to be: change course when one is on its way. A nullifier
+  round strips shields, a penetrator goes through armour. It saves its two nuclear missiles for
+  a big ship whose shield holds, or a bunch of ships; a nuke breaks a frigate's shield but in
+  space doesn't destroy a whole one, and the CIWS can shoot it down. It is the slowest ship in
+  the system bar the dreadnought, and turns slowly to aim; close within 3 km and it falls back
+  to its escorts. Kill its spotters, or get round it, past the Skinks.
 - **Skink, escort.** The fastest and most agile of them, with many light guns: a nuisance alone, a
   screen for the Maw. It fights on its own once the Maw is destroyed.
 
-Later work gives them artillery and nuclear
-missiles (the Maw), point defence against missiles and fighters and fleet tactics (the Skink and
-the group). The places on their hulls for those are in the models' hardpoint files already.
+Later work gives them point defence against missiles and fighters and fleet tactics (the Skink
+and the group). The places on their hulls for those are in the models' hardpoint files already.
 
 ## Not ships, but they fight
 
@@ -282,5 +291,12 @@ game's target read-outs.
 - **Cinder Orbital Battery:** three gun platforms and a beam lance over Cinder's pole.
 - **Corsair strike satellites:** an ion cannon over Port Ochre and a mass driver over Pyrois
   Domes. They bombard those settlements every 30 and 20 minutes until destroyed (put back after half an hour).
+- **The Vrask siege of Port Ochre:** the Vrask Siege Group (a Maw and two Skinks, above) raids
+  the city from orbit every two hours, on the game's clock whether anyone is near or not:
+  four shells 500 m round on its fixed defences first (it has none: Ochre isn't hostile), then on
+  its buildings (rubble for an hour). One raid in ten, at most every six hours, is a nuclear
+  strike: Ochre has air, so the blast covers the whole city, every building is ruined for eight
+  hours and half its people left are killed. Destroy the Maw to stop it for half an hour. In
+  co-op every game in the star system applies the host's strikes (one in another level when the host strikes doesn't).
 - **Ground defences:** batteries, missile sites, hover tanks, sea bases and submarines on the
   planets (`ground_units.json`).

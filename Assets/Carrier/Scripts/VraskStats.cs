@@ -17,6 +17,8 @@ namespace CarrierGame
         public VraskBolt[] bolts;
         public VraskShipStats[] ships;
         public VraskGroup group;
+        /// <summary>The siege of a city from orbit (VraskBombardment).</summary>
+        public VraskSiege siege;
 
         public static VraskTable Parse(string json) => JsonUtility.FromJson<VraskTable>(json);
 
@@ -86,6 +88,10 @@ namespace CarrierGame
         /// its tractor projector, at the ship its beam holds.</summary>
         public int pods;
         public float podInterval, podRange;
+        /// <summary>Long-range artillery (ArtilleryGun: the Maw's spinal gun), and nuclear missiles
+        /// (NukeLauncher: the Maw's silos); a range of 0, or a stock of 0: none.</summary>
+        public VraskArtillery artillery;
+        public VraskNukes nukes;
 
         // missiles (EnemyWeapons): none if salvoSize is 0
         public int salvoSize;
@@ -95,6 +101,46 @@ namespace CarrierGame
         public VraskWeapon[] guns;
 
         public Color EngineGlow => engineColor != null && engineColor.Length >= 3 ? new Color(engineColor[0], engineColor[1], engineColor[2]) : new Color(0.45f, 1f, 0.6f);
+    }
+
+    /// <summary>Artillery: where it fires from (a kind of point), how often (s), how far (m: at
+    /// most, at least), how far off the bow it can lay a shell (degrees); its shells' speed (m/s),
+    /// damage at the centre of a blast `blastRadius` wide (m) and the share at its edge, and their
+    /// glow (r, g, b, brightness).</summary>
+    [Serializable]
+    public class VraskArtillery
+    {
+        public string label, on;
+        public float interval, range, minRange, cone, shellSpeed, damage, blastRadius, edge;
+        public float[] color;
+    }
+
+    /// <summary>Nuclear missiles: how many the silos hold (filled again on respawn), the blast in
+    /// space (damage at its centre, its reach in m, the share at its edge), how far (m) and how
+    /// often (s) one is launched, how fast it flies (m/s) and how much point defence it takes.</summary>
+    [Serializable]
+    public class VraskNukes
+    {
+        public int stock;
+        public float damage, blastRadius, edge, range, interval, speed, toughness;
+    }
+
+    /// <summary>The siege of a city from orbit (VraskBombardment): the group (`ship` and `escorts`
+    /// of `escort`) on station `altitude` m over the settlement `at` (on a world with air), `side`
+    /// m along; its raids every `intervalMinutes`, `shells` shells of `shellRadius` m on the
+    /// defences within `siegeReach` m and then the city; a nuclear strike in `nukeChance` of the
+    /// raids on a fortified city (defences round it, or `fortified`), at most once in
+    /// `nukeRestockMinutes`, its ruins lasting `nukeRebuildMinutes` and killing
+    /// `nukePopulationShare` of the people left. `note`: the destination's description;
+    /// `cityNote`: added to the city's.</summary>
+    [Serializable]
+    public class VraskSiege
+    {
+        public string name, at, body, ship, escort, note, cityNote;
+        public int escorts, shells;
+        public float altitude, side, arrival, engageRange, respawnMinutes, intervalMinutes, shellRadius, siegeReach;
+        public bool fortified;
+        public float nukeChance, nukeRestockMinutes, nukeRebuildMinutes, nukeMargin, nukePopulationShare;
     }
 
     /// <summary>One ship's place in the raiding group, round the place it hunts at (degrees round

@@ -314,6 +314,22 @@ repainted like the frigates and turned to lie bow first along the axis with
   warped to, whole; a notice says "Captured by the Vrask: N of your crew taken". A fleet ship
   captured is lost from the fleet, her crew taken. The Vrask's prisoners are counted and saved,
   and the target display shows how many they hold when a Vrask ship is targeted.
+- **Artillery.** The Vrask Maw's spinal gun reaches 13 km (no turret reaches half as far) but
+  fires only every 16 s, and its shells are slow: 550 m/s, so 15 to 25 s in flight. Each is
+  aimed at where its target will be when it gets there, from the target's course and speed, and
+  flies straight to that point: turn or change speed while it is on its way and it bursts where
+  you would have been. It bursts 500 m round (1 km across), 700 at the centre and less further out (a fifth of
+  it at the edge), on every ship in the blast but the Vrask's own. Its round suits the target: a
+  shield nullifier while your shield is up (three times as hard on a shield, light on the
+  hull), an armour penetrator once it is down or at armour (straight through the plating), high
+  explosive at anything else. In co-op its shells show in every game, and its blasts hit the
+  other players' ships through their own games.
+- **Nuclear missiles.** The Maw carries two in its silos, no more till it is destroyed and back.
+  It launches one only rarely: at a big ship whose shield holds under its shells, or at ships
+  bunched together. The missile is slow (320 m/s) and the CIWS can shoot it down (four bolts).
+  In space it goes off in a blast 1.2 km round, 3,000 at the centre: with no air to carry a shock
+  wave it breaks a frigate's shield but doesn't destroy a whole one. On a world with air it is
+  another thing (see the Vrask siege, under Strikes from orbit).
 - **Breakup.** When a ship dies, its hull splits into chunks and its turrets break off one after
   another, outer parts first. Then the main blast throws the wreckage outward, where it drifts and
   shrinks away.
@@ -711,14 +727,16 @@ system to travel around.
   | Corsair Haven | Six gun emplacements |
   | Glacis | Dreadnought battle group: a dreadnought and two escort destroyers |
   | Comet Mirren | Vrask raiders: two Snares, a Fang, a Maw and two Skinks, hidden round the comet |
+  | Vrask Siege Group (over Port Ochre) | A Maw and two Skinks on station, shelling the city every two hours |
 
   **The Vrask.** An alien faction, lizard-like, who take prisoners, drain their life and capture
   ships. Their raiders lie in wait round Comet Mirren, far out from the corsairs' haunts, for the
   ships that come to mine its ice, and spring at 4 km. They are the first enemies with shields,
   and their hulls are armoured. Each of their four ships has its own job: the **Snare** strips
   shields with ion fire from medium range, bow on; the **Fang** makes fast runs with heavy guns
-  and missiles; the **Maw** holds well back and fires an armour-piercing spinal gun; the
-  **Skink** screens the Maw with eight rapid-fire guns. They are hostile like the pirates, shown
+  and missiles; the **Maw** holds well back and shells what the others spot with its spinal
+  artillery, and carries two nuclear missiles; the **Skink** screens the Maw with eight
+  rapid-fire guns. They are hostile like the pirates, shown
   as "Hostile: Vrask" on the target display. Their numbers are in `Assets/Carrier/Data/vrask.json`
   (see `docs/allships.md`).
 
@@ -737,6 +755,13 @@ system to travel around.
   your speed and clamps its prow to your hull, sending a party of 12 through, and holds you
   there while they fight. It casts off when they are repelled, your ship is taken, or its own
   hull is under 30%, flies clear and comes round again.
+
+  **The Maw's bombardment.** The Maw keeps 8 to 12 km from its target, on the far side of the
+  rest of the Vrask, bow on, and once there hardly moves. It has no firing solution of its own:
+  it fires only at a ship one of the others has within 6 km (a Skink, a Snare, the Fang), so
+  kill the ships near you and its shells stop. Two Maws fire their salvos together, on one beat.
+  Its shells go for your shield generator while your shield is up, then your weapons. Come within 3 km and it falls
+  back toward its escorts, slowly: it is the slowest ship in the system bar the dreadnought.
 
   **They come back, location by location.** Each band is a location. Every 5 minutes, the
   destroyed enemies of a location spawn there again, back in their hiding places. But once all
@@ -835,6 +860,21 @@ system to travel around.
   Near one, its strikes are seen. Each is a hostile destination that fights back (the beam lance,
   a gun platform); destroyed, it strikes no more until the corsairs put it back half an hour
   later.
+
+  **The Vrask siege.** A Vrask Maw and two Skinks hold station 160 km over Port Ochre, the only
+  city on a world with air (Ochre), turning with the planet, and raid it every two hours of the
+  game's clock, whether anyone is near or not (`VraskBombardment`, saved with the world). A raid
+  is four shells, 500 m round each: first at the fixed defences round the city (gun batteries,
+  missile sites, a base's pads: none at Port Ochre, since Ochre isn't hostile, but a siege
+  elsewhere would break them first), then into the city, building by building (rubble for an
+  hour, as a kinetic strike's). Rarely (one raid in ten, on a fortified city, and no more often
+  than every six hours) the Maw sends a nuclear missile down instead: its blast covers the whole
+  city, every building in it is ruined for eight hours, and half of its people left are
+  killed (fewer recruits there). The group is a hostile destination ("Vrask Siege Group"): its
+  guns open up on a ship within 12 km, and its artillery on one its escorts can see. Destroy the
+  Maw and the raids stop until the Vrask send another, half an hour later. In co-op the host's
+  game runs the siege and every strike is sent to the other games, so the city is ruined in
+  all of them.
 
   | World | Surface |
   |---|---|
@@ -1891,16 +1931,22 @@ Each part can also be run alone:
   Add `-vrasktest` (or `?vrasktest` on the web) to test the Vrask: their raiders round Comet
   Mirren, all four of their ships there, hostile, armoured, shielded and each with its own
   weapons, the Maw the slowest; the frigate warps there and closes in until they spring; the
-  warp drive locked while they fight; each of the four firing on the frigate, ion bolts and
-  armour-piercing slugs among the hits; the Snares' capture (their ion fire knocking out the
+  warp drive locked while they fight; each of the four firing on the frigate, ion bolts among
+  the hits; the Snares' capture (their ion fire knocking out the
   frigate's shield generator and engines, a tractor lock pulling it in, the warp drive refused
   while held, the beam letting go when its Snare is destroyed); boarding (the Snares' pods at the
   frigate they held, the CIWS shooting pods down, none getting aboard through the shield, a pod
   breaching with the shield down and a full crew repelling its breachers, a crew near its
   survivors overrun and the frigate captured, its cargo seized and its credits kept, the
   prisoners counted, the frigate back at its respawn point; the Fang coming in, launching its
-  pods, clamping onto the hull and holding the frigate, then casting off); each destroyed; and
-  all of them back with the spawns.
+  pods, clamping onto the hull and holding the frigate, then casting off); the Maw's artillery
+  (holding its fire with no other Vrask ship near the frigate, then opening fire from beyond
+  8 km once a Skink is near it, a nullifier at its shield, the shell landing on it and its blast
+  hurting a hulk 300 m off too) and its nuclear missiles (one breaking the whole frigate's shield
+  without destroying it, the silos holding two); the Vrask siege over Port Ochre (on station over
+  a city on a world with air, its raids on the game's clock and saved, a scripted nuclear strike
+  ruining every building in the city for longer than a kinetic strike and killing its people);
+  each destroyed; and all of them back with the spawns.
   Add `-modestest` (or `?modestest` on the web) to test the modes of play: a game starts in
   combat mode; 1 to 5 change mode, each with its keys in the controls box; a mode's keys work
   in it and not in another (V scans in mining mode, not in combat); services away from a site

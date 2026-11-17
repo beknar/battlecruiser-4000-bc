@@ -60,6 +60,7 @@ namespace CarrierGame
         void Start()
         {
             speed = boostSpeed;
+            OrbitHome.Inherit(gameObject, owner);
             SoundFX.Play(Sfx.MissileLaunch, transform.position);
             Spawned?.Invoke(this);
         }

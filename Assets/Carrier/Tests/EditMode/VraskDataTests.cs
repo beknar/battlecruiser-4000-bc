@@ -50,9 +50,19 @@ namespace CarrierGame.Tests
             Assert.That(Kinds("Snare"), Does.Contain(HitKind.Ion));
             Assert.That(Kinds("Fang"), Does.Contain(HitKind.Cannon));
             Assert.That(t.Find("Fang").salvoSize, Is.GreaterThan(0), "the Fang's missile pods");
-            Assert.That(Kinds("Maw"), Does.Contain(HitKind.Penetrator));
-            Assert.That(t.Find("Maw").guns.Where(g => t.Bolt(g.bolt).Kind == HitKind.Penetrator).Max(g => g.range),
-                        Is.GreaterThan(t.Find("Snare").guns.Max(g => g.range)), "the spinal gun outranges the Snare");
+            var art = t.Find("Maw").artillery;
+            Assert.That(art, Is.Not.Null, "the Maw's spinal artillery");
+            Assert.That(art.range, Is.InRange(10000f, 14000f), "reaching 10 to 14 km");
+            Assert.That(art.range, Is.GreaterThan(t.ships.SelectMany(s => s.guns).Max(g => g.range)), "further than any of their guns");
+            Assert.That(art.interval, Is.InRange(12f, 20f), "and firing far less often");
+            Assert.That(art.shellSpeed, Is.InRange(400f, 700f), "its shells slow");
+            Assert.That(art.blastRadius, Is.InRange(400f, 600f), "and bursting wide");
+            Assert.That(art.edge, Is.InRange(0.05f, 0.5f));
+            Assert.That(t.ships.Count(s => s.artillery != null && s.artillery.range > 0f), Is.EqualTo(1), "only the Maw has artillery");
+            var nukes = t.Find("Maw").nukes;
+            Assert.That(nukes.stock, Is.EqualTo(2), "two nuclear missiles");
+            Assert.That(nukes.blastRadius, Is.InRange(1000f, 1500f), "a blast over a kilometre wide in space");
+            Assert.That(t.ships.Count(s => s.nukes != null && s.nukes.stock > 0), Is.EqualTo(1), "only the Maw has them");
             Assert.That(t.Find("Skink").guns.Min(g => g.interval), Is.LessThan(1f), "the Skink's guns fire fast");
             Assert.That(t.Find("Snare").tractorRange, Is.InRange(2000f, 3000f), "the Snare's tractor beam");
             Assert.That(t.ships.Count(s => s.tractorRange > 0f), Is.EqualTo(1), "only the Snare has one");
@@ -60,6 +70,30 @@ namespace CarrierGame.Tests
             Assert.That(t.Find("Snare").pods, Is.GreaterThan(0), "the Snare boards what it holds");
             Assert.That(t.Find("Fang").podInterval, Is.LessThan(t.Find("Snare").podInterval), "the Fang's waves come faster");
             Assert.That(t.ships.Where(s => s.pods > 0).All(s => s.podRange >= 2000f && s.podInterval > 0f), Is.True);
+        }
+
+        [Serializable] class SysBody { public string name; public float atmosphereScale; }
+        [Serializable] class Sys { public SysBody[] planets, moons; }
+
+        [Test]
+        public void TheSiegeIsOfACityOnAWorldWithAir()
+        {
+            var g = Table().siege;
+            Assert.That(g, Is.Not.Null);
+            Assert.That(g.at, Is.Not.Empty);
+            var sys = UnityEngine.JsonUtility.FromJson<Sys>(File.ReadAllText("Assets/Carrier/Data/star_system.json"));
+            var body = sys.planets.FirstOrDefault(p => p.name == g.body);
+            Assert.That(body, Is.Not.Null, $"{g.at} is on a planet ({g.body}), not a moon");
+            Assert.That(body.atmosphereScale, Is.GreaterThan(0f), $"{g.body} has air");
+            Assert.That(sys.moons.Any(m => m.name == g.body), Is.False);
+            Assert.That(Table().Find(g.ship), Is.Not.Null);
+            Assert.That(Table().Find(g.escort), Is.Not.Null);
+            Assert.That(g.escorts, Is.GreaterThan(0), "the Maw has escorts");
+            Assert.That(g.intervalMinutes, Is.GreaterThan(0f));
+            Assert.That(g.shells, Is.GreaterThan(0));
+            Assert.That(g.nukeChance, Is.InRange(0.01f, 0.25f), "a nuclear strike only rarely");
+            Assert.That(g.nukeRebuildMinutes, Is.GreaterThan(120f), "its ruins last far longer than a kinetic strike's hour");
+            Assert.That(g.nukeRestockMinutes, Is.GreaterThan(g.intervalMinutes));
         }
 
         [Test]

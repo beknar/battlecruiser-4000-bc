@@ -112,6 +112,10 @@ namespace CarrierGame.Demo
                 if (l.missilePrefab is T lm && (found == null || l.missilePrefab.name == name)) found = lm;
             foreach (var pl in ship.GetComponentsInChildren<PodLauncher>(true))
                 if (pl.podPrefab is T pp && (found == null || pl.podPrefab.name == name)) found = pp;
+            foreach (var nl in ship.GetComponentsInChildren<NukeLauncher>(true))
+                if (nl.nukePrefab is T np && (found == null || nl.nukePrefab.name == name)) found = np;
+            foreach (var ag in ship.GetComponentsInChildren<ArtilleryGun>(true))
+                if (ag.shellPrefab is T sp && (found == null || ag.shellPrefab.name == name)) found = sp;
             prefabCache[key] = found;
             return found;
         }
@@ -154,6 +158,9 @@ namespace CarrierGame.Demo
                     ShotsShown++;
                     break;
                 }
+                case CoopWire.Shell:
+                    ShowShell(ship, m);        // (CoopWorld.Artillery)
+                    break;
             }
         }
     }

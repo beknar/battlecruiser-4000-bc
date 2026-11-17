@@ -45,6 +45,13 @@ namespace CarrierGame
         // a missile or boarding pod shot down by point defence, for the others to take theirs down:
         // {src (whose it was), x, y, z, rf}
         public const string ShotDown = "sd";
+        // a kind of Fire: an artillery shell, {src, pf, x, y, z, rf} from where it was fired and
+        // {ax, ay, az, arf} where it bursts, its kind kx (games before it skip the kind)
+        public const string Shell = "shell";
+        // a strike from orbit on a body by the host's Vrask siege, for every game to apply to its own
+        // world: {body, u, v, radius, weapon} and {place, cd (crater depth), rb (rebuild minutes),
+        // cpb (killed a building), pop (share of the people left killed)}
+        public const string Strike = "strike";
 
         // how a game message is routed: to one player, to the room's host, or (neither) to
         // everyone else in the room; the server adds who it came from

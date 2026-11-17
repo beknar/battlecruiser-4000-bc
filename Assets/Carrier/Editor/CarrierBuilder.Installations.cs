@@ -76,6 +76,7 @@ namespace Carrier.EditorTools
             IndustrySites(s, root, b);
             Settlements(s, root, b);
             StrikeSatellites(s, p, root, b);
+            VraskSiege(s, p, root, b);   // the Vrask siege of a city from orbit (CarrierBuilder.Artillery)
             // every place that recruits crew, and every market, is a port (its services screen
             // opens when docked, or landed on its pad: the crew page, the trade page)
             foreach (var inst in root.GetComponentsInChildren<Installation>(true).Concat(s.sys.GetComponentsInChildren<Installation>(true)).Distinct())

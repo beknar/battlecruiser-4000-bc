@@ -139,7 +139,7 @@ namespace CarrierGame.Demo
             Vector3 up = ship.Up;
             // (moored at a berth or on a pad: it stays as it is; in a warp, or just out of one, it
             // is at once whatever the place it arrives at has)
-            bool moored = Docking.Instance != null && Docking.Instance.Current != Docking.State.Free;
+            bool moored = Docking.Instance != null && Docking.Instance.Current != Docking.State.Free && !Docking.Instance.Approaching;
             bool jumped = drive != null && drive.Current != WarpDrive.State.Ready;
             if (Vector3.Angle(up, target) > 0.001f && !ship.Destroyed && !moored)
             {

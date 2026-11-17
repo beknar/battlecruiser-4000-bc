@@ -73,7 +73,7 @@ namespace CarrierGame.Demo
             float flown = 0f;
             yield return Key(kb, K.K);
             Check(nav.Travelling && nav.Course == highport && nav.Finish == NavigationMode.Then.Dock, $"K: flying to the Highport to dock ('{Notices.Last}')");
-            float until = Time.time + 300f, shotAt = Time.time + 10f;
+            float until = Time.time + 420f, shotAt = Time.time + 10f;
             while (Time.time < until && (nav.Travelling || !Docking.Docked))
             {
                 // (the way flown, from the speed: the world's origin moves with the ship)
@@ -176,17 +176,26 @@ namespace CarrierGame.Demo
                 bool inMenu = rows.Any(r => ReferenceEquals(r.tag, wp));
                 string hud = Docking.Instance != null ? System.Text.RegularExpressions.Regex.Replace(Docking.Instance.HudText() ?? "", "<[^>]+>", "") : "";
                 yield return Key(kb, K.K);
-                float du = Time.time + 150f;
+                float du = Time.time + 240f;
                 bool landed = false;
+                float fadeMax = 0f;
+                int flown0 = Docking.Flown, faded0 = Docking.FadedIn;
+                var phases = new HashSet<string>();
                 while (Time.time < du && !(Docking.Docked && Docking.Instance.At == inst))
                 {
                     if (PlanetLanding.Busy) landed = true;
+                    fadeMax = Mathf.Max(fadeMax, Docking.Instance.Fade);
+                    string ph = Docking.Instance.Phase;
+                    if (ph.Length > 0) phases.Add(System.Text.RegularExpressions.Regex.Replace(ph, @"[,\d].*$", "").Trim());
                     yield return null;
                 }
                 bool docked = Docking.Docked && Docking.Instance.At == inst;
+                float atBerth = Vector3.Distance(cc.transform.position, inst.BerthPosition);
                 Shot("nav_docked_" + name.Replace(" ", "_").ToLowerInvariant());
                 Check(docked && !landed && inMenu,
                       $"{name}: K {berthOff / 1000f:F1} km from the berth, where the warp left her ('{hud}'), flies in and docks ({docked}, landed instead {landed}; in navigation's menu {inMenu})");
+                Check(docked && Docking.Flown == flown0 + 1 && Docking.FadedIn == faded0 && fadeMax < 0.01f && atBerth < 5f,
+                      $"{name}: the docking computer flew her in, no fade ({string.Join(" > ", phases)}; fade {fadeMax:F2}; {atBerth:F1} m from the berth)");
                 if (Docking.Docked) { yield return Key(kb, K.K); float uu = Time.time + 8f; while (Time.time < uu && Docking.Busy) yield return null; }
                 cc.throttle = 0f;
             }

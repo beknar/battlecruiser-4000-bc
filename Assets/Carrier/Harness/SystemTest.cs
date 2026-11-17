@@ -151,6 +151,9 @@ namespace CarrierGame.Demo
             yield return null;
             demo = FindAnyObjectByType<CarrierDemoInput>();
             map = FindAnyObjectByType<SystemMap>();
+            // (docking flown in, as in play, only where docking is what is tested: the others dock
+            // the quick way, with a fade, so their timings hold)
+            Docking.QuickDock = !(navOnly || approachOnly);
             cc = demo != null ? demo.carrier : null;
             drive = cc != null ? cc.GetComponent<WarpDrive>() : null;
             if (map == null || drive == null) { Log("FAIL: no system map or warp drive in this scene"); Application.Quit(); yield break; }

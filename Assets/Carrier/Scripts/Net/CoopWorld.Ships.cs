@@ -36,6 +36,7 @@ namespace CarrierGame.Demo
                 surf = landing != null && landing.Current != PlanetLanding.State.InSpace && landing.Body != null ? landing.Body.displayName : "",
                 cap = Captain.Index,
                 fr = PlayerFrigate.Flying,
+                sy = ShipSystems.ToWire(me.GetComponent<ShipSystems>()),
             });
         }
 

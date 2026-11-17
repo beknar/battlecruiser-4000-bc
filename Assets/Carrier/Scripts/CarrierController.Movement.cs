@@ -79,6 +79,10 @@ namespace CarrierGame
         /// what it would be (half).</summary>
         [System.NonSerialized] public float towScale = 1f;
 
+        /// <summary>The engines knocked out (ShipSystems): its top speed, and how fast it speeds
+        /// up or slows down, are these shares of what they would be.</summary>
+        [System.NonSerialized] public float engineScale = 1f, engineAccelScale = 1f;
+
         /// <summary>Held level (afloat on the sea, Seafaring): the nose and wings take no input.</summary>
         [System.NonSerialized] public bool holdLevel;
 
@@ -122,7 +126,7 @@ namespace CarrierGame
                 }
                 return;
             }
-            speed = Mathf.MoveTowards(speed, throttle * maxSpeed * speedScale * towScale, acceleration * accelScale * dt);
+            speed = Mathf.MoveTowards(speed, throttle * maxSpeed * speedScale * towScale * engineScale, acceleration * accelScale * engineAccelScale * dt);
 
             // attitude: heading turns about the vertical (the up frame's), the nose pitches up or down, and
             // the ship rolls about its own length (all the way round, if the pilot keeps on)

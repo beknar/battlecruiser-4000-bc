@@ -194,7 +194,7 @@ namespace CarrierGame.Demo
             float q = Density * ship.Speed * ship.Speed;                 // (dynamic pressure, nearly)
             float heat = Mathf.Clamp01((q - 2.0e5f) / 1.2e6f);
             Heat = Mathf.MoveTowards(Heat, heat, dt * 0.8f);
-            if (Heat > 0.85f && health != null && !health.Dead) health.Damage(Heat * 40f * dt, ship.transform.position, HitKind.Beam);
+            if (Heat > 0.85f && health != null && !health.Dead) health.Damage(Heat * 40f * dt, ship.transform.position, HitKind.Beam, false);
             if (Heat > 0.05f) PadSupport.Rumble(0.15f * Heat, 0.25f * Heat, 0.1f);
         }
 

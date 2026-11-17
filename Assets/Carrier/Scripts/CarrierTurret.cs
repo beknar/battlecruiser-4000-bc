@@ -284,11 +284,14 @@ namespace CarrierGame
         Vector3 AimOrigin() => muzzles != null && muzzles.Length > 0 && muzzles[0] ? muzzles[0].position : Gun.position;
         Vector3 AimForward() => muzzles != null && muzzles.Length > 0 && muzzles[0] ? muzzles[0].forward : Gun.forward;
 
-        /// <summary>Fire one shot from every muzzle, wherever the gun points now.</summary>
+        ShipSystems systems;
+
+        /// <summary>Fire one shot from every muzzle, wherever the gun points now (none while its
+        /// ship's weapons are knocked out: ShipSystems).</summary>
         public void Fire()
         {
             cooldown = fireInterval;
-            if (projectilePrefab == null || muzzles == null) return;
+            if (projectilePrefab == null || muzzles == null || ShipSystems.WeaponsDownOn(this, ref systems)) return;
             SoundFX.Play(fireSound, AimOrigin());
             ShotsFired++;
             LastFiredTime = Time.time;

@@ -15,6 +15,7 @@ namespace CarrierGame
         public bool active = true;
 
         float next;
+        ShipSystems systems;
 
         /// <summary>The craft each mount is shooting at (null = standing by), for the HUD.</summary>
         public Transform EngagedTarget
@@ -34,7 +35,7 @@ namespace CarrierGame
             foreach (var m in mounts)
             {
                 if (!m) continue;
-                m.target = active ? Pick(m) : null;
+                m.target = active && !ShipSystems.WeaponsDownOn(this, ref systems) ? Pick(m) : null;   // (none with the weapons knocked out)
             }
         }
 

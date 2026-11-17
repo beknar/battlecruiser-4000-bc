@@ -44,6 +44,7 @@ namespace CarrierGame.Demo
             public Vector3 v1;
             public Quaternion q0 = Quaternion.identity, q1 = Quaternion.identity;
             public Shield[] shields;
+            public ShipSystems sys;
         }
 
         readonly Dictionary<string, Ent> ents = new Dictionary<string, Ent>();
@@ -211,7 +212,12 @@ namespace CarrierGame.Demo
                     if (IsHost && ents.TryGetValue(m.tg ?? "", out var e) && e.h != null && !e.h.Dead)
                     {
                         Health.Source = remotes.TryGetValue(m.from, out var who) && who != null ? who.transform : null;
+                        // (aimed where they aimed: their ship here aims there, for this hit)
+                        var aimer = Health.Source != null ? Health.Source.root : null;
+                        var aimWas = ShipSystems.AimOf(aimer);
+                        ShipSystems.SetAim(aimer, ShipSystems.FromWire(m.cp));
                         e.h.Damage(m.a, FromNet(m.rf, new Double3(m.x, m.y, m.z)), DamageTable.FromWire(m.kd, m.kx));
+                        ShipSystems.SetAim(aimer, aimWas);
                         Health.Source = null;
                         HitsAppliedForOthers++;
                     }

@@ -232,6 +232,8 @@ namespace CarrierGame.Demo
             // targeting: T cycles (Shift+T back), a click picks a ship, X stops targeting
             if (k.tKey.wasPressedThisFrame) { if (k.shiftKey.isPressed) PreviousTarget(); else NextTarget(); }
             if (k.xKey.wasPressedThisFrame || k.backspaceKey.wasPressedThisFrame) ClearTarget();
+            // J: aim at the target's weapons, engines or shield generator in turn (and back to the hull)
+            if (k.jKey.wasPressedThisFrame) CycleAim();
             var mouse = Mouse.current;
             if (mouse != null && mouse.leftButton.wasPressedThisFrame) PickAt(mouse.position.ReadValue());
             // the fleet: V attacks the target, Shift+V forms up
@@ -417,6 +419,7 @@ namespace CarrierGame.Demo
             switch (mainGun.Current)
             {
                 case MainBeam.State.Idle:
+                    if (WeaponsOut()) break;
                     mainGun.target = Targets.IsFriendly(carrier.target) ? null : carrier.target;
                     mainGun.StartCharge();
                     Notices.Post($"Main gun charging: {mainGun.chargeTime:F0} s, keep the bow on the target");
@@ -469,6 +472,8 @@ namespace CarrierGame.Demo
                 if (p.buttonSouth.wasPressedThisFrame) { if (!carrier.Destroyed) LevelOff(); backCombo = true; }
                 if (p.buttonEast.wasPressedThisFrame) backCombo = true;     // (land or dock: PlanetLanding, Docking)
                 if (p.buttonWest.wasPressedThisFrame && Modes.Is(ModeOfPlay.Combat) && !carrier.Destroyed) { Salvage.Instance?.Toggle(); backCombo = true; }
+                // (Back + L3: aim at a component, as J; Back + X is the salvage's)
+                if (p.leftStickButton.wasPressedThisFrame && Modes.Is(ModeOfPlay.Combat) && !carrier.Destroyed) { CycleAim(); backCombo = true; }
             }
             if (p.selectButton.wasReleasedThisFrame) { if (!backCombo) hud.ToggleHelp(); backCombo = false; }
             if (p.rightStickButton.wasPressedThisFrame && warp == null) CycleCamera();    // R3 (the system map, with a warp drive)
@@ -556,11 +561,19 @@ namespace CarrierGame.Demo
             Notices.Post(message);
         }
 
+        /// <summary>True if the ship's weapons are knocked out (ShipSystems); then says so.</summary>
+        bool WeaponsOut()
+        {
+            if (!ShipSystems.WeaponsDownOn(carrier)) return false;
+            NotFitted("Our weapons are knocked out: they come back as they are repaired");
+            return true;
+        }
+
         /// <summary>With a target, each gun that can bear on it fires as soon as it is lined up
         /// (never on the way round); with no target, everything fires where it points.</summary>
         public void FireGuns()
         {
-            if (carrier.Destroyed) return;
+            if (carrier.Destroyed || WeaponsOut()) return;
             if (Targets.IsFriendly(carrier.target)) { NotFitted($"Guns held: {Targets.NameOf(carrier.target)} is friendly"); return; }
             int fired = 0;
             foreach (var t in carrier.mainTurrets)
@@ -606,6 +619,7 @@ namespace CarrierGame.Demo
             if (carrier.target == null) { NoTarget(); return; }
             if (Targets.IsFriendly(carrier.target)) { NotFitted($"Missiles held: {Targets.NameOf(carrier.target)} is friendly"); return; }
             if (carrier.missiles.Stock == 0) { NotFitted("Out of missiles: rearm docked at a station or landed at a site"); return; }
+            if (WeaponsOut()) return;
             carrier.FireMissiles();
             PadSupport.Rumble(0.35f, 0.5f, 0.35f);
         }
@@ -649,6 +663,20 @@ namespace CarrierGame.Demo
             carrier.SetTarget(null);
             SoundFX.Ui(Sfx.UiClear);
             Notices.Post("Target cleared: guns stowed, attacking craft back to escort");
+        }
+
+        /// <summary>Aim at the target's next component (J, Back + L3): its weapons, its engines,
+        /// its shield generator, then its hull again. A new target starts at the hull.</summary>
+        public void CycleAim()
+        {
+            if (carrier.Destroyed) return;
+            if (carrier.target == null) { NoTarget(); return; }
+            if (carrier.target.GetComponentInParent<ShipSystems>() == null) { NotFitted($"{Targets.NameOf(carrier.target)} has no components to aim at"); return; }
+            var root = carrier.transform.root;
+            var next = ShipSystems.Next(ShipSystems.AimOf(root));
+            ShipSystems.SetAim(root, next);
+            SoundFX.Ui(Sfx.UiLock);
+            Notices.Post($"Aiming at the target's {ShipSystems.Label(next)}");
         }
 
         public void CycleCamera()

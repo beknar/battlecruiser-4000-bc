@@ -29,6 +29,7 @@ namespace CarrierGame.Demo
         public float qx, qy, qz, qw, vx, vy, vz;
         public float hu;          // hull, 0 to 1
         public bool dead, gone, lurk;
+        public int sy;            // its components (ShipSystems.ToWire; 0, from an older game: whole)
     }
 
     /// <summary>Anything that arrives.</summary>
@@ -46,16 +47,17 @@ namespace CarrierGame.Demo
         public string rf = "";
         public float qx, qy, qz, qw, vx, vy, vz, th, sh, hu;
         public bool su, dead, dock;
-        public int warp, cap;
+        public int warp, cap, sy;   // (sy: the ship's components, ShipSystems.ToWire)
         public string surf, fr;
         // enemies
         public CoopEntity[] e;
         // shots and beams
         public string src, k, pf, tg;
         public float dx, dy, dz;
-        // damage (kd: the kind as games before the new kinds know it; kx: the kind + 1, 0 if not sent)
+        // damage (kd: the kind as games before the new kinds know it; kx: the kind + 1, 0 if not
+        // sent; cp: the component the shooter aimed at, a ShipSystem, 0 the hull)
         public float a;
-        public int kd, kx;
+        public int kd, kx, cp;
         // a gift of credits (its number, for the receipt)
         public int gid;
         // a message on the comms channel
@@ -85,6 +87,8 @@ namespace CarrierGame.Demo
         public string surf = "";
         /// <summary>Which frigate (FrigateRoster id; older games leave it out).</summary>
         public string fr = "";
+        /// <summary>Its components (ShipSystems.ToWire; older games leave it out: whole).</summary>
+        public int sy;
     }
 
     /// <summary>The enemies, from the host to everyone else in the room.</summary>
@@ -97,7 +101,7 @@ namespace CarrierGame.Demo
 
     /// <summary>A hit on an enemy, to the host (whose game has the real one).</summary>
     [Serializable]
-    class HitEnemyMsg { public string t = CoopWire.HitEnemy; public bool toHost = true; public string tg, rf = ""; public float a; public double x, y, z; public int kd, kx; }   // tg: the enemy
+    class HitEnemyMsg { public string t = CoopWire.HitEnemy; public bool toHost = true; public string tg, rf = ""; public float a; public double x, y, z; public int kd, kx, cp; }   // tg: the enemy; cp: the component aimed at
 
     /// <summary>A hit on a player's ship, from the host to that player.</summary>
     [Serializable]

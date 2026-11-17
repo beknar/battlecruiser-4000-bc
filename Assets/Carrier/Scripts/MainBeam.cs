@@ -55,6 +55,7 @@ namespace CarrierGame
 
         float stateStart;
         Transform owner;
+        ShipSystems systems;
         Vector3 beamDir;
         MaterialPropertyBlock block;
         static readonly int EmissionId = Shader.PropertyToID("_EmissionColor");
@@ -95,6 +96,7 @@ namespace CarrierGame
         public bool StartCharge()
         {
             if (Current != State.Idle || !isActiveAndEnabled) return false;   // switched off (its ship destroyed)
+            if (ShipSystems.WeaponsDownOn(this, ref systems)) return false;     // its ship's weapons knocked out
             Current = State.Charging;
             stateStart = Time.time;
             SetEmitting(chargeParticles, true);

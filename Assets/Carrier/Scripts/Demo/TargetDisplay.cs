@@ -6,7 +6,8 @@ namespace CarrierGame.Demo
     /// <summary>
     /// The target panel: a live camera view of the ship the carrier is targeting, its hull bar
     /// and stats (damage taken, hits, times destroyed, range, speed, who is attacking it, missiles
-    /// inbound), plus brackets around the target on screen and markers on the other hostiles.
+    /// inbound, its components and the one aimed at), plus brackets around the target on screen
+    /// and markers on the other hostiles.
     /// </summary>
     public class TargetDisplay : MonoBehaviour
     {
@@ -22,6 +23,7 @@ namespace CarrierGame.Demo
         RenderTexture view;
         Transform shown;
         Health health;
+        ShipSystems systems;
         TargetInfo info;
         IVelocity mover;
         Vector3 localCenter;
@@ -90,6 +92,7 @@ namespace CarrierGame.Demo
         {
             shown = t;
             health = t ? t.GetComponentInParent<Health>() : null;
+            systems = t ? t.GetComponentInParent<ShipSystems>() : null;
             info = t ? t.GetComponentInParent<TargetInfo>() : null;
             mover = Motion.Of(t);
             wasDead = health != null && health.Dead;
@@ -290,6 +293,27 @@ namespace CarrierGame.Demo
             GUI.Label(new Rect(x + pad, cy, inner, statsH), stats, body);
         }
 
+        /// <summary>The target's components (ShipSystems): each one's condition, those knocked
+        /// out, and the one aimed at in [brackets] (J, Back + L3); empty for a target without them.</summary>
+        public string SystemsText()
+        {
+            if (systems == null || shown == null || carrier == null) return "";
+            var aim = ShipSystems.AimOf(carrier.transform.root);
+            var sb = new System.Text.StringBuilder("Systems");
+            foreach (var s in ShipSystems.Components)
+            {
+                float c = systems.Condition(s);
+                bool down = systems.IsDown(s);
+                string col = down ? "#ff5040" : c < 0.5f ? "#ffc04d" : "#7ee08a";
+                string text = $"{ShipSystems.Label(s)} {(down ? "DOWN " : "")}{c:P0}";
+                if (s == aim) text = $"<b>[{text}]</b>";
+                sb.Append($"   <color={col}>{text}</color>");
+            }
+            string key = PadSupport.UsingPad ? "Back+L3" : "J";
+            sb.Append($"\nAimed at  <b>{(aim == ShipSystem.Hull ? "the hull" : "its " + ShipSystems.Label(aim))}</b>   ({key} to change)");
+            return sb.ToString();
+        }
+
         string StatsText()
         {
             var sb = new System.Text.StringBuilder();
@@ -327,6 +351,8 @@ namespace CarrierGame.Demo
             }
             else if (shown.GetComponentInParent<Installation>() != null) sb.Append("Crew  none (automated)\n");
 
+            string sys = SystemsText();
+            if (sys.Length > 0) sb.Append(sys).Append('\n');
             string guns = carrier.target == shown && !Targets.IsFriendly(shown) ? carrier.GunsBearingText() : "";
             if (guns.Length > 0) sb.Append($"In arc  {(guns.StartsWith("none") ? "<color=#ffb060>none</color>" : guns)}\n");
             if (carrier.HasHangar)

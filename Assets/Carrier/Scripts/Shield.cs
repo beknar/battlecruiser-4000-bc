@@ -130,16 +130,43 @@ namespace CarrierGame
 
         bool offline;
 
-        /// <summary>Switch the shield off completely (its ship destroyed) or back on at full strength.</summary>
+        /// <summary>Switch the shield off completely (its ship destroyed) or back on at full
+        /// strength (unless its generator is knocked out: then it stays down).</summary>
         public void SetOffline(bool off)
         {
             offline = off;
-            Up = !off;
-            Strength = off ? 0f : capacity;
+            Up = !off && !disabled;
+            Strength = Up ? capacity : 0f;
             flash = 0f;
-            if (col) col.enabled = !off;
+            if (col) col.enabled = Up;
             for (int i = 0; i < MaxHits; i++) born[i] = -100f;
             Push();
+        }
+
+        bool disabled;
+        /// <summary>Its generator is knocked out (ShipSystems).</summary>
+        public bool Disabled => disabled;
+
+        /// <summary>Its generator knocked out (ShipSystems): down, at nothing and not recharging,
+        /// until it works again; then it comes back as after a collapse, at 30%. (Not SetOffline,
+        /// which brings it back at full strength.)</summary>
+        public void SetDisabled(bool off)
+        {
+            if (disabled == off) return;
+            disabled = off;
+            if (off)
+            {
+                if (Up && !offline)
+                {
+                    flash = 1f;
+                    SoundFX.Play(Sfx.ShieldHit, transform.position, 1f, 0.5f);
+                }
+                Up = false;
+                Strength = 0f;
+                if (col) col.enabled = false;
+                downUntil = float.PositiveInfinity;
+            }
+            else downUntil = Time.time;   // (back on its next frame)
         }
 
         void Update()

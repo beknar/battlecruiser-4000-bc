@@ -53,6 +53,7 @@ namespace CarrierGame
 
         Shield shield;
         Armor armor;
+        ShipSystems systems;
         bool shieldLooked;
 
         /// <summary>Co-op: looks at each hit first, and takes it (returns true) when it belongs
@@ -73,14 +74,21 @@ namespace CarrierGame
 
         /// <summary>A hit at a point from a kind of weapon, from the outside in: the shield (if
         /// any, and up) takes it first, as hard as that kind is on shields; what gets through
-        /// does that kind's share to the hull, less what the armour (if any) stops.</summary>
-        public void Damage(float amount, Vector3 point, HitKind kind)
+        /// does that kind's share to the hull, less what the armour (if any) stops; and the
+        /// ship's components (ShipSystems, if it has them) take theirs on top.</summary>
+        /// `toComponents`: false for knocks that aren't a weapon's (a collision, heat, lava),
+        /// which wear the hull but not the ship's components.
+        public void Damage(float amount, Vector3 point, HitKind kind, bool toComponents = true)
         {
             if (Dead || amount <= 0f) return;
             if (Intercept != null && Intercept(this, amount, point, kind)) return;
-            if (!shieldLooked) { shield = GetComponentInChildren<Shield>(true); armor = GetComponent<Armor>(); shieldLooked = true; }
+            if (!shieldLooked) { shield = GetComponentInChildren<Shield>(true); armor = GetComponent<Armor>(); systems = GetComponent<ShipSystems>(); shieldLooked = true; }
             var row = DamageTable.Of(kind);
-            if (shield != null && shield.Up && row.shield > 0f) amount = shield.Absorb(amount * row.shield, point, kind) / row.shield;
+            float hit = amount;
+            bool shielded = shield != null && shield.Up && row.shield > 0f;
+            if (shielded) amount = shield.Absorb(amount * row.shield, point, kind) / row.shield;
+            // (the components: from what got through the shield, and ion's from what it stopped too)
+            if (systems != null && toComponents) systems.Hit(amount, shielded ? hit - amount : 0f, kind, Source);
             amount *= row.hull;
             if (armor != null) amount = armor.Reduce(amount, kind);
             LastHitKind = kind;
@@ -90,7 +98,7 @@ namespace CarrierGame
         /// <summary>The kind of the last hit from a weapon (Damage with a kind).</summary>
         public HitKind LastHitKind { get; private set; }
 
-        /// <summary>Armour added (or taken off) in play (parts fitted): looked for again.</summary>
+        /// <summary>Armour added (or taken off) in play (parts fitted), or components: looked for again.</summary>
         public void Relook() => shieldLooked = false;
 
         /// <summary>Put the hull back to full (between the scenes of a demo reel).</summary>
@@ -100,6 +108,8 @@ namespace CarrierGame
             Current = maxHealth;
             var a = GetComponent<Armor>();
             if (a != null) a.Repair();
+            var sy = GetComponent<ShipSystems>();
+            if (sy != null) sy.RepairAll();
         }
 
         float builtMax = -1f;
@@ -226,6 +236,9 @@ namespace CarrierGame
             Dead = false;
             var a = GetComponent<Armor>();
             if (a != null) a.Repair();
+            // (before onRespawned: the ship's own systems come back on after its components)
+            var sy = GetComponent<ShipSystems>();
+            if (sy != null) sy.RepairAll();
             var breakup = GetComponent<ShipBreakup>();
             // a ship that came apart is put back together; one that was hidden is shown again
             if (breakup != null) breakup.Restore();

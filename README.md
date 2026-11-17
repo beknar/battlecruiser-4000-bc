@@ -272,6 +272,21 @@ repainted like the frigates and turned to lie bow first along the axis with
   a hit. When it collapses it stays down for 6 s and comes back at 30%. Each hit leaves a ripple
   sized to its weapon type (projectile, cannon, missile or beam), with a flash and a sound.
 - **Hull.** Damage reaches the hull's 6,000 points only after it gets through the shield.
+- **Kinds of weapon, and armour.** Each kind of weapon is hard or light on each layer of a ship:
+  ion is hard on shields and on components and light on the hull, a penetrator goes straight
+  through armour, a nullifier strips shields but barely scratches the hull, and artillery and
+  nuclear warheads are heavy on everything. Armour, between the shield and the hull, stops a share
+  of each hit that gets through the shield and wears away as it does; a repair (docked) or a
+  respawn makes it whole.
+- **Components.** A ship's weapons, engines and shield generator each have a condition. They take
+  damage from what gets through the shield, on top of the hull's (and ion reaches the engines and
+  the shield generator even through a shield that holds). Aim at one (J in combat mode, Back + L3
+  on the pad; the target panel shows each one's condition and which is aimed at) and most of that
+  damage goes to it; otherwise a little goes to one at random. Below 25% a component is knocked
+  out, and stays out until repaired above 50%: the weapons don't fire, the engines give 15% of top
+  speed and 30% of acceleration, or the shield drops and doesn't recharge. Components repair
+  slowly after 20 s without a hit, and all at once docked or respawned. Their condition isn't
+  saved: a ship comes into a game whole.
 - **Breakup.** When a ship dies, its hull splits into chunks and its turrets break off one after
   another, outer parts first. Then the main blast throws the wreckage outward, where it drifts and
   shrinks away.
@@ -1123,6 +1138,7 @@ menu (only the pause menu stops it).
 | Charge main gun (again to cancel) | B | X |
 | Next / previous target, or click a ship (the hostiles, then the friendly stations and installations within 30 km: those to fly to, never fired on) | T / Shift+T | Y |
 | Stop targeting | X | B |
+| Aim at the target's weapons, engines or shield generator, in turn, and back to its hull (a new target starts at the hull) | J | Back + L3 |
 | Line up on the target, until the guns bear (again, or steer, to stop) | C | A |
 | Fly to the target, to its guns' reach, and line up on it there (again, steer or the throttle to stop) | U | |
 | Kinetic strike from orbit | Y | |

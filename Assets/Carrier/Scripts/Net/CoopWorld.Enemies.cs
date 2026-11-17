@@ -25,7 +25,7 @@ namespace CarrierGame.Demo
                 string id = PathOf(t);
                 string unique = id;
                 for (int n = 2; ents.ContainsKey(unique); n++) unique = $"{id}#{n}";
-                var e = new Ent { id = unique, t = t, h = t.GetComponent<Health>(), pilot = t.GetComponent<CombatPilot>(), shields = t.GetComponentsInChildren<Shield>(true) };
+                var e = new Ent { id = unique, t = t, h = t.GetComponent<Health>(), pilot = t.GetComponent<CombatPilot>(), shields = t.GetComponentsInChildren<Shield>(true), sys = t.GetComponent<ShipSystems>() };
                 ents[unique] = e;
                 entByTransform[t] = e;
                 if (e.h != null) entByHealth[e.h] = e;
@@ -160,6 +160,7 @@ namespace CarrierGame.Demo
                     hu = e.h != null ? e.h.Current / Mathf.Max(1f, e.h.maxHealth) : 1f,
                     dead = e.h != null && e.h.Dead,
                     lurk = e.pilot != null && e.pilot.Current == CombatPilot.State.Lurk,
+                    sy = ShipSystems.ToWire(e.sys),
                 });
             }
             Client.Send(new EntitiesMsg { ts = Client.ServerNow, e = list.ToArray() });
@@ -180,6 +181,7 @@ namespace CarrierGame.Demo
                         e.h.NetSetHull(s.hu * e.h.maxHealth);
                     }
                 }
+                if (e.sys != null) e.sys.NetSet(s.sy);
                 if (s.gone || s.dead) continue;
                 if (e.pilot != null) e.pilot.NetLurk(s.lurk);
                 // the last two updates, to go between

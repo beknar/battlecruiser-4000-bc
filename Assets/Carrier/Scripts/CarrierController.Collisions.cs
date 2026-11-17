@@ -116,7 +116,7 @@ namespace CarrierGame
                     if (Time.time - LastCollisionTime > 0.5f)
                     {
                         Collisions++;
-                        if (health != null) health.Damage(depth * collisionDamage, c, HitKind.Cannon);
+                        if (health != null) health.Damage(depth * collisionDamage, c, HitKind.Cannon, false);
                     }
                     LastCollisionTime = Time.time;
                     float into = Vector3.Dot(Velocity, -dir);
@@ -148,7 +148,7 @@ namespace CarrierGame
                 if (Time.time - LastCollisionTime > 0.5f)
                 {
                     Collisions++;
-                    if (health != null) health.Damage(impact * collisionDamage, hit.point, HitKind.Cannon);
+                    if (health != null) health.Damage(impact * collisionDamage, hit.point, HitKind.Cannon, false);
                     SoundFX.Play(Sfx.Impact, hit.point, 1f, 0.6f);
                 }
                 LastCollisionTime = Time.time;
@@ -193,6 +193,8 @@ namespace CarrierGame
         {
             var old = target;
             target = t;
+            // (a new target: aimed at its hull again, ShipSystems)
+            if (t != old) ShipSystems.SetAim(transform.root, ShipSystem.Hull);
             // (a friendly installation, targeted to fly to: the guns hold their fire)
             var fire = Targets.IsFriendly(t) ? null : t;
             if (mainTurrets != null) foreach (var tu in mainTurrets) if (tu) tu.target = fire;

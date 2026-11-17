@@ -140,6 +140,7 @@ namespace CarrierGame.Demo
                         if (demo.MainGun != null) lines.Add("B main gun: charge (fires after 10 s)");
                         lines.Add("T next target (Shift+T back)   click a ship");
                         lines.Add("X stop targeting   C line up   U fly to the target");
+                        lines.Add("J aim at the target's weapons, engines or shield");
                         if (KineticStrike.Instance != null) lines.Add("Y kinetic strike from orbit");
                         if (demo.Cargo != null) lines.Add("Z salvage a wreck (flies to it)   Shift+Z next wreck");
                         if (FleetDirector.Instance != null && FleetDirector.Instance.Ships.Count > 0) lines.Add("V the fleet attacks my target   Shift+V forms up");
@@ -201,6 +202,7 @@ namespace CarrierGame.Demo
                         if (demo.MainGun != null) lines.Add("X main gun: charge");
                         lines.Add("Y next target   B stop targeting");
                         lines.Add("A line up on the target" + (demo.Cargo != null ? "   Back+X salvage" : ""));
+                        lines.Add("Back+L3 aim at the target's weapons, engines, shield");
                         break;
                     case ModeOfPlay.Mining:
                         if (demo.Laser == null) { lines.Add("<i>No mining gear on this ship</i>"); break; }

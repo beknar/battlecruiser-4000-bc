@@ -35,6 +35,7 @@ namespace CarrierGame.Demo
         Collider[] colliders;
         Health health;
         EngineThrust[] engines;
+        ShipSystems systems;
         bool shown = true;
 
         /// <summary>How far in the past the ship is shown, so there are two updates to go between.</summary>
@@ -49,6 +50,7 @@ namespace CarrierGame.Demo
             health = GetComponent<Health>();
             if (health != null) { health.cannotDie = true; health.respawnDelay = 0f; }
             engines = GetComponentsInChildren<EngineThrust>(true);
+            systems = ShipSystems.Fit(gameObject);
             Show(false);
         }
 
@@ -61,6 +63,7 @@ namespace CarrierGame.Demo
             bool wasDead = Dead;
             Shield = m.sh; Hull = m.hu; Dead = m.dead; Docked = m.dock;
             Warp = m.warp; Surface = m.surf ?? "";
+            if (systems != null) systems.NetSet(m.sy);   // (its components, for the target panel)
             // its engines as its player's throttle (out, without thrust)
             if (engines != null) foreach (var e in engines) if (e != null) e.throttle = m.dock ? 0f : Mathf.Clamp01(m.th);
             // it blew up: an explosion where it was

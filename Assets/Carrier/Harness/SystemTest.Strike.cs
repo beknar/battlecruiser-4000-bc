@@ -45,7 +45,7 @@ namespace CarrierGame.Demo
             var sats = StrikeSatellite.All.ToList();
             var ion = sats.FirstOrDefault(x => x.weapon == StrikeSatellite.Weapon.IonCannon);
             var md = sats.FirstOrDefault(x => x.weapon == StrikeSatellite.Weapon.MassDriver);
-            Check(ion != null && md != null, $"two corsair strike satellites: {string.Join(", ", sats.Select(x => $"{x.Label} over {x.target} every {x.intervalMinutes:F0} min"))}");
+            Check(ion != null && md != null, $"two corsair strike satellites: {string.Join(", ", sats.Select(x => $"{x.Label} over {x.target} every {x.intervalMinutes:F0} min").OrderBy(t => t))}");
             if (ion == null || md == null || landing == null) { Log("FAIL: strikes (no satellites)"); yield break; }
             yield return new WaitForSeconds(2f);
 

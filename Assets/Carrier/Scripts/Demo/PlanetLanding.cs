@@ -801,7 +801,7 @@ namespace CarrierGame.Demo
                 // in pulses, not every frame (each hit ripples the shield and makes a sound)
                 if (lavaHealth != null && Time.time - lavaHitAt > 0.5f)
                 {
-                    lavaHealth.Damage(75f, tr.position + Vector3.down * 10f, HitKind.Beam);
+                    lavaHealth.Damage(75f, tr.position + Vector3.down * 10f, HitKind.Beam, false);
                     lavaHitAt = Time.time;
                 }
                 if (Time.time - lavaWarnedAt > 4f) { lavaWarnedAt = Time.time; Notices.Post("The lava is burning the hull: climb!"); }

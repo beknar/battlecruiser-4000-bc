@@ -150,9 +150,11 @@ namespace CarrierGame
             lurkRotation = transform.rotation;
             Current = startLurking ? State.Lurk : State.Engage;
             engines = GetComponentsInChildren<EngineThrust>(true);
+            systems = ShipSystems.Fit(gameObject);
         }
 
         EngineThrust[] engines;
+        ShipSystems systems;
 
         // the engines burn as hard as the ship is going (out, lying still in wait)
         void LateUpdate()
@@ -356,7 +358,9 @@ namespace CarrierGame
                 var want = Quaternion.LookRotation(desired, up);
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, want, turnRate * dt);
             }
-            speed = Mathf.MoveTowards(speed, wantSpeed, acceleration * dt);
+            // (the engines knocked out: a crawl, ShipSystems)
+            float topK = systems != null ? systems.SpeedScale : 1f, accK = systems != null ? systems.AccelerationScale : 1f;
+            speed = Mathf.MoveTowards(speed, wantSpeed * topK, acceleration * accK * dt);
             Vector3 p = Cover.PushOut(pos + transform.forward * speed * dt, bodyRadius);
             if (FloorAt != null) p.y = Mathf.Max(p.y, FloorAt(p) + bodyRadius * 0.6f + 4f);
             transform.position = p;

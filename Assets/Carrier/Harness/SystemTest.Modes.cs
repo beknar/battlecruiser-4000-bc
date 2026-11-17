@@ -66,7 +66,8 @@ namespace CarrierGame.Demo
                 yield return Keys(kb, K.LeftShift, K.N);
                 yield return new WaitForSeconds(1f);
                 string song2 = MusicDirector.NowPlaying;
-                Check(MusicDirector.Cycles > cycles1 && song2 != song1, $"Shift+N: the next song ('{song2}')");
+                Log($"  Shift+N: '{song2}'");
+                Check(MusicDirector.Cycles > cycles1 && song2 != song1, "Shift+N: the next song");
                 MusicDirector.Previous();
                 yield return new WaitForSeconds(1f);
                 Check(MusicDirector.NowPlaying == song1, $"and the one before again ('{MusicDirector.NowPlaying}')");
@@ -148,6 +149,7 @@ namespace CarrierGame.Demo
             info.displayName = "Practice target";
             info.shipClass = "Target drone";
             dummy.GetComponent<Renderer>().enabled = false;
+            dummy.AddComponent<ShipSystems>();   // (components to aim at: J)
             dummy.SetActive(true);
             // astern and a little to port: few guns, or none, bear on it as the ship is
             var t = cc.transform;
@@ -171,6 +173,25 @@ namespace CarrierGame.Demo
             Check(cc.target == dummy.transform, $"Enter targets the one chosen ({(cc.target != null ? cc.target.name : "none")})");
             yield return Key(kb, K.Tab);
             Check(!ModeMenu.IsOpen, "Tab closes it");
+
+            // ---- J: aim at the target's components in turn, shown on the target panel; a new
+            // target is aimed at its hull again
+            {
+                var panel = FindAnyObjectByType<TargetDisplay>();
+                var mine = cc.transform.root;
+                yield return Key(kb, K.J);
+                var aim1 = ShipSystems.AimOf(mine);
+                string shown1 = panel != null ? panel.SystemsText() : "";
+                yield return Key(kb, K.J);
+                var aim2 = ShipSystems.AimOf(mine);
+                string said = Notices.Last ?? "";
+                Check(aim1 == ShipSystem.Weapons && aim2 == ShipSystem.Engines && said.Contains("engines") && shown1.Contains("[weapons"),
+                      $"J aims at the target's weapons, then engines ({aim1}, {aim2}: '{said}'), the panel showing it ({shown1.Contains("[weapons")})");
+                cc.SetTarget(null);
+                bool reset = ShipSystems.AimOf(mine) == ShipSystem.Hull;
+                demo.SelectTarget(dummy.transform);
+                Check(reset && cc.target == dummy.transform, "a new target is aimed at its hull again");
+            }
 
             // ---- lining up
             float before = CombatMode.BestTurn(cc, dummy.transform.position, out int bestBear, out int guns);

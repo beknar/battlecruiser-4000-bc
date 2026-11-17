@@ -18,6 +18,7 @@ namespace CarrierGame
         float[] readyAt;
         int next;
         int stock = -2;
+        ShipSystems systems;
 
         void Awake() => readyAt = new float[cells != null ? cells.Length : 0];
 
@@ -61,6 +62,7 @@ namespace CarrierGame
         {
             for (int fired = 0, tries = 0; fired < count && tries < cells.Length; tries++)
             {
+                if (ShipSystems.WeaponsDownOn(this, ref systems)) yield break;   // (knocked out, even mid-salvo)
                 int i = next;
                 next = (next + 1) % cells.Length;
                 if (Time.time < readyAt[i] || cells[i] == null) continue;

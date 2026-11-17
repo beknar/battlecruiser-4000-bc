@@ -143,6 +143,7 @@ namespace CarrierGame
             pitchAngle = Mathf.Clamp(-Mathf.DeltaAngle(0f, transform.eulerAngles.x), -maxPitch, maxPitch);
             SetSpawn(transform.position, transform.rotation);
             health = GetComponent<Health>();
+            ShipSystems.Fit(gameObject);
             FindSystems();
             if (health != null)
             {

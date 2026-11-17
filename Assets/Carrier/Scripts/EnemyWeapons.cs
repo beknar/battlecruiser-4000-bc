@@ -6,7 +6,8 @@ namespace CarrierGame
     /// <summary>
     /// Lets a demo enemy shoot back at the player's ship once it is in range: bursts from its guns
     /// (small-arms bolts or cannon shells), missile salvos, and a charged beam. Shots are aimed
-    /// at where the player will be, with a little scatter. Holds fire while the enemy is destroyed.
+    /// at where the player will be, with a little scatter. Holds fire while the enemy is destroyed,
+    /// or its weapons are knocked out (ShipSystems: its turrets and beam ask for themselves).
     /// </summary>
     public class EnemyWeapons : MonoBehaviour
     {
@@ -76,6 +77,7 @@ namespace CarrierGame
         float nextRetarget;
         CombatPilot pilot;
         bool pilotLooked;
+        ShipSystems systems;
 
         /// <summary>Aim everything at a new target.</summary>
         public void SetTarget(Transform t)
@@ -184,7 +186,7 @@ namespace CarrierGame
         {
             for (int i = 0; i < burstShots; i++)
             {
-                if (target == null || (health != null && health.Dead) || !weaponsFree) yield break;
+                if (target == null || (health != null && health.Dead) || !weaponsFree || ShipSystems.WeaponsDownOn(this, ref systems)) yield break;
                 Vector3 aim = Lead(gunPrefab.speed);
                 Vector3 dir = (aim - transform.position).normalized;
                 // a fighter's guns point along its nose: a shot well off the nose is not taken
@@ -202,7 +204,7 @@ namespace CarrierGame
         {
             for (int i = 0; i < salvoSize; i++)
             {
-                if (target == null || (health != null && health.Dead) || !weaponsFree) yield break;
+                if (target == null || (health != null && health.Dead) || !weaponsFree || ShipSystems.WeaponsDownOn(this, ref systems)) yield break;
                 // a missile goes up out of its cell; a torpedo level, out toward the target
                 Vector3 toward = target.position - transform.position;
                 toward.y = 0f;

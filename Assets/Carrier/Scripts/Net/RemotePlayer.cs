@@ -23,6 +23,8 @@ namespace CarrierGame.Demo
         public string Surface { get; private set; } = "";
         /// <summary>Not in this space now (in warp, on a planet, destroyed, or not heard from).</summary>
         public bool Hidden { get; private set; } = true;
+        /// <summary>Docked at a station (sat at its berth).</summary>
+        public bool Docked { get; private set; }
         public Vector3 Velocity { get; private set; }
         public float LastHeard { get; private set; } = -100f;
         public int Updates { get; private set; }
@@ -57,7 +59,7 @@ namespace CarrierGame.Demo
             LastHeard = Time.unscaledTime;
             Updates++;
             bool wasDead = Dead;
-            Shield = m.sh; Hull = m.hu; Dead = m.dead;
+            Shield = m.sh; Hull = m.hu; Dead = m.dead; Docked = m.dock;
             Warp = m.warp; Surface = m.surf ?? "";
             // its engines as its player's throttle (out, without thrust)
             if (engines != null) foreach (var e in engines) if (e != null) e.throttle = m.dock ? 0f : Mathf.Clamp01(m.th);

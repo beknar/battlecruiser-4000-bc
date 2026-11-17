@@ -50,6 +50,51 @@ namespace CarrierGame
         CapsuleCollider proxy;
         static readonly Collider[] Overlaps = new Collider[16];
 
+        /// <summary>How far the hull reaches from its middle (its collision capsule's end).</summary>
+        public float HullRadius { get { EnsureCapsule(); return capHalf + capRadius; } }
+
+        /// <summary>The hull as a capsule in the world: its centre, the way along it, half its
+        /// straight length and its radius.</summary>
+        public void HullCapsule(out Vector3 centre, out Vector3 along, out float half, out float radius)
+        {
+            EnsureCapsule();
+            centre = transform.TransformPoint(capCenter);
+            along = transform.forward;
+            half = capHalf;
+            radius = capRadius;
+        }
+
+        /// <summary>Times a ship was pushed out of another's hull (the backstop below).</summary>
+        public static int ShipBumps { get; private set; }
+
+        /// <summary>Keep the hull out of the other ships' (the fleet's, the other players'): pushed
+        /// back out of any it has got into, and its way into it slowed. Only its own ship is
+        /// moved, so in co-op each game keeps its own clear.</summary>
+        Vector3 SeparateFromShips(Vector3 position)
+        {
+            var all = PlayerShips.All;
+            if (all.Count < 2) return position;
+            EnsureCapsule();
+            Vector3 c = position + transform.rotation * capCenter, along = transform.forward;
+            bool bumped = false;
+            for (int i = 0; i < all.Count; i++)
+            {
+                var t = all[i];
+                if (t == null || t == transform || !Demo.ShipAvoidance.Solid(t, this)) continue;
+                Demo.ShipAvoidance.CapsuleOf(t, out var oc, out var oalong, out float ohalf, out float orad);
+                Vector3 push = Demo.ShipAvoidance.Separation(c, along, capHalf, capRadius, oc, oalong, ohalf, orad, Up);
+                if (push == Vector3.zero) continue;
+                position += push;
+                c += push;
+                bumped = true;
+                // (the way on into it halved)
+                Vector3 dir = push.normalized;
+                if (Vector3.Dot(transform.forward * speed, dir) < 0f) speed *= 0.5f;
+            }
+            if (bumped) ShipBumps++;
+            return position;
+        }
+
         void OnDestroy() { if (proxy != null) Destroy(proxy.gameObject); }
 
         /// <summary>Push the hull back out of any rock it overlaps (after turning into a rock face,

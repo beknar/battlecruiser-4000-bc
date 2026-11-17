@@ -307,11 +307,12 @@ namespace CarrierGame.Demo
             }
             else
             {
-                var s = ShipAutopilot.BowOn(cc, to);
+                // (round the leader and the others to its slot, not through them)
+                var s = ShipAutopilot.Travel(cc, to, null, out float clear);
                 Steer(s.x, s.y);
                 float catchUp = Mathf.Clamp01((d - size) / 3000f);
                 float aligned = Mathf.Clamp01(1f - ShipAutopilot.BowError(cc, to) / 90f);
-                cc.throttle = Mathf.Clamp01(Mathf.Max(matched, catchUp) * (0.3f + 0.7f * aligned));
+                cc.throttle = Mathf.Clamp01(Mathf.Max(matched, catchUp) * (0.3f + 0.7f * aligned)) * clear;
                 Doing = $"closing on {LeaderName} ({d / 1000f:F1} km)";
             }
         }
@@ -336,9 +337,9 @@ namespace CarrierGame.Demo
             }
             if (d > gunRange * 2.5f)
             {
-                var s = ShipAutopilot.BowOn(cc, p);
+                var s = ShipAutopilot.Travel(cc, p, t, out float clear);
                 Steer(s.x, s.y);
-                cc.throttle = 1f;
+                cc.throttle = clear;
                 Doing = $"closing on {name} ({d / 1000f:F1} km)";
             }
             else

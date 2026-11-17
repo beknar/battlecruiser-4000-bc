@@ -37,6 +37,12 @@ namespace CarrierGame.Demo
             return new Vector2(rudder, pitch);
         }
 
+        /// <summary>BowOn for travelling: toward `goal`, round the other ships in the way
+        /// (ShipAvoidance; `ignore` is the one it is flying at, if any). `throttleK` eases the
+        /// throttle for a ship ahead: multiply the throttle by it.</summary>
+        public static Vector2 Travel(CarrierController ship, Vector3 goal, Transform ignore, out float throttleK) =>
+            BowOn(ship, ShipAvoidance.Aim(ship, goal, ignore, out throttleK));
+
         /// <summary>How far the bow points off the target, in degrees.</summary>
         public static float BowError(CarrierController ship, Vector3 target) =>
             Vector3.Angle(ship.transform.forward, target - ship.transform.position);

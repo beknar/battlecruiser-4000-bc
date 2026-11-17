@@ -76,7 +76,9 @@ namespace CarrierGame.Demo
             yield return null;
             bool hidden = FleetDirector.PanelsRect.height <= 0f;
             HudSettings.FleetPanels = true;
-            Check(shown && hidden, $"the fleet's panels: shown {shown}, hidden when the HUD is set so {hidden} ({FleetDirector.Alert(halberd, out _)}, {FleetDirector.Guns(halberd)})");
+            // (the alert varies: a ship launched at the yard is sometimes nudged out of its structure)
+            Log($"  the Halberd's panel: {FleetDirector.Alert(halberd, out _)}");
+            Check(shown && hidden, $"the fleet's panels: shown {shown}, hidden when the HUD is set so {hidden} ({FleetDirector.Guns(halberd)})");
             yield return Key(kb, K.K);
             until = Time.time + 10f;
             while (Time.time < until && Docking.Busy) yield return null;
@@ -114,6 +116,35 @@ namespace CarrierGame.Demo
             float tow = Vector3.Distance(rapier.transform.position, cc.transform.position);
             Check(off < 1500f && tow < 1200f, $"after a run, the Halberd is {off:F0} m off its station ({halberd.Doing}); the Rapier on its tow, {tow:F0} m astern");
             Shot("fl_following");
+
+            // ---- the leader turns hard across its escort: the Halberd goes round her, never through her
+            {
+                float Gap()
+                {
+                    ShipAvoidance.CapsuleOf(cc.transform, out var c1, out var a1, out float h1, out float r1);
+                    ShipAvoidance.CapsuleOf(halberd.transform, out var c2, out var a2, out float h2, out float r2);
+                    ShipAvoidance.ClosestPoints(c1 - a1 * h1, c1 + a1 * h1, c2 - a2 * h2, c2 + a2 * h2, out var p1, out var p2);
+                    return Vector3.Distance(p1, p2) - r1 - r2;
+                }
+                float minGap = float.MaxValue;
+                int bumps0 = CarrierController.ShipBumps;
+                cc.throttle = 0.5f;
+                float tu = Time.time + 30f, turnUntil = Time.time + 12f;
+                while (Time.time < tu)
+                {
+                    demo.autoRudder = Time.time < turnUntil ? 1f : (float?)null;
+                    minGap = Mathf.Min(minGap, Gap());
+                    yield return null;
+                }
+                demo.autoRudder = null;
+                cc.throttle = 0.4f;
+                yield return new WaitForSeconds(10f);
+                float off2 = Vector3.Distance(halberd.transform.position, halberd.Station(false));
+                Shot("fl_turn_across");
+                int bumps = CarrierController.ShipBumps - bumps0;
+                Check(minGap > 0f && minGap < 2000f && bumps == 0 && off2 < 2500f,
+                      $"the leader turning hard across the Halberd: it steers round her ({minGap:F0} m between the hulls at the closest; pushed apart in {bumps} frames), and it is back on station ({off2:F0} m off)");
+            }
 
             // ---- attack the leader's target (V, combat mode)
             var dummy = new GameObject("Fleet practice target");

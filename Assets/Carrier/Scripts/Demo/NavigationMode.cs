@@ -303,7 +303,7 @@ namespace CarrierGame.Demo
             var body = Course.LandingBody != Course ? Course.LandingBody : Places.PlaceOf(Course);
             if (body != null && (body.kind == WarpPoint.Kind.Planet || body.kind == WarpPoint.Kind.Moon))
                 carrot = RoundTheBody(body, me, dest, out dist);
-            var v = ShipAutopilot.BowOn(ship, carrot);
+            var v = ShipAutopilot.Travel(ship, carrot, null, out float clear);
             demo.autoRudder = v.x;
             demo.autoPitch = v.y;
             // in cruise all the way (it slows by itself near a station, and lower down), the
@@ -313,7 +313,7 @@ namespace CarrierGame.Demo
             if (pf != null) pf.autoCruise = true;
             float top = pf != null && pf.TopSpeed > 0f ? pf.TopSpeed : ship.maxSpeed;
             float want = Mathf.Max(dist / 6f, ship.maxSpeed * 0.4f);
-            ship.throttle = Mathf.Clamp(want / Mathf.Max(1f, top), 0.02f, 1f);
+            ship.throttle = Mathf.Clamp(want / Mathf.Max(1f, top), 0.02f, 1f) * clear;
             throttleSet = ship.throttle;
             bool far = pf != null && pf.Cruising && ship.Speed > ship.maxSpeed * 1.5f;
             Phase = far ? $"cruising, {CombatMode.Distance(dist)} to go" : $"coming in, {CombatMode.Distance(dist)} to go";
@@ -423,11 +423,11 @@ namespace CarrierGame.Demo
             }
             // (round to the open side of the berth first: not through the rock it is dug into)
             else aim = inst.ApproachPoint(ship.transform.position);
-            var v = ShipAutopilot.BowOn(ship, aim);
+            var v = ShipAutopilot.Travel(ship, aim, null, out float clear);
             demo.autoRudder = v.x;
             demo.autoPitch = v.y;
             float d = Vector3.Distance(ship.transform.position, aim);
-            ship.throttle = d > 3000f ? 0.6f : 0.3f;
+            ship.throttle = (d > 3000f ? 0.6f : 0.3f) * clear;
             throttleSet = ship.throttle;
             if (Time.time >= backOffUntil) Phase = "closing on the berth";
         }

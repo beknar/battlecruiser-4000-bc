@@ -58,8 +58,10 @@ namespace CarrierGame.Demo
                 while (Time.time < mu && MusicDirector.Cycles == cycles0) yield return null;
                 yield return new WaitForSeconds(1f);
                 string song1 = MusicDirector.NowPlaying;
+                // (the songs are picked at random: logged apart, so the check reads the same every run)
+                Log($"  the music: '{song0}' to '{song1}'");
                 Check(MusicDirector.Cycles > cycles0 && song1 != song0 && music.cycleMin >= 30f && music.cycleMax <= 180f,
-                      $"the music changes track, crossfading (every {music.cycleMin:0}-{music.cycleMax:0} s): '{song0}' to '{song1}'");
+                      $"the music changes track, crossfading (every {music.cycleMin:0}-{music.cycleMax:0} s)");
                 int cycles1 = MusicDirector.Cycles;
                 yield return Keys(kb, K.LeftShift, K.N);
                 yield return new WaitForSeconds(1f);

@@ -7,6 +7,7 @@ import subprocess
 import sys
 import threading
 import unittest
+import urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -18,7 +19,7 @@ import coop_ai_mcp as M  # noqa: E402
 
 class FakeBot(BaseHTTPRequestHandler):
     """The bot game's API, as far as the tests need it: answers, and remembers what it was sent."""
-    said, orders = [], []
+    said, orders, queries = [], [], []
 
     def log_message(self, *a):
         pass
@@ -35,9 +36,13 @@ class FakeBot(BaseHTTPRequestHandler):
         if self.path == "/status":
             self.reply(200, {"name": "Wingman", "connected": True, "order": {"order": "hold"}})
         elif self.path.startswith("/messages"):
-            after = int(self.path.split("after=")[1])
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            FakeBot.queries.append(q)
+            after = int(q["after"][0])
             msgs = [{"seq": i, "from": "Ann", "text": f"m{i}"} for i in range(1, 4) if i > after]
             self.reply(200, {"last": 3, "messages": msgs})
+        elif self.path == "/cargo":
+            self.reply(200, {"capacity_t": 600, "used_t": 46, "credits": 918, "items": [{"id": "Iron", "amount": 46}]})
         elif self.path == "/destinations":
             self.reply(200, {"destinations": [{"name": "Ochre", "kind": "Planet", "km": 12.5}]})
         else:
@@ -75,7 +80,8 @@ class Protocol(unittest.TestCase):
     def test_tools_are_listed_with_schemas(self):
         tools = M.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})["result"]["tools"]
         names = [t["name"] for t in tools]
-        self.assertEqual(names, ["status", "read_messages", "say", "order", "destinations", "launch_bot", "stop_bot"])
+        self.assertEqual(names, ["status", "read_messages", "wait_messages", "cargo", "give_credits", "say", "order", "destinations",
+                                 "launch_bot", "stop_bot"])
         order = next(t for t in tools if t["name"] == "order")
         self.assertEqual(order["inputSchema"]["required"], ["order"])
         self.assertEqual(order["inputSchema"]["properties"]["order"]["enum"], M.ORDERS)
@@ -133,6 +139,7 @@ class Tools(unittest.TestCase):
         M.cursor = 0
         FakeBot.said.clear()
         FakeBot.orders.clear()
+        FakeBot.queries.clear()
 
     def test_status(self):
         r = call("status")
@@ -146,6 +153,44 @@ class Tools(unittest.TestCase):
         self.assertEqual(again["messages"], [])
         older = json.loads(body(call("read_messages", {"after": 1})))
         self.assertEqual([m["seq"] for m in older["messages"]], [2, 3])
+
+    def test_reading_marks_a_listener(self):
+        call("read_messages")
+        self.assertEqual(FakeBot.queries[-1]["listener"], ["1"])
+
+    def test_wait_messages_waits_from_the_last_read_and_caps_the_wait(self):
+        first = json.loads(body(call("wait_messages", {"timeout": 5})))
+        self.assertEqual([m["seq"] for m in first["messages"]], [1, 2, 3])
+        self.assertEqual(FakeBot.queries[-1]["wait"], ["5"])
+        self.assertEqual(FakeBot.queries[-1]["listener"], ["1"])
+        call("wait_messages", {"timeout": 9999})
+        self.assertEqual(FakeBot.queries[-1]["after"], ["3"])
+        self.assertEqual(FakeBot.queries[-1]["wait"], [str(M.WAIT_MAX)])
+
+    def test_cargo(self):
+        r = call("cargo")
+        self.assertFalse(r["result"]["isError"])
+        self.assertEqual(json.loads(body(r))["credits"], 918)
+
+    def test_give_credits_is_the_give_order(self):
+        self.assertFalse(call("give_credits", {"amount": "500", "to": "Ann"})["result"]["isError"])
+        self.assertFalse(call("give_credits", {})["result"]["isError"])
+        self.assertFalse(call("give_credits", {"amount": 250.7})["result"]["isError"])
+        self.assertEqual(FakeBot.orders, [{"order": "give", "target": "500 to Ann"}, {"order": "give", "target": "all"},
+                                          {"order": "give", "target": "250"}])
+        self.assertTrue(call("give_credits", {"amount": "lots"})["result"]["isError"])
+        self.assertTrue(call("give_credits", {"amount": "0"})["result"]["isError"])
+        self.assertTrue(call("give_credits", {"amount": "inf"})["result"]["isError"])
+        self.assertFalse(call("give_credits", {"amount": "1,500"})["result"]["isError"])
+        self.assertEqual(FakeBot.orders[-1], {"order": "give", "target": "1500"})
+
+    def test_a_restarted_bot_game_is_read_from_its_first_message(self):
+        M.cursor = 50          # (the old game had got that far; the fake one is at 3)
+        r = json.loads(body(call("read_messages")))
+        self.assertEqual([m["seq"] for m in r["messages"]], [1, 2, 3])
+        M.cursor = 50
+        r = json.loads(body(call("wait_messages", {"timeout": 1})))
+        self.assertEqual([m["seq"] for m in r["messages"]], [1, 2, 3])
 
     def test_say_and_order_reach_the_game(self):
         self.assertFalse(call("say", {"text": " on my way "})["result"]["isError"])
@@ -178,6 +223,17 @@ class Tools(unittest.TestCase):
 
     def test_stop_bot_with_nothing_running(self):
         self.assertTrue(call("stop_bot")["result"]["isError"])
+
+
+class Listener(unittest.TestCase):
+    def test_lines_and_what_is_printed(self):
+        import listen
+        m = {"seq": 7, "from": "Ann", "to_me": True, "mine": False, "text": "how's the hold?"}
+        self.assertEqual(listen.line_for(m), "[7] Ann (to wingman): how's the hold?")
+        self.assertTrue(listen.wanted(m, False))
+        self.assertFalse(listen.wanted(dict(m, to_me=False), False))
+        self.assertTrue(listen.wanted(dict(m, to_me=False), True))
+        self.assertFalse(listen.wanted(dict(m, mine=True), True), "the bot's own lines are never news")
 
 
 if __name__ == "__main__":

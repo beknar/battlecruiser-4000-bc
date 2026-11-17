@@ -15,6 +15,8 @@ namespace CarrierGame.Demo
         public string level;
         public string client;
         public int captain;
+        /// <summary>Joined with one of the server's AI keys (the server says so; a game can't).</summary>
+        public bool ai;
     }
 
     /// <summary>One enemy, as the host has it.</summary>
@@ -54,6 +56,8 @@ namespace CarrierGame.Demo
         // damage
         public float a;
         public int kd;
+        // a gift of credits (its number, for the receipt)
+        public int gid;
         // a message on the comms channel
         public string text;
         // the self-test's bot
@@ -98,6 +102,10 @@ namespace CarrierGame.Demo
     /// <summary>A hit on a player's ship, from the host to that player.</summary>
     [Serializable]
     class HitPlayerMsg { public string t = CoopWire.HitPlayer; public int to; public float a; public string rf = ""; public double x, y, z; public int kd; }
+
+    /// <summary>Credits for one player (from the AI wingman's hold to theirs).</summary>
+    [Serializable]
+    class GiftMsg { public string t = CoopWire.Gift; public int to, gid; public float a; public double ts; }
 
     /// <summary>For the self-test's bot: what this game can see (enemy ids and such).</summary>
     [Serializable]

@@ -70,6 +70,8 @@ namespace CarrierGame.Demo
         // message's count is n)
         public int bd;
         public bool cpt;
+        // a player's ship: its paint (PaintScheme.ToCode; "" or left out: unpainted)
+        public string pt;
         // an artillery shell's aim (a fire message of kind "shell": from the reach arf)
         public double ax, ay, az;
         public string arf = "";
@@ -111,6 +113,9 @@ namespace CarrierGame.Demo
         /// dead: no explosion in the other games).</summary>
         public int bd;
         public bool cpt;
+        /// <summary>Its paint (ShipPaint: PaintScheme.ToCode, "" unpainted; older games leave
+        /// it out, and ignore it).</summary>
+        public string pt = "";
     }
 
     /// <summary>The enemies, from the host to everyone else in the room.</summary>

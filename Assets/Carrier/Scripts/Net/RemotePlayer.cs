@@ -59,6 +59,19 @@ namespace CarrierGame.Demo
 
         public void Rename(string name) => Name = name;
 
+        /// <summary>The paint their ship wears (PaintScheme code, "" unpainted; null until heard).</summary>
+        public string Paint { get; private set; }
+
+        /// <summary>Paint the ship as its player's is (when it changes: it comes with every update).
+        /// "" or nothing (an older game): the hull as it was built, even on a copy of my own ship.</summary>
+        public void SetPaint(string code)
+        {
+            code ??= "";
+            if (code == Paint) return;
+            Paint = code;
+            ShipPaint.Apply(gameObject, code.Length > 0 ? ShipPaint.FromText(code) : null, Frigate);
+        }
+
         public void Push(CoopMsg m)
         {
             LastHeard = Time.unscaledTime;

@@ -39,6 +39,7 @@ namespace CarrierGame.Demo
                 sy = ShipSystems.ToWire(me.GetComponent<ShipSystems>()),
                 bd = Boarders.CountOn(me.transform),
                 cpt = me.Captured,
+                pt = ShipPaint.PlayerCode,
             });
         }
 

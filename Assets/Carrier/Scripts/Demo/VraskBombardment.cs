@@ -238,16 +238,21 @@ namespace CarrierGame.Demo
             return r;
         }
 
-        // the siege breaker's order: guns and missile sites, then bases and sea bases, then the rest
+        // the siege breaker's order: guns and missile sites (and the launchers that move about),
+        // then bases, sea bases and warships, then the rest (tanks, LAVs, submarines, patrols)
         static int Rank(OrbitalStrikes.Defence d)
         {
             switch (d.kind)
             {
                 case UnitKind.Battery:
-                case UnitKind.MissileSite: return 0;
+                case UnitKind.MissileSite:
+                case UnitKind.MobileLauncher: return 0;
                 case UnitKind.SeaBase:
+                case UnitKind.Warship:
                 case UnitKind.PadGunship:
                 case UnitKind.PadFighter: return 1;
+                case UnitKind.Tank:
+                case UnitKind.Lav: return 2;
                 default: return 2;
             }
         }

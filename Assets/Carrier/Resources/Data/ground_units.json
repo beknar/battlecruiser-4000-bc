@@ -39,5 +39,26 @@
         "cruiseSpeed": 100, "attackSpeed": 130, "turnRate": 18, "acceleration": 25,
         "standoff": 1800, "circleSpeed": 4,
         "leashDistance": 11000, "climb": 320, "rebuildMinutes": 15
+    },
+    "lav": {
+        "name": "Pirate LAV", "shipClass": "Light armoured vehicle", "weapons": "Auto-cannon", "threat": "Low",
+        "hull": 200, "explosion": 0.55, "rebuildMinutes": 8,
+        "gunRange": 2600, "burstInterval": 2.2, "burstShots": 5, "shotSpacing": 0.12, "spread": 1.8, "fireArc": 180, "gunDamage": 12,
+        "cruiseSpeed": 16, "attackSpeed": 42, "turnRate": 70, "standoff": 1100
+    },
+    "mobileLauncher": {
+        "name": "Mobile Launcher", "shipClass": "Mobile missile launcher", "weapons": "Guided missile salvoes", "threat": "High",
+        "hull": 260, "explosion": 0.8, "rebuildMinutes": 12,
+        "missileRange": 6000, "salvoInterval": 6, "salvoSize": 4, "missileDamage": 120,
+        "cruiseSpeed": 9, "attackSpeed": 20, "turnRate": 35, "standoff": 3500,
+        "driveTime": 10, "raiseTime": 3, "salvosPerStop": 2
+    },
+    "warship": {
+        "name": "Pirate Gunboat", "shipClass": "Surface patrol ship", "weapons": "Twin deck guns, anti-air missiles", "threat": "High",
+        "hull": 1100, "explosion": 1.2, "rebuildMinutes": 20,
+        "gunRange": 3800, "burstInterval": 3, "burstShots": 2, "shotSpacing": 0.3, "spread": 1.0, "fireArc": 180, "gunDamage": 30,
+        "missileRange": 5500, "salvoInterval": 12, "salvoSize": 2, "missileDamage": 110,
+        "cruiseSpeed": 10, "attackSpeed": 18, "turnRate": 9, "standoff": 1800, "loiterRadius": 600,
+        "minDepth": 25
     }
 }

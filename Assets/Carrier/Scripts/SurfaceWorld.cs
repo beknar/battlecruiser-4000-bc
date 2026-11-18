@@ -98,8 +98,9 @@ namespace CarrierGame
     public enum SiteKind { None, Outpost, Base }
 
     /// <summary>The ground forces of a hostile world (and, on a water world, its sea forces: a base
-    /// on the sea floor that launches torpedoes, and submarines).</summary>
-    public enum UnitKind { Battery, MissileSite, Tank, Patrol, PadFighter, PadGunship, SeaBase, Submarine }
+    /// on the sea floor that launches torpedoes, submarines, and warships on the surface). New
+    /// kinds go on the end: the numbers are kept in saves.</summary>
+    public enum UnitKind { Battery, MissileSite, Tank, Patrol, PadFighter, PadGunship, SeaBase, Submarine, Lav, MobileLauncher, Warship }
 
     public struct UnitSpot
     {
@@ -642,6 +643,44 @@ namespace CarrierGame
                         for (int k = 0; k < 3; k++) { var p = Anywhere(); Add(UnitKind.SeaBase, p.Item1, p.Item2, (float)(R01() * 360.0)); }
                     int subs = rng.Next(1, 3);
                     for (int k = 0; k < subs; k++) { var p = Anywhere(); Add(UnitKind.Submarine, p.Item1, p.Item2, (float)(R01() * 360.0)); }
+                }
+                // the light vehicles, the mobile launchers and the warships: drawn after everything
+                // above, so that what was there before (and what of it was destroyed) stays as it was
+                if (f.site == SiteKind.Base && f.baseName != null)
+                {
+                    // the fortress's own: a troop of LAVs and two launchers outside its walls
+                    float a0 = f.siteYaw * Mathf.Deg2Rad;
+                    for (int k = 0; k < 4; k++)
+                    {
+                        double a = a0 - 2.4 + k * 0.22;
+                        Add(UnitKind.Lav, f.su + Math.Cos(a) * 900.0, f.sv + Math.Sin(a) * 900.0, (float)(R01() * 360.0));
+                    }
+                    for (int k = 0; k < 2; k++)
+                    {
+                        double a = a0 + Math.PI * 0.5 + k * Math.PI;
+                        Add(UnitKind.MobileLauncher, f.su + Math.Cos(a) * 1050.0, f.sv + Math.Sin(a) * 1050.0, (float)(R01() * 360.0));
+                    }
+                    if (kind == SurfaceKind.Ocean)
+                        // its warships, off the coast (where the water is deep enough: GroundForces)
+                        for (int k = 0; k < 3; k++)
+                        {
+                            double a = a0 + 0.6 + k * Math.PI * 2.0 / 3.0;
+                            Add(UnitKind.Warship, f.su + Math.Cos(a) * 1300.0, f.sv + Math.Sin(a) * 1300.0, (float)(R01() * 360.0));
+                        }
+                }
+                else if (R01() < 0.35)
+                {
+                    // LAVs on patrol in the open, and now and then a launcher with them
+                    var p = Anywhere();
+                    int lavs = rng.Next(2, 4);
+                    for (int k = 0; k < lavs; k++) Add(UnitKind.Lav, p.Item1 + k * 45.0, p.Item2 - k * 35.0, (float)(R01() * 360.0));
+                    if (R01() < 0.5) Add(UnitKind.MobileLauncher, p.Item1 - 120.0, p.Item2 + 90.0, (float)(R01() * 360.0));
+                }
+                if (kind == SurfaceKind.Ocean)
+                {
+                    // warships on patrol (only those in deep enough water are built)
+                    int ships = rng.Next(1, 4);
+                    for (int k = 0; k < ships; k++) { var p = Anywhere(); Add(UnitKind.Warship, p.Item1, p.Item2, (float)(R01() * 360.0)); }
                 }
             }
             return f;

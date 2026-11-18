@@ -895,8 +895,13 @@ system to travel around.
     ship by sonar, and attack submarines, which patrol until their garrison is alerted, then
     hunt the nearest player ship, in the water or afloat. Their torpedoes keep under the
     surface, so they can't reach a ship in the air. A torpedo has no rocket flame: it trails
-    bubbles, and draws a line of foam on the surface when it runs shallow. Their numbers are in
-    `Assets/Carrier/Resources/Data/ground_units.json` (`seaBase`, `submarine`).
+    bubbles, and draws a line of foam on the surface when it runs shallow. On the surface,
+    pirate gunboats (a hull with a bridge, mast and funnel, a gun turret fore and aft and a box
+    of anti-air missiles) patrol wherever the water is at least 25 m deep, two or three off a
+    hostile base on the coast and more out at sea. Alerted, they go for a ship afloat or low
+    over the water, circling at 1.8 km while their guns and missiles fire, and they turn away
+    from the shallows. Every hostile water world has them (Pelagia, Judecca). Their numbers are
+    in `Assets/Carrier/Resources/Data/ground_units.json` (`seaBase`, `submarine`, `warship`).
 - **Flying down.** The frigate can be flown all the way down to a planet or moon and back up,
   with no break:
   - **Up** is out from the body near it. The ship flies level over the ground wherever it is
@@ -994,6 +999,14 @@ system to travel around.
   - gun batteries (a heavy triple turret on a bunker);
   - missile sites;
   - hover tanks that patrol and then chase the frigate;
+  - pirate LAVs: six-wheeled light armoured vehicles with a small auto-cannon turret, faster
+    and lighter than the tanks, that keep to dry land. A fortress has four, and troops of two
+    or three patrol the open ground;
+  - mobile missile launchers: trucks with a box of missile tubes on a turntable. Alerted, one
+    drives toward the frigate, stops once it is in range (6 km), raises its launcher, fires
+    two salvoes of four missiles, lowers it and moves on. A fortress has two, and now and then
+    one goes with a patrol of LAVs;
+  - on a water world, gunboats on the sea (above);
   - fighters on patrol overhead;
   - bases, whose launch pads hold fighters, and sometimes a gunship, that lift off when the
     alarm goes up.
@@ -1001,8 +1014,9 @@ system to travel around.
   An area's forces all go to action stations when one of them sees the frigate within
   5.5 km (hills hide it) or is hit. They stand down when it has gone. Each one can be
   targeted. What is destroyed stays destroyed until it is rebuilt, whether or not anyone is
-  there: a tank or a fighter in about 10 minutes of game time, a battery or missile site in 20,
-  a submarine in 15, a sea base in 30 (`rebuildMinutes` in `ground_units.json`). Landing again
+  there: a tank or a fighter in about 10 minutes of game time, a LAV in 8, a mobile launcher in
+  12, a battery, missile site or gunboat in 20, a submarine in 15, a sea base in 30
+  (`rebuildMinutes` in `ground_units.json`). Landing again
   after that finds it back.
 
   Each world has its own sky, fog and light. Where people live (Ochre, Thalassa, Jovara and
@@ -2071,7 +2085,8 @@ Each part can also be run alone:
   levelling off, splashing down (with spray and foam), sailing (with a wake), diving (the water
   churning), the underwater view and speed, the surface hiding the ship, surfacing, lifting off
   the water and launching from under it, the sea bases and submarines, their torpedoes (no
-  flame, bubbles) and the ship's guns hitting a base under the water.
+  flame, bubbles) and the ship's guns hitting a base under the water, and the gunboats: on the
+  surface, cruising, going for the ship afloat and firing at it, and remembered when sunk.
 
   Add `-crewtest` (or `?crewtest` on the web) to test only the crew and the settlements: that
   the pause menu offers no other frigate, that hull damage costs crew and more than 10% lost
@@ -2190,7 +2205,8 @@ Each part can also be run alone:
   and that the warp drive and landing are locked while docked. It flies in on Corsair Haven and
   the orbital battery until their guns open up, fights, destroys a gun and a platform, and
   leaves until they stand down. It lands at both surface bases, checking their buildings and
-  ground forces. It checks the garbage is collected on every landing, take-off and restart.
+  ground forces; at Cinder Fortress, that its LAVs drive and a mobile launcher stops, raises
+  its launcher and fires. It checks the garbage is collected on every landing, take-off and restart.
 - `CarrierDemo.exe -reel <dir>` (or `AsteroidAmbush.exe` / `StarSystem.exe`): records a demo reel
   (60 s, 76 s for the ambush or about 215 s for the star system) at 30 fps as JPG frames plus a WAV
   soundtrack, then quits. Add `-features` to `StarSystem.exe -reel <dir>` for the feature reel

@@ -122,8 +122,11 @@ namespace CarrierGame.Tests
         {
             var t = GroundUnitTable.Get();
             foreach (var (kind, s) in new[] { ("battery", t.battery), ("missile site", t.missileSite), ("tank", t.tank), ("fighter", t.fighter),
-                                              ("gunship", t.gunship), ("sea base", t.seaBase), ("submarine", t.submarine) })
+                                              ("gunship", t.gunship), ("sea base", t.seaBase), ("submarine", t.submarine),
+                                              ("LAV", t.lav), ("mobile launcher", t.mobileLauncher), ("warship", t.warship) })
                 Assert.That(s.rebuildMinutes, Is.GreaterThan(0f), kind);
+            foreach (UnitKind k in System.Enum.GetValues(typeof(UnitKind)))
+                Assert.That(GroundForces.RebuildMinutesOf(k), Is.GreaterThan(0f), k.ToString());
         }
     }
 }

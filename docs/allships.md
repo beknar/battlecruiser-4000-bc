@@ -342,4 +342,10 @@ game's target read-outs.
   hours and half its people left are killed. Destroy the Maw to stop it for half an hour. In
   co-op every game in the star system applies the host's strikes (one in another level when the host strikes doesn't).
 - **Ground defences:** batteries, missile sites, hover tanks, sea bases and submarines on the
-  planets (`ground_units.json`).
+  planets (`ground_units.json`), and:
+
+  | Unit | What it is | Hull | Speed (patrol / chase) | Weapons |
+  |---|---|---|---|---|
+  | Pirate LAV | Six-wheeled light armoured vehicle with a small turret; keeps to dry land. Four with a fortress, troops of 2-3 on patrol | 200 | 16 / 42 m/s | Auto-cannon, bursts of 5 (12 each), 2.6 km |
+  | Mobile Launcher | Truck with a tilting box of six missile tubes on a turntable: drives, stops, raises it, fires, lowers it, moves on. Two with a fortress | 260 | 9 / 20 m/s | 2 salvoes of 4 guided missiles (120 each) a stop, 6 km |
+  | Pirate Gunboat | Surface patrol ship on a hostile water world's sea, in 25 m of water or more: bridge, mast, funnel, a gun fore and aft, anti-air missile box. 2-3 off a coastal base, more on patrol | 1100 | 10 / 18 m/s | Twin deck guns (30 each), 3.8 km; 2 anti-air missiles (110 each) every 12 s, 5.5 km |

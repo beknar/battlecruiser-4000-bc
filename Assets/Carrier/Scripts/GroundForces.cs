@@ -8,9 +8,10 @@ namespace CarrierGame
     /// <summary>
     /// The ground forces of a hostile world, built with each area of its surface (and gone with
     /// it): gun batteries (a heavy triple turret on a bunker), missile sites, hover tanks that
-    /// patrol and chase, fighters on patrol overhead, and bases whose launch pads hold fighters
-    /// (and sometimes a gunship) that take off when the alarm goes up. Anything destroyed stays
-    /// destroyed when the area is built again.
+    /// patrol and chase, fast wheeled LAVs, mobile missile launchers that stop to fire, fighters
+    /// on patrol overhead, and bases whose launch pads hold fighters (and sometimes a gunship)
+    /// that take off when the alarm goes up; at sea, torpedo bases, submarines and surface
+    /// warships. Anything destroyed stays destroyed until it is rebuilt in its time.
     /// </summary>
     public static class GroundForces
     {
@@ -44,6 +45,20 @@ namespace CarrierGame
                         break;
                     case UnitKind.Tank:
                         go = Tank(kit, area, surface, ground, yaw);
+                        break;
+                    case UnitKind.Lav:
+                        // (on wheels: on dry land only)
+                        if (ground.y < sea + 1f) continue;
+                        go = Lav(kit, area, surface, ground, yaw);
+                        break;
+                    case UnitKind.MobileLauncher:
+                        if (ground.y < sea + 1f) continue;
+                        go = MobileLauncher(kit, area, surface, ground, yaw);
+                        break;
+                    case UnitKind.Warship:
+                        // on the surface of water deep enough for its keel
+                        if (float.IsNegativeInfinity(sea) || Stats.warship == null || sea - ground.y < Stats.warship.minDepth) continue;
+                        go = Warship(kit, area, surface, ground, sea, yaw);
                         break;
                     case UnitKind.SeaBase:
                         // one to an area, on a sea floor deep enough to hide it
@@ -179,6 +194,9 @@ namespace CarrierGame
                 case UnitKind.PadGunship: return t.gunship?.rebuildMinutes ?? 0f;
                 case UnitKind.SeaBase: return t.seaBase?.rebuildMinutes ?? 0f;
                 case UnitKind.Submarine: return t.submarine?.rebuildMinutes ?? 0f;
+                case UnitKind.Lav: return t.lav?.rebuildMinutes ?? 0f;
+                case UnitKind.MobileLauncher: return t.mobileLauncher?.rebuildMinutes ?? 0f;
+                case UnitKind.Warship: return t.warship?.rebuildMinutes ?? 0f;
             }
             return 0f;
         }
@@ -295,6 +313,216 @@ namespace CarrierGame
             v.turret = turret;
             Hull(go, kit, s);
             Identity(go, s, TargetInfo.Kind.Fighter);
+            go.SetActive(true);
+            return go;
+        }
+
+        /// <summary>Wheels down each side of a hull, one pair at each of `zs`.</summary>
+        static void Wheels(SurfaceKit kit, Transform body, float x, float y, float[] zs, float size, float width)
+        {
+            foreach (var z in zs)
+                for (int side = -1; side <= 1; side += 2)
+                    Part(PrimitiveType.Cylinder, body, "Wheel", new Vector3(side * x, y, z), new Vector3(size, width * 0.5f, size), kit.bunker, new Vector3(0f, 0f, 90f));
+        }
+
+        /// <summary>A gun firing bursts, from the numbers (its prefab already set).</summary>
+        static void Guns(EnemyWeapons w, GroundUnitStats s)
+        {
+            w.gunRange = s.gunRange;
+            w.burstInterval = s.burstInterval;
+            w.burstShots = s.burstShots;
+            w.shotSpacing = s.shotSpacing;
+            w.spread = s.spread;
+            w.fireArc = s.fireArc;
+            w.gunDamage = s.gunDamage;
+            w.holdFire = 0f;
+            w.weaponsFree = false;
+        }
+
+        /// <summary>How a ground vehicle drives, from the numbers (what they leave out stays as it is).</summary>
+        static void Drive(GroundVehicle v, GroundUnitStats s)
+        {
+            if (s.cruiseSpeed > 0f) v.patrolSpeed = s.cruiseSpeed;
+            if (s.attackSpeed > 0f) v.chaseSpeed = s.attackSpeed;
+            if (s.turnRate > 0f) v.turnRate = s.turnRate;
+            if (s.standoff > 0f) v.standoff = s.standoff;
+        }
+
+        /// <summary>A light armoured vehicle: a six-wheeled box with a sloped nose and a small turret
+        /// with an auto-cannon. Faster and lighter than the tank, it keeps to dry land.</summary>
+        static GameObject Lav(SurfaceKit kit, Transform area, PlanetSurface surface, Vector3 ground, float yaw)
+        {
+            var s = Stats.lav;
+            if (s == null) return null;
+            var go = new GameObject("Pirate LAV");
+            go.SetActive(false);
+            go.transform.SetParent(area, false);
+            go.transform.SetPositionAndRotation(ground + Vector3.up * 3f, Quaternion.Euler(0f, yaw, 0f));
+            var body = new GameObject("Body").transform;
+            body.SetParent(go.transform, false);
+            Part(PrimitiveType.Cube, body, "Hull", new Vector3(0f, 0.2f, 0f), new Vector3(6.4f, 2.4f, 13f), kit.armor);
+            Part(PrimitiveType.Cube, body, "Nose", new Vector3(0f, 0.1f, 6.9f), new Vector3(6f, 1.8f, 2.6f), kit.armor, new Vector3(35f, 0f, 0f));
+            Part(PrimitiveType.Cube, body, "Belly", new Vector3(0f, -1.1f, 0f), new Vector3(5.2f, 0.8f, 12f), kit.bunker);
+            Wheels(kit, body, 3.5f, -1.5f, new[] { -4.4f, 0f, 4.4f }, 2.8f, 1.1f);
+            var turret = new GameObject("Turret").transform;
+            turret.SetParent(body, false);
+            turret.localPosition = new Vector3(0f, 1.9f, -0.5f);
+            Part(PrimitiveType.Cube, turret, "Turret", Vector3.zero, new Vector3(3.2f, 1.2f, 3.6f), kit.armor);
+            Part(PrimitiveType.Cylinder, turret, "Auto-cannon", new Vector3(0f, 0.1f, 3.8f), new Vector3(0.45f, 2.4f, 0.45f), kit.bunker, new Vector3(90f, 0f, 0f));
+            var col = go.AddComponent<BoxCollider>();
+            col.center = new Vector3(0f, 0.3f, 0f);
+            col.size = new Vector3(8f, 5f, 15f);
+            var w = go.AddComponent<EnemyWeapons>();
+            w.gunPrefab = kit.cannon != null ? kit.cannon : kit.blaster;
+            Guns(w, s);
+            var v = go.AddComponent<GroundVehicle>();
+            v.surface = surface;
+            v.body = body;
+            v.turret = turret;
+            v.wheeled = true;
+            v.hover = 2.9f;          // (its wheels on the ground)
+            v.acceleration = 14f;
+            Drive(v, s);
+            Hull(go, kit, s);
+            Identity(go, s, TargetInfo.Kind.Fighter);
+            go.SetActive(true);
+            return go;
+        }
+
+        /// <summary>A mobile missile launcher: a six-wheeled truck, its cab at the front, and on a
+        /// turntable behind it a box of missile tubes that tilts up to fire (MobileLauncher).</summary>
+        static GameObject MobileLauncher(SurfaceKit kit, Transform area, PlanetSurface surface, Vector3 ground, float yaw)
+        {
+            var s = Stats.mobileLauncher;
+            if (kit.missile == null || s == null) return null;
+            var go = new GameObject("Mobile Launcher");
+            go.SetActive(false);
+            go.transform.SetParent(area, false);
+            go.transform.SetPositionAndRotation(ground + Vector3.up * 3f, Quaternion.Euler(0f, yaw, 0f));
+            var body = new GameObject("Body").transform;
+            body.SetParent(go.transform, false);
+            Part(PrimitiveType.Cube, body, "Chassis", new Vector3(0f, -0.4f, 0f), new Vector3(5.6f, 1.2f, 17f), kit.bunker);
+            Part(PrimitiveType.Cube, body, "Cab", new Vector3(0f, 1.6f, 6.6f), new Vector3(5.8f, 3.2f, 3.8f), kit.armor);
+            Part(PrimitiveType.Cube, body, "Windscreen", new Vector3(0f, 2.3f, 8.55f), new Vector3(4.8f, 1.1f, 0.2f), kit.bunker);
+            Part(PrimitiveType.Cube, body, "Bed", new Vector3(0f, 0.45f, -2.2f), new Vector3(5.8f, 0.5f, 12f), kit.armor);
+            Wheels(kit, body, 3.1f, -1.5f, new[] { -6f, -2.8f, 6f }, 3f, 1.2f);
+            var turret = new GameObject("Turntable").transform;
+            turret.SetParent(body, false);
+            turret.localPosition = new Vector3(0f, 1.1f, -2.5f);
+            Part(PrimitiveType.Cylinder, turret, "Ring", Vector3.zero, new Vector3(4.6f, 0.4f, 4.6f), kit.bunker);
+            Part(PrimitiveType.Cube, turret, "Strut", new Vector3(0f, 0.8f, 1f), new Vector3(1.2f, 1.2f, 1.2f), kit.bunker);
+            // the box hinges at its back: down, it lies along the bed pointing forward over the cab
+            var hinge = new GameObject("Launcher").transform;
+            hinge.SetParent(turret, false);
+            hinge.localPosition = new Vector3(0f, 1.2f, -3.6f);
+            Part(PrimitiveType.Cube, hinge, "Tubes", new Vector3(0f, 0.6f, 4.6f), new Vector3(4.6f, 2.4f, 9.2f), kit.armor);
+            for (int i = 0; i < 6; i++)
+                Part(PrimitiveType.Cylinder, hinge, "Tube", new Vector3(-1.5f + (i % 3) * 1.5f, 0.05f + (i / 3) * 1.1f, 9.25f),
+                     new Vector3(1.1f, 0.08f, 1.1f), kit.warning, new Vector3(90f, 0f, 0f));
+            var mouth = new GameObject("Mouth").transform;
+            mouth.SetParent(hinge, false);
+            mouth.localPosition = new Vector3(0f, 0.6f, 9.6f);
+            Light(body, new Vector3(0f, 3.5f, 6.6f), kit.warning, 40f);
+            var col = go.AddComponent<BoxCollider>();
+            col.center = new Vector3(0f, 1f, 0f);
+            col.size = new Vector3(7f, 6f, 18f);
+            var w = go.AddComponent<EnemyWeapons>();
+            w.missilePrefab = kit.missile;
+            w.missileRange = s.missileRange;
+            w.salvoInterval = s.salvoInterval;
+            w.salvoSize = s.salvoSize;
+            w.missileDamage = s.missileDamage;
+            w.missilesOnCue = true;     // (only from a stop, its launcher up: MobileLauncher)
+            w.missileMouth = mouth;
+            w.holdFire = 0f;
+            w.weaponsFree = false;
+            var v = go.AddComponent<GroundVehicle>();
+            v.surface = surface;
+            v.body = body;
+            v.turret = turret;
+            v.wheeled = true;
+            v.hover = 3f;
+            v.turretTracks = false;
+            Drive(v, s);
+            var ml = go.AddComponent<MobileLauncher>();
+            ml.vehicle = v;
+            ml.weapons = w;
+            ml.launcher = hinge;
+            if (s.raiseTime > 0f) ml.raiseTime = s.raiseTime;
+            if (s.driveTime > 0f) ml.driveTime = s.driveTime;
+            if (s.salvoInterval > 0f) ml.salvoInterval = s.salvoInterval;
+            if (s.salvosPerStop > 0) ml.salvosPerStop = s.salvosPerStop;
+            Hull(go, kit, s);
+            Identity(go, s, TargetInfo.Kind.Fighter);
+            go.SetActive(true);
+            return go;
+        }
+
+        /// <summary>A surface warship: a long hull with a pointed bow, a superstructure with its
+        /// bridge, mast and funnel amidships, a gun turret fore and aft, and a box of anti-air
+        /// missile cells abaft the funnel. It rides at the surface (Warship).</summary>
+        static GameObject Warship(SurfaceKit kit, Transform area, PlanetSurface surface, Vector3 ground, float sea, float yaw)
+        {
+            var s = Stats.warship;
+            if (s == null) return null;
+            var go = new GameObject("Pirate Gunboat");
+            go.SetActive(false);
+            go.transform.SetParent(area, false);
+            const float ride = 3f;     // its middle over the surface: the waterline 1.5 m up the hull
+            go.transform.SetPositionAndRotation(new Vector3(ground.x, sea + ride, ground.z), Quaternion.Euler(0f, yaw, 0f));
+            Part(PrimitiveType.Cube, go.transform, "Hull", new Vector3(0f, -1.5f, -3f), new Vector3(11f, 6f, 54f), kit.bunker);
+            Part(PrimitiveType.Cube, go.transform, "Bow", new Vector3(0f, -1.5f, 24f), new Vector3(7.8f, 6f, 7.8f), kit.bunker, new Vector3(0f, 45f, 0f));
+            Part(PrimitiveType.Cube, go.transform, "Deck", new Vector3(0f, 1.55f, -3f), new Vector3(10.4f, 0.2f, 53f), kit.armor);
+            Part(PrimitiveType.Cube, go.transform, "Superstructure", new Vector3(0f, 4.6f, -1f), new Vector3(7.5f, 6f, 15f), kit.armor);
+            Part(PrimitiveType.Cube, go.transform, "Bridge", new Vector3(0f, 8.6f, 2.5f), new Vector3(8.5f, 2.4f, 5.5f), kit.armor);
+            Part(PrimitiveType.Cube, go.transform, "Bridge windows", new Vector3(0f, 8.9f, 5.3f), new Vector3(7.6f, 0.8f, 0.2f), kit.bunker);
+            Part(PrimitiveType.Cylinder, go.transform, "Mast", new Vector3(0f, 13.5f, 0.5f), new Vector3(0.7f, 4.5f, 0.7f), kit.bunker);
+            Part(PrimitiveType.Cube, go.transform, "Radar", new Vector3(0f, 16.5f, 0.5f), new Vector3(4.5f, 0.6f, 0.9f), kit.bunker);
+            Part(PrimitiveType.Cylinder, go.transform, "Funnel", new Vector3(0f, 9f, -5.5f), new Vector3(3.2f, 2.6f, 3.2f), kit.bunker);
+            Light(go.transform, new Vector3(0f, 18.2f, 0.5f), kit.warning, 70f);
+            var guns = new Transform[2];
+            for (int k = 0; k < 2; k++)
+            {
+                var gun = new GameObject(k == 0 ? "Fore gun" : "Aft gun").transform;
+                gun.SetParent(go.transform, false);
+                gun.localPosition = new Vector3(0f, 2.3f, k == 0 ? 15f : -21f);
+                gun.localRotation = Quaternion.Euler(0f, k == 0 ? 0f : 180f, 0f);
+                Part(PrimitiveType.Cylinder, gun, "Mount", Vector3.zero, new Vector3(4.6f, 0.9f, 4.6f), kit.armor);
+                Part(PrimitiveType.Cube, gun, "Shield", new Vector3(0f, 1.2f, 0.3f), new Vector3(3.4f, 1.6f, 3.4f), kit.armor);
+                Part(PrimitiveType.Cylinder, gun, "Barrel", new Vector3(0f, 1.3f, 4f), new Vector3(0.55f, 2.6f, 0.55f), kit.bunker, new Vector3(90f, 0f, 0f));
+                guns[k] = gun;
+            }
+            // the anti-air missiles: a box of cells abaft the funnel, tilted up a little
+            Part(PrimitiveType.Cube, go.transform, "Missile box", new Vector3(0f, 3f, -12f), new Vector3(6f, 2.6f, 5f), kit.armor, new Vector3(-20f, 0f, 0f));
+            for (int i = 0; i < 4; i++)
+                Part(PrimitiveType.Cylinder, go.transform, "Cell", new Vector3(-1.5f + (i % 2) * 3f, 4.4f + (i / 2) * 0.8f, -11.5f - (i / 2) * 2.2f),
+                     new Vector3(1.6f, 0.15f, 1.6f), kit.warning, new Vector3(-20f, 0f, 0f));
+            var col = go.AddComponent<BoxCollider>();
+            col.center = new Vector3(0f, 2f, -1f);
+            col.size = new Vector3(12f, 13f, 60f);
+            var w = go.AddComponent<EnemyWeapons>();
+            w.gunPrefab = kit.cannon != null ? kit.cannon : kit.blaster;
+            Guns(w, s);
+            if (kit.missile != null)
+            {
+                w.missilePrefab = kit.missile;
+                w.missileRange = s.missileRange;
+                w.salvoInterval = s.salvoInterval;
+                w.salvoSize = s.salvoSize;
+                w.missileDamage = s.missileDamage;
+            }
+            var ship = go.AddComponent<Warship>();
+            ship.surface = surface;
+            ship.guns = guns;
+            ship.rideHeight = ride;
+            if (s.cruiseSpeed > 0f) ship.cruiseSpeed = s.cruiseSpeed;
+            if (s.attackSpeed > 0f) ship.attackSpeed = s.attackSpeed;
+            if (s.turnRate > 0f) ship.turnRate = s.turnRate;
+            if (s.standoff > 0f) ship.standoff = s.standoff;
+            if (s.loiterRadius > 0f) ship.patrolRadius = s.loiterRadius;
+            if (s.minDepth > 0f) ship.minDepth = s.minDepth;
+            Hull(go, kit, s);
+            Identity(go, s, TargetInfo.Kind.Capital);
             go.SetActive(true);
             return go;
         }

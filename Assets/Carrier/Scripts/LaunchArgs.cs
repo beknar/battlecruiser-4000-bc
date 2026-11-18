@@ -32,6 +32,13 @@ namespace CarrierGame
             return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
         }
 
+        /// <summary>The number after `flag` ("-simlimit 600"), or `fallback` without one.</summary>
+        public static float FloatAfter(string flag, float fallback)
+        {
+            string v = ValueOf(flag);
+            return v != null && float.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float f) ? f : fallback;
+        }
+
         /// <summary>The folder given after `flag` ("-reel D:\out"), or `fallback` when the flag
         /// has none (the next thing is another flag, or nothing).</summary>
         public static string FolderAfter(string flag, string fallback)
@@ -95,7 +102,7 @@ namespace CarrierGame
         {
             get
             {
-                foreach (var m in new[] { "-systemtest", "-reel", "-autotest", "-webpadtest", "-cooptest", "-coopbot" }) if (Has(m)) return true;
+                foreach (var m in new[] { "-systemtest", "-reel", "-autotest", "-webpadtest", "-cooptest", "-coopbot", "-battlesim" }) if (Has(m)) return true;
                 return PageHas("systemtest") || PageHas("padtest");
             }
         }

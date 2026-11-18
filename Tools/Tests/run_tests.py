@@ -494,7 +494,7 @@ class Runner:
             api = free_port(7781)
             try:
                 game = self.start([exe, "-batchmode", "-nographics", "-coopbot", "-connect", f"127.0.0.1:{port}", "-name", "Wingman",
-                                   "-apikey", ai_key, "-botport", api, "-logFile", d / "bot_game.log"], d / "bot_game.out", cwd=exe.parent)
+                                   "-chatmode", "llm", "-apikey", ai_key, "-botport", api, "-logFile", d / "bot_game.log"], d / "bot_game.out", cwd=exe.parent)
                 code = self.play(st, "aibot_test.py", [sys.executable, "-B", "-u", PROJECT / "Tools" / "CoopAI" / "aibot_test.py",
                                                        f"http://127.0.0.1:{api}", f"ws://127.0.0.1:{port}/coop", "Wingman"],
                                  d / "aibot_test.log", 1500, env=dict(os.environ, COOP_KEY=my_key))

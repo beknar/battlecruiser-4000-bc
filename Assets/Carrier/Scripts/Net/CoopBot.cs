@@ -30,7 +30,13 @@ namespace CarrierGame.Demo
     ///   GET  /destinations      the places to warp to, nearest first
     ///   POST /say   {text}      say something on the comms channel
     ///   POST /order {order, target}  follow|hold|attack|goto|regroup|dock|mine|sell
+    ///   GET  /chatmode          who answers talk that isn't an order: {mode, listener_seen_s}
+    ///   POST /chatmode {mode}   llm|personality|paused (or on|off|pause|resume)
     ///   POST /quit              close the game
+    /// Talk to it that isn't an order goes by its chat mode (-chatmode, "Wingman, chat on|off|pause|
+    /// resume", or the API; kept between runs): llm, an LLM reading the channel answers it (the
+    /// built-in personality, WingmanPersonality, while none is reading); personality, the built-in
+    /// personality always; paused, nobody (a "standing by" line at most every 30 s).
     /// Requests are read on a thread of their own and answered on the main thread, a frame later.
     /// </summary>
     public class CoopBot : MonoBehaviour
@@ -56,6 +62,21 @@ namespace CarrierGame.Demo
         float listenerSeen = -1000f, toldOrdersOnly = -1000f;
         /// <summary>Something is reading the channel to answer talk (it read it in the last 90 s).</summary>
         public bool Listened => Time.realtimeSinceStartup - listenerSeen < 90f;
+        /// <summary>Seconds since a listener last read the channel (0 while one waits on it; -1 never).</summary>
+        public float ListenerSeenSeconds => listenerSeen < -999f ? -1f : Mathf.Max(0f, Time.realtimeSinceStartup - listenerSeen);
+
+        /// <summary>Who answers talk to the bot that isn't an order. Llm: the LLM listener reading
+        /// the channel (/messages?listener=1), or the built-in personality while none has read it
+        /// for 90 s. Personality: the built-in personality (WingmanPersonality), never waiting on
+        /// the LLM. Paused: nobody; a "standing by" line at most every 30 s. Orders always work.</summary>
+        public enum ChatMode { Llm, Personality, Paused }
+        public ChatMode Chat { get; private set; } = ChatMode.Llm;
+        // (what "resume" goes back to)
+        ChatMode beforePause = ChatMode.Llm;
+        float toldPaused = -1000f;
+        WingmanPersonality personality;
+        bool personalityLoaded;
+        const string ChatPref = "CoopBot.ChatMode.";
         // /messages calls waiting for a new message (long polls): answered when one comes, or at their deadline
         readonly List<(HttpListenerContext ctx, int after, float until)> waiting = new List<(HttpListenerContext, int, float)>();
         // (the leader, kept when the level restarts and the pilot with it)
@@ -81,6 +102,7 @@ namespace CarrierGame.Demo
             Application.runInBackground = true;
             if (Application.isBatchMode) Application.targetFrameRate = 30;
             Port = int.TryParse(LaunchArgs.ValueOf("-botport"), out int p) && p > 0 && p < 65536 ? p : DefaultPort;
+            LoadChatMode();
             CoopChat.Received += Heard;
             CoopClient.Message += OnMessage;
             StartApi();
@@ -178,14 +200,208 @@ namespace CarrierGame.Demo
             string rest = AddressedPart(line.text, Me);
             if (rest == null) return;
             string reply = Command(rest, line.from);
-            if (!string.IsNullOrEmpty(reply)) CoopChat.Say($"{Me}: {reply}");
-            // talk, not an order: whoever is listening answers it; with nobody listening, say so
-            // (not more than once in half a minute)
-            else if (!Listened && Time.realtimeSinceStartup - toldOrdersOnly > 30f)
+            if (!string.IsNullOrEmpty(reply)) { CoopChat.Say($"{Me}: {reply}"); return; }
+            // talk, not an order: by the chat mode
+            float now = Time.realtimeSinceStartup;
+            switch (Chat)
             {
-                toldOrdersOnly = Time.realtimeSinceStartup;
+                case ChatMode.Paused:
+                    // (standing by: said at most once in half a minute)
+                    if (now - toldPaused > 30f)
+                    {
+                        toldPaused = now;
+                        CoopChat.Say($"{Me}: {Personality?.PausedLine(Facts(line.from)) ?? "comms quiet, standing by. Orders still work."}");
+                    }
+                    return;
+                case ChatMode.Llm when Listened:
+                    return;        // (the listener answers it)
+            }
+            string said = Personality?.Reply(line.name, rest, now, Facts(line.from));
+            if (!string.IsNullOrEmpty(said)) CoopChat.Say($"{Me}: {said}");
+            // (no personality to talk with: say so, not more than once in half a minute)
+            else if (now - toldOrdersOnly > 30f)
+            {
+                toldOrdersOnly = now;
                 CoopChat.Say($"{Me}: nobody on comms here, orders only: follow, hold, attack, warp to, dock, mine, sell, cargo, give credits, status.");
             }
+        }
+
+        WingmanPersonality Personality
+        {
+            get
+            {
+                if (!personalityLoaded) { personalityLoaded = true; personality = WingmanPersonality.Load(); }
+                return personality;
+            }
+        }
+
+        // ------------------------------------------------------------ the chat mode
+
+        public static string ModeName(ChatMode m) => m == ChatMode.Llm ? "llm" : m == ChatMode.Personality ? "personality" : "paused";
+
+        /// <summary>A chat mode by name or by switch word: llm/on, personality/off, paused/pause;
+        /// resume/unpause is `beforePause`. False if the word is none of them.</summary>
+        public static bool ParseChatMode(string word, ChatMode beforePause, out ChatMode mode)
+        {
+            switch ((word ?? "").Trim().ToLowerInvariant())
+            {
+                case "llm": case "on": case "ai": mode = ChatMode.Llm; return true;
+                case "personality": case "off": case "builtin": case "built-in": mode = ChatMode.Personality; return true;
+                case "paused": case "pause": mode = ChatMode.Paused; return true;
+                case "resume": case "unpause": case "unpaused":
+                    mode = beforePause == ChatMode.Paused ? ChatMode.Llm : beforePause;
+                    return true;
+                default: mode = ChatMode.Llm; return false;
+            }
+        }
+
+        static bool IsResume(string word)
+        {
+            string w = (word ?? "").Trim().ToLowerInvariant();
+            return w == "resume" || w == "unpause" || w == "unpaused";
+        }
+
+        /// <summary>Switch the chat mode by a word (see ParseChatMode); "resume" when not paused
+        /// changes nothing. False if the word isn't a mode.</summary>
+        public bool SetChatMode(string word)
+        {
+            if (!ParseChatMode(word, beforePause, out var m)) return false;
+            if (IsResume(word) && Chat != ChatMode.Paused) return true;
+            SetChatMode(m);
+            return true;
+        }
+
+        public void SetChatMode(ChatMode m)
+        {
+            if (m == ChatMode.Paused && Chat != ChatMode.Paused) beforePause = Chat;
+            if (m != Chat) toldPaused = -1000f;
+            Chat = m;
+            SaveChatMode();
+        }
+
+        // (kept between runs, per bot name, in this machine's player prefs: the bot's HOME on a server)
+        static string ChatPrefKey => ChatPref + (LaunchArgs.ValueOf("-name") ?? "Wingman");
+
+        void LoadChatMode()
+        {
+            // the launch flag, or what it was when it last ran, or llm
+            string flag = LaunchArgs.ValueOf("-chatmode");
+            if (flag != null && ParseChatMode(flag, ChatMode.Llm, out var m)) { Chat = m; return; }
+            if (flag != null) Debug.LogWarning($"[CoopBot] -chatmode {flag}: not llm, personality or paused");
+            try
+            {
+                string saved = PlayerPrefs.GetString(ChatPrefKey, "");
+                string[] parts = saved.Split(':');
+                if (ParseChatMode(parts[0], ChatMode.Llm, out m) && !IsResume(parts[0])) Chat = m;
+                if (parts.Length > 1 && ParseChatMode(parts[1], ChatMode.Llm, out var b) && b != ChatMode.Paused) beforePause = b;
+            }
+            catch (Exception) { }
+            Debug.Log($"[CoopBot] chat mode {ModeName(Chat)}");
+        }
+
+        void SaveChatMode()
+        {
+            if (!Application.isPlaying) return;
+            try
+            {
+                PlayerPrefs.SetString(ChatPrefKey, ModeName(Chat) + ":" + ModeName(beforePause));
+                PlayerPrefs.Save();
+            }
+            catch (Exception) { }
+        }
+
+        static readonly Regex ChatOrderRx = new Regex(@"^(?:chat|chatter|comms)(?:\s+mode)?(?:\s+(?<arg>[a-z\-]+))?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        static readonly string[] ChatArgs = { "", "status", "on", "off", "pause", "paused", "resume", "unpause", "unpaused", "llm", "ai", "personality", "builtin", "built-in" };
+
+        /// <summary>An order about the chat mode ("chat on|off|pause|resume", "chat mode",
+        /// "chat mode personality"): its word ("" to ask what it is), or null if it isn't one.</summary>
+        public static string ChatOrderArg(string words)
+        {
+            var m = ChatOrderRx.Match((words ?? "").Trim().TrimEnd('?', '!', '.').TrimEnd());
+            if (!m.Success) return null;
+            string arg = m.Groups["arg"].Success ? m.Groups["arg"].Value.ToLowerInvariant() : "";
+            // ("comms check" isn't one)
+            return Array.IndexOf(ChatArgs, arg) >= 0 ? (arg == "status" ? "" : arg) : null;
+        }
+
+        /// <summary>The chat mode, said on the comms.</summary>
+        public string ChatModeLine()
+        {
+            switch (Chat)
+            {
+                case ChatMode.Llm:
+                    return Listened ? "chat mode llm: talk goes to the listener." : "chat mode llm: no listener on now, I'll answer talk myself till one is.";
+                case ChatMode.Personality:
+                    return "chat mode personality: LLM off, I answer talk myself.";
+                default:
+                    return $"chat mode paused: standing by, orders only. \"{Me}, chat resume\" to resume.";
+            }
+        }
+
+        /// <summary>May this player switch the chat mode? Its leader or the room's host, when it
+        /// has either (other than itself); otherwise anyone.</summary>
+        public bool MayChangeChat(int fromId)
+        {
+            var c = CoopClient.Instance;
+            int leader = Pilot != null ? Pilot.LeaderId : 0;
+            int host = c != null && c.HostId != c.MyId ? c.HostId : 0;
+            if (leader == 0 && host == 0) return true;
+            return fromId != 0 && (fromId == leader || fromId == host);
+        }
+
+        string ChatOrder(string arg, int fromId)
+        {
+            if (arg.Length == 0) return ChatModeLine();
+            if (!MayChangeChat(fromId))
+            {
+                var c = CoopClient.Instance;
+                var who = new List<string>();
+                if (Pilot != null && Pilot.LeaderId != 0) who.Add(Pilot.LeaderName);
+                if (c != null && c.HostId != 0 && c.HostId != c.MyId) who.Add(c.NameOf(c.HostId));
+                return $"chat mode stays {ModeName(Chat)}: only {string.Join(" or ", who.Distinct())} can switch it.";
+            }
+            var was = Chat;
+            SetChatMode(arg);
+            return Chat == was ? $"chat mode already {ModeName(Chat)}." : ChatModeLine();
+        }
+
+        /// <summary>The live facts the personality's lines are filled in from (empty: not known now).</summary>
+        Dictionary<string, string> Facts(int fromId)
+        {
+            var c = CoopClient.Instance;
+            var f = new Dictionary<string, string>
+            {
+                ["me"] = Me,
+                ["player"] = c != null ? c.NameOf(fromId) : "",
+                ["order"] = Pilot != null ? Pilot.Doing : "",
+                ["leader"] = Pilot != null ? Pilot.LeaderName : "",
+            };
+            var cc = Pilot != null && Pilot.demo != null ? Pilot.demo.carrier : null;
+            if (cc == null) return f;
+            string Pct(float x) => Mathf.RoundToInt(Mathf.Clamp01(x) * 100f).ToString(CultureInfo.InvariantCulture) + "%";
+            var sh = cc.GetComponentInChildren<Shield>();
+            f["hull"] = Pct(Fraction(cc.GetComponent<Health>()));
+            f["shield"] = Pct(sh != null ? sh.Strength / Mathf.Max(1f, sh.capacity) : 0f);
+            f["ship"] = $"{cc.shipClass} {cc.shipName}".Trim();
+            var near = WarpPoint.Nearest(cc.transform.position);
+            f["near"] = near != null ? near.displayName : "";
+            var hold = cc.GetComponentInChildren<CargoHold>();
+            if (hold != null)
+            {
+                f["hold"] = $"{hold.Used:F0} of {hold.capacity:F0} t";
+                f["ore"] = $"{hold.OreTonnes:F0} t";
+                f["credits"] = hold.Credits.ToString("N0", CultureInfo.InvariantCulture) + " cr";
+            }
+            // the hostiles on the scope (30 km), nearest first
+            Vector3 at = cc.transform.position;
+            var hostile = Targets.All.Where(t => t != null && t.gameObject.activeInHierarchy && t.TryGetComponent(out TargetInfo i) && i.Hostile
+                                                 && !(t.TryGetComponent(out Health h) && h.Dead) && (t.position - at).sqrMagnitude < 30000f * 30000f)
+                                     .OrderBy(t => (t.position - at).sqrMagnitude).ToList();
+            f["hostiles"] = hostile.Count == 0 ? "nothing hostile"
+                : $"{hostile.Count} hostile{(hostile.Count == 1 ? "" : "s")}, nearest {Wingman.NameOf(hostile[0])} at {Vector3.Distance(hostile[0].position, at) / 1000f:F1} km";
+            if (Pilot.Fighting) f["target"] = Wingman.NameOf(Pilot.Target);
+            f["docked"] = Docking.Docked ? "docked" : "";
+            return f;
         }
 
         /// <summary>What follows the bot's name (or "@name", "all ships", "everyone", "wingmen") at
@@ -217,6 +433,7 @@ namespace CarrierGame.Demo
                 return null;
             }
             string a;
+            if ((a = ChatOrderArg(w)) != null) return ChatOrder(a, fromId);
             if ((a = Arg("follow", "escort", "form up on", "form on")) != null) return Order("follow", a.Length == 0 || a.ToLowerInvariant() == "me" ? "" : a, fromId);
             if (Arg("regroup", "form up", "come here", "return", "rtb") != null) return Order("follow", "", fromId);
             // (before "hold": "hold report", "what's in your hold")
@@ -233,7 +450,7 @@ namespace CarrierGame.Demo
                 return Order("mine", a.StartsWith("the ", StringComparison.OrdinalIgnoreCase) ? a.Substring(4) : a, fromId);
             if (Arg("sell the ore", "sell ore", "sell") != null) return Order("sell", "", fromId);
             if (Arg("status", "report", "sitrep") != null) return Report();
-            if (Arg("help", "orders") != null) return "orders: follow me / follow <name>, hold, attack [target], warp to <place>, dock, regroup, mine [at <field>], sell, cargo, give [N] credits [to <name>], status.";
+            if (Arg("help", "orders") != null) return "orders: follow me / follow <name>, hold, attack [target], warp to <place>, dock, regroup, mine [at <field>], sell, cargo, give [N] credits [to <name>], status; chat on|off|pause|resume.";
             return null;
         }
 
@@ -523,6 +740,7 @@ namespace CarrierGame.Demo
 
         [Serializable] class SayBody { public string text; }
         [Serializable] class OrderBody { public string order, target; }
+        [Serializable] class ChatModeBody { public string mode; }
 
         void Serve(HttpListenerContext ctx, string body)
         {
@@ -561,6 +779,22 @@ namespace CarrierGame.Demo
                     }
                     case "/cargo" when !post: json = CargoJson(); break;
                     case "/destinations" when !post: json = DestinationsJson(); break;
+                    case "/chatmode" when !post: json = ChatModeJson(); break;
+                    case "/chatmode" when post:
+                    {
+                        // {"mode": llm|personality|paused, or on|off|pause|resume|unpause}
+                        var b = Parse<ChatModeBody>(body);
+                        var was = Chat;
+                        if (b == null || !SetChatMode(b.mode))
+                        {
+                            code = 400;
+                            json = "{\"ok\":false,\"error\":" + Q($"mode '{b?.mode}': one of llm, personality, paused (or on, off, pause, resume)") + "}";
+                            break;
+                        }
+                        if (Chat != was && CoopClient.Active) CoopChat.Say($"{Me}: {ChatModeLine()}");
+                        json = ChatModeJson($"\"ok\":true,\"previous\":{Q(ModeName(was))},");
+                        break;
+                    }
                     case "/say" when post:
                     {
                         var b = Parse<SayBody>(body);
@@ -657,6 +891,7 @@ namespace CarrierGame.Demo
             var sb = new StringBuilder("{");
             var c = CoopClient.Instance;
             sb.Append($"\"name\":{Q(Me)},\"connected\":{B(CoopClient.Active)},\"level\":{Q(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name)}");
+            sb.Append($",\"chat_mode\":{Q(ModeName(Chat))},\"listener_seen_s\":{F(ListenerSeenSeconds)}");
             var cc = Pilot != null && Pilot.demo != null ? Pilot.demo.carrier : null;
             if (cc != null)
             {
@@ -712,7 +947,7 @@ namespace CarrierGame.Demo
         string MessagesJson(int after)
         {
             var c = CoopClient.Instance;
-            var sb = new StringBuilder($"{{\"last\":{CoopChat.LastSeq},\"messages\":[");
+            var sb = new StringBuilder($"{{\"last\":{CoopChat.LastSeq},\"chat_mode\":{Q(ModeName(Chat))},\"messages\":[");
             bool first = true;
             foreach (var l in CoopChat.Lines)
             {
@@ -725,6 +960,10 @@ namespace CarrierGame.Demo
             }
             return sb.Append("]}").ToString();
         }
+
+        /// <summary>The chat mode (and how long since a listener read the channel), with `extra` fields first.</summary>
+        string ChatModeJson(string extra = "") =>
+            $"{{{extra}\"mode\":{Q(ModeName(Chat))},\"listener_seen_s\":{F(ListenerSeenSeconds)},\"listening\":{B(Listened)},\"resumes_to\":{Q(ModeName(Chat == ChatMode.Paused ? beforePause : Chat))}}}";
 
         string CargoJson()
         {

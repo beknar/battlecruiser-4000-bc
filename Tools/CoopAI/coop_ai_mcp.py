@@ -15,13 +15,18 @@ server turns that API into MCP tools, over stdio:
     order           give the pilot an order: follow <player>, hold, attack [target], goto <place>,
                     regroup, dock, mine [field], sell
     destinations    the places a ship can warp to, with distances
+    get_chat_mode   who answers talk to the bot: llm (this listener), personality (the bot's own) or paused
+    set_chat_mode   switch it: llm|personality|paused, or on|off|pause|resume
     launch_bot      start the bot game (headless) and connect it to a co-op server
     stop_bot        close the bot game started here
 
 Players talk to the bot in the game: a message starting with its name ("Wingman, follow me",
 "@Wingman attack") is an order it carries out by itself; anything else is left for whoever is
 reading the channel through this server (read_messages and wait_messages tell the bot a listener
-is there; with nobody listening for 90 s, it answers talk with its list of orders instead).
+is there; with nobody listening for 90 s, its built-in personality answers talk instead). That is
+the bot's chat mode "llm"; in "personality" its built-in personality always answers talk, and in
+"paused" nobody does. read_messages and wait_messages say the mode (chat_mode): answer talk only
+when it is llm.
 
 No packages are needed (Python 3.8+). Add it to Claude Code with:
 
@@ -45,6 +50,7 @@ GAME = os.environ.get("COOP_GAME_EXE", os.path.normpath(os.path.join(HERE, "..",
                                                                      "StarSystem.exe" if os.name == "nt" else "StarSystem")))
 PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"]
 ORDERS = ["follow", "hold", "attack", "goto", "regroup", "dock", "mine", "sell"]
+CHAT_MODES = ["llm", "personality", "paused", "on", "off", "pause", "resume", "unpause"]
 WAIT_MAX = 55
 
 bot_process = None
@@ -148,6 +154,17 @@ def t_destinations(_):
     return call("/destinations")
 
 
+def t_get_chat_mode(_):
+    return call("/chatmode")
+
+
+def t_set_chat_mode(args):
+    mode = str(args.get("mode", "")).strip().lower()
+    if mode not in CHAT_MODES:
+        raise ValueError(f"unknown chat mode '{mode}': one of {', '.join(CHAT_MODES)}")
+    return call("/chatmode", {"mode": mode})
+
+
 def t_launch_bot(args):
     global bot_process, cursor
     if bot_process is not None and bot_process.poll() is None:
@@ -165,6 +182,11 @@ def t_launch_bot(args):
         cmd += ["-apikey", key]
     if args.get("ship"):
         cmd += ["-frigate", str(args["ship"])]
+    if args.get("chatmode"):
+        mode = str(args["chatmode"]).strip().lower()
+        if mode not in ("llm", "personality", "paused"):
+            raise ValueError(f"chatmode must be llm, personality or paused, not '{mode}'")
+        cmd += ["-chatmode", mode]
     if args.get("headless", True):
         cmd += ["-batchmode", "-nographics"]
     else:
@@ -222,12 +244,23 @@ TOOLS = [
       "target": {"type": "string", "description": "a player's name (follow), a target's (attack), a place's (goto) or an asteroid field's (mine)"}},
      ["order"], t_order),
     ("destinations", "The places a ship can warp to, nearest first, with their kinds and distances.", {}, [], t_destinations),
+    ("get_chat_mode", "Who answers players' talk to the bot (anything addressed to it that isn't an order): 'llm', "
+                      "whoever reads the channel here (the bot's built-in personality while nobody has read it for "
+                      "90 s); 'personality', the bot's built-in personality, always; 'paused', nobody (it says it is "
+                      "standing by, at most every 30 s). Orders work in every mode. Also how many seconds since a "
+                      "listener last read the channel (listener_seen_s, -1 never).",
+     {}, [], t_get_chat_mode),
+    ("set_chat_mode", "Switch who answers talk to the bot: llm (or on), personality (or off: the LLM is off), paused "
+                      "(or pause), or resume (unpause: back to the mode before the pause). Kept when the bot restarts.",
+     {"mode": {"type": "string", "enum": CHAT_MODES}}, ["mode"], t_set_chat_mode),
     ("launch_bot", "Start the bot game (the Star System build in bot mode, headless by default) and connect it to a "
                    "co-op server as a player.",
      {"server": {"type": "string", "description": "host:port of the co-op server (default 127.0.0.1:7777)"},
       "name": {"type": "string", "description": "the bot's name in the game (default Wingman)"},
       "ship": {"type": "string", "description": "the frigate to fly: Sentinel (the default), Lancer, Warden, Talon or Vanguard. A destroyer or the cruiser only once built at a shipyard and taken command of in that game's save"},
       "headless": {"type": "boolean", "description": "no window (default true)"},
+      "chatmode": {"type": "string", "enum": ["llm", "personality", "paused"],
+                   "description": "who answers talk to it at the start (default: what it was when it last ran, or llm)"},
       "game": {"type": "string", "description": "path to the game's executable"},
       "apikey": {"type": "string", "description": "the API key the co-op server issued for this AI player "
                                                   "(CoopServer --new-key <name> --ai); default COOP_KEY from the environment"}}, [], t_launch_bot),
@@ -260,7 +293,9 @@ def handle(msg):
                             "instructions": "You are flying a ship in a co-op space game, as the players' wingman. "
                                             "Listen on the comms channel (wait_messages, or read_messages) and answer players "
                                             "with say, in short radio lines (240 characters at most). Orders addressed to the "
-                                            "bot by name are carried out by it already; answer the talk. Carry out what they ask "
+                                            "bot by name are carried out by it already; answer the talk, but only while the "
+                                            "chat_mode in read_messages/wait_messages is llm (personality: the bot answers "
+                                            "talk itself; paused: nobody does). Carry out what they ask "
                                             "with order or give_credits; facts come from status and cargo, never made up. "
                                             "Tools/CoopAI/WINGMAN.md has the voice."})
     if method == "ping":

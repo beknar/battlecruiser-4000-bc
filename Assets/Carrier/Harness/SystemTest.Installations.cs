@@ -268,6 +268,45 @@ namespace CarrierGame.Demo
                 $"'{group?.name}' has {buildings} buildings ({string.Join(", ", group != null ? group.Cast<Transform>().Select(t => t.name).Distinct() : new string[0])}), " +
                 $"{away:F0} m from the frigate; ground forces {units} in {garrisons.Length} garrisons; garbage collected {gcDown}x on the way down");
             yield return LookAt(middle, shot + "_surface", 3f, 8f);
+            // a friendly base: its landing field round it, and down on its own pad
+            bool field = true;
+            Vector3 padAt = cc.transform.position;
+            if (byKey)
+            {
+                var pads = landing.Surface.GetComponentsInChildren<Collider>(true)
+                    .Where(c => c.name.StartsWith("Pad ") && c.transform.parent != null && c.transform.parent.name == "Outpost landing field" &&
+                                Vector3.Distance(c.transform.position, padAt) < 3200f).ToList();
+                // (its 14, Pad 2 to Pad 15, round where she came down: a neighbouring outpost's field may cross the same ground)
+                int named = pads.Select(c => c.name).Distinct().Count();
+                Log($"  the field's pads: {string.Join(", ", pads.Select(c => $"{c.name} {Vector3.Distance(c.transform.position, padAt):F0} m"))}");
+                field = named == SurfaceWorld.FieldPads && landing.LastPad == 0;
+                Log($"  {name}'s landing field: {named} pads round it (and its own); down by its own (pad {landing.LastPad + 1}), on a pad {landing.OnPad}");
+            }
+            // its own pad taken by another ship: the lander chooses a pad of its field instead
+            if (byKey && field)
+            {
+                Vector3? ownAt = landing.OwnPad;
+                var entry = FrigateRoster.Get()?.Find("Lancer");
+                GameObject blocker = null;
+                if (ownAt != null && entry != null && entry.prefab != null)
+                {
+                    blocker = Instantiate(entry.prefab, ownAt.Value + Vector3.up * 40f, Quaternion.identity);
+                    blocker.name = "Landed Lancer";
+                    var bcc = blocker.GetComponent<CarrierController>();
+                    if (bcc != null) { bcc.externalMotion = true; bcc.SetMotion(0f); bcc.throttle = 0f; }
+                }
+                yield return null;
+                int chosen = landing.PadFor();
+                bool exists = chosen > 0 && landing.Surface.GetComponentsInChildren<Collider>(true).Any(c => c.name == $"Pad {chosen + 1}" &&
+                              c.transform.parent != null && c.transform.parent.name == "Outpost landing field" && Vector3.Distance(c.transform.position, padAt) < 3200f);
+                Log($"  its own pad ({(ownAt != null ? Vector3.Distance(ownAt.Value, padAt) : -1f):F0} m off) taken by the {(blocker != null ? blocker.name : "(none)")}: " +
+                    $"the lander would come down on pad {chosen + 1} (there {exists}); '{Notices.Last}'");
+                if (blocker != null) Destroy(blocker);
+                yield return null;
+                bool other = exists && landing.PadFor() == 0;
+                Log($"{(other ? "PASS" : "FAIL")}: {name}, its own pad taken: a pad of its landing field chosen (its own again once clear)");
+                field = other;
+            }
             landing.TakeOff();
             yield return WaitLanding(landing, PlanetLanding.State.InSpace, 30f);
             yield return new WaitForSeconds(0.5f);
@@ -275,7 +314,7 @@ namespace CarrierGame.Demo
             Log($"  back in space: {landing.Current}; garbage collected {gcUp}x after leaving the surface ('{SceneMemory.LastReason}', " +
                 $"heap {SceneMemory.LastBeforeMB:F0} -> {SceneMemory.LastAfterMB:F0} MB)");
             done(landing.Current == PlanetLanding.State.InSpace && buildings >= 12 && gcDown >= 1 && gcUp >= 1 && landing.Body == wp.landsOn
-                 && (byKey || units >= 10));
+                 && (byKey || units >= 10) && field);
         }
 
         IEnumerator StationTest(Keyboard kb)

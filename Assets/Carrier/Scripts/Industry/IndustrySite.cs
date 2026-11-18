@@ -17,6 +17,8 @@ namespace CarrierGame
         [Tooltip("The landing pad's centre (on the ground), if it has one.")]
         public Transform pad;
         public float padRadius = 140f;
+        /// <summary>The pads of its landing field round it (PlanetSurface), as much its own as `pad`.</summary>
+        public readonly List<Transform> fieldPads = new List<Transform>();
 
         public static readonly List<IndustrySite> All = new List<IndustrySite>();
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -58,6 +60,13 @@ namespace CarrierGame
                 float h = Vector3.Dot(d, up);
                 Vector3 across = d - up * h;
                 if (across.magnitude <= s.padRadius && h > -20f && h < above) return s;
+                foreach (var fp in s.fieldPads)
+                {
+                    if (fp == null) continue;
+                    Vector3 e = p - fp.position;
+                    float eh = Vector3.Dot(e, fp.up);
+                    if ((e - fp.up * eh).magnitude <= SurfaceWorld.FieldPadRadius && eh > -20f && eh < above) return s;
+                }
             }
             return null;
         }

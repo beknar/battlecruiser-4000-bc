@@ -146,6 +146,8 @@ namespace CarrierGame
             }
             stage = "base";
             if (f != null && f.site != SiteKind.None && industry == null && layout == null) BuildBase(t, f);
+            stage = "landing field";
+            if (SurfaceWorld.HasField(f) && World.solid) BuildLandingField(t, f);
 
             stage = "boulders";
             // boulders
@@ -235,6 +237,86 @@ namespace CarrierGame
             if (spec.CanRefine) Beside(Kit.industryRefinery, 90f);
             if (spec.CanBuild) Beside(Kit.industryFactory, -90f);
             BuildingsBuilt += built;
+        }
+
+        /// <summary>Landing fields made on this surface (the self-test).</summary>
+        public int FieldsBuilt { get; private set; }
+
+        /// <summary>A friendly base's landing field: 14 more pads in a ring round it (SurfaceWorld.
+        /// FieldPad), on ground levelled for them, so ships landing there while its own pad is taken
+        /// come down on one of them. Each a flat disc with a yellow ring and four green lights,
+        /// named "Pad n" under an "Outpost" (so it counts as a pad), and the base's own (its
+        /// services open there as on its pad).</summary>
+        void BuildLandingField(Tile t, TileFeatures f)
+        {
+            var group = new GameObject("Outpost landing field").transform;
+            group.SetParent(t.go.transform, false);
+            var site = t.outpost != null ? t.outpost.GetComponentInChildren<IndustrySite>() : null;
+            int made = 0;
+            for (int k = 0; k < SurfaceWorld.FieldPads; k++)
+            {
+                SurfaceWorld.FieldPad(f, k, out double u, out double v);
+                if (Mathf.Abs((float)v) > World.V - World.polarBand) continue;
+                Vector3 p = Place(t, u, v, out _);
+                p.y = Center.y + f.siteHeight;
+                if (p.y < SeaLevel + 3f) continue;
+                var pad = Disc($"Pad {k + 2}", group, p + Vector3.up * 0.6f, SurfaceWorld.FieldPadRadius, 1.2f, PadMaterial(new Color(0.42f, 0.43f, 0.45f), null), true);
+                Disc("Marking", group, p + Vector3.up * 0.65f, SurfaceWorld.FieldPadRadius * 0.8f, 1.25f, PadMaterial(new Color(0.85f, 0.62f, 0.12f), null), false);
+                Disc("Centre", group, p + Vector3.up * 0.7f, SurfaceWorld.FieldPadRadius * 0.74f, 1.3f, PadMaterial(new Color(0.42f, 0.43f, 0.45f), null), false);
+                for (int q = 0; q < 4; q++)
+                {
+                    float a = q * Mathf.PI * 0.5f;
+                    var lamp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    Destroy(lamp.GetComponent<Collider>());
+                    lamp.name = "Light";
+                    lamp.transform.SetParent(group, false);
+                    lamp.transform.position = p + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * (SurfaceWorld.FieldPadRadius + 6f) + Vector3.up * 1.5f;
+                    lamp.transform.localScale = new Vector3(4f, 3f, 4f);
+                    lamp.GetComponent<MeshRenderer>().sharedMaterial = PadMaterial(new Color(0.3f, 1f, 0.4f), new Color(0.3f, 1f, 0.4f) * 6f);
+                }
+                if (site != null) site.fieldPads.Add(pad.transform);
+                made++;
+            }
+            if (made > 0) FieldsBuilt++;
+        }
+
+        /// <summary>A flat disc `radius` across and `height` tall at `at` (world).</summary>
+        GameObject Disc(string name, Transform parent, Vector3 at, float radius, float height, Material m, bool collide)
+        {
+            var d = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            d.name = name;
+            // (a cylinder's own collider would be a capsule, round as a ball at this shape: the mesh instead)
+            Destroy(d.GetComponent<Collider>());
+            d.transform.SetParent(parent, false);
+            d.transform.position = at;
+            d.transform.localScale = new Vector3(radius * 2f, height * 0.5f, radius * 2f);
+            d.GetComponent<MeshRenderer>().sharedMaterial = m;
+            if (collide)
+            {
+                d.layer = layer;
+                d.AddComponent<MeshCollider>().sharedMesh = d.GetComponent<MeshFilter>().sharedMesh;
+            }
+            return d;
+        }
+
+        static readonly Dictionary<Color, Material> padMats = new Dictionary<Color, Material>();
+
+        /// <summary>A plain material for the field's pads (the outpost's own shader), by colour.</summary>
+        Material PadMaterial(Color c, Color? glow)
+        {
+            if (padMats.TryGetValue(c, out var m) && m != null) return m;
+            Material from = null;
+            if (Kit.outpost != null)
+                foreach (var r in Kit.outpost.GetComponentsInChildren<MeshRenderer>(true))
+                    if (r.sharedMaterial != null) { from = r.sharedMaterial; break; }
+            m = from != null ? new Material(from) : new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            m.name = "LandingFieldPad";
+            m.SetTexture("_BaseMap", null);
+            m.SetColor("_BaseColor", c);
+            m.SetColor("_Color", c);
+            if (glow != null) { m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", glow.Value); }
+            padMats[c] = m;
+            return m;
         }
 
         /// <summary>Settlement buildings put down in rubble on this surface (struck from orbit), for the self-test.</summary>

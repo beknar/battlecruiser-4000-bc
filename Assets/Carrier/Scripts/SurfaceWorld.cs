@@ -147,6 +147,29 @@ namespace CarrierGame
     {
         public const float T = SurfaceGenerator.Size;
         public const float PadRadius = 230f;
+
+        // ---------------------------------------------------------------- the landing field
+
+        /// <summary>The pads of the landing field round a friendly base (its own pad is one more).</summary>
+        public const int FieldPads = 14;
+        /// <summary>How big a pad of the field is (m, its radius).</summary>
+        public const float FieldPadRadius = 110f;
+
+        /// <summary>A friendly base has a landing field (a hostile one, none).</summary>
+        public static bool HasField(TileFeatures f) => f != null && f.site == SiteKind.Outpost;
+
+        /// <summary>How far out the field's ring is: clear of a named base's buildings (a
+        /// settlement's reach out to nearly 2 km), nearer for an outpost's few.</summary>
+        public static float FieldRadius(TileFeatures f) => f.baseName != null ? 2300f : 1000f;
+
+        /// <summary>Where the field's pad k is (its u, v).</summary>
+        public static void FieldPad(TileFeatures f, int k, out double u, out double v)
+        {
+            float a = (f.siteYaw + 90f + k * 360f / FieldPads) * Mathf.Deg2Rad;
+            float r = FieldRadius(f);
+            u = f.su + Mathf.Cos(a) * r;
+            v = f.sv + Mathf.Sin(a) * r;
+        }
         public const float PadLift = 1.5f;       // the pad's top above the flattened ground
         public const float BaseLevel = -300f;    // terrain height 0 (every area shares one range, so edges match exactly)
         public const float Range = 1800f;
@@ -778,10 +801,27 @@ namespace CarrierGame
                     float du = (float)WrapDelta(u - f.su, C), dv = (float)(v - f.sv);
                     float r2 = du * du + dv * dv;
                     const float reach = PadRadius + 220f;
-                    if (r2 >= reach * reach) continue;
-                    float flat = 1f - Smooth(PadRadius, reach, Mathf.Sqrt(r2));
-                    h = Mathf.Lerp(h, f.siteHeight, flat);
-                    if (m > 0f) m *= 1f - flat;
+                    if (r2 < reach * reach)
+                    {
+                        float flat = 1f - Smooth(PadRadius, reach, Mathf.Sqrt(r2));
+                        h = Mathf.Lerp(h, f.siteHeight, flat);
+                        if (m > 0f) m *= 1f - flat;
+                    }
+                    // and each pad of its landing field (only near the field's ring)
+                    if (!solid || !HasField(f)) continue;
+                    const float padReach = FieldPadRadius + 150f;
+                    float ring = FieldRadius(f), rr = Mathf.Sqrt(r2);
+                    if (rr < ring - padReach || rr > ring + padReach) continue;
+                    for (int k = 0; k < FieldPads; k++)
+                    {
+                        FieldPad(f, k, out double pu, out double pv);
+                        float eu = (float)WrapDelta(u - pu, C), ev = (float)(v - pv);
+                        float d2 = eu * eu + ev * ev;
+                        if (d2 >= padReach * padReach) continue;
+                        float flat = 1f - Smooth(FieldPadRadius, padReach, Mathf.Sqrt(d2));
+                        h = Mathf.Lerp(h, f.siteHeight, flat);
+                        if (m > 0f) m *= 1f - flat;
+                    }
                 }
             }
 

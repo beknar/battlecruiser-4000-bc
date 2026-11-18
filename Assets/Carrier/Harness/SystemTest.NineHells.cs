@@ -117,6 +117,18 @@ namespace CarrierGame.Demo
                 Check(OrbitalStrikes.ShieldHeld == held0 + 1 && r.buildings == 0, $"a strike on Heaven breaks on its shield ({r.buildings} buildings ruined)");
             }
             else Check(false, "Heaven's site on K'rzyn");
+            // ---- the enemies in their strongholds
+            string[] holds = { "Dis", "Malebolge", "Jericho Base", "Bethel Base", "Sheol Outpost" };
+            var weak = holds.Where(n => P(n) == null || !P(n).hostile || P(n).kind != WarpPoint.Kind.SurfaceBase).ToList();
+            Check(weak.Count == 0, $"the strongholds: {holds.Length - weak.Count} of {holds.Length} hostile bases{(weak.Count > 0 ? "; missing " + string.Join(", ", weak) : "")}");
+            int sats = DefenseGrid.All.Count(g => g != null && (g.gridName.Contains("Defence Platform") || g.gridName.Contains("Defence Satellite")));
+            Check(sats == 12, $"their defence platforms and satellites in orbit over them: {sats}");
+            var picket = FindObjectsByType<EncounterGroup>(FindObjectsSortMode.None).FirstOrDefault(g => g.groupName == "Gilgal picket fleet");
+            var vpicket = FindObjectsByType<EncounterGroup>(FindObjectsSortMode.None).FirstOrDefault(g => g.groupName == "Sheol picket");
+            Check(picket != null && picket.pilots.Length == 19 && vpicket != null && vpicket.pilots.Length == 10 &&
+                  vpicket.pilots.All(x => x != null && x.GetComponent<VraskShip>() != null),
+                  $"the Gilgal picket fleet ({picket?.pilots.Length ?? 0} ships) and the Vrask picket over Sheol ({vpicket?.pilots.Length ?? 0})");
+            Check(P("Jericho") != null && P("Jericho").hostile && P("Bethel").hostile, "Jericho and Bethel are the pirates'");
             // docked at the top of the elevator
             yield return WarpTo(kb, "Heaven Highport", "nh_highport");
             bool docked = false;

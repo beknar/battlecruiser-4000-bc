@@ -56,6 +56,15 @@ namespace CarrierGame.Demo
                 }
             }
             static Vector3 Home(Health h) => h.TryGetComponent(out CombatPilot p) ? p.Home : h.transform.position;
+
+            /// <summary>A band's ships as an encounter (null if it has none).</summary>
+            public static Encounter FromGroup(EncounterGroup g)
+            {
+                if (g == null || g.pilots == null) return null;
+                var e = new Encounter { name = g.groupName, kind = "band", group = g };
+                foreach (var p in g.pilots) if (p != null && p.TryGetComponent(out Health h)) e.enemies.Add(h);
+                return e.enemies.Count > 0 ? e : null;
+            }
         }
 
         public readonly List<Encounter> Encounters = new List<Encounter>();
@@ -176,10 +185,8 @@ namespace CarrierGame.Demo
         {
             foreach (var g in FindObjectsByType<EncounterGroup>(FindObjectsSortMode.None).OrderBy(g => g.groupName))
             {
-                if (g.pilots == null) continue;
-                var e = new Encounter { name = g.groupName, kind = "band", group = g };
-                foreach (var p in g.pilots) if (p != null && p.TryGetComponent(out Health h)) e.enemies.Add(h);
-                if (e.enemies.Count > 0) Encounters.Add(e);
+                var e = Encounter.FromGroup(g);
+                if (e != null) Encounters.Add(e);
             }
             foreach (var d in DefenseGrid.All.Where(d => d != null).OrderBy(d => d.gridName))
             {
@@ -281,18 +288,25 @@ namespace CarrierGame.Demo
         static string Csv(string s) => s.Contains(",") ? $"\"{s}\"" : s;
 
         /// <summary>A point clear of rock and wreck, out along `dir` from `p` if it has to be.</summary>
-        static Vector3 Clear(Vector3 p, Vector3 dir)
+        public static Vector3 Clear(Vector3 p, Vector3 dir)
         {
             for (int i = 0; i < 60 && Cover.Mask != 0 && Physics.CheckSphere(p, 600f, Cover.Mask, QueryTriggerInteraction.Ignore); i++)
                 p += dir * 400f;
             return p;
         }
 
-        SimPilot Spawn(string id, Vector3 at, Quaternion facing, bool gun, int slot, Encounter enc)
+        SimPilot Spawn(string id, Vector3 at, Quaternion facing, bool gun, int slot, Encounter enc) =>
+            entries.TryGetValue(id, out var entry) ? SpawnFrigate(entry, at, facing, gun, slot, enc, $"{entry.displayName} (sim {slot + 1})") : null;
+
+        /// <summary>A frigate of the roster flown by a SimPilot against an encounter: carried along
+        /// with the encounter's place, no respawn, a full crew, and its bow beam only if `gun`
+        /// (the battle simulator's, and the CIC reel's).</summary>
+        public static SimPilot SpawnFrigate(FrigateRoster.Entry entry, Vector3 at, Quaternion facing, bool gun, int slot, Encounter enc, string name)
         {
-            if (!entries.TryGetValue(id, out var entry)) return null;
+            if (entry == null || entry.prefab == null) return null;
             var go = Instantiate(entry.prefab, at, facing);
-            go.name = $"{entry.displayName} (sim {slot + 1})";
+            go.name = name;
+            string id = entry.id;
             var cc = go.GetComponent<CarrierController>();
             if (cc == null) { Destroy(go); return null; }
             cc.shipName = entry.displayName;
@@ -317,7 +331,7 @@ namespace CarrierGame.Demo
 
         /// <summary>The encounter as it was: every ship and gun whole and back at home, cold; nothing
         /// left in flight, no wrecks.</summary>
-        IEnumerator ResetEncounter(Encounter enc)
+        public static IEnumerator ResetEncounter(Encounter enc)
         {
             foreach (var t in new[] { typeof(Projectile), typeof(Missile), typeof(ArtilleryShell), typeof(NukeMissile), typeof(BoardingPod) })
                 foreach (var o in FindObjectsByType(t, FindObjectsSortMode.None))
@@ -335,8 +349,13 @@ namespace CarrierGame.Demo
             for (int i = 0; i < 30; i++) yield return null;
         }
 
-        void Ghost(bool hide)
+        void Ghost(bool hide) => Hide(ghost, hide);
+
+        /// <summary>The player's own ship out of the fight (or back in it): not seen, not solid,
+        /// its guns and beam quiet, unkillable, and no target for any hostile.</summary>
+        public static void Hide(CarrierController ghost, bool hide)
         {
+            if (ghost == null) return;
             foreach (var col in ghost.GetComponentsInChildren<Collider>(true)) col.enabled = !hide;
             foreach (var r in ghost.GetComponentsInChildren<Renderer>(true)) r.enabled = !hide;
             foreach (var b in ghost.GetComponentsInChildren<MainBeam>(true)) b.enabled = !hide;
@@ -378,6 +397,11 @@ namespace CarrierGame.Demo
         float nextLook;
 
         public Transform Target => target;
+        /// <summary>What she is doing, for a display: CLOSING, BOW-ON BEAM, BEAM CHARGE, BEAM FIRE,
+        /// BROADSIDE, SEARCH (none in sight), or DOWN.</summary>
+        public string Doing { get; private set; } = "SEARCH";
+        /// <summary>Her bow beam (null without one).</summary>
+        public MainBeam Beam => beam;
         public bool Alive => health != null && !health.Dead && !health.Captured && gameObject.activeInHierarchy;
         public bool Taken => health != null && health.Captured;
         public float HullFraction => health != null && health.maxHealth > 0f ? health.Current / health.maxHealth : 0f;
@@ -394,7 +418,7 @@ namespace CarrierGame.Demo
 
         void Update()
         {
-            if (ship == null || !Alive || ship.Destroyed) return;
+            if (ship == null || !Alive || ship.Destroyed) { Doing = "DOWN"; return; }
             if (Time.time >= nextLook)
             {
                 nextLook = Time.time + 1f;
@@ -407,6 +431,7 @@ namespace CarrierGame.Demo
                 // none in sight: on towards where the encounter is
                 Vector3 goal = encounter != null ? encounter.Centre : transform.position + transform.forward * 1000f;
                 Steer(goal, 0.6f);
+                Doing = "SEARCH";
                 return;
             }
             Vector3 tp = target.position;
@@ -418,12 +443,14 @@ namespace CarrierGame.Demo
                 // bow on: charge the beam once lined up, and hold it on the target while it fires
                 Steer(tp, d > 2500f ? 0.7f : d < 1200f ? 0.15f : 0.4f);
                 if (!beamBusy && Vector3.Angle(transform.forward, tp - transform.position) < 15f) beam.StartCharge();
+                Doing = beam.Current == MainBeam.State.Firing ? "BEAM FIRE" : beam.Current == MainBeam.State.Charging ? "BEAM CHARGE" : "BOW-ON BEAM";
                 return;
             }
             // broadside on at gun range, the turrets firing
             ship.rudder = ShipAutopilot.Broadside(ship, tp, slot % 2 == 0 ? 1 : -1, 1500f);
             ship.pitchInput = Mathf.Clamp(-ship.Pitch / 8f, -1f, 1f);
             ship.throttle = 0.7f;
+            Doing = d > 3000f ? "CLOSING" : "BROADSIDE";
         }
 
         void Steer(Vector3 to, float throttle)

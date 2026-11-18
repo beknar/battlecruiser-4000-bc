@@ -189,6 +189,33 @@ namespace CarrierGame.Demo
                 yield return null;
                 yield return null;
                 Shot("ship_paint_" + flying);
+                // close to its side, where the logo and the lettering are (for a look at the decals)
+                var oc = demo.orbitCamera;
+                if (oc != null)
+                {
+                    float d0 = oc.distance, y0 = oc.yaw, p0 = oc.pitch;
+                    var bounds = new Bounds(cc.transform.position, Vector3.zero);
+                    foreach (var r in hullRs) bounds.Encapsulate(r.bounds);
+                    oc.distance = Mathf.Max(oc.minDistance, bounds.size.magnitude * 0.55f);
+                    oc.yaw = 90f; oc.pitch = 8f;
+                    yield return null;
+                    yield return null;
+                    Shot("ship_paint_side_" + flying);
+                    oc.distance = d0; oc.yaw = y0; oc.pitch = p0;
+                }
+                // and the customise screen, once (the first ship tested)
+                var paintMenu = FindAnyObjectByType<StartMenu>();
+                if (paintMenu != null && flying == "Sentinel")
+                {
+                    paintMenu.Open();
+                    paintMenu.OpenPaint();
+                    for (int i = 0; i < 10; i++) yield return null;
+                    Check(paintMenu.Customising, "the customise screen opens");
+                    Shot("ship_paint_screen");
+                    paintMenu.DonePainting();
+                    yield return null;
+                    paintMenu.Close();
+                }
                 yield return null;
                 ShipPaint.Apply(cc.gameObject, null);
                 Check(hullRs.All(r => r.sharedMaterials.All(m => !ShipPaint.IsPainted(m))), "and the paint comes off again");

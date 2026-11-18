@@ -1880,6 +1880,22 @@ so servers need rebuilding (above).
   isn't used; the web version connects the same way under WebGPU.
 - These tools need Python's `websockets` package.
 
+### The battle simulator
+
+`StarSystem.exe -batchmode -nographics -battlesim <dir>` fights fleets of the five frigate classes, as built
+(default fittings, full crews), against each hostile encounter in space: the raiders, the pirate cruiser,
+the corsair patrol, the dreadnought group, the Vrask raiders, Corsair Haven, the Cinder Orbital Battery,
+the Vrask siege group and the two strike satellites. Every fleet of 1 to 6 ships drawn from the five
+classes (461 of them) meets every encounter twice, with the bow beam (the main gun) and without: 9,220
+battles. Each is fought where the encounter waits, the fleet coming in line abreast from 9 km; the
+encounter is then put back as it was. The frigates fly as a player would: their guns on one enemy, the
+nearest they can see, broadside on for the turrets, bow on to charge and fire the beam in its reach. It
+runs as fast as the machine can (a fixed 1/30 s of game time a frame), about 5 s a battle. A line a
+battle goes to `<dir>/battles.csv` as it ends (outcome, time, enemies destroyed, frigates lost and
+captured, hull and shield left, hits taken), so a run can be stopped and started again: `-simfrom N
+-simcount M` runs a batch, skipping cases already in the file; `-simlimit S` caps a battle (600 s);
+`-simlist` writes the cases and quits. `docs/frigates-performance.md` is the report on a full run.
+
 ## Tests
 
 `python Tools/Tests/run_tests.py` runs all of them, one after another, and exits 1 if anything

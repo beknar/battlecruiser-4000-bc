@@ -22,6 +22,9 @@ namespace CarrierGame.Demo
     /// </summary>
     public partial class DemoReel
     {
+        /// <summary>The tactical display's mode in the reel's log (for a voice-over's timing).</summary>
+        void CicMode() { if (tac != null) Note($"cic mode {tac.mode}"); }
+
         /// <summary>Recording the CIC reel (-cic).</summary>
         public static bool CicReel;
         static bool cicOpening;
@@ -211,25 +214,25 @@ namespace CarrierGame.Demo
             Caption("BATTLECRUISER 4000 BC", "Five frigates against the Vrask picket over Sheol, in the Nine Hells", 6f);
             cicCapAt = Time.time;
             yield return CicHold(6.5f, false);
-            tac.mode = TacticalDisplay.Mode.Full;
+            tac.mode = TacticalDisplay.Mode.Full; CicMode();
             var roles = cicRed.GroupBy(v => v.role).OrderBy(g => RoleOrder(g.Key)).Select(g => $"{g.Count()} {g.Key}{(g.Count() > 1 ? "s" : "")}");
             Caption("COMBAT INFORMATION CENTRE", $"Blue: {cicLine}, line abreast. Red: {string.Join(", ", roles)}", 7f);
             cicCapAt = Time.time;
             yield return CicHold(8f, true);
-            tac.mode = TacticalDisplay.Mode.Off;
+            tac.mode = TacticalDisplay.Mode.Off; CicMode();
 
             int n = 0;
             while (!CicOver())
             {
                 // combat, 12 to 18 s (every third with the plot as an inset)
-                tac.mode = n % 3 == 1 ? TacticalDisplay.Mode.Inset : TacticalDisplay.Mode.Off;
+                tac.mode = n % 3 == 1 ? TacticalDisplay.Mode.Inset : TacticalDisplay.Mode.Off; CicMode();
                 yield return CicCombat(n, 12f + (n * 5) % 7);
                 if (CicOver()) break;
                 // the CIC full screen, 6 to 8 s
                 perFrame = null;
-                tac.mode = TacticalDisplay.Mode.Full;
+                tac.mode = TacticalDisplay.Mode.Full; CicMode();
                 yield return CicHold(n % 2 == 0 ? 8f : 6.5f, true);
-                tac.mode = TacticalDisplay.Mode.Off;
+                tac.mode = TacticalDisplay.Mode.Off; CicMode();
                 // a lull: nothing hit for a while, cut ahead
                 if (!CicOver() && tac.SinceLastHit > 35f) yield return CicSkipLull();
                 n++;
@@ -357,12 +360,12 @@ namespace CarrierGame.Demo
             yield return FadeOut(0.4f);
             float c0 = tac.Clock, until = Time.time + 150f;
             while (Time.time < until && tac.SinceLastHit > 2f && !CicOver()) yield return null;
-            tac.mode = TacticalDisplay.Mode.Full;
+            tac.mode = TacticalDisplay.Mode.Full; CicMode();
             yield return FadeIn(0.4f);
             Caption("LATER", $"{Mmss(tac.Clock - c0)} on: battle clock T+{tac.ClockText}", 4f);
             cicCapAt = Time.time;
             yield return CicHold(5f, true);
-            tac.mode = TacticalDisplay.Mode.Off;
+            tac.mode = TacticalDisplay.Mode.Off; CicMode();
         }
 
         /// <summary>The battle's last moments: a survivor of the winning side, then the CIC.</summary>
@@ -371,7 +374,7 @@ namespace CarrierGame.Demo
             Note($"cic: the battle is over at T+{tac.ClockText}: {cicOutcome}");
             perFrame = null;
             var last = tac.Tracks.Where(k => !k.dead && k.t != null).OrderByDescending(k => k.friendly == (cicWinner != "RED")).FirstOrDefault();
-            tac.mode = TacticalDisplay.Mode.Off;
+            tac.mode = TacticalDisplay.Mode.Off; CicMode();
             string title = cicWinner == "BLUE" ? "BLUE FORCE VICTORY" : cicWinner == "RED" ? "THE VRASK PREVAIL" : "NO DECISION";
             if (last != null)
             {
@@ -380,7 +383,7 @@ namespace CarrierGame.Demo
                 cicCapAt = Time.time;
                 yield return Wait(6f);
             }
-            tac.mode = TacticalDisplay.Mode.Full;
+            tac.mode = TacticalDisplay.Mode.Full; CicMode();
             if (last == null) Caption(title, cicOutcome, 4f);
             yield return Wait(4f);
         }
@@ -405,7 +408,7 @@ namespace CarrierGame.Demo
         IEnumerator CicResults()
         {
             perFrame = null;
-            tac.mode = TacticalDisplay.Mode.Results;
+            tac.mode = TacticalDisplay.Mode.Results; CicMode();
             yield return FadeIn(0.6f);
             yield return Wait(13f);
         }
@@ -415,7 +418,7 @@ namespace CarrierGame.Demo
             float dur = Mathf.Max(1f, tac.Duration);
             tac.replaySpeed = Mathf.Clamp(dur / 40f, 10f, 20f);
             tac.replayT = 0f;
-            tac.mode = TacticalDisplay.Mode.Replay;
+            tac.mode = TacticalDisplay.Mode.Replay; CicMode();
             yield return FadeIn(0.6f);
             Caption("FINAL ANALYSIS", $"The whole battle replayed at {tac.replaySpeed:F0}x: every ship's track, who fired on whom, and the key moments", 6f);
             perFrame = () => { if (tac != null) tac.replayT = Mathf.Min(dur, tac.replayT + Time.deltaTime * tac.replaySpeed); };
@@ -428,7 +431,7 @@ namespace CarrierGame.Demo
         IEnumerator CicEndCard()
         {
             perFrame = null;
-            if (tac != null) tac.mode = TacticalDisplay.Mode.EndCard;
+            if (tac != null) { tac.mode = TacticalDisplay.Mode.EndCard; CicMode(); }
             else
             {
                 Shot(1400, cc.transform, demo.ShipViewOffset, D * 3f, cc.Heading + 150f, 12f, 3f);
@@ -437,7 +440,7 @@ namespace CarrierGame.Demo
             yield return FadeIn(0.8f);
             yield return Wait(6f);
             yield return FadeOut(1.5f);
-            if (tac != null) tac.mode = TacticalDisplay.Mode.Off;
+            if (tac != null) { tac.mode = TacticalDisplay.Mode.Off; CicMode(); }
         }
     }
 }

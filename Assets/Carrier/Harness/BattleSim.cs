@@ -31,6 +31,8 @@ namespace CarrierGame.Demo
         static void Boot()
         {
             if (!LaunchArgs.Has("-battlesim")) return;
+            // (told another star system: started once that one is open)
+            if (StarSystems.Leaving) { StarSystems.WhenThere(Boot); return; }
             var s = new GameObject("BattleSim").AddComponent<BattleSim>();
             s.dir = LaunchArgs.FolderAfter("-battlesim", Application.persistentDataPath);
         }
@@ -231,8 +233,11 @@ namespace CarrierGame.Demo
             Vector3 side = Vector3.Cross(Vector3.up, -dir);
             side = side.sqrMagnitude > 1e-4f ? side.normalized : Vector3.right;
             // the hidden player ship well back, so the fields and the origin are where the fight is
-            PlaceGhost(Clear(start + dir * 6000f, dir), c);
+            Vector3 ghostAt = Clear(start + dir * 6000f, dir);
+            PlaceGhost(ghostAt, c);
+            if (LaunchArgs.Has("-simverbose")) Log($"  ghost put {Vector3.Distance(ghost.transform.position, c) / 1000f:F1} km from the centre ({c}); the player at {ghost.transform.position}");
             yield return null;
+            if (LaunchArgs.Has("-simverbose")) Log($"  a frame on: ghost {Vector3.Distance(ghost.transform.position, enc.Centre) / 1000f:F1} km from the centre ({enc.Centre}); the player at {ghost.transform.position}; landing {PlanetLanding.Instance?.Current}");
             c = enc.Centre;
             start = Clear(c + dir * 9000f, dir);
             fleet.Clear();

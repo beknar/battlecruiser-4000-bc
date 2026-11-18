@@ -935,7 +935,9 @@ namespace CarrierGame.Demo
 
         static bool UseGL()
         {
-            if (LaunchArgs.Has("-cicnogl")) return false;
+            // (lines drawn through IMGUI unless -cicgl: with GL in OnGUI the plot came out upside down
+            // against its text on Direct3D, its y the other way to the GUI's)
+            if (!LaunchArgs.Has("-cicgl")) return false;
             if (!triedMat)
             {
                 triedMat = true;

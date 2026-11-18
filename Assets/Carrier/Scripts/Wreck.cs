@@ -8,7 +8,9 @@ namespace CarrierGame
     /// What is left of a destroyed ship, gun or station, to salvage (in combat mode): a few of
     /// its scorched pieces drifting where it died, holding refined materials and now and then a
     /// ship part (Salvage decides what). A wreck lasts `life` seconds, or until it has been
-    /// stripped. It is only in this game: in co-op each player has their own wrecks.
+    /// stripped. It is only in this game: in co-op each player has their own wrecks. While it
+    /// lasts it is a point of interest (on the system map and in the navigation list, to warp
+    /// to); salvaged or gone, it is off them.
     /// </summary>
     public class Wreck : MonoBehaviour
     {
@@ -97,6 +99,7 @@ namespace CarrierGame
                 got.Add(part ? $"{took:F0} {table.Name(id).ToLowerInvariant()}" : $"{took:F1} t {table.Name(id).ToLowerInvariant()}");
             }
             empty = Contents.All(c => c.amount <= 1e-4f);
+            if (empty && TryGetComponent(out WarpPoint poi)) poi.enabled = false;
             return got.Count > 0 ? string.Join(", ", got) : null;
         }
 
@@ -114,6 +117,15 @@ namespace CarrierGame
             w.Contents.AddRange(contents.Where(c => c.amount > 0f));
             w.start.AddRange(w.Contents.Select(c => c.amount));
             w.empty = w.Contents.Count == 0;
+            // a point of interest while it lasts (its WarpPoint goes with it when it is stripped)
+            var poi = go.AddComponent<WarpPoint>();
+            poi.displayName = w.Name;
+            poi.kind = WarpPoint.Kind.Wreck;
+            poi.kindLabel = "wreck";
+            poi.description = $"What is left of a {of}, drifting: salvage it (Z) for its materials.";
+            poi.mapColor = new Color(0.62f, 0.56f, 0.5f);
+            poi.arrivalDistance = Mathf.Max(900f, size * 4f);
+            poi.surface = SurfaceKind.None;
             // the biggest few of its pieces, scattered a little
             var meshes = new List<(MeshFilter f, MeshRenderer r)>();
             var breakup = dead.GetComponent<ShipBreakup>();

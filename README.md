@@ -177,7 +177,7 @@ There is no script: what to do next is the player's. A usual way up:
    them.
 4. **Fight and salvage** (combat mode, 1). Pirates lie in wait in the asteroid fields and
    round their bases; capital ship groups wait on the way in to Cinder and Glacis. A destroyed
-   hostile leaves a wreck, with steel, aluminium, copper and sometimes a part to salvage (Z).
+   hostile leaves a wreck, with steel, aluminium, copper and sometimes a part to salvage (Z). Until it is stripped (or drifts apart after 15 min) the wreck is a point of interest on the system map and in the navigation list; salvaged, it is off both.
 5. **Build a bigger ship.** With the parts in a shipyard's storage, lay down a destroyer or the
    cruiser. Once built, take command of her, with crew recruited to fill her complement, or have
    her **join your fleet** and fly the frigate still (fleet mode, 5).

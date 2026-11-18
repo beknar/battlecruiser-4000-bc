@@ -81,6 +81,9 @@ namespace CarrierGame
         /// <summary>Anything changed (storage, queues, fittings): time to save.</summary>
         public static event Action Changed;
 
+        /// <summary>Forget this system's industry (another star system is opened: it has its own save).</summary>
+        public static void ResetForSystem() => ResetStatics();
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {

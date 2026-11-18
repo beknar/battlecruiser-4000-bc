@@ -33,6 +33,8 @@ namespace CarrierGame.Demo
         public CarrierController carrier;
         public WarpDrive drive;
         public string systemName = "Kestrel System";
+        /// <summary>The star this system goes round (its warp point), for "orbits ...".</summary>
+        static string StarName => WarpPoint.All.Find(w => w != null && w.kind == WarpPoint.Kind.Star)?.displayName ?? "the star";
 
         public static bool IsOpen => InputFocus.Has(InputFocus.Panel.SystemMap);
         /// <summary>The map closed this frame (so Esc doesn't also quit the game).</summary>
@@ -422,7 +424,7 @@ namespace CarrierGame.Demo
             Hud.Panel(mapRect);
             Hud.Panel(infoRect);
             GUI.Label(new Rect(mapRect.x + 14f * s, mapRect.y + 10f * s, mapRect.width, 40f * s),
-                $"<b>{systemName.ToUpper()}</b>   <color=#9aa4b0>system map: mini-warp</color>", Hud.Text(22));
+                $"<b>{StarSystems.Current.name.ToUpper()}</b>   <color=#9aa4b0>system map: mini-warp</color>", Hud.Text(22));
 
             var star = order.FirstOrDefault(w => w.kind == WarpPoint.Kind.Star);
             Vector2 starPx = star != null ? ScreenPosOf(star) : center;
@@ -595,12 +597,12 @@ namespace CarrierGame.Demo
             string Min(double sec) => sec >= 5400.0 ? $"{sec / 3600.0:F1} h" : $"{sec / 60.0:F0} min";
             if (o.kind == Orbit.Kind.Lagrange && o.secondary != null)
                 return $"Goes round with {o.secondary.name.Replace(" (orbit)", "")}, every {Min(o.Period)}";
-            string round = o.parent != null ? o.parent.name.Replace(" (orbit)", "") : "Kestrel";
+            string round = o.parent != null ? o.parent.name.Replace(" (orbit)", "") : StarName;
             string orbitName = o.name.Replace(" (orbit)", "");
             bool own = w.transform == o.transform || w.transform.parent == o.transform;
             if (!own && w.kind == WarpPoint.Kind.Station) return $"Geostationary: always over the same place on {orbitName}";
             if (!own) return $"On {orbitName}, which orbits {round} every {Min(o.Period)}";
-            string what = o.eccentricity > 0.01 ? "Orbits Kestrel on a long ellipse" : $"Orbits {round}";
+            string what = o.eccentricity > 0.01 ? $"Orbits {StarName} on a long ellipse" : $"Orbits {round}";
             return $"{what} every {Min(o.Period)}";
         }
 

@@ -20,6 +20,9 @@ namespace CarrierGame
 
         static readonly Dictionary<string, BodyMemory> bodies = new Dictionary<string, BodyMemory>();
 
+        /// <summary>Forget this world (another star system is opened: it has its own, read from its save).</summary>
+        public static void ResetForSystem() => ResetStatics();
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() { Clock = 0; bodies.Clear(); timers.Clear(); Strikes.Clear(); ScarsChanged = null; Restored = null; Prisoners = ShipsTaken = 0; }
 

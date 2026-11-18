@@ -29,6 +29,8 @@ namespace CarrierGame
         public WarpPoint orbitParent;
         [Tooltip("Hostiles are known to be here (shown on the map).")]
         public bool hostile;
+        [Tooltip("A planet with no air at all (a planet has air unless it is).")]
+        public bool airless;
         [Tooltip("What its surface is like, for landing (None: can't land).")]
         public SurfaceKind surface = SurfaceKind.None;
         [Tooltip("A base on a planet or moon: landing here lands on that body, next to the base.")]

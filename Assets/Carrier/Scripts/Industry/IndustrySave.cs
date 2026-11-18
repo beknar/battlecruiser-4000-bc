@@ -66,7 +66,7 @@ namespace CarrierGame
                 if (!string.IsNullOrEmpty(chosen)) return chosen;
                 // (a new game, or a test, never writes over the player's own save)
                 if (LaunchArgs.Automated || NewGame) return null;
-                return Path.Combine(Application.persistentDataPath, "industry_save.json");
+                return Path.Combine(Application.persistentDataPath, StarSystems.SaveName(StarSystems.Current));   // (each system its own)
             }
         }
 

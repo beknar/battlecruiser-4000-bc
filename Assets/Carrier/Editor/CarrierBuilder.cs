@@ -91,6 +91,7 @@ namespace Carrier.EditorTools
                 TakeScreenshots();
                 BuildAsteroidScene(p, frigate);     // the second level: the asteroid-field ambush
                 BuildStarSystemScene(p, frigate);   // the third level: the star system and its mini-warp
+                BuildNineHellsScene(p, frigate);    // and the second star system, the Nine Hells
                 RemoveStaleChunks();
                 Log("BUILD_OK");
             }

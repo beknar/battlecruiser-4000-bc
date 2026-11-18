@@ -50,6 +50,8 @@ namespace Carrier.EditorTools
             /// <summary>Degrees a second it turns, unless it keeps pace with its elevator's top.</summary>
             public float spin;
             public bool spinMatchesElevator, yearSetsStarMass;
+            /// <summary>No air at all (a planet has air unless it is).</summary>
+            public bool airless;
 
             public SurfaceKind Surface => (SurfaceKind)Enum.Parse(typeof(SurfaceKind), surface);
         }

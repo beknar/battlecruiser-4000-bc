@@ -54,9 +54,12 @@ namespace CarrierGame.Demo
                     $"{(sys != null ? string.Join(", ", ShipSystems.Components.Select(c => $"{c} {sys.Condition(c):P0}")) : "no systems")}; " +
                     $"Snares {string.Join(", ", snares.Select(v => $"{Vector3.Distance(v.transform.position, frigate.position):F0} m"))}");
             }
+            // (which Snare has which duty varies from run to run: logged; the check has them sorted)
+            Log($"  duties: {duties}");
+            string roles = string.Join(", ", duties.Split(new[] { ", " }, System.StringSplitOptions.RemoveEmptyEntries).Select(x => x.Split(' ').Last()).OrderBy(x => x));
             Check(shieldAt >= 0f && enginesAt >= 0f,
                   $"the Snares' ion fire knocks out the frigate's shield generator ({shieldAt:F0} s) and then its engines ({enginesAt:F0} s): " +
-                  $"{duties}; aimed at its {ShipSystems.Label(ShipSystems.AimOf(snares[0].transform.root))}");
+                  $"their duties {roles}; aimed at its {ShipSystems.Label(ShipSystems.AimOf(snares[0].transform.root))}");
             Check(lockAt >= 0f && cc.Tractored && holder != null,
                   $"a tractor lock on the frigate after {lockAt:F0} s ({(holder != null ? holder.name : "none")}): {cc.TractorBeams} beam(s), held fast {cc.TractorFirm}");
             if (!cc.Tractored || holder == null) yield break;

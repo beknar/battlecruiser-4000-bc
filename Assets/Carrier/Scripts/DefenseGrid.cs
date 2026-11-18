@@ -78,7 +78,7 @@ namespace CarrierGame
         {
             // with more than one player ship about (co-op): the one nearest the guns
             var nearest = PlayerShips.Retarget(player, transform.position, ref nextLook, 0f);
-            if (nearest != player) { player = nearest; playerHealth = nearest.GetComponentInParent<Health>(); }
+            if (nearest != player) { player = nearest; playerHealth = nearest != null ? nearest.GetComponentInParent<Health>() : null; }
             if (player == null || weapons == null) return;
             bool playerAlive = playerHealth == null || !playerHealth.Dead;
             float d = NearestGun(player.position, out var gun);

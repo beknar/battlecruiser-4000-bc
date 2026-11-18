@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace CarrierGame
@@ -18,8 +19,75 @@ namespace CarrierGame
         public bool canDock;
         [Tooltip("Buys ore (when docked, the hold is sold).")]
         public bool market;
-        [Tooltip("Where a docked ship sits; its forward is the way out.")]
+        [Tooltip("Where a docked ship sits; its forward is the way out. The first of its berths.")]
         public Transform berth;
+        [Tooltip("Every place a ship can moor here (the first is `berth`): the moorings round it.")]
+        public Transform[] berths;
+
+        // ------------------------------------------------------------ berths in use
+
+        /// <summary>Which ship has each berth (the berth, the ship); kept for every installation.</summary>
+        static readonly Dictionary<Transform, Transform> claims = new Dictionary<Transform, Transform>();
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetClaims() => claims.Clear();
+
+        /// <summary>Every berth here (just `berth` on one with no moorings round it).</summary>
+        public Transform[] Berths => berths != null && berths.Length > 0 ? berths : berth != null ? new[] { berth } : new Transform[0];
+
+        /// <summary>A ship (other than `who`) on or at the berth, or it claimed by one still about.</summary>
+        public bool Taken(Transform b, Transform who)
+        {
+            if (b == null) return true;
+            if (claims.TryGetValue(b, out var holder) && holder != null && holder != who && holder.gameObject.activeInHierarchy) return true;
+            Vector3 p = b.position;
+            foreach (var t in PlayerShips.All)
+            {
+                if (t == null || t == who || !t.gameObject.activeInHierarchy) continue;
+                if ((t.position - p).sqrMagnitude < 150f * 150f) return true;
+            }
+            return false;
+        }
+
+        /// <summary>A berth for `who` (one it has here already, else the first berth if it is free,
+        /// else the free one nearest `from`), claimed for it; null if every one is taken.</summary>
+        public Transform ClaimBerth(Transform who, Vector3 from)
+        {
+            foreach (var kv in claims) if (kv.Value == who && System.Array.IndexOf(Berths, kv.Key) >= 0) return kv.Key;
+            var all = Berths;
+            Transform pick = null;
+            if (all.Length > 0 && !Taken(all[0], who)) pick = all[0];
+            else
+            {
+                float best = float.MaxValue;
+                foreach (var b in all)
+                {
+                    if (b == null || Taken(b, who)) continue;
+                    float d = (b.position - from).sqrMagnitude;
+                    if (d < best) { best = d; pick = b; }
+                }
+            }
+            if (pick != null) { ReleaseBerth(who); claims[pick] = who; }
+            return pick;
+        }
+
+        /// <summary>Whatever berth `who` has, anywhere, given up.</summary>
+        public static void ReleaseBerth(Transform who)
+        {
+            if (who == null) return;
+            Transform had = null;
+            foreach (var kv in claims) if (kv.Value == who) { had = kv.Key; break; }
+            if (had != null) claims.Remove(had);
+        }
+
+        /// <summary>The berth `who` has claimed here, or null.</summary>
+        public Transform BerthOf(Transform who)
+        {
+            foreach (var kv in claims) if (kv.Value == who && System.Array.IndexOf(Berths, kv.Key) >= 0) return kv.Key;
+            return null;
+        }
+
+        /// <summary>How many of its berths are free now (for `who`).</summary>
+        public int FreeBerths(Transform who) => Berths.Count(b => !Taken(b, who));
         // the last of the way in: from here the ship is brought in to the berth (under a fade)
         [Tooltip("Docking is possible within this distance of the berth (m).")]
         public float dockRange = 1600f;
@@ -74,6 +142,8 @@ namespace CarrierGame
         void OnDisable() => All.Remove(this);
 
         public Vector3 BerthPosition => berth != null ? berth.position : transform.position;
+        /// <summary>Where a berth is (the first's, given none).</summary>
+        public Vector3 BerthPositionOf(Transform b) => b != null ? b.position : BerthPosition;
 
         /// <summary>The nearest friendly place to dock within its docking range of a point, or null.</summary>
         public static Installation DockableNear(Vector3 p)
@@ -148,14 +218,15 @@ namespace CarrierGame
         /// <summary>The way in to the berth, as a direction out from it: out from what it is built
         /// into (a pier's end; a pad on a rock's face: up from it), or, at a berth in the middle of
         /// a station, its own way out.</summary>
-        public Vector3 ApproachAxis
+        public Vector3 ApproachAxis => ApproachAxisOf(berth);
+
+        /// <summary>The way in to a berth (see ApproachAxis): out from the middle, for a mooring round it.</summary>
+        public Vector3 ApproachAxisOf(Transform b)
         {
-            get
-            {
-                Vector3 f = BerthPosition - Centre;
-                if (f.sqrMagnitude > 200f * 200f) return f.normalized;
-                return berth != null ? berth.forward : transform.forward;
-            }
+            if (b == null) b = berth;
+            Vector3 f = BerthPositionOf(b) - Centre;
+            if (f.sqrMagnitude > 200f * 200f) return f.normalized;
+            return b != null ? b.forward : transform.forward;
         }
 
         /// <summary>Where to steer for on the way in: out in front of the berth (out from what it
@@ -163,15 +234,19 @@ namespace CarrierGame
         /// side rather than through the rock or the hull; round it first when the straight way
         /// there would cross it (out to the side, then up level with the berth); the berth itself
         /// once in front of it, near its line. `margin`: room for the ship's own size.</summary>
-        public Vector3 ApproachPoint(Vector3 from, float margin = 150f)
+        public Vector3 ApproachPoint(Vector3 from, float margin = 150f) => ApproachPointOf(from, berth, margin);
+
+        /// <summary>ApproachPoint for one of its berths.</summary>
+        public Vector3 ApproachPointOf(Vector3 from, Transform at, float margin = 150f)
         {
-            if (berth == null) return BerthPosition;
-            Vector3 b = BerthPosition;
+            if (at == null) at = berth;
+            if (at == null) return BerthPosition;
+            Vector3 b = at.position;
             Vector3 c = Centre;
             float r = ClearRadius + 300f + margin;
             // the way in: out from what it is built into (a pier's end, a pad on a rock's face:
             // in from above it), or, at a berth in the middle of a station, its own way out
-            Vector3 f = ApproachAxis;
+            Vector3 f = ApproachAxisOf(at);
             Vector3 rel = from - b;
             float ahead = Vector3.Dot(rel, f);
             // (in front, and near the line out from the berth: straight in, over the open side)

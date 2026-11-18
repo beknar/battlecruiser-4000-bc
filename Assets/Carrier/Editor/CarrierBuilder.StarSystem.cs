@@ -28,6 +28,8 @@ namespace Carrier.EditorTools
     public static partial class CarrierBuilder
     {
         public const string StarSystemScenePath = Root + "/Scenes/StarSystem.unity";
+        /// <summary>The second star system, the Nine Hells (CarrierBuilder.NineHells).</summary>
+        public const string NineHellsScenePath = Root + "/Scenes/NineHells.unity";
         const string ArtDir = Root + "/Art/Kenney";
 
         static Vector3 Polar(float angleDeg, float distKm, float yKm)

@@ -66,6 +66,15 @@ namespace Carrier.EditorTools
         [MenuItem("Tools/Carrier/Deprecated/Build Asteroid Ambush")]
         public static void BuildAsteroids() => Run(Asteroids);
 
+        /// <summary>A game's scenes: its own, and for the star system the other systems' too
+        /// (the Nine Hells, when it has been built), chosen from the start menu.</summary>
+        static string[] ScenesOf(Profile p)
+        {
+            if (p.Scene == CarrierBuilder.StarSystemScenePath && File.Exists(CarrierBuilder.NineHellsScenePath))
+                return new[] { p.Scene, CarrierBuilder.NineHellsScenePath };
+            return new[] { p.Scene };
+        }
+
         [MenuItem("Tools/Carrier/Build Star System")]
         public static void BuildStarSystem() => Run(StarSystem);
 
@@ -159,7 +168,7 @@ namespace Carrier.EditorTools
                 Directory.CreateDirectory(outDir);
                 var options = new BuildPlayerOptions
                 {
-                    scenes = new[] { p.Scene },
+                    scenes = ScenesOf(p),
                     locationPathName = p.Exe != null ? Path.Combine(outDir, p.Exe) : outDir,
                     target = p.Target,
                     options = BuildOptions.None,

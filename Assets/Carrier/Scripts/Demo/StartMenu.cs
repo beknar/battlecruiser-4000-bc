@@ -52,6 +52,9 @@ namespace CarrierGame.Demo
         }
         int selected;
         bool paused;
+        // the star system to play in (StarSystems: the Testing System or the Nine Hells, as built)
+        StarSystems.Info system;
+        Rect systemRect;
         float savedScale = 1f, stickRepeat;
         int openedFrame = -10;
         readonly List<Rect> rowRects = new List<Rect>();
@@ -84,6 +87,7 @@ namespace CarrierGame.Demo
             openedFrame = Time.frameCount;
             IndustryDirector.LoadSaved();
             offered = System.Array.FindAll(roster.frigates, FrigateRoster.MayStartIn);
+            system = StarSystems.Available(StarSystems.Chosen) ? StarSystems.Chosen : StarSystems.Current;
             selected = Mathf.Max(0, IndexOf(string.IsNullOrEmpty(PlayerFrigate.Flying) ? FrigateChoice.Current : PlayerFrigate.Flying));
             stats = new FrigateStats[offered.Length];
             best = new FrigateStats();
@@ -127,6 +131,27 @@ namespace CarrierGame.Demo
             if (IsOpen) Close();
         }
 
+        int SystemsOffered()
+        {
+            int n = 0;
+            foreach (var x in StarSystems.All) if (StarSystems.Available(x)) n++;
+            return n;
+        }
+
+        /// <summary>The next star system that is in this build.</summary>
+        void NextSystem()
+        {
+            if (system == null) return;
+            int i = System.Array.IndexOf(StarSystems.All, system);
+            for (int step = 1; step <= StarSystems.All.Length; step++)
+            {
+                var next = StarSystems.All[(i + step) % StarSystems.All.Length];
+                if (!StarSystems.Available(next)) continue;
+                if (next != system) { system = next; SoundFX.Ui(Sfx.UiClear); }
+                return;
+            }
+        }
+
         /// <summary>Fly the chosen frigate with the chosen captain.</summary>
         public void Launch()
         {
@@ -139,6 +164,9 @@ namespace CarrierGame.Demo
             bool change = !string.Equals(e.id, PlayerFrigate.Flying, System.StringComparison.OrdinalIgnoreCase);
             Close();
             SoundFX.Ui(Sfx.UiLock);
+            // another star system: its own scene (the frigate and captain chosen go with it)
+            StarSystems.Keep(system);
+            if (system != null && system != StarSystems.Current && StarSystems.Open(system)) return;
             if (change && !LiveSwap) { GameMenu.ReloadLevel(); return; }
             if (change) PlayerFrigate.SwapTo(e.id);
             var coop = GetComponent<CoopMenu>();
@@ -167,6 +195,7 @@ namespace CarrierGame.Demo
             if (!IsOpen || Time.frameCount == openedFrame) return;
             var k = Keyboard.current;
             var pad = Gamepad.current;
+            if ((k != null && k.tabKey.wasPressedThisFrame) || (pad != null && pad.selectButton.wasPressedThisFrame)) NextSystem();
             if (k != null)
             {
                 if (k.upArrowKey.wasPressedThisFrame || k.wKey.wasPressedThisFrame) Choose(selected - 1);
@@ -305,6 +334,18 @@ namespace CarrierGame.Demo
             var panel = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
             Hud.Panel(panel);
             GUI.Label(new Rect(panel.x, panel.y + pad * 0.6f, w, 40f * s), "CHOOSE YOUR SHIP AND CAPTAIN", Hud.Text(26, true, TextAnchor.MiddleCenter));
+            // the star system (more than one built: Tab, Select or a click changes it)
+            if (system != null && SystemsOffered() > 1)
+            {
+                systemRect = new Rect(panel.xMax - pad - 420f * s, panel.y + pad * 0.5f, 420f * s, 44f * s);
+                Hud.Fill(systemRect, new Color(0.1f, 0.16f, 0.24f, 0.9f));
+                GUI.Label(new Rect(systemRect.x + 10f * s, systemRect.y + 2f * s, systemRect.width - 20f * s, 22f * s),
+                          $"<color=#9aa4b0>STAR SYSTEM</color>  <b>{system.name.ToUpperInvariant()}</b>", Hud.Text(16, false, TextAnchor.MiddleLeft));
+                GUI.Label(new Rect(systemRect.x + 10f * s, systemRect.y + 22f * s, systemRect.width - 20f * s, 20f * s),
+                          "<color=#9aa4b0>Tab / Select / click to change</color>", Hud.Text(12, false, TextAnchor.MiddleLeft));
+                var ev = Event.current;
+                if (ev.type == EventType.MouseDown && systemRect.Contains(ev.mousePosition)) { NextSystem(); ev.Use(); }
+            }
 
             // the frigates, down the left
             float top = panel.y + pad * 0.6f + 56f * s, listW = Mathf.Min(360f * s, w * 0.3f);

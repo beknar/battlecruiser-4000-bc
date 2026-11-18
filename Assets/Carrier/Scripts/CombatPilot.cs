@@ -146,6 +146,19 @@ namespace CarrierGame
             if (health != null) hitsWhileLurking = health.Hits;
         }
 
+        /// <summary>Its lurking place (where it waits, and goes back to).</summary>
+        public Vector3 Home => lurkPoint;
+
+        /// <summary>Back in its lurking place at once, still and cold (the battle simulator).</summary>
+        public void ResetHome()
+        {
+            Disengage();
+            hideUntil = 0f;
+            transform.SetPositionAndRotation(lurkPoint, lurkRotation);
+            speed = 0f;
+            AtHome = true;
+        }
+
         /// <summary>Move its lurking place (where it waits, and goes back to).</summary>
         public void SetHome(Vector3 position, Quaternion rotation)
         {

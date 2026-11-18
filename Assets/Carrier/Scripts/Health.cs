@@ -268,6 +268,17 @@ namespace CarrierGame
         }
 
         /// <summary>Back now, if it is down (a SpawnDirector's spawn).</summary>
+        /// <summary>Back to whole, alive or not (the battle simulator puts an encounter back as it was).</summary>
+        public void Restore()
+        {
+            if (Dead) { RespawnNow(); return; }
+            Current = maxHealth;
+            var a = GetComponent<Armor>();
+            if (a != null) a.Repair();
+            var sy = GetComponent<ShipSystems>();
+            if (sy != null) sy.RepairAll();
+        }
+
         public void RespawnNow()
         {
             if (!Dead) return;

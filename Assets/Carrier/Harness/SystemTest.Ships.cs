@@ -156,6 +156,45 @@ namespace CarrierGame.Demo
             cc.SetTarget(null);
             Destroy(dummy);
 
+            // the paint (ShipPaint): a scheme on the hull, the prefab's own material left alone, then
+            // the hull as it was built again (and the player's own paint, if given one, back on)
+            {
+                var scheme = ShipPaint.FromPreset(1);
+                scheme.text = "TEST-01";
+                bool Hull(Renderer r) => r.sharedMaterials.Any(m => ShipPaint.IsHull(ShipPaint.Original(m)));
+                var hullRs = cc.GetComponentsInChildren<Renderer>(true).Where(Hull).ToArray();
+                int n = ShipPaint.Apply(cc.gameObject, scheme);
+                var pm = hullRs.SelectMany(r => r.sharedMaterials).FirstOrDefault(ShipPaint.IsPainted);
+                var block = new MaterialPropertyBlock();
+                int decalRs = 0;
+                foreach (var r in hullRs)
+                {
+                    r.GetPropertyBlock(block);
+                    if (block.GetFloat(ShipPaint.DecalsId) > 0.5f) decalRs++;
+                }
+                bool Near(Color a, Color b) => Mathf.Abs(a.r - b.r) < 0.01f && Mathf.Abs(a.g - b.g) < 0.01f && Mathf.Abs(a.b - b.b) < 0.01f;
+                Log($"  paint: {n} of {hullRs.Length} hull renderers, {decalRs} with the logo and lettering; material {(pm != null ? pm.name : "none")}, " +
+                    $"shader {(pm != null ? pm.shader.name : "-")}");
+                Check(hullRs.Length > 0 && n == hullRs.Length && hullRs.All(r => r.sharedMaterials.Where(m => ShipPaint.IsHull(ShipPaint.Original(m))).All(ShipPaint.IsPainted)),
+                      $"the paint goes on every hull renderer ({n} of {hullRs.Length})");
+                Check(pm != null && pm.shader == ShipPaint.PaintShader && pm.GetTexture("_BaseMap") != null
+                      && Mathf.Approximately(pm.GetFloat("_PaintPattern"), scheme.pattern) && Near(pm.GetColor("_PaintA"), scheme.primary)
+                      && Near(pm.GetColor("_PaintD"), scheme.letters) && Mathf.Approximately(pm.GetVector("_TextRect").w, 7f)
+                      && Mathf.Approximately(pm.GetVector("_LogoRect").w, scheme.logo) && pm.GetTexture("_LogoTex") != null && pm.GetTexture("_FontTex") != null,
+                      "the painted material has the hull's texture, the scheme, the logo and the lettering");
+                Check(decalRs > 0, $"the logo and lettering go on the hull ({decalRs} renderers)");
+                var prefab = entry != null ? entry.prefab : null;
+                Check(prefab == null || prefab.GetComponentsInChildren<Renderer>(true).SelectMany(r => r.sharedMaterials).All(m => !ShipPaint.IsPainted(m)),
+                      "the class's own material is left as it was (other ships unpainted)");
+                yield return null;
+                yield return null;
+                Shot("ship_paint_" + flying);
+                yield return null;
+                ShipPaint.Apply(cc.gameObject, null);
+                Check(hullRs.All(r => r.sharedMaterials.All(m => !ShipPaint.IsPainted(m))), "and the paint comes off again");
+                ShipPaint.ApplyPlayer(cc);
+            }
+
             // the start menu, shown for the picture
             var menu = FindAnyObjectByType<StartMenu>();
             if (menu != null)

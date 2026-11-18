@@ -23,6 +23,8 @@ namespace CarrierGame
         // a gun firing bursts (the tank), and how far off its nose a unit fires
         public float gunRange, burstInterval, shotSpacing, spread, fireArc;
         public int burstShots;
+        /// <summary>What one shot or one missile does (0: what the shell or missile has of its own).</summary>
+        public float gunDamage, missileDamage;
 
         // flying (fighters and gunships)
         public float cruiseSpeed, attackSpeed, turnRate, acceleration;
@@ -35,6 +37,11 @@ namespace CarrierGame
         // submarine's speed and room under its keel
         public float minDepth, keelClearance;
 
+        // a mobile missile launcher: how long it drives between stops, how long its launcher takes
+        // to go up (and down again), and how many salvoes it fires from each stop
+        public float driveTime, raiseTime;
+        public int salvosPerStop;
+
         /// <summary>How long it takes to be rebuilt once destroyed, in minutes of game time (0:
         /// never). It goes on off-screen: an area built again has back whatever has had its time.</summary>
         public float rebuildMinutes;
@@ -45,6 +52,8 @@ namespace CarrierGame
     public class GroundUnitTable
     {
         public GroundUnitStats battery, missileSite, tank, fighter, gunship, seaBase, submarine;
+        /// <summary>The light armoured vehicle, the mobile missile launcher and the surface warship.</summary>
+        public GroundUnitStats lav, mobileLauncher, warship;
 
         public const string Resource = "Data/ground_units";
         static GroundUnitTable loaded;

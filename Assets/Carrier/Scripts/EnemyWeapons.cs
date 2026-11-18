@@ -19,6 +19,8 @@ namespace CarrierGame
         public float shotSpacing = 0.15f;
         [Tooltip("Scatter in degrees.")]
         public float spread = 1.5f;
+        [Tooltip("What each shot does (0: the shell's own damage).")]
+        public float gunDamage;
 
         [Header("Missiles")]
         public Missile missilePrefab;
@@ -28,6 +30,12 @@ namespace CarrierGame
         public float missileRange = 4500f;
         public float salvoInterval = 14f;
         public int salvoSize = 4;
+        [Tooltip("What each missile does (0: the missile's own, up to 150).")]
+        public float missileDamage;
+        [Tooltip("Missiles only on cue (FireSalvoNow), not by themselves: a mobile launcher fires once its launcher is up.")]
+        public bool missilesOnCue;
+        [Tooltip("Missiles leave from here along its forward (a launcher's tubes); otherwise up out of the hull.")]
+        public Transform missileMouth;
 
         [Header("Turrets")]
         [Tooltip("Turrets that track and fire on the target by themselves while this ship is in the fight.")]
@@ -58,6 +66,9 @@ namespace CarrierGame
         public int HeldForCover { get; private set; }
         /// <summary>The target is in plain sight (no obstacle in between).</summary>
         public bool HasLineOfSight { get; private set; } = true;
+        /// <summary>Shots and missiles fired so far (for the self-test).</summary>
+        public int ShotsFired { get; private set; }
+        public int MissilesFired { get; private set; }
 
         Health health;
         IVelocity targetMover;
@@ -143,7 +154,7 @@ namespace CarrierGame
                 nextBurst = now + Slow(burstInterval);
                 StartCoroutine(Burst());
             }
-            if (missilePrefab != null && now >= nextSalvo && dist < missileRange)
+            if (missilePrefab != null && !missilesOnCue && now >= nextSalvo && dist < missileRange)
             {
                 nextSalvo = now + Slow(salvoInterval);
                 StartCoroutine(Salvo());
@@ -197,6 +208,8 @@ namespace CarrierGame
                 dir = Quaternion.Euler(Random.Range(-spread, spread), Random.Range(-spread, spread), 0f) * dir;
                 var p = Pool.Take(gunPrefab, Muzzle(dir), Quaternion.LookRotation(dir));
                 p.owner = transform;
+                if (gunDamage > 0f) p.damage = gunDamage;
+                ShotsFired++;
                 SoundFX.Play(gunPrefab.kind == HitKind.Cannon ? Sfx.Cannon : Sfx.Blaster, p.transform.position, 0.7f,
                              gunPrefab.kind == HitKind.Cannon ? 0.85f : 1.3f);
                 yield return new WaitForSeconds(shotSpacing);
@@ -214,10 +227,18 @@ namespace CarrierGame
                 Vector3 up = torpedoes && toward.sqrMagnitude > 1f
                     ? (toward.normalized + Random.insideUnitSphere * 0.15f - Vector3.up * 0.05f).normalized
                     : (transform.up + Random.insideUnitSphere * 0.4f).normalized;
-                var m = Instantiate(missilePrefab, Muzzle(up), Quaternion.LookRotation(up));
+                Vector3 from;
+                if (missileMouth != null)
+                {
+                    up = (missileMouth.forward + Random.insideUnitSphere * 0.08f).normalized;
+                    from = missileMouth.position + up * 2f;
+                }
+                else from = Muzzle(up);
+                var m = Instantiate(missilePrefab, from, Quaternion.LookRotation(up));
                 m.owner = transform;
                 m.target = target;
-                m.damage = Mathf.Min(m.damage, 150f);
+                m.damage = missileDamage > 0f ? missileDamage : Mathf.Min(m.damage, 150f);
+                MissilesFired++;
                 yield return new WaitForSeconds(0.25f);
             }
         }

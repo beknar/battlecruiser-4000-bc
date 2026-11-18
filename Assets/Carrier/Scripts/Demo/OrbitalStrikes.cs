@@ -108,6 +108,9 @@ namespace CarrierGame.Demo
                 case UnitKind.Tank: return "hover tanks";
                 case UnitKind.SeaBase: return "a sea base";
                 case UnitKind.Submarine: return "submarines";
+                case UnitKind.Lav: return "armoured vehicles";
+                case UnitKind.MobileLauncher: return "a mobile missile launcher";
+                case UnitKind.Warship: return "warships";
                 default: return "a base";
             }
         }

@@ -466,13 +466,17 @@ namespace CarrierGame.Demo
             ship.throttle = throttle * clear;
         }
 
-        /// <summary>The fleet's target: the one the others are on if it is still in the fight, else
-        /// the nearest enemy of the encounter it can see (any of it, if none is in sight).</summary>
+        /// <summary>The fleet's target: the one the others are on if it is still in the fight and in
+        /// her own sight, else the nearest enemy of the encounter she can see (any of it, if none is
+        /// in sight). (Only in sight: a fleet all following one another onto a defence hidden behind
+        /// its rock never chose again, and without the beam never hit anything.)</summary>
         Transform Choose()
         {
             if (encounter == null) return null;
             foreach (var p in fleet)
-                if (p != null && p != this && p.Alive && p.target != null && Fit(p.target)) return p.target;
+                if (p != null && p != this && p.Alive && p.target != null && Fit(p.target)
+                    && (p.target.position - transform.position).sqrMagnitude < 12000f * 12000f
+                    && Cover.Visible(transform.position, p.target.position)) return p.target;
             Transform best = null, any = null;
             float bestD = float.MaxValue, anyD = float.MaxValue;
             foreach (var h in encounter.enemies)

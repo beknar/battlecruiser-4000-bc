@@ -205,7 +205,8 @@ There are five frigates to choose from. As each game starts, the start menu offe
 turning picture of each, bars comparing them, and the five captains. The game waits while the
 menu is up. Launching with a different frigate starts the level again with it. The menu shows once
 a run, and the frigate is kept for the game: its crew, parts and hold go with it, so the pause menu
-doesn't change it. The choice is remembered for next time.
+doesn't change it. The choice is remembered for next time. After the frigate and captain comes the
+Customise step, where the ship is painted (see [Painting your ship](#painting-your-ship)).
 
 | Frigate | Kind | Guns | CIWS | Hull / shield | Speed, turn |
 |---|---|---|---|---|---|
@@ -226,6 +227,50 @@ The four newer frigates started as AI-made models in another paint scheme (`ai m
 and red (`Tools/Blender/recolour_frigate.py`, kept in `ai models/retextured`), and converted for
 the game with their turrets cut out of the hull (`Tools/Blender/convert_frigates.py`, from
 `Tools/Blender/frigates_spec.json`).
+
+### Painting your ship
+
+Once the frigate and captain are chosen, the start menu's **Customise** step paints the ship. The
+turning picture shows the paint as it is chosen. Done (Enter, or A on the pad) keeps the paint and
+launches; Back returns to the ships. The pause menu's **Paint the ship** item opens the same
+screen for the ship being flown, and Done paints it straight away.
+
+- **Presets.** Ten ready-made schemes: Fleet grey, Tiger stripes, Arctic splinter, Corsair red,
+  Night hunter, Desert digital, Checker, Chevrons, Racing stripe and Hex armour. The factory
+  finish is the hull as it was built, unpainted. Choosing a preset keeps your lettering.
+- **Patterns.** 100 patterns: ten families of ten. The families are bands (belly, racing
+  stripes, nose, tail, waterline), stripes, chevrons, checks (checker, diamonds, plaid, brick),
+  hexagons, dots and rings, waves and scales, woodland camo, splinter and digital camo, and
+  tiger stripes, flames and triangles. A slider sets the pattern's scale (25 to 400%) and
+  another its angle.
+- **Colours.** The pattern mixes three colours: primary, secondary and trim. A fourth colour is
+  for the logo and lettering. Each comes from a palette of 24 or from hue, saturation and value
+  sliders. The paint keeps the hull's own light and dark, so panel lines and grime show through.
+- **Logos.** Twelve emblems, or none, on both sides of the hull toward the bow: star, wings,
+  skull, shield, eagle, lightning, anchor, planet, claw, crescent, comet and gear.
+- **Lettering.** Up to 12 letters, digits, dashes and spaces, on both sides amidships. They read
+  the right way round on each side.
+- **Random and Reset.** Random picks a pattern, three different palette colours and a logo.
+  Reset puts back the paint the ship had when the screen opened.
+
+Keys: up/down choose a row, left/right change it (hold to repeat), Q/E step through the pattern
+families, T types the lettering, R is random, Enter or Space is done, Esc goes back. On the pad:
+D-pad or left stick, LB/RB for the pattern family, Y random, X reset, A done, B back. The mouse
+can click anything and drag the sliders.
+
+The paint is kept for each class, so a Lancer and a Warden can wear different schemes. A class
+not yet painted starts in the last scheme you chose. The self-tests, reels and AI players fly
+unpainted unless they are given `-paint`.
+
+The paint is done in the hull's shader, not with differently coloured copies of the ships.
+`Carrier/ShipPaint` (`Assets/Carrier/Resources/Paint/ShipPaint.shader`) is URP Lit with the
+pattern worked out from where each point is on the ship. It also draws the logo and lettering,
+from two atlases drawn by `Tools/Textures/make_paint_atlases.py`. Only the player's ship, the
+other players' ships in co-op and the menu's picture get a painted copy of the hull material.
+Every other ship keeps the shared material as it was built. A scheme is written as a short code:
+`1.<pattern>.<scale %>.<angle>.<primary>.<secondary>.<trim>.<lettering colour>.<logo>.<TEXT>`.
+The colours are `RRGGBB`, the logo is -1 for none, and spaces in the text are underscores. For
+example, `1.90.100.0.d9731a.1a1a1a.e8dcc0.1a1a1a.8.TIGER-01`.
 
 ### Destroyers and the cruiser
 
@@ -1529,8 +1574,9 @@ kept.
 ### What is shared
 
 - **Ships.** Each game shows the other players' ships, smoothed, with their names, each as the
-  frigate its player flies. A ship disappears while its player is in warp, on a planet or
-  destroyed.
+  frigate its player flies and in its player's paint (the scheme's code goes with every update
+  of the ship; an older game leaves it out, and its ship is shown unpainted). A ship disappears
+  while its player is in warp, on a planet or destroyed.
 - **Enemies.** Each level has a host: the first player there. The host's game runs the enemies,
   and every other game shows copies that follow them. A hit on a copy goes to the host's game,
   which applies it, so a kill counts for everyone. Enemies go for whichever player is nearest,
@@ -1984,6 +2030,13 @@ Each part can also be run alone:
   Lancer, Warden, Talon or Vanguard) without the start menu. A destroyer or a cruiser is flown
   only if the save has it built and in command; otherwise the game starts in the Sentinel. The
   self-tests fly the Sentinel unless told otherwise, and may be given any ship.
+- `-paint <scheme>` (or `?paint=<scheme>` on the web), with any game: paint the player's ship.
+  The scheme is a paint code (see [Painting your ship](#painting-your-ship)), a preset's name or
+  the start of it (`-paint tiger`, `-paint hex-armour`), a preset's number (0 to 9), or `none`
+  for the factory finish. It wins over the saved paint until a scheme is chosen in the game.
+  The self-tests, reels and AI players are unpainted without it. `-shiptest` paints the ship in
+  Tiger stripes with the lettering TEST-01, checks the painted material and takes a picture
+  (`ship_paint_<id>.png`), then takes the paint off again.
 - `-industrysave <file>`: save the game there instead of the player's data folder. Automated
   runs (tests, reels) save only where they are told to, so they never touch the player's save.
   `-newgame` plays without the save: it neither reads it nor writes over it.

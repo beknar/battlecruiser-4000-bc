@@ -98,6 +98,65 @@ namespace CarrierGame.Demo
                 yield return WaitLanding(landing, PlanetLanding.State.InSpace, 30f);
                 Check(landing.Current == PlanetLanding.State.InSpace, "back in orbit");
             }
+            // ---- the friendly places
+            string[] docks = { "Heaven Highport", "Bastion", "Rephaim Fuel Station", "Nineveh Deep Watch", "K'rzyn Orbital Refinery",
+                               "K'rzyn Orbital Factory", "Heaven Space Dock", "Rephaim Mineral Refiner" };
+            var missing = docks.Where(n => !Installation.All.Any(i => i != null && i.displayName == n && i.canDock && i.Berths.Length >= 15)).ToList();
+            Check(missing.Count == 0, $"the stations and sites to dock at, 15 berths each ({docks.Length - missing.Count} of {docks.Length}{(missing.Count > 0 ? "; missing " + string.Join(", ", missing) : "")})");
+            string[] grounds = { "Heaven", "Goliath Research Station", "Ruins of the Ancients", "Nineveh Observatory" };
+            var noGround = grounds.Where(n => P(n) == null || P(n).kind != WarpPoint.Kind.SurfaceBase || P(n).landsOn == null).ToList();
+            Check(noGround.Count == 0, $"the places on the ground ({grounds.Length - noGround.Count} of {grounds.Length}{(noGround.Count > 0 ? "; missing " + string.Join(", ", noGround) : "")})");
+            var heavenWp = P("Heaven");
+            Check(heavenWp != null && heavenWp.shielded && P("Bastion") != null && P("Bastion").GetComponentInParent<Orbit>()?.kind == Orbit.Kind.Lagrange,
+                  "Heaven is under its shield; Bastion keeps K'rzyn's L4");
+            // a strike on Heaven breaks on the shield
+            if (heavenWp != null && OrbitalStrikes.SiteOf(heavenWp, out var hb, out var hs))
+            {
+                int held0 = OrbitalStrikes.ShieldHeld;
+                var r = OrbitalStrikes.Hit(hb, hs.su, hs.sv, 400f, 20f, "A kinetic strike", false);
+                Check(OrbitalStrikes.ShieldHeld == held0 + 1 && r.buildings == 0, $"a strike on Heaven breaks on its shield ({r.buildings} buildings ruined)");
+            }
+            else Check(false, "Heaven's site on K'rzyn");
+            // docked at the top of the elevator
+            yield return WarpTo(kb, "Heaven Highport", "nh_highport");
+            bool docked = false;
+            yield return DockTest(kb, "Heaven Highport", "nh_highport", r2 => docked = r2);
+            Check(docked, "docked at Heaven Highport, at the top of the space elevator, and away again");
+            // down at the research station on Goliath: repaired on its pad
+            var research = P("Goliath Research Station");
+            if (landing != null && research != null)
+            {
+                yield return WarpTo(kb, "Goliath Research Station", "nh_research");
+                var hull = cc.GetComponent<Health>();
+                if (hull != null) hull.Damage(900f);
+                // (a hit counts as being under fire a few seconds: no landing till it has passed)
+                yield return new WaitForSeconds(drive.recentHitSeconds + 0.5f);
+                int repairs0 = PlanetLanding.LandedRepairs;
+                float hp0 = hull != null ? hull.Current : 0f;
+                // (straight down by it, as the other landing tests go; K from this far up flies the whole descent)
+                landing.LandOn(research);
+                yield return WaitLanding(landing, PlanetLanding.State.OnSurface, 120f);
+                // (the station's own pad, under the ship: set down on it from just over it)
+                yield return new WaitForSeconds(2f);
+                var site = IndustrySite.All.FirstOrDefault(x => x != null && x.siteName == "Goliath Research Station" && x.pad != null);
+                if (site != null)
+                {
+                    cc.transform.position = site.pad.position + site.pad.up * 40f;
+                    cc.SetMotion(0f);
+                    cc.throttle = 0f;
+                }
+                Log($"  the research station's pad {(site != null ? "found" : "not found")}; landed {landing.Landed}");
+                float settle = Time.time + 30f;
+                // (down onto it on the lift thrusters)
+                while (Time.time < settle && !landing.Landed) { demo.autoElevator = -0.7f; yield return null; }
+                demo.autoElevator = null;
+                yield return new WaitForSeconds(2f);
+                Shot("nh_research_pad");
+                Check(landing.OnPad && PlanetLanding.LandedRepairs > repairs0 && hull != null && hull.Current > hp0,
+                      $"down on the research station's pad on Goliath ({landing.OnPad}): repaired, hull {hp0:F0} -> {(hull != null ? hull.Current : 0f):F0}; '{Notices.Last}'");
+                landing.TakeOff();
+                yield return WaitLanding(landing, PlanetLanding.State.InSpace, 30f);
+            }
             Log($"{(passed == checks ? "PASS" : "FAIL")}: the Nine Hells ({passed} of {checks})");
         }
     }

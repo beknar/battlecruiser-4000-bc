@@ -265,6 +265,8 @@ namespace Carrier.EditorTools
                 Piece(MonoSilo, t, new Vector3(-220f, 0f, 640f), 0f, 2f);
                 Piece(MonoSilo, t, new Vector3(220f, 0f, 640f), 0f, 2f);
             });
+            // and the Nine Hells' (CarrierBuilder.NineHellsSites)
+            NineHellsLayouts(Layout);
             if (missingPieces.Count > 0) Log($"settlements: {missingPieces.Count} pieces not there (no kit?): {string.Join(", ", missingPieces)}");
             return layouts;
         }

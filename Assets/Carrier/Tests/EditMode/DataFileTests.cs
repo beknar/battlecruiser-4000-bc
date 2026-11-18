@@ -139,7 +139,7 @@ namespace CarrierGame.Tests
             var sea = new SurfaceWorld(SurfaceKind.Ocean, "Test Sea", 300000.0, true);
             sea.AddBase("Sea Fortress", Vector3.forward, true);
             var seaFort = Fortress(sea, "Sea Fortress");
-            Assert.That(seaFort.units.Count(u => u.kind == UnitKind.Warship), Is.EqualTo(3), "warships off the fortress (those in deep enough water are built)");
+            Assert.That(seaFort.units.Count(u => u.kind == UnitKind.Warship), Is.GreaterThanOrEqualTo(3), "warships off the fortress, its three (a patrol may be in its area too)");
             ships = 0;
             for (int i = 0; i < 50; i++) ships += sea.Features(i, sea.M / 2).units.Count(u => u.kind == UnitKind.Warship);
             Assert.That(ships, Is.GreaterThanOrEqualTo(50), "warships on patrol (wherever the water is deep enough)");

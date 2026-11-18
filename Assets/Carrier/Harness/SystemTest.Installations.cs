@@ -307,6 +307,9 @@ namespace CarrierGame.Demo
                 Log($"{(other ? "PASS" : "FAIL")}: {name}, its own pad taken: a pad of its landing field chosen (its own again once clear)");
                 field = other;
             }
+            // a hostile one: its LAVs and mobile launchers
+            bool vehicles = true;
+            if (!byKey) yield return FortressVehicles(name, shot, r => vehicles = r);
             landing.TakeOff();
             yield return WaitLanding(landing, PlanetLanding.State.InSpace, 30f);
             yield return new WaitForSeconds(0.5f);
@@ -314,7 +317,65 @@ namespace CarrierGame.Demo
             Log($"  back in space: {landing.Current}; garbage collected {gcUp}x after leaving the surface ('{SceneMemory.LastReason}', " +
                 $"heap {SceneMemory.LastBeforeMB:F0} -> {SceneMemory.LastAfterMB:F0} MB)");
             done(landing.Current == PlanetLanding.State.InSpace && buildings >= 12 && gcDown >= 1 && gcUp >= 1 && landing.Body == wp.landsOn
-                 && (byKey || units >= 10) && field);
+                 && (byKey || units >= 10) && field && vehicles);
+        }
+
+        /// <summary>Down by a hostile base: its LAVs and mobile launchers are there; alerted, the
+        /// LAVs drive, and a launcher stops, raises its launcher and fires a salvo at the frigate.</summary>
+        IEnumerator FortressVehicles(string name, string shot, Action<bool> done)
+        {
+            var landing = PlanetLanding.Instance;
+            var units = landing.Surface.GetComponentsInChildren<GroundUnit>(true).Where(u => u.Alive).ToArray();
+            var lavs = units.Where(u => u.name == "Pirate LAV").Select(u => u.GetComponent<GroundVehicle>()).Where(v => v != null).ToArray();
+            var launchers = units.Where(u => u.name == "Mobile Launcher").Select(u => u.GetComponent<MobileLauncher>()).Where(m => m != null).ToArray();
+            Log($"  {name}'s vehicles: {lavs.Length} LAVs and {launchers.Length} mobile launchers (the fortress's own are 4 and 2, more may be on patrol near by)");
+            bool there = lavs.Length > 0 && launchers.Length > 0;
+            Log($"  {(there ? "ok" : "FAIL")}: LAVs and mobile launchers at {name}");
+            if (!there) { done(false); yield break; }
+            var travelled0 = lavs.ToDictionary(v => v, v => v.Travelled);
+            var salvos0 = launchers.ToDictionary(m => m, m => m.Salvos);
+            var missiles0 = launchers.ToDictionary(m => m, m => m.weapons != null ? m.weapons.MissilesFired : 0);
+            var shots0 = lavs.ToDictionary(v => v, v => v.GetComponent<EnemyWeapons>()?.ShotsFired ?? 0);
+            foreach (var g in units.Select(u => u.garrison).Where(g => g != null).Distinct()) g.Raise();
+            bool Fired() => launchers.Any(m => m != null && m.Salvos > salvos0[m] && m.weapons != null && m.weapons.MissilesFired > missiles0[m]);
+            float until = Time.time + 35f, raisedMost = 0f;
+            bool moved = false;
+            while (!Fired())
+            {
+                foreach (var m in launchers) if (m != null) raisedMost = Mathf.Max(raisedMost, m.Raised);
+                if (Time.time > until)
+                {
+                    if (moved) break;
+                    // none had the frigate in sight (the fortress's walls, a rise in the lava
+                    // field): bring one out where it has, and give it the time again
+                    moved = true;
+                    var ml = launchers.FirstOrDefault(m => m != null);
+                    Vector3 ship = cc.transform.position;
+                    for (int k = 0; k < 24 && ml != null; k++)
+                    {
+                        float a = k * 15f * Mathf.Deg2Rad, r = 1800f + (k % 3) * 400f;
+                        Vector3 p = ship + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * r;
+                        p.y = landing.Surface.GroundAt(p) + 3f;
+                        if (p.y < landing.Surface.SeaLevel + 2f || Cover.Blocked(p + Vector3.up * 6f, ship)) continue;
+                        ml.transform.position = p;
+                        Log($"  (no launcher fired in 35 s; one brought out {r:F0} m from the frigate, in sight of it)");
+                        break;
+                    }
+                    until = Time.time + 35f;
+                }
+                yield return null;
+            }
+            var firing = launchers.FirstOrDefault(m => m != null && m.Salvos > salvos0[m]);
+            if (firing != null) yield return LookAt(firing.transform.position, shot + "_launcher", 1.6f, 10f);
+            var far = lavs.Where(v => v != null).Select(v => v.Travelled - travelled0[v]).DefaultIfEmpty(0f).Max();
+            int lavShots = lavs.Where(v => v != null).Sum(v => (v.GetComponent<EnemyWeapons>()?.ShotsFired ?? 0) - shots0[v]);
+            bool drive = far > 30f;
+            bool fired = Fired();
+            Log($"  {(drive ? "ok" : "FAIL")}: alerted, the LAVs drive (the farthest {far:F0} m; {lavShots} auto-cannon shots fired)");
+            Log($"  {(fired ? "ok" : "FAIL")}: a mobile launcher stops, raises its launcher and fires a salvo at the frigate " +
+                $"({launchers.Where(m => m != null).Sum(m => m.Salvos - salvos0[m])} salvoes, {launchers.Where(m => m != null).Sum(m => m.weapons.MissilesFired - missiles0[m])} missiles, " +
+                $"its launcher up {raisedMost * 100f:F0}% at the most{(moved ? "; one was brought out in sight" : "")})");
+            done(drive && fired);
         }
 
         IEnumerator StationTest(Keyboard kb)

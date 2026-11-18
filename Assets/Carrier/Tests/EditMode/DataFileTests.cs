@@ -1,6 +1,7 @@
 using System.Linq;
 using Carrier.EditorTools;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace CarrierGame.Tests
 {
@@ -66,6 +67,100 @@ namespace CarrierGame.Tests
             Assert.That(sub.turnRate, Is.GreaterThan(0f));
             Assert.That(sub.standoff, Is.GreaterThan(0f).And.LessThan(sub.missileRange), "it fires from its stand-off");
             Assert.That(sub.keelClearance, Is.GreaterThan(0f).And.LessThan(sub.minDepth), "room under its keel in the shallowest water it is built in");
+        }
+
+        [Test]
+        public void TheLavsLaunchersAndWarshipsHaveTheirNumbers()
+        {
+            var t = GroundUnitTable.Get();
+            foreach (var (kind, s) in new[] { ("LAV", t.lav), ("mobile launcher", t.mobileLauncher), ("warship", t.warship) })
+            {
+                Assert.That(s, Is.Not.Null, kind);
+                Assert.That(s.name, Is.Not.Empty, kind + ": the target panel's name");
+                Assert.That(s.shipClass, Is.Not.Empty, kind);
+                Assert.That(s.weapons, Is.Not.Empty, kind);
+                Assert.That(s.hull, Is.GreaterThan(0f), kind);
+                Assert.That(s.explosion, Is.GreaterThan(0f), kind);
+                Assert.That(s.rebuildMinutes, Is.GreaterThan(0f), kind);
+                Assert.That(s.cruiseSpeed, Is.GreaterThan(0f), kind);
+                Assert.That(s.attackSpeed, Is.GreaterThanOrEqualTo(s.cruiseSpeed), kind);
+                Assert.That(s.turnRate, Is.GreaterThan(0f), kind);
+                Assert.That(s.standoff, Is.GreaterThan(0f), kind);
+            }
+            Assert.That(new[] { t.lav.name, t.mobileLauncher.name, t.warship.name, t.tank.name }.Distinct().Count(), Is.EqualTo(4), "each named apart");
+            // the LAV: like the tank, but faster and lighter, with a lighter gun
+            Assert.That(t.lav.hull, Is.LessThan(t.tank.hull));
+            Assert.That(t.lav.attackSpeed, Is.GreaterThan(24f), "faster than the tank (GroundVehicle's own chase speed)");
+            Assert.That(t.lav.gunRange, Is.GreaterThan(0f));
+            Assert.That(t.lav.burstShots, Is.GreaterThan(0));
+            Assert.That(t.lav.gunDamage, Is.GreaterThan(0f));
+            // the launcher: missiles from a stop, at a range it can stop within
+            var ml = t.mobileLauncher;
+            Assert.That(ml.missileRange, Is.GreaterThan(ml.standoff), "it can fire from where it circles");
+            Assert.That(ml.salvoSize, Is.GreaterThan(0));
+            Assert.That(ml.salvosPerStop, Is.GreaterThan(0));
+            Assert.That(ml.salvoInterval, Is.GreaterThan(0f));
+            Assert.That(ml.raiseTime, Is.GreaterThan(0f));
+            Assert.That(ml.driveTime, Is.GreaterThan(0f));
+            // the warship: guns and missiles, in water deep enough
+            var ws = t.warship;
+            Assert.That(ws.gunRange, Is.GreaterThan(0f));
+            Assert.That(ws.burstShots, Is.GreaterThan(0));
+            Assert.That(ws.missileRange, Is.GreaterThan(0f));
+            Assert.That(ws.salvoSize, Is.GreaterThan(0));
+            Assert.That(ws.minDepth, Is.GreaterThan(0f));
+        }
+
+        [Test]
+        public void AHostileFortressHasLavsAndLaunchersAndTheSeaHasWarships()
+        {
+            // a named hostile base: its fortress garrison
+            var w = new SurfaceWorld(SurfaceKind.Volcanic, "Test", 300000.0, true);
+            w.AddBase("Test Fortress", Vector3.forward, true);
+            TileFeatures fort = Fortress(w, "Test Fortress");
+            Assert.That(fort, Is.Not.Null, "the fortress's area");
+            Assert.That(fort.units.Count(u => u.kind == UnitKind.Lav), Is.EqualTo(4), "its LAVs");
+            Assert.That(fort.units.Count(u => u.kind == UnitKind.MobileLauncher), Is.EqualTo(2), "its mobile launchers");
+            Assert.That(fort.units.Count(u => u.kind == UnitKind.Warship), Is.EqualTo(0), "no warships on a lava world");
+            Assert.That(fort.units.Select(u => u.id).Distinct().Count(), Is.EqualTo(fort.units.Count), "every unit its own id");
+            Assert.That(fort.units.Max(u => u.id), Is.LessThan(256), "(an id fits in the destroyed key)");
+            // LAVs out on patrol here and there, no warships
+            int lavs = 0, ships = 0;
+            for (int i = 0; i < 300; i++)
+            {
+                var f = w.Features(i, w.M / 2);
+                lavs += f.units.Count(u => u.kind == UnitKind.Lav);
+                ships += f.units.Count(u => u.kind == UnitKind.Warship);
+            }
+            Assert.That(lavs, Is.GreaterThan(0), "LAVs on patrol in the open");
+            Assert.That(ships, Is.EqualTo(0));
+
+            // a hostile water world: warships on its sea, and some by its fortress
+            var sea = new SurfaceWorld(SurfaceKind.Ocean, "Test Sea", 300000.0, true);
+            sea.AddBase("Sea Fortress", Vector3.forward, true);
+            var seaFort = Fortress(sea, "Sea Fortress");
+            Assert.That(seaFort.units.Count(u => u.kind == UnitKind.Warship), Is.EqualTo(3), "warships off the fortress (those in deep enough water are built)");
+            ships = 0;
+            for (int i = 0; i < 50; i++) ships += sea.Features(i, sea.M / 2).units.Count(u => u.kind == UnitKind.Warship);
+            Assert.That(ships, Is.GreaterThanOrEqualTo(50), "warships on patrol (wherever the water is deep enough)");
+
+            // a friendly world has none
+            var home = new SurfaceWorld(SurfaceKind.Ocean, "Home", 300000.0, false);
+            for (int i = 0; i < 50; i++) Assert.That(home.Features(i, home.M / 2).units, Is.Empty);
+        }
+
+        static TileFeatures Fortress(SurfaceWorld w, string name)
+        {
+            w.FromDirection(Vector3.forward, out double u, out double v);
+            int ci = (int)System.Math.Floor(u / SurfaceWorld.T), cj = (int)System.Math.Floor((v + w.V) / SurfaceWorld.T);
+            // (it may be kept in from its area's edges: look round about)
+            for (int dj = -1; dj <= 1; dj++)
+                for (int di = -1; di <= 1; di++)
+                {
+                    var f = w.Features(ci + di, cj + dj);
+                    if (f != null && f.baseName == name) return f;
+                }
+            return null;
         }
 
         [Test]

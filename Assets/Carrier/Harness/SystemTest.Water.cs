@@ -275,8 +275,95 @@ namespace CarrierGame.Demo
                     oc.distance = d0;
                 }
             }
+            // ---- the warships on the surface
+            yield return Warships(surface, sf, pelagia.displayName, Check);
+
             if (hull != null) hull.cannotDie = false;
             Log($"{(passed == checks ? "PASS" : "FAIL")}: the sea ({passed} of {checks})");
+        }
+
+        /// <summary>The warships on the sea: there, riding at its surface in water deep enough,
+        /// cruising; alerted, one goes for the ship afloat near it and its guns or missiles fire at
+        /// it; sunk, it is remembered, to be rebuilt in its time.</summary>
+        IEnumerator Warships(PlanetSurface surface, Seafaring sf, string world, System.Action<bool, string> Check)
+        {
+            var ships = FindObjectsByType<Warship>(FindObjectsSortMode.None)
+                .Where(w => w != null && w.TryGetComponent(out GroundUnit u) && u.Alive).ToArray();
+            Log($"  warships near by: {ships.Length}");
+            Check(ships.Length > 0, $"warships on {world}'s sea");
+            if (ships.Length == 0) yield break;
+            var start = ships.ToDictionary(w => w, w => w.transform.position);
+            float rideMiss = ships.Max(w => Mathf.Abs(w.OverSea - w.rideHeight));
+            float shallowest = ships.Min(w => Sea.Level - surface.GroundAt(w.transform.position));
+            Check(rideMiss < 1.5f && shallowest > 0f,
+                  $"they sit on the surface (each within {rideMiss:F1} m of its waterline), in the water ({shallowest:F0} m at the shallowest)");
+            var oc = demo.orbitCamera;
+            var nearest = ships.OrderBy(w => Vector3.Distance(w.transform.position, cc.transform.position)).First();
+            if (oc != null)
+            {
+                var keep = oc.target;
+                float d0 = oc.distance;
+                oc.target = nearest.transform;
+                oc.distance = 160f;
+                yield return new WaitForSeconds(0.8f);
+                Shot("w_warship");
+                oc.target = keep;
+                oc.distance = d0;
+            }
+
+            // afloat in sight of one, a little way off, and its garrison alerted
+            var foe = nearest;
+            Vector3 at = Vector3.zero;
+            bool clear = false;
+            for (int k = 0; k < 32 && !clear; k++)
+            {
+                foreach (var w in ships)
+                {
+                    float a = k * 22.5f * Mathf.Deg2Rad, r = k < 16 ? 1300f : 2200f;
+                    Vector3 p = w.transform.position + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * r;
+                    if (Sea.Level - surface.GroundAt(p) < 15f) continue;
+                    p.y = sf.FloatHeight + 3f;
+                    if (Cover.Blocked(p + Vector3.up * 4f, w.transform.position)) continue;
+                    foe = w; at = p; clear = true;
+                    break;
+                }
+            }
+            if (!clear) at = new Vector3(foe.transform.position.x + 1300f, sf.FloatHeight + 3f, foe.transform.position.z);
+            PlaceShip(at, foe.transform.position - at);
+            var unit = foe.GetComponent<GroundUnit>();
+            var guns = foe.GetComponent<EnemyWeapons>();
+            int shots0 = guns != null ? guns.ShotsFired : 0, missiles0 = guns != null ? guns.MissilesFired : 0;
+            if (unit != null && unit.garrison != null) unit.garrison.Raise();
+            if (unit != null) unit.Engage();
+            float until = Time.time + 30f;
+            bool pursued = false;
+            while (Time.time < until && (guns == null || (guns.ShotsFired == shots0 && guns.MissilesFired == missiles0) || !pursued))
+            {
+                pursued |= foe.Pursuing && foe.Target != null && foe.Target.IsChildOf(cc.transform.root);
+                yield return null;
+            }
+            int shots = guns != null ? guns.ShotsFired - shots0 : 0, missiles = guns != null ? guns.MissilesFired - missiles0 : 0;
+            Log($"  a warship {Vector3.Distance(foe.transform.position, cc.transform.position):F0} m off, the line to it {(clear ? "clear" : "maybe blocked")}; " +
+                $"the ship {sf.Current}");
+            Check(pursued, "alerted, a warship goes for the ship afloat near it");
+            Check(shots + missiles > 0, $"its deck guns and missiles fire at the ship ({shots} shells, {missiles} missiles)");
+            yield return new WaitForSeconds(3f);
+            float moved = ships.Where(w => w != null).Max(w => Vector3.Distance(new Vector3(w.transform.position.x, 0f, w.transform.position.z),
+                                                                             new Vector3(start[w].x, 0f, start[w].z)));
+            Check(moved > 20f, $"the warships cruise over the sea (the farthest {moved:F0} m)");
+            rideMiss = Mathf.Abs(foe.OverSea - foe.rideHeight);
+            Check(rideMiss < 1.5f, $"and keep to its surface, under way ({rideMiss:F1} m off its waterline)");
+
+            // sunk: remembered, to be rebuilt
+            var h = foe.GetComponent<Health>();
+            if (h != null && unit != null)
+            {
+                long key = unit.key;
+                float minutes = unit.rebuildMinutes;
+                h.Damage(h.maxHealth * 10f);
+                yield return new WaitForSeconds(1.5f);
+                Check(h.Dead && surface.Destroyed.Contains(key) && minutes > 0f, $"a warship sunk is remembered, to be rebuilt in {minutes:F0} min");
+            }
         }
 
         /// <summary>The deepest water near (within 8 km), and how much of it is sea.</summary>

@@ -757,8 +757,21 @@ namespace Carrier.EditorTools
                 ti.maxTextureSize = 4096;
                 ti.SaveAndReimport();
             }
+            Texture2D normalMap = null;
+            if (!string.IsNullOrEmpty(fs.normalMap))
+            {
+                string nPath = $"{Root}/Models/{fs.normalMap}";
+                if (AssetImporter.GetAtPath(nPath) is TextureImporter ni && (ni.textureType != TextureImporterType.NormalMap || ni.maxTextureSize != 4096))
+                {
+                    ni.textureType = TextureImporterType.NormalMap;
+                    ni.maxTextureSize = 4096;
+                    ni.SaveAndReimport();
+                }
+                normalMap = Load<Texture2D>(nPath);
+                if (normalMap == null) Log($"{fs.id}: no normal map at {nPath}");
+            }
             // two-sided, so the pieces show their inside where the hull breaks apart
-            var hullMat = Lit(mhp == null ? "Frigate_Hull" : fs.prefab + "_Hull", Color.white, Load<Texture2D>(texPath), null, 0.25f, 0.35f, twoSided: true);
+            var hullMat = Lit(mhp == null ? "Frigate_Hull" : fs.prefab + "_Hull", Color.white, Load<Texture2D>(texPath), normalMap, 0.25f, 0.35f, twoSided: true);
 
             var root = new GameObject(fs.prefab);
             var cc = root.AddComponent<CarrierController>();

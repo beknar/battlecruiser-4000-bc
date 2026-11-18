@@ -28,6 +28,9 @@ namespace Carrier.EditorTools
         class FrigateSpec
         {
             public string id, displayName, role, description, prefab, model, texture, hardpoints, shipName, shipClass;
+            /// <summary>A tangent-space normal map for the hull (in Models/, beside the texture), or
+            /// left out for none: the Dominion's, of its baked panel lines.</summary>
+            public string normalMap;
             /// <summary>Frigate (left out), Destroyer or Cruiser.</summary>
             public string category;
             /// <summary>Built at a shipyard before it can be flown.</summary>

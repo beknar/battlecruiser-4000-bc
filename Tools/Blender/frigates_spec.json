@@ -275,6 +275,38 @@
                 {"pos": [-0.1, 0.006, 0.027], "side": "keel"}
             ],
             "missile_cells": [[-0.1, -0.02, 0.136], [-0.1, 0.02, 0.136], [-0.05, -0.02, 0.137], [-0.05, 0.02, 0.137], [0.0, -0.02, 0.137], [0.0, 0.02, 0.137], [0.05, -0.02, 0.138], [0.05, 0.02, 0.138]]
+        },
+        {
+            "id": "Dominion",
+            "prefix": "Cruiser",
+            "source": "retextured/cruiser2.glb",
+            "normal": "retextured/cruiser2_normal.png",
+            "recolour": "--method scheme-mono --split 0.75,0.95",
+            "length": 430,
+            "notes": "Long, slender battleship-styled gun cruiser: a wedge hull tapering to a fine bow, a tiered superstructure with a tall bridge tower amidships, two big engine pods either side of the stern and a central engine block. The AI model (cruiser2.glb, lying the right way already) is recoloured to retextured/cruiser2_scheme.glb, then rebuilt by build_cruiser2.py into retextured/cruiser2.glb (and cruiser2_normal.png). It had crooked turrets: build_cruiser2.py takes them off and builds new ones square to the ship (three triples forward, A, B and C each superfiring over the one ahead; a twin aft firing astern; a twin on each pod; two twins under the keel, hanging from armour slabs), adds detail (a mast, domes, whips, vents, conduits, pod caps), and bakes a new texture with strong panel lines and a normal map. The boxes below are the ones it prints (SPEC), measured off the rebuilt model.",
+            "turrets": [
+                {"name": "C", "facing": "-X", "up": "+Z", "barrels": [0.126, 0.1975, -0.0155, 0.0155, 0.177, 0.182], "housing": [0.185, 0.243, -0.034, 0.034, 0.1728, 0.1913]},
+                {"name": "B", "facing": "-X", "up": "+Z", "barrels": [0.064, 0.1355, -0.0155, 0.0155, 0.1624, 0.1674], "housing": [0.123, 0.181, -0.034, 0.034, 0.1582, 0.1767]},
+                {"name": "A", "facing": "-X", "up": "+Z", "barrels": [-0.003, 0.0685, -0.0155, 0.0155, 0.1479, 0.1529], "housing": [0.056, 0.114, -0.034, 0.034, 0.1437, 0.1622]},
+                {"name": "X", "facing": "+X", "up": "+Z", "barrels": [0.4042, 0.451, -0.006, 0.006, 0.1726, 0.1757], "housing": [0.376, 0.412, -0.0211, 0.0211, 0.17, 0.1814]},
+                {"name": "PodPort", "facing": "-X", "up": "+Z", "barrels": [0.295, 0.3418, -0.1, -0.088, 0.1643, 0.1674], "housing": [0.334, 0.37, -0.1151, -0.0729, 0.1617, 0.1731]},
+                {"name": "PodStarboard", "facing": "-X", "up": "+Z", "barrels": [0.295, 0.3418, 0.088, 0.1, 0.1643, 0.1674], "housing": [0.334, 0.37, 0.0729, 0.1151, 0.1617, 0.1731]},
+                {"name": "KeelFwd", "facing": "-X", "up": "-Z", "barrels": [-0.192, -0.1452, -0.006, 0.006, 0.0202, 0.0233], "housing": [-0.153, -0.117, -0.0211, 0.0211, 0.0144, 0.0258]},
+                {"name": "KeelAft", "facing": "-X", "up": "-Z", "barrels": [0.188, 0.2348, -0.006, 0.006, 0.0386, 0.0417], "housing": [0.227, 0.263, -0.0211, 0.0211, 0.0329, 0.0443]}
+            ],
+            "engines": [
+                {"pos": [0.489, 0.0, 0.148], "r": 0.018},
+                {"pos": [0.445, -0.078, 0.138], "r": 0.022},
+                {"pos": [0.468, 0.078, 0.138], "r": 0.022}
+            ],
+            "ciws": [[-0.36, -0.025], [-0.36, 0.025], [0.405, -0.094], [0.405, 0.094]],
+            "extra_mounts": [
+                {"pos": [-0.22, -0.0724, 0.072], "side": "port"},
+                {"pos": [-0.22, 0.0724, 0.072], "side": "starboard"},
+                {"pos": [0.02, -0.0953, 0.072], "side": "port"},
+                {"pos": [0.02, 0.0953, 0.072], "side": "starboard"}
+            ],
+            "missile_cells": [[-0.1, -0.018, 0.1211], [-0.1, 0.018, 0.1256], [-0.065, -0.018, 0.1239], [-0.065, 0.018, 0.1282]]
         }
     ]
 }

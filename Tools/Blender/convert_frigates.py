@@ -23,11 +23,15 @@ The spec's "frigates" and "ships" lists are both converted. A ship may give a "p
 files (default "Frigate"): writes <models_dir>/<Prefix>_<id>.fbx (objects Hull, <turret>_Yaw,
 <turret>_Pitch), <models_dir>/<Prefix>_<id>_BaseColor.png and <data_dir>/<prefix>_<id>_hardpoints.json.
 
+A ship may give a "normal" map (a PNG beside its GLB, in ai_models_dir, made with it: the
+Dominion's, by build_cruiser2.py): copied to <models_dir>/<Prefix>_<id>_Normal.png. The cut doesn't
+touch the UVs, so it fits the cut parts as it fitted the whole.
+
 A ship may also list "extra_mounts" (where the scene builder adds ball-mounted guns: a point on
 the hull and the side it faces, port, starboard, top or keel) and "missile_cells" (points on the
 deck where missile launch cells go); both are passed on in the hardpoints, in Unity's frame.
 """
-import bpy, bmesh, json, math, os, sys
+import bpy, bmesh, json, math, os, shutil, sys
 from mathutils import Matrix, Vector
 
 argv = sys.argv[sys.argv.index("--") + 1:]
@@ -331,12 +335,17 @@ def convert(f):
     mat = hull.data.materials[0] if hull.data.materials else None
     img = next((n.image for n in mat.node_tree.nodes if n.type == "TEX_IMAGE" and n.image), None) if mat and mat.use_nodes else None
     pre = f.get("prefix", "Frigate")
-    tex = os.path.join(MODELS, f"{pre}_{f['id']}_BaseColor.png")
+    # (absolute: given a path relative to the working folder, Blender's image save wrote nothing)
+    tex = os.path.abspath(os.path.join(MODELS, f"{pre}_{f['id']}_BaseColor.png"))
     if img:
         img.filepath_raw = tex
         img.file_format = "PNG"
         img.save()
         print("TEXTURE", tex, img.size[0], img.size[1])
+    if f.get("normal"):
+        nrm = os.path.join(MODELS, f"{pre}_{f['id']}_Normal.png")
+        shutil.copyfile(os.path.join(AI, f["normal"]), nrm)
+        print("NORMAL MAP", nrm)
 
     bpy.ops.object.select_all(action="DESELECT")
     for o in bpy.context.scene.objects:

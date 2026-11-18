@@ -108,7 +108,7 @@ namespace CarrierGame.Tests
             var cruisers = Of(FrigateRoster.Cruiser);
             Assert.That(frigates.Length, Is.EqualTo(5), "frigates");
             Assert.That(destroyers.Length, Is.EqualTo(5), "destroyers");
-            Assert.That(cruisers.Length, Is.EqualTo(1), "cruisers");
+            Assert.That(cruisers.Length, Is.EqualTo(2), "cruisers: the Sovereign and the Dominion");
             Assert.That(Roster.frigates.Where(e => e.category != FrigateRoster.Frigate).All(e => e.buildable), Is.True, "destroyers and cruisers are built at a shipyard");
             Assert.That(Roster.frigates.Where(e => e.category == FrigateRoster.Frigate).Any(e => e.buildable), Is.False, "frigates aren't");
             foreach (var d in destroyers)

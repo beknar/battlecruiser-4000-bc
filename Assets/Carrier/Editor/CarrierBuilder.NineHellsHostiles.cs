@@ -28,7 +28,8 @@ namespace Carrier.EditorTools
         {
             var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
             go.name = name;
-            go.transform.SetParent(R.sys, true);
+            // (a scene root, as the Testing System's enemies are: carried by its OrbitHome and told when the
+            // origin moves; inside an orbit frame its lurking place would never be moved with it)
             go.GetComponent<TargetInfo>().displayName = name;
             go.transform.SetPositionAndRotation(pos, Quaternion.LookRotation(face - pos));
             var om = go.GetComponent<OrbitMover>();

@@ -51,7 +51,9 @@ namespace CarrierGame.Demo
             SeaReel = Hud.ReelMode && LaunchArgs.Has("-sea");
             // -vrask: the Vrask and the rest of the fourth round of improvements
             VraskReel = Hud.ReelMode && LaunchArgs.Has("-vrask");
-            Features = Hud.ReelMode && (Orbits || All || Frigates || SeaReel || VraskReel || LaunchArgs.Has("-features"));
+            // -cic: five frigates against the Vrask picket over Sheol, with the tactical display
+            CicReel = Hud.ReelMode && LaunchArgs.Has("-cic");
+            Features = Hud.ReelMode && (Orbits || All || Frigates || SeaReel || VraskReel || CicReel || LaunchArgs.Has("-features"));
             Hud.ReelShowsMarks = Features;
         }
 
@@ -59,6 +61,10 @@ namespace CarrierGame.Demo
         static void Boot()
         {
             if (!LaunchArgs.Has("-reel")) return;
+            // (told another star system: started once that one is open)
+            if (StarSystems.Leaving) { StarSystems.WhenThere(Boot); return; }
+            // the CIC reel is fought in the Nine Hells: opened first, if this level isn't it
+            if (CicReel && CicOpenNineHells(Boot)) return;
             var r = new GameObject("DemoReel").AddComponent<DemoReel>();
             r.dir = LaunchArgs.FolderAfter("-reel", Application.persistentDataPath);
             Time.captureFramerate = Fps;
@@ -77,7 +83,12 @@ namespace CarrierGame.Demo
             if (AmbushDirector.Instance != null) seconds = 76f;
             sysMap = FindAnyObjectByType<SystemMap>();
             if (sysMap != null) seconds = 260f;     // ends a few seconds after the cruiser dies (see SystemShots)
-            if (Features && sysMap != null)
+            if (Features && CicReel)
+            {
+                seconds = 1800f;                    // a cap: the shot list ends it
+                StartCoroutine(CicShowReel());
+            }
+            else if (Features && sysMap != null)
             {
                 seconds = 1800f;                    // a cap: the shot list ends it
                 StartCoroutine(All ? AllReel() : Orbits ? OrbitReel() : Frigates ? FrigateReel() : SeaReel ? SeaShowReel() : VraskReel ? VraskShowReel() : FeatureReel());
@@ -114,6 +125,7 @@ namespace CarrierGame.Demo
             if (frame < Warmup) return;
             float t = T;
             LogKills();
+            if (CicReel) CicUpdate();
             if (Features) { perFrame?.Invoke(); return; }
             if (sysMap != null) { SystemShots(t); return; }
             if (AmbushDirector.Instance != null) { AsteroidShots(t, AmbushDirector.Instance); return; }

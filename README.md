@@ -134,6 +134,33 @@ StarSystem.exe -reel <dir> -vrask -screen-fullscreen 0 -screen-width 1920 -scree
 The frames and `reel.wav` go into `<dir>`, with a log in `reel.txt`. Join them with ffmpeg as
 for the other reels.
 
+### Star System: the CIC reel
+
+Five frigates, the Sentinel, Lancer, Warden, Talon and Vanguard, fly line abreast against the
+Vrask picket over Sheol in the Nine Hells. The picket is ten ships: two Maws, three Snares, two
+Fangs and three Skinks, fighting as a fleet. The frigates are flown as the battle simulator flies
+them. The reel cuts between combat shots of the hottest exchange (a tractor lock, a Fang's run,
+a bow beam, the fleet's target) and a CIC tactical display in the style of a destroyer's combat
+information centre. The display has four windows:
+- a tactical plot, with range rings, NTDS-style icons, tracks, tracers, missile and shell tracks,
+  and beams;
+- a track table, with each ship's hull, shield, range, tactic and weapon;
+- a weapons and engagement log;
+- a status strip, with the battle clock, the Vrask fleet's phase, ships left and damage dealt.
+
+Sometimes the display stays on as an inset over the combat shots. The battle plays to the end:
+one side destroyed, the Vrask withdrawing, or 12 minutes. A lull with nothing hit is cut short.
+Then come a results card, a final analysis (the whole battle replayed on the plot at 10 to 20
+times speed, with callouts at its key moments) and an end card. The reel opens the Nine Hells by
+itself, so it needs no `-system ninehells`. To record it:
+
+```
+StarSystem.exe -reel <dir> -cic -screen-fullscreen 0 -screen-width 1920 -screen-height 1080
+```
+
+The display's lines are drawn with GL. Add `-cicnogl` to draw them with IMGUI instead, if they
+don't show.
+
 ## Playing the game
 
 ### A new game

@@ -195,7 +195,9 @@ namespace Carrier.EditorTools
             var heavenWp = sys.GetComponentsInChildren<WarpPoint>(true).FirstOrDefault(w => w.displayName == "Heaven");
             if (heavenWp != null)
             {
-                start = heavenWp.ArrivalPoint(heavenWp.Position + (R.star.position - heavenWp.Position).normalized * 100000f);
+                // (150 km straight up over the city, above K'rzyn's air: in orbit, where the drive
+                // and the reels' and simulator's moves work; landing takes her down from there)
+                start = heavenWp.Position + (heavenWp.Position - home.Position).normalized * 150000f;
                 Vector3 hl = Vector3.ProjectOnPlane(heavenWp.Position - start, (start - home.Position).normalized);
                 frigate.transform.SetPositionAndRotation(start, Quaternion.LookRotation(hl.sqrMagnitude > 1f ? hl : Vector3.forward, (start - home.Position).normalized));
             }

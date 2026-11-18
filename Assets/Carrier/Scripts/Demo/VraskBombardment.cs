@@ -208,7 +208,9 @@ namespace CarrierGame.Demo
                 StrikeFx.Rod(() => body.transform.TransformPoint(from), Ground, Mathf.Clamp(fall / (big ? 4000f : 8000f), 3f, 30f) + k * 0.7f,
                              big ? new Color(1f, 0.95f, 0.8f) : new Color(0.6f, 1f, 0.45f), () =>
                 {
-                    StrikeFx.Flash(Ground(), o.radius * (big ? 14f : 6f), big ? new Color(1f, 0.9f, 0.7f) : new Color(0.65f, 1f, 0.5f), fireball);
+                    StrikeFx.Flash(Ground(), big ? Mathf.Max(o.radius * 14f, 16000f) : o.radius * 6f, big ? new Color(1f, 0.9f, 0.7f) : new Color(0.65f, 1f, 0.5f), fireball, big ? 6f : 4f);
+                    // (a nuclear burst in air raises its cloud, kilometres high: seen from orbit)
+                    if (big) MushroomCloud.Rise(body, Ground(), o.radius);
                     if (last) land();
                 });
             }

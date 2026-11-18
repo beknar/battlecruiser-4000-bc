@@ -193,7 +193,9 @@ namespace CarrierGame.Demo
             // ---- a raid with a nuclear strike: the whole city ruined, far longer than a kinetic strike's
             OrbitalStrikes.Buildings(place, out int total, out int ruined0, out _);
             float pool0 = IndustryLedger.Pool(siege.target);
-            int strikes0 = WorldState.Strikes.Count, raids0 = siege.Raids;
+            int strikes0 = WorldState.Strikes.Count, raids0 = siege.Raids, clouds0 = MushroomCloud.Raised;
+            var eye = PlayerShips.Primary;
+            bool inSight = eye != null && !PlanetLanding.Busy && Vector3.Distance(eye.position, siege.transform.position) < siege.seenWithin;
             siege.RaidNow(nuke: true, force: true);
             float until = Time.time + 45f;
             while (Time.time < until && WorldState.Strikes.Count == strikes0) yield return null;
@@ -202,6 +204,13 @@ namespace CarrierGame.Demo
             var st = WorldState.Strikes.Count > strikes0 ? WorldState.Strikes[WorldState.Strikes.Count - 1] : default;
             Check(siege.Raids == raids0 + 1 && st.weapon != null && st.weapon.Contains("nuclear") && st.place == siege.target && total1 > 0 && ruined * 4 >= total1 * 3,
                   $"a scripted raid's nuclear strike on {siege.target}: {ruined} of {total1} buildings ruined (were {ruined0}), {st.buildings} by it, {st.casualties} killed; {siege.LastRaid}");
+            // (seen from the ship: the burst's flash and its cloud, kilometres high, over the city)
+            var cloud = MushroomCloud.Last;
+            if (inSight)
+                Check(MushroomCloud.Raised == clouds0 + 1 && cloud != null && cloud.Height >= 14000f,
+                      $"its burst seen from the ship: a mushroom cloud rising over {siege.target}, to {(cloud != null ? cloud.Height / 1000f : 0f):0} km");
+            else
+                Check(MushroomCloud.Raised == clouds0, "its burst out of the ship's sight: no cloud drawn");
             double minutes = (soonest - WorldState.Clock) / 60.0;
             Check(!double.IsNaN(soonest) && minutes > OrbitalStrikes.BuildingRebuildMinutes * 2.0,
                   $"its ruins stand {minutes:0} min before any is rebuilt (a kinetic strike's: {OrbitalStrikes.BuildingRebuildMinutes:0} min)");

@@ -64,13 +64,13 @@ namespace CarrierGame.Demo
             return fx;
         }
 
-        /// <summary>Where a strike lands: a flash `size` metres across at its widest, and a fireball.</summary>
-        public static void Flash(Vector3 at, float size, Color color, Explosion fireball)
+        /// <summary>Where a strike lands: a flash `size` metres across at its widest (for `seconds`), and a fireball.</summary>
+        public static void Flash(Vector3 at, float size, Color color, Explosion fireball, float seconds = 4f)
         {
             var fx = Make("Strike flash", Kind.Flash, color);
             fx.transform.position = at;
             fx.size = size;
-            fx.seconds = 4f;
+            fx.seconds = seconds;
             fx.core = Ball(fx.transform, color);
             fx.coreRenderer = fx.core.GetComponent<MeshRenderer>();
             fx.ring = RingAt(fx.transform, at, color);
@@ -191,15 +191,23 @@ namespace CarrierGame.Demo
                 }
                 default:
                 {
-                    float far = Far(transform.position);
+                    Vector3 at = transform.position;
+                    float far = Far(at);
                     float grow = Mathf.Sqrt(k);
-                    core.localScale = Vector3.one * Mathf.Max(size * (0.4f + grow), far * 0.05f * (1f - k));
+                    // (drawn lifted towards the camera, the same size to the eye: seen from orbit the
+                    // flash would otherwise lie in the ground, hidden by the hills round it)
+                    var cam = Camera.main;
+                    float lift = cam != null ? Mathf.Min(far * 0.5f, size * 0.5f) : 0f;
+                    if (lift > 0f) core.position = at + (cam.transform.position - at).normalized * lift;
+                    float keep = far > 1f ? (far - lift) / far : 1f;
+                    core.localScale = Vector3.one * Mathf.Max(size * (0.4f + grow), far * 0.05f * (1f - k)) * keep;
                     if (glow != null) glow.intensity = 8f * (1f - k);
                     var c = color * (1f - k * k);
                     Tint(coreRenderer, c);
                     if (ring != null)
                     {
                         ring.localScale = Vector3.one * size * (0.3f + 2.2f * grow);
+                        ring.position = at - ring.forward * Mathf.Max(20f, size * 0.02f);   // (it faces down into the ground)
                         Tint(ringRenderer, color * (1f - k));
                     }
                     if (k >= 1f) Done();

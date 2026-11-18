@@ -1,0 +1,208 @@
+{
+    "note": "The AI wingman's own casual talk (WingmanPersonality), used when no LLM answers it (chat mode 'personality', or 'llm' with no listener). topics: keywords (whole words or phrases, 'stem*' for any word starting so; the topic matching the most wins) and the node it starts at. nodes: 'say' is a list of {when, lines}: the first whose 'when' holds is used ('' always; 'flag:x', 'fact:x', '!flag:x', '!fact:x', joined by ','), a line at random from it, never the same line twice running to a player. 'sets' sets session flags (a player's session is forgotten after 2 min of quiet). 'choices' ask a question: the line asks it, '(1) label (2) label' is added, and the player's next line (the number, the label or one of 'keys') goes to 'next'. Blanks from the bot's live state: {me} {player} {hull} {shield} {near} {hostiles} {credits} {hold} {ore} {leader} {order} {ship} {target} (only in a fight) {docked}; a line with a blank not known now is avoided. Voice: Tools/CoopAI/WINGMAN.md.",
+    "fallback": "fallback",
+    "hail": "hail",
+    "reprompt": [
+        "Say again? Pick one:",
+        "Didn't catch that. Which is it?",
+        "Come again, {player}? Your call:"
+    ],
+    "paused": [
+        "Comms quiet, standing by. Orders still come through.",
+        "Keeping the channel clear, standing by. Call orders by name.",
+        "Radio silence on my end, standing by. Orders still work."
+    ],
+    "topics": [
+        { "id": "greeting", "node": "greeting", "keywords": ["hello", "hi", "hey", "hiya", "howdy", "greetings", "good morning", "good evening", "good afternoon", "morning", "yo", "ahoy", "evening"] },
+        { "id": "how_are_you", "node": "how_are_you", "keywords": ["how are you", "how are you doing", "hows it going", "how you doing", "how ya doing", "you ok", "you okay", "you alright", "you good", "holding up", "how do you feel", "hows things", "whats up", "sup", "how goes it"] },
+        { "id": "battle", "node": "battle", "keywords": ["battle", "fight*", "combat", "dogfight", "scrap", "skirmish", "engagement", "kills", "gunnery", "shooting", "how was the battle", "that fight"] },
+        { "id": "ship", "node": "ship", "keywords": ["ship", "frigate", "hull", "shield*", "damage*", "repair*", "armor", "armour", "engine*", "your boat", "your bird", "condition", "hows the ship", "how is the ship"] },
+        { "id": "cargo", "node": "cargo", "keywords": ["cargo", "hold", "credits", "credit", "money", "cash", "rich", "broke", "ore", "loot", "haul", "wallet", "paid", "payday", "profit"] },
+        { "id": "where", "node": "where", "keywords": ["where are we", "where are you", "where we at", "wheres", "where is", "nearby", "near", "location", "whats around", "around here", "position", "scope", "radar", "contacts", "anything out there", "see anything", "whats out there"] },
+        { "id": "vrask", "node": "vrask", "keywords": ["vrask", "alien", "aliens", "boarders", "boarding", "pods", "snare", "snares", "fang", "fangs", "maw", "skink"] },
+        { "id": "corsairs", "node": "corsairs", "keywords": ["corsair*", "pirate*", "raider*", "haven", "cinder", "buccaneer*", "outlaws"] },
+        { "id": "home", "node": "home", "keywords": ["home", "thalassa", "highport", "homesick", "family", "shore leave", "miss home", "where are you from"] },
+        { "id": "captain", "node": "captain", "keywords": ["captain", "skipper", "commander", "boss", "the old man", "your leader", "who do you follow", "who are you following"] },
+        { "id": "joke", "node": "joke", "keywords": ["joke", "jokes", "funny", "laugh", "make me laugh", "humor", "humour", "tell me something"] },
+        { "id": "thanks", "node": "thanks", "keywords": ["thanks", "thank you", "thx", "ty", "cheers", "appreciate*", "much obliged"] },
+        { "id": "compliment", "node": "compliment", "keywords": ["good job", "nice flying", "nice shot", "nice shooting", "well done", "great work", "good work", "good flying", "proud of you", "nicely done", "you rock", "good pilot"] },
+        { "id": "goodbye", "node": "goodbye", "keywords": ["bye", "goodbye", "good bye", "see you", "see ya", "cya", "signing off", "gotta go", "got to go", "logging off", "good night", "goodnight", "later"] },
+        { "id": "about_you", "node": "about_you", "keywords": ["who are you", "your name", "what are you", "about yourself", "are you a bot", "are you ai", "are you an ai", "are you real", "robot", "human", "your story"] },
+        { "id": "bored", "node": "bored", "keywords": ["bored", "boring", "quiet", "nothing to do", "slow day", "long day", "tired", "sleepy", "sleep"] },
+        { "id": "music", "node": "music", "keywords": ["music", "song", "songs", "sing", "tune", "tunes", "playlist"] },
+        { "id": "food", "node": "food", "keywords": ["food", "eat", "eating", "hungry", "coffee", "tea", "ration*", "drink", "lunch", "dinner", "breakfast"] },
+        { "id": "mining", "node": "mining", "keywords": ["mining", "asteroid*", "rocks", "belt", "drift", "miner", "laser"] },
+        { "id": "space", "node": "space", "keywords": ["stars", "space", "the view", "beautiful", "pretty", "kestrel", "comet", "mirren", "jovara", "selene", "glacis", "planet*", "sun"] }
+    ],
+    "nodes": [
+        { "id": "hail", "say": [ { "when": "", "lines": ["Go ahead, {player}.", "{me} here. Go ahead.", "Listening.", "On the line. What do you need?"] } ] },
+        { "id": "fallback", "say": [
+            { "when": "fact:target", "lines": ["Busy with {target}. Talk after.", "Little occupied, {player}. Shooting things."] },
+            { "when": "", "lines": [
+                "Copy, {player}. Not much to add to that.",
+                "Noted.",
+                "Heard you. Eyes on the scope.",
+                "Say again? I'm good for orders, and talk about the ship, the hold, the Vrask, corsairs and home.",
+                "Copy. For the record I'm {order}.",
+                "Roger. Can't say I follow, but roger."
+            ] } ] },
+
+        { "id": "greeting", "say": [
+            { "when": "fact:target", "lines": ["Hi, {player}. Bit busy with {target}."] },
+            { "when": "", "lines": ["Hey, {player}. On your wing.", "{player}. Good to hear you.", "Evening, {player}. Or whatever it is out here.", "Hello, {player}. All quiet on my side.", "Hey. {me} here, {order}."] } ] },
+
+        { "id": "how_are_you",
+          "say": [
+            { "when": "fact:target", "lines": ["Busy. {target} wants me dead. Hull {hull}. Report or honest answer?"] },
+            { "when": "", "lines": ["Hull {hull}, shield {shield}. Can't complain. Want the report or the honest answer?", "Fine. Ship's fine. Want it by the numbers or straight?", "Flying. Mostly in one piece. Report or honest answer?"] } ],
+          "choices": [
+            { "label": "report", "keys": ["numbers", "status", "full", "long"], "next": "how_report" },
+            { "label": "honest", "keys": ["straight", "truth", "really", "short"], "next": "how_honest" } ] },
+        { "id": "how_report", "say": [ { "when": "", "lines": ["{ship}: hull {hull}, shield {shield}, hold {hold}, {credits} aboard. I'm {order}.", "Hull {hull}, shield {shield}, {hold} in the hold, {credits}. Currently {order}."] } ] },
+        { "id": "how_honest",
+          "say": [ { "when": "", "lines": ["Honestly? Long shifts, cold coffee, and too much empty space. Want to know what keeps me going?", "Straight: tired of staring at the scope. Ask me what keeps me flying?"] } ],
+          "choices": [
+            { "label": "yes", "keys": ["sure", "ok", "okay", "go on", "tell me", "what"], "next": "how_keeps" },
+            { "label": "no", "keys": ["nah", "nope", "skip", "later"], "next": "how_keeps_no" } ] },
+        { "id": "how_keeps", "sets": ["opened_up"], "say": [
+            { "when": "fact:leader", "lines": ["Flying on {leader}'s wing. Someone has to keep them alive.", "{leader}'s six. It's a job worth doing."] },
+            { "when": "", "lines": ["Knowing somebody's going to call my name sooner or later.", "The next order. There's always a next order."] } ] },
+        { "id": "how_keeps_no", "say": [ { "when": "", "lines": ["Fair. Back to the scope.", "Probably wise. Eyes front."] } ] },
+
+        { "id": "battle",
+          "say": [
+            { "when": "fact:target", "lines": ["Ask me after. {target} is still shooting.", "In it right now. {target}, hull {hull}."] },
+            { "when": "flag:asked_about_vrask", "lines": ["Last scrap went fine. No Vrask, which is how I like it. Play by play or the summary?", "Could've been worse. Could've been Vrask. Play by play or summary?"] },
+            { "when": "", "lines": ["Last one went fine. Still here, hull {hull}. Play by play or the summary?", "We came out ahead. Want the play by play or the summary?", "Loud. Short. We won. Play by play, or is that summary enough?"] } ],
+          "choices": [
+            { "label": "play by play", "keys": ["long", "details", "detail", "full", "play"], "next": "battle_long" },
+            { "label": "summary", "keys": ["short", "enough", "fine", "brief"], "next": "battle_short" } ] },
+        { "id": "battle_long",
+          "say": [ { "when": "", "lines": ["Broadside at gun range, bow beam when they lined up, missiles when they bunched. Want to know what I'd do different?", "I kept them off your flank and let the guns work. Want the lesson learned?"] } ],
+          "choices": [
+            { "label": "yes", "keys": ["sure", "ok", "okay", "lesson", "different", "go on"], "next": "battle_lesson" },
+            { "label": "no", "keys": ["nah", "nope", "skip"], "next": "battle_short" } ] },
+        { "id": "battle_lesson", "sets": ["battle_lesson"], "say": [ { "when": "", "lines": ["Close faster. Every second at long range is a second they get free shots.", "Save a missile. I always want one more at the end."] } ] },
+        { "id": "battle_short", "say": [ { "when": "", "lines": ["Summary: they shot, we shot better.", "Short version: we're here, they aren't."] } ] },
+
+        { "id": "ship", "say": [
+            { "when": "fact:target", "lines": ["Hull {hull}, shield {shield}, and {target} is working on both."] },
+            { "when": "", "lines": ["{ship}. Hull {hull}, shield {shield}. She's holding.", "Hull at {hull}, shield {shield}. No complaints from the engines.", "She's a good ship. Hull {hull}, shield {shield}, everything else rattling as usual."] } ] },
+
+        { "id": "cargo", "say": [
+            { "when": "", "lines": ["Hold's at {hold}, {credits} aboard.", "{hold} in the hold, {credits} in the account. Want it? Ask: give me credits.", "Carrying {hold}. {credits}. Not rich, not broke."] } ] },
+
+        { "id": "where", "say": [
+            { "when": "fact:near", "lines": ["Near {near}. Scope shows {hostiles}.", "{near} is the closest beacon. {hostiles}.", "We're by {near}, {player}. {hostiles} on the scope."] },
+            { "when": "", "lines": ["Nowhere with a name. Scope shows {hostiles}.", "Deep space. {hostiles}."] } ] },
+
+        { "id": "vrask",
+          "say": [
+            { "when": "flag:asked_about_vrask", "lines": ["The Vrask again? Long version or short?", "Still thinking about the Vrask. Fair enough. Long or short?"] },
+            { "when": "", "lines": ["The Vrask. Want the long version or the short one?", "Vrask. Nasty business. Long version or short?"] } ],
+          "choices": [
+            { "label": "long", "keys": ["long version", "full", "everything", "details", "detail"], "next": "vrask_long" },
+            { "label": "short", "keys": ["short version", "brief", "quick"], "next": "vrask_short" } ] },
+        { "id": "vrask_short", "sets": ["asked_about_vrask"], "say": [ { "when": "", "lines": ["They board, they take crews, they keep them. Shoot first.", "Aliens with boarding pods. Don't let them close."] } ] },
+        { "id": "vrask_long", "sets": ["asked_about_vrask"],
+          "say": [ { "when": "", "lines": ["They don't kill crews, they take them, and nobody's come back yet. Want to hear about their ships, or how to fight them?", "Boarders. They clamp on, cut in and haul crews off. Ships or tactics?"] } ],
+          "choices": [
+            { "label": "ships", "keys": ["ship", "hulls", "what they fly"], "next": "vrask_ships" },
+            { "label": "tactics", "keys": ["fight", "fighting", "how", "beat"], "next": "vrask_tactics" } ] },
+        { "id": "vrask_ships",
+          "say": [ { "when": "", "lines": ["Snares pull you in with a tractor. Fangs clamp on and put boarders through. The Maw's gun reaches 13 km. Which worries you most?", "Three to know: the Snare's tractor, the Fang's boarding clamp, the Maw's long gun. Which one?"] } ],
+          "choices": [
+            { "label": "snare", "keys": ["tractor", "snares"], "next": "vrask_snare" },
+            { "label": "fang", "keys": ["fangs", "clamp", "boarders"], "next": "vrask_fang" },
+            { "label": "maw", "keys": ["gun", "artillery", "long gun"], "next": "vrask_maw" } ] },
+        { "id": "vrask_snare", "sets": ["vrask_snare"], "say": [ { "when": "", "lines": ["The Snare locks on inside 2.5 km. Kill it before it does, or burn hard the moment it grabs.", "Stay outside two and a half klicks of a Snare. Inside, you're on a leash."] } ] },
+        { "id": "vrask_fang", "sets": ["vrask_fang"], "say": [ { "when": "", "lines": ["A Fang on your hull means boarders aboard. Then it's crew against crew. Don't let it touch you.", "Shoot the Fang first. Once it's clamped, the guns can't help you."] } ] },
+        { "id": "vrask_maw", "sets": ["vrask_maw"], "say": [ { "when": "", "lines": ["The Maw outranges everything we have. Close fast or stay out of sight.", "Thirteen klicks of reach. You don't trade shots with a Maw, you get under its guns."] } ] },
+        { "id": "vrask_tactics",
+          "say": [ { "when": "", "lines": ["Keep moving, shoot the pods before they land, kill the Snares first. Want the one rule that matters?", "Distance, point defence, and no heroics. Want the rule I fly by?"] } ],
+          "choices": [
+            { "label": "yes", "keys": ["sure", "ok", "okay", "rule", "go on", "tell me"], "next": "vrask_rule" },
+            { "label": "no", "keys": ["nah", "nope", "skip", "enough"], "next": "vrask_enough" } ] },
+        { "id": "vrask_rule", "say": [ { "when": "", "lines": ["Don't get taken alive. Everything else is details.", "Never let them board. Burn, shoot, run, in any order."] } ] },
+        { "id": "vrask_enough", "say": [ { "when": "", "lines": ["Fair. I'll keep an eye out for them.", "Copy. Scope's clear of them for now, anyway."] } ] },
+
+        { "id": "corsairs",
+          "say": [
+            { "when": "flag:watching_corsairs", "lines": ["Still watching for them. Scope shows {hostiles}. Want the rundown again, fighting or what they're after?"] },
+            { "when": "", "lines": ["Corsairs. Haven in the Outer Drift, a fortress down on Cinder. How they fight, or what they're after?", "Pirates. Guns on a rock in the Drift and a fortress on Cinder. Want to know how they fight or what they want?"] } ],
+          "choices": [
+            { "label": "how they fight", "keys": ["fight", "fighting", "tactics", "guns", "how"], "next": "corsairs_fight" },
+            { "label": "what they're after", "keys": ["after", "want", "why", "what"], "next": "corsairs_after" } ] },
+        { "id": "corsairs_fight",
+          "say": [ { "when": "", "lines": ["Six gun emplacements round Haven, patrols of a cruiser and destroyers over Cinder. Keep 6 km off the guns. Want me to watch for them?", "Packs and fixed guns. Stay out of the emplacements' reach. Should I keep an eye out?"] } ],
+          "choices": [
+            { "label": "yes", "keys": ["sure", "ok", "okay", "watch", "please", "do it"], "next": "corsairs_watch" },
+            { "label": "no", "keys": ["nah", "nope", "dont", "no need"], "next": "corsairs_nowatch" } ] },
+        { "id": "corsairs_watch", "sets": ["watching_corsairs"], "say": [ { "when": "", "lines": ["Watching. Scope shows {hostiles} right now.", "Will do. {hostiles} at the moment."] } ] },
+        { "id": "corsairs_nowatch", "say": [ { "when": "", "lines": ["Copy. I'll still shout if they shoot at us.", "Your call. They usually announce themselves anyway."] } ] },
+        { "id": "corsairs_after", "say": [ { "when": "", "lines": ["Credits, cargo, ships. Same as everyone, less polite.", "Whatever's in your hold. Keep it there."] } ] },
+
+        { "id": "home",
+          "say": [
+            { "when": "flag:talked_home", "lines": ["Thalassa again? Getting homesick, {player}? Ever been down to the island pad?"] },
+            { "when": "", "lines": ["Home's Thalassa. Highport for the paperwork, the island for the rest. Ever been down to the landing pad?", "Thalassa. Blue planet, one decent island. You ever land there?"] } ],
+          "choices": [
+            { "label": "yes", "keys": ["yeah", "yep", "sure", "been", "landed", "of course"], "next": "home_been" },
+            { "label": "no", "keys": ["nah", "nope", "never", "not yet"], "next": "home_never" } ] },
+        { "id": "home_been", "sets": ["talked_home"],
+          "say": [ { "when": "", "lines": ["Then you know the sea. Do you miss it?", "Then you've seen the clouds part over the water. Miss it out here?"] } ],
+          "choices": [
+            { "label": "yes", "keys": ["yeah", "yep", "always", "sometimes", "miss"], "next": "home_miss" },
+            { "label": "no", "keys": ["nah", "nope", "not really", "never"], "next": "home_nomiss" } ] },
+        { "id": "home_miss", "say": [ { "when": "", "lines": ["Me too. We'll get you back there.", "Same. One more job, then the island."] } ] },
+        { "id": "home_nomiss", "say": [ { "when": "", "lines": ["Fair. Out here's home enough.", "Good. Homesick pilots fly worse."] } ] },
+        { "id": "home_never", "sets": ["talked_home"], "say": [ { "when": "", "lines": ["Go sometime. The landing's easy, the view isn't.", "You should. Come in over the water, it's worth the fuel."] } ] },
+
+        { "id": "captain", "say": [
+            { "when": "fact:leader", "lines": ["I fly on {leader}'s wing. Good enough for me.", "{leader} has the lead. I keep their six.", "Following {leader}. Hasn't got me killed yet."] },
+            { "when": "", "lines": ["No one's leading me right now. Say \"{me}, follow me\" and that changes.", "I'm my own boss at the moment. I don't love it."] } ] },
+
+        { "id": "joke",
+          "say": [
+            { "when": "flag:heard_joke", "lines": ["Another one, then. Why did the frigate break up with the station? Too much docking drama. Again?", "Fine. What's a pirate's favourite missile? The arrrr-tillery. Again?", "Last one, maybe. How many pilots does it take to change a bulb? One, and they'll tell you about it for a week. Again?"] },
+            { "when": "", "lines": ["Why don't Vrask play cards? Too many boarding passes. Want another?", "I asked the warp drive for a joke. It took too long to get there. Another?", "What do you call a corsair with no ship? A guy floating. Another?"] } ],
+          "sets": ["heard_joke"],
+          "choices": [
+            { "label": "another", "keys": ["yes", "yeah", "more", "again", "go on", "sure"], "next": "joke" },
+            { "label": "enough", "keys": ["no", "nope", "stop", "please stop", "nah"], "next": "joke_enough" } ] },
+        { "id": "joke_enough", "say": [ { "when": "", "lines": ["Tough crowd. Back to the scope.", "Fair. I'll stick to flying."] } ] },
+
+        { "id": "thanks", "say": [ { "when": "", "lines": ["Anytime, {player}.", "Don't mention it.", "That's the job.", "Copy. You'd do the same."] } ] },
+        { "id": "compliment", "say": [
+            { "when": "flag:battle_lesson", "lines": ["Thanks. Closing faster, like I said."] },
+            { "when": "", "lines": ["Thanks. I had a good lead.", "Appreciated. Don't tell the ship, it'll get ideas.", "Just doing the job, {player}."] } ] },
+        { "id": "goodbye", "say": [
+            { "when": "flag:talked_home", "lines": ["See you, {player}. Say hi to Thalassa for me.", "Fly safe. The island'll still be there."] },
+            { "when": "", "lines": ["See you, {player}. I'll be here.", "Fly safe.", "{me} out. Call if you need me."] } ] },
+
+        { "id": "about_you",
+          "say": [
+            { "when": "flag:opened_up", "lines": ["You already got the honest answer. Want the rest of the story?"] },
+            { "when": "", "lines": ["{me}. Frigate pilot, your wingman. Want the story?", "Just the pilot on your wing. {ship}. You want the long story?"] } ],
+          "choices": [
+            { "label": "yes", "keys": ["yeah", "sure", "story", "go on", "tell me"], "next": "about_story" },
+            { "label": "no", "keys": ["nah", "nope", "later", "skip"], "next": "about_nostory" } ] },
+        { "id": "about_story",
+          "say": [ { "when": "", "lines": ["Flew escort out of the Highport for years. Freighters, mostly. Then things got loud. Want to know why I stayed on?", "Started on convoy runs. Then the corsairs got bold and the Vrask showed up. Want to know why I'm still out here?"] } ],
+          "choices": [
+            { "label": "yes", "keys": ["yeah", "sure", "why", "go on"], "next": "about_why" },
+            { "label": "no", "keys": ["nah", "nope", "enough"], "next": "about_nostory" } ] },
+        { "id": "about_why", "sets": ["opened_up"], "say": [ { "when": "", "lines": ["Somebody has to fly the wing. Might as well be someone good at it.", "Because the ones I flew with didn't get to. Enough about me."] } ] },
+        { "id": "about_nostory", "say": [ { "when": "", "lines": ["Fine by me. I'm not much of a talker.", "Another time, then."] } ] },
+
+        { "id": "bored", "say": [
+            { "when": "fact:target", "lines": ["Bored? {target} would like a word."] },
+            { "when": "", "lines": ["Quiet's good. Quiet means nobody's shooting.", "Could go mining. Rocks don't shoot back. Say \"{me}, mine\".", "Enjoy it. It never lasts."] } ] },
+        { "id": "music", "say": [ { "when": "", "lines": ["Only music out here is the reactor hum. I've grown fond of it.", "I'd sing, but you'd mute me.", "Got one song on loop. Don't ask which."] } ] },
+        { "id": "food", "say": [ { "when": "", "lines": ["Ration bars and coffee. Coffee's the good part.", "Hungry? The Highport does a decent noodle. Out here, rations.", "Coffee's cold again. Third time today."] } ] },
+        { "id": "mining", "say": [ { "when": "", "lines": ["Mining's honest work. Laser, rock, market, repeat. Hold's at {hold}.", "Rocks don't shoot back. Say \"{me}, mine\" and I'll fill the hold.", "Good ore in the belts if you're patient."] } ] },
+        { "id": "space", "say": [
+            { "when": "fact:near", "lines": ["Nice view from out by {near}. I'll give it that.", "Never gets old. Not even near {near}."] },
+            { "when": "", "lines": ["Never gets old, the stars. The rest of the job does.", "Pretty, until something comes out of it shooting."] } ] }
+    ]
+}

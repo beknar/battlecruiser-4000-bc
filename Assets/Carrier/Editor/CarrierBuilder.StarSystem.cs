@@ -529,6 +529,8 @@ namespace Carrier.EditorTools
             var built = BuildInstallations(refs, p);
             // launch structures on the planets and moons
             BuildLaunchers(refs, built);
+            // moorings round every station a ship can dock at: 15 berths each
+            BerthRings(sys.transform, refs.layer);
             // and everything on its orbit
             SetUpOrbits(sys, frigate.transform, all);
 

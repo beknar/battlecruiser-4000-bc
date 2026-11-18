@@ -137,10 +137,23 @@ namespace CarrierGame.Demo
             return true;
         }
 
+        /// <summary>The berth she has at the station (one of its moorings: the first that is free).</summary>
+        public Transform Berth { get; private set; }
+
         IEnumerator DockAt(Installation s)
         {
+            // a berth of her own: the first, or the nearest free one if a ship is on it
+            var b = s.ClaimBerth(carrier.transform, carrier.transform.position);
+            if (b == null)
+            {
+                Notices.Post($"Can't dock at {s.displayName}: every berth is taken");
+                SoundFX.Ui(Sfx.UiError);
+                yield break;
+            }
+            Berth = b;
             Current = State.Docking;
             At = s;
+            if (b != s.berth) Notices.Post($"{s.displayName}: the first berth is taken, berth {System.Array.IndexOf(s.Berths, b) + 1} is clear");
             if (drive != null) drive.lockedBecause = "undock first";
             carrier.SetTarget(null);
             SoundFX.Ui(Sfx.UiLock);
@@ -179,7 +192,7 @@ namespace CarrierGame.Demo
                 {
                     if (carrier.Destroyed) { Release(); yield break; }
                     fade = t / fadeTime;
-                    Vector3 to = s.BerthPosition - carrier.transform.position;
+                    Vector3 to = s.BerthPositionOf(Berth) - carrier.transform.position;
                     if (to.sqrMagnitude > 1f) carrier.transform.position += to.normalized * Mathf.Min(to.magnitude, 120f * Time.deltaTime);
                     yield return null;
                 }
@@ -228,7 +241,7 @@ namespace CarrierGame.Demo
         /// <summary>Where and how she is moored at the berth: there, level, her nose to the way out.</summary>
         Quaternion ParkRotation()
         {
-            Vector3 f = At != null && At.berth != null ? At.berth.forward : carrier.transform.forward;
+            Vector3 f = Berth != null ? Berth.forward : carrier.transform.forward;
             f = Vector3.ProjectOnPlane(f, carrier.Up);
             if (f.sqrMagnitude < 1e-4f) f = carrier.upFrame * Vector3.forward;
             return Quaternion.LookRotation(f.normalized, carrier.Up);
@@ -257,7 +270,7 @@ namespace CarrierGame.Demo
                     if (throttleSet >= 0f && Mathf.Abs(carrier.throttle - throttleSet) > 0.01f) { result.calledOff = "you have the throttle"; yield break; }
                     if (drive != null && drive.InCombat(out string fight)) { result.calledOff = fight; yield break; }
                     if (cancelWhy != null) { result.calledOff = cancelWhy; yield break; }
-                    Vector3 me = carrier.transform.position, b = s.BerthPosition, f = s.ApproachAxis;
+                    Vector3 me = carrier.transform.position, b = s.BerthPositionOf(Berth), f = s.ApproachAxisOf(Berth);
                     bool pad = Vector3.Dot(f, carrier.Up) > 0.7f;
                     float toBerth = Vector3.Distance(me, b);
                     // (in: drawn the last few metres)
@@ -284,7 +297,7 @@ namespace CarrierGame.Demo
                         float along = Vector3.Dot(me - b, f);
                         float lateral = Vector3.ProjectOnPlane(me - b, f).magnitude;
                         bool inFront = along > 0f && lateral < Mathf.Max(150f, along * 0.7f);
-                        aim = inFront ? so : s.ApproachPoint(me);
+                        aim = inFront ? so : s.ApproachPointOf(me, Berth);
                         float left = Vector3.Distance(me, aim) + (inFront ? 0f : Vector3.Distance(aim, so));
                         want = Mathf.Clamp(Mathf.Sqrt(2f * accel * 0.6f * Mathf.Max(0f, left - 40f)), 6f, approachSpeed);
                         // (slow enough to turn onto it: its turning circle no wider than the way left
@@ -343,7 +356,7 @@ namespace CarrierGame.Demo
                 {
                     if (carrier.Destroyed) yield break;
                     float k = Mathf.SmoothStep(0f, 1f, t / 1.5f);
-                    carrier.transform.SetPositionAndRotation(Vector3.Lerp(p0, s.BerthPosition, k), Quaternion.Slerp(q0, q1, k));
+                    carrier.transform.SetPositionAndRotation(Vector3.Lerp(p0, s.BerthPositionOf(Berth), k), Quaternion.Slerp(q0, q1, k));
                     carrier.SetMotion(0f);
                     yield return null;
                 }
@@ -383,11 +396,11 @@ namespace CarrierGame.Demo
         void Park()
         {
             if (At == null) return;
-            Vector3 f = At.berth != null ? At.berth.forward : carrier.transform.forward;
+            Vector3 f = Berth != null ? Berth.forward : carrier.transform.forward;
             // (level in the ship's own up frame: out from the planet the station circles)
             f = Vector3.ProjectOnPlane(f, carrier.Up);
             if (f.sqrMagnitude < 1e-4f) f = carrier.upFrame * Vector3.forward;
-            carrier.transform.position = At.BerthPosition;
+            carrier.transform.position = At.BerthPositionOf(Berth);
             carrier.Face(f);
             carrier.SetMotion(0f);
             carrier.throttle = 0f;
@@ -403,7 +416,7 @@ namespace CarrierGame.Demo
             carrier.enginesCut = false;
             // (off a pad: up clear of it, and of what is built round it, before going ahead)
             var d = Demo;
-            bool pad = At != null && Vector3.Dot(At.ApproachAxis, carrier.Up) > 0.7f;
+            bool pad = At != null && Vector3.Dot(At.ApproachAxisOf(Berth), carrier.Up) > 0.7f;
             if (pad && d != null && !QuickDock)
             {
                 for (float t = 0f; t < 4f && !carrier.Destroyed && !d.PilotFlying; t += Time.deltaTime)
@@ -427,6 +440,8 @@ namespace CarrierGame.Demo
             if (drive != null && drive.lockedBecause == "undock first") drive.lockedBecause = null;
             Current = State.Free;
             At = null;
+            Berth = null;
+            Installation.ReleaseBerth(carrier.transform);
             fade = 0f;
         }
 

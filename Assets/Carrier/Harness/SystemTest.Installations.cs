@@ -118,6 +118,48 @@ namespace CarrierGame.Demo
             done(docked && atBerth && repaired && sold && warpLocked && landLocked && undocked);
         }
 
+        /// <summary>A ship moored on the first berth: K docks her at another (the nearest free one).</summary>
+        IEnumerator BusyBerthTest(Keyboard kb, string name, Action<bool> done)
+        {
+            var dock = Docking.Instance;
+            var st = Installation.All.FirstOrDefault(i => i.displayName == name);
+            var entry = FrigateRoster.Get()?.Find("Lancer");
+            if (dock == null || st == null || entry == null || entry.prefab == null) { Log("  FAIL: no docking, station or Lancer"); done(false); yield break; }
+            // (clear of the first berth first: just undocked from it, she would be inside the ship put there)
+            yield return FlyTo(st.BerthPosition + st.ApproachAxis * 1500f, 300f, 40f);
+            cc.throttle = 0f;
+            var blocker = Instantiate(entry.prefab, st.berth.position, st.berth.rotation);
+            blocker.name = "Moored Lancer";
+            var bcc = blocker.GetComponent<CarrierController>();
+            if (bcc != null) { bcc.externalMotion = true; bcc.SetMotion(0f); bcc.throttle = 0f; }
+            yield return null;
+            yield return FlyTo(st.BerthPosition, st.dockRange * 0.85f, 60f);
+            cc.throttle = 0f;
+            int free = st.FreeBerths(cc.transform);
+            yield return Key(kb, UnityEngine.InputSystem.Key.K);
+            float until = Time.time + 8f;
+            while (Time.time < until && dock.Current != Docking.State.Docked) yield return null;
+            yield return new WaitForSeconds(1f);
+            var b = dock.Berth;
+            int index = System.Array.IndexOf(st.Berths, b) + 1;
+            bool other = dock.Current == Docking.State.Docked && dock.At == st && b != null && b != st.berth &&
+                         Vector3.Distance(cc.transform.position, b.position) < 5f;
+            Log($"  {name}: {st.Berths.Length} berths, {free} free with the first taken by the {blocker.name}; docked at berth {index} " +
+                $"{(b != null ? Vector3.Distance(cc.transform.position, b.position) : -1f):F1} m from it; '{Notices.Last}'");
+            yield return LookAt(cc.transform.position, "s1_busy_berth", 3f, 10f);
+            yield return Key(kb, UnityEngine.InputSystem.Key.K);
+            until = Time.time + 6f;
+            while (Time.time < until && dock.Current != Docking.State.Free) yield return null;
+            bool released = st.BerthOf(cc.transform) == null;
+            Destroy(blocker);
+            cc.throttle = 0f;
+            // (the warp drive ready again before the next warp)
+            until = Time.time + 12f;
+            while (Time.time < until && !drive.CanWarp(out _)) yield return null;
+            if (!drive.CanWarp(out string why)) Log($"  the warp drive not ready after: {why}");
+            done(other && st.Berths.Length >= 15 && free == st.Berths.Length - 1 && released);
+        }
+
         static string Strip(string s) => s == null ? "(none)" : System.Text.RegularExpressions.Regex.Replace(s, "<[^>]+>", "");
 
         /// <summary>Fly at a hostile installation until its guns open up, trade fire, then get
@@ -266,6 +308,14 @@ namespace CarrierGame.Demo
                 yield return LookAt(wp != null ? wp.Position : cc.transform.position, shot + "_view");
                 ok = here;
                 if (dockHere && here) yield return DockTest(kb, name, shot, r => ok = r);
+                // the first berth taken by another ship: K docks her at another
+                if (dockHere && here && ok && name == "Thalassa Highport")
+                {
+                    bool busy = false;
+                    yield return BusyBerthTest(kb, name, r => busy = r);
+                    Log($"{(busy ? "PASS" : "FAIL")}: {name}, its first berth taken: docked at another of its berths");
+                    results.Add((name + " (berth taken)", busy));
+                }
                 Log($"{(ok ? "PASS" : "FAIL")}: {name} (arrived{(dockHere ? ", docked, repaired, sold, undocked" : "")})");
                 results.Add((name, ok));
             }

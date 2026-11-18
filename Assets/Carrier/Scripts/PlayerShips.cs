@@ -41,6 +41,8 @@ namespace CarrierGame
         /// `current`, unchanged.</summary>
         public static Transform Retarget(Transform current, Vector3 from, ref float next, float interval = 2f)
         {
+            // (the one it had is gone, a ship destroyed or a player left: another at once, or none)
+            if (current == null) { next = Time.time + interval; return Count > 0 ? Nearest(from) : Primary; }
             if (Count < 2 || Time.time < next) return current;
             next = Time.time + interval;
             var nearest = Nearest(from);

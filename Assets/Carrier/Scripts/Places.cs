@@ -38,6 +38,8 @@ namespace CarrierGame
         {
             if (w == null || IsBody(w)) return null;
             if (w.kind == WarpPoint.Kind.Landmark) return w.follow;
+            // (a band on patrol: a place of its own, seen moving on the map)
+            if (w.kind == WarpPoint.Kind.Patrol) return null;
             float now = Time.unscaledTime;
             if (now - cachedAt > 2f || now < cachedAt) { placeOf.Clear(); cachedAt = now; }
             if (placeOf.TryGetValue(w, out var known)) return known;

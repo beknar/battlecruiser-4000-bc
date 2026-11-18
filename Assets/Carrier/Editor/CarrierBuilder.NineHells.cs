@@ -235,6 +235,7 @@ namespace Carrier.EditorTools
             NineHellsSky(R);
             NineHellsSites(R);
             NineHellsHostiles(R);
+            NineHellsEncounters(R);
         }
 
         static Material MoonLook(string name, int seed) => PlanetMat($"Moon_{name.Replace("'", "")}", MoonMap(name.Replace("'", ""), seed), null, Color.black, 0.03f);

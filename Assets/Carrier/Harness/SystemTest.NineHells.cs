@@ -129,6 +129,23 @@ namespace CarrierGame.Demo
                   vpicket.pilots.All(x => x != null && x.GetComponent<VraskShip>() != null),
                   $"the Gilgal picket fleet ({picket?.pilots.Length ?? 0} ships) and the Vrask picket over Sheol ({vpicket?.pilots.Length ?? 0})");
             Check(P("Jericho") != null && P("Jericho").hostile && P("Bethel").hostile, "Jericho and Bethel are the pirates'");
+            // ---- the encounters: 18 bands, some on patrol, seen moving on the map
+            string[] bands = { "Scavenger skiffs", "Belt claim-jumpers", "Patmos ice thieves", "Vrask scout", "Outer Belt lurkers", "Forge smugglers",
+                               "Anak frigate pair", "Vrask hunting pair", "Fuel station raiders", "Rephaim corsair patrol",
+                               "Judecca blockade", "Vrask strike group", "Sheba destroyer squadron", "Ophir ambush",
+                               "The Butcher's flagship", "Vrask brood", "Behemoth battle group", "Vrask war fleet" };
+            var groups = FindObjectsByType<EncounterGroup>(FindObjectsSortMode.None);
+            var absent = bands.Where(n => !groups.Any(g => g.groupName == n && g.pilots != null && g.pilots.Length > 0 && g.pilots.All(x => x != null))).ToList();
+            Check(absent.Count == 0, $"the 18 encounters ({bands.Length - absent.Count} of {bands.Length}{(absent.Count > 0 ? "; missing " + string.Join(", ", absent) : "")})");
+            var patrols = EncounterPatrol.All.Where(x => x != null).ToList();
+            var far = patrols.OrderByDescending(x => Vector3.Distance(x.transform.position, cc.transform.position)).FirstOrDefault();
+            float a0 = far != null ? far.Angle : 0f;
+            Vector3 p0 = far != null ? far.transform.position - far.body.Position : Vector3.zero;
+            yield return new WaitForSeconds(4f);
+            bool moved = far != null && far.Angle > a0 && Vector3.Distance(far.transform.position - far.body.Position, p0) > 1f;
+            var onMap = patrols.Where(x => x.TryGetComponent(out WarpPoint w) && w.hostile && Places.IsPlace(w)).Count();
+            Check(patrols.Count == 7 && moved && onMap == 7,
+                  $"7 of them on patrol, places of their own on the map ({onMap}); the {far?.group?.groupName} moving round {far?.body?.displayName} ({a0:F3} -> {(far != null ? far.Angle : 0f):F3} deg)");
             // docked at the top of the elevator
             yield return WarpTo(kb, "Heaven Highport", "nh_highport");
             bool docked = false;

@@ -36,6 +36,8 @@ namespace Carrier.EditorTools
             public int layer;
             public SurfaceKit kit;
             public Prefabs prefabs;
+            public readonly List<NhComet> comets = new List<NhComet>();
+            public readonly List<NhStream> streams = new List<NhStream>();
         }
 
         static string NineHellsDataPath => Path.Combine(Application.dataPath, "Carrier", "Data", "nine_hells.json");
@@ -225,11 +227,12 @@ namespace Carrier.EditorTools
             Log("scene saved " + NineHellsScenePath);
         }
 
-        /// <summary>The Nine Hells' stations, cities, belts' bases, comets, pirates and Vrask (added
-        /// part by part; each is its own method).</summary>
-        static partial void NineHellsBuiltParts(NineHellsRefs R);
-
-        static void NineHellsParts(NineHellsRefs R) => NineHellsBuiltParts(R);
+        /// <summary>The Nine Hells' parts, each its own: the sky (Gilgal's ring, the comets and
+        /// their streams), and on in later parts the stations, cities, pirates and Vrask.</summary>
+        static void NineHellsParts(NineHellsRefs R)
+        {
+            NineHellsSky(R);
+        }
 
         static Material MoonLook(string name, int seed) => PlanetMat($"Moon_{name.Replace("'", "")}", MoonMap(name.Replace("'", ""), seed), null, Color.black, 0.03f);
 
@@ -267,7 +270,36 @@ namespace Carrier.EditorTools
                 var at = sys.Find(fd.name + " (warp point)");
                 orbits[fd.name] = Frame(fd.name, sys, null, at.position, 0f, fd.radius * 2.2f, new[] { field, at });
             }
-            // what is left at the top of the system (the installations, the comets): on the orbit
+            // the comets on their ellipses (Patmos near the star now, fast; Ophir far out, slow),
+            // and each meteoroid stream on its comet's, a little behind it
+            var cometOrbit = new Dictionary<string, Orbit>();
+            foreach (var cm in R.comets)
+            {
+                var o = cm.t.gameObject.AddComponent<Orbit>();
+                Vector3 r = cm.t.position - sys.position;
+                Vector3 v = Vector3.ProjectOnPlane(cm.t.GetComponent<Comet>().orbitDirection, r).normalized;
+                o.eccentricity = cm.e;
+                o.semiMajor = cm.near ? r.magnitude / (1.0 - cm.e) : r.magnitude / (1.0 + cm.e);
+                o.periapsis = cm.near ? r.normalized : -r.normalized;
+                o.ahead = cm.near ? v : -v;
+                o.meanAnomaly0 = cm.near ? 0.0 : System.Math.PI;
+                o.reach = cm.t.GetComponent<WarpPoint>().arrivalDistance * 1.5f;
+                cometOrbit[cm.t.name] = o;
+                orbits[cm.t.name] = o;
+            }
+            foreach (var st in R.streams)
+            {
+                if (!cometOrbit.TryGetValue(st.comet, out var co)) continue;
+                var o = st.t.gameObject.AddComponent<Orbit>();
+                o.eccentricity = co.eccentricity;
+                o.semiMajor = co.semiMajor;
+                o.periapsis = co.periapsis;
+                o.ahead = co.ahead;
+                o.meanAnomaly0 = co.meanAnomaly0 - st.behind;
+                o.reach = 40000f;
+                orbits[st.t.name] = o;
+            }
+            // what is left at the top of the system (the installations): on the orbit
             // of the body or belt it is nearest, if it is in that one's reach
             foreach (Transform t in sys.Cast<Transform>().ToList())
             {

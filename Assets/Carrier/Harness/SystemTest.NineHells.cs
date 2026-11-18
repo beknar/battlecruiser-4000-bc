@@ -48,9 +48,38 @@ namespace CarrierGame.Demo
                   "the airless worlds (The Forge, Nineveh, Sheol) have no air; K'rzyn and Judecca do");
             Check(P("Judecca") != null && P("Judecca").hostile && P("Sheol").hostile && P("Gilgal").hostile && !P("K'rzyn").hostile,
                   "Judecca, Gilgal and Sheol are hostile; K'rzyn is home");
+            float startFrom = P("K'rzyn") != null ? Vector3.Distance(cc.transform.position, P("K'rzyn").Position) : -1f;
+            // the sky: Gilgal's ring, the comets and the streams that follow them
+            var gilgal = P("Gilgal");
+            var ring = gilgal != null ? gilgal.transform.Find("Ring") : null;
+            Check(ring != null && ring.GetComponent<MeshRenderer>() != null, $"Gilgal has its ring ({(ring != null ? "there" : "none")})");
+            var patmos = P("Comet Patmos");
+            var ophir = P("Comet Ophir");
+            Check(patmos != null && patmos.kind == WarpPoint.Kind.Comet && ophir != null && ophir.kind == WarpPoint.Kind.Comet,
+                  "the comets Patmos and Ophir");
+            Orbit O(WarpPoint w) => w != null ? w.GetComponent<Orbit>() : null;
+            bool Follows(string stream, WarpPoint comet)
+            {
+                var so = O(P(stream));
+                var co = O(comet);
+                return so != null && co != null && System.Math.Abs(so.semiMajor - co.semiMajor) < 1.0 && so.eccentricity == co.eccentricity &&
+                       so.meanAnomaly0 < co.meanAnomaly0;
+            }
+            Check(Follows("Havilah", patmos) && Follows("Sheba", ophir),
+                  $"the meteoroid streams Havilah and Sheba on their comets' orbits, behind them " +
+                  $"({(P("Sheba") != null && ophir != null ? Vector3.Distance(P("Sheba").Position, ophir.Position) / 1000f : -1f):F0} km behind Ophir)");
+            yield return WarpTo(kb, "Sheba", "nh_sheba");
+            int meteoroids = 0;
+            var sheba = P("Sheba");
+            if (sheba != null)
+                foreach (Transform t in sheba.transform)
+                    if (t.name.StartsWith("Meteoroid") && Vector3.Distance(t.position, cc.transform.position) < 60000f) meteoroids++;
+            Check(sheba != null && WarpPoint.Nearest(cc.transform.position) == sheba && meteoroids > 50,
+                  $"warped to Sheba: {meteoroids} meteoroids round the frigate ({WarpPoint.Nearest(cc.transform.position)?.displayName})");
+
             var home = P("K'rzyn");
-            Check(home != null && Vector3.Distance(cc.transform.position, home.Position) < home.arrivalDistance * 1.6f,
-                  $"the frigate starts over K'rzyn ({(home != null ? Vector3.Distance(cc.transform.position, home.Position) / 1000f : -1f):F0} km off)");
+            Check(home != null && startFrom >= 0f && startFrom < home.arrivalDistance * 1.6f,
+                  $"the frigate starts over K'rzyn ({startFrom / 1000f:F0} km off)");
 
             // out to Rephaim on the map, and back home to land
             yield return WarpTo(kb, "Rephaim", "nh_rephaim");

@@ -15,7 +15,7 @@ namespace CarrierGame
     {
         /// <summary>(Landmark: a point of interest made at the start, not built: a site on a
         /// planet's or moon's surface, a high orbit over it, a part of an asteroid field. Landmarks.)</summary>
-        public enum Kind { Star, Planet, Moon, AsteroidField, Comet, Station, Installation, Weapons, AsteroidBase, SurfaceBase, Lagrange, Landmark }
+        public enum Kind { Star, Planet, Moon, AsteroidField, Comet, Station, Installation, Weapons, AsteroidBase, SurfaceBase, Lagrange, Landmark, Wreck }
 
         public string displayName = "Unknown";
         public Kind kind = Kind.Planet;
@@ -63,7 +63,7 @@ namespace CarrierGame
         bool scaledLooked;
 
         /// <summary>Something built, not a natural body.</summary>
-        public bool Built => kind >= Kind.Station && kind != Kind.Landmark;
+        public bool Built => kind >= Kind.Station && kind != Kind.Landmark && kind != Kind.Wreck;
         /// <summary>The body to land on from here (itself, or the body a surface base is on).</summary>
         public WarpPoint LandingBody => landsOn != null ? landsOn : this;
 
@@ -109,17 +109,17 @@ namespace CarrierGame
             // otherwise the one whose zone is closest, relative to its size
             WarpPoint best = null;
             float bestZone = float.MaxValue, bestRatio = float.MaxValue;
-            // (not a landmark: "near" is the place, or what is built there)
+            // (not a landmark or a wreck: "near" is the place, or what is built there)
             foreach (var w in All)
             {
-                if (w == null || w.kind == Kind.Landmark) continue;
+                if (w == null || w.kind == Kind.Landmark || w.kind == Kind.Wreck) continue;
                 float d = Vector3.Distance(p, w.Position);
                 if (d < w.arrivalDistance * 1.4f && w.arrivalDistance < bestZone) { bestZone = w.arrivalDistance; best = w; }
             }
             if (best != null) return best;
             foreach (var w in All)
             {
-                if (w == null || w.kind == Kind.Landmark) continue;
+                if (w == null || w.kind == Kind.Landmark || w.kind == Kind.Wreck) continue;
                 float r = Vector3.Distance(p, w.Position) / Mathf.Max(1f, w.arrivalDistance);
                 if (r < bestRatio) { bestRatio = r; best = w; }
             }

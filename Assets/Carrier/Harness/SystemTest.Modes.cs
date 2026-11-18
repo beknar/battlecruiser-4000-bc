@@ -324,10 +324,17 @@ namespace CarrierGame.Demo
             ph.Damage(1e6f);
             yield return null;
             var wreck = Wreck.All.LastOrDefault();
-            Check(salvage.WrecksMade == made0 + 1 && wreck != null && wreck.Of == "Practice hulk" && !wreck.Empty,
-                  $"a hostile destroyed leaves a wreck: {(wreck != null ? $"{wreck.Name}, {wreck.Summary()} ({wreck.Tonnes:F0} t)" : "none")}");
+            // (what is in it varies: sometimes a part as well; logged, not checked)
+            if (wreck != null) Log($"  {wreck.Name}: {wreck.Summary()} ({wreck.Tonnes:F0} t)");
+            Check(salvage.WrecksMade == made0 + 1 && wreck != null && wreck.Of == "Practice hulk" && !wreck.Empty && wreck.Tonnes > 0f,
+                  $"a hostile destroyed leaves a wreck: {(wreck != null ? wreck.Name : "none")}, with materials to salvage");
             Targets.Remove(preyAt);
             if (wreck == null) { if (prey != null) Destroy(prey); yield break; }
+            var wreckPoint = wreck.GetComponent<WarpPoint>();
+            var wreckPlace = Places.PlaceOf(wreckPoint);
+            bool listed = wreckPoint != null && WarpPoint.All.Contains(wreckPoint) &&
+                          (wreckPlace == null ? Places.IsPlace(wreckPoint) : Places.PointsOfInterest(wreckPlace, t.position).Contains(wreckPoint));
+            Check(listed, $"the wreck is a point of interest while it lasts: on the map and in the navigation list ({(wreckPlace != null ? $"at {wreckPlace.displayName}" : "in open space")})");
 
             // chosen from the combat menu
             yield return Key(kb, K.Tab);
@@ -343,13 +350,19 @@ namespace CarrierGame.Demo
             // Z, in reach: the beam strips it into the hold
             float steel0 = hold.Amount("SteelPlate");
             yield return Key(kb, K.Z);
-            Check(salvage.Working == wreck, $"Z starts the salvage beam ('{Notices.Last}')");
+            Log($"  '{Notices.Last}'");
+            Check(salvage.Working == wreck, "Z starts the salvage beam");
             yield return new WaitForSeconds(1.5f);
             Shot("modes_salvaging");
             float until = Time.time + 15f;
             while (Time.time < until && salvage.Working != null) yield return null;
             Check(hold.Amount("SteelPlate") > steel0 && salvage.Salvaged > 0f && (wreck == null || wreck.Empty),
-                  $"it is stripped into the hold: steel plate {steel0:F0} -> {hold.Amount("SteelPlate"):F0} t, {salvage.Salvaged:F0} t salvaged ('{Notices.Last}')");
+                  $"it is stripped into the hold: steel plate {steel0:F0} -> {hold.Amount("SteelPlate"):F0} t ('{Notices.Last}')");
+            Log($"  {salvage.Salvaged:F0} t salvaged");
+            yield return null;
+            bool gone = wreckPoint == null || !WarpPoint.All.Contains(wreckPoint);
+            Check(gone && (wreckPlace == null || !Places.PointsOfInterest(wreckPlace, t.position).Any(p => p != null && p.displayName == "Wreck of Practice hulk")),
+                  "salvaged, it is off the map and the navigation list");
             if (prey != null) Destroy(prey);
 
             // a second, 7 km off: Shift+Z chooses it, Z flies there and starts the beam on arrival

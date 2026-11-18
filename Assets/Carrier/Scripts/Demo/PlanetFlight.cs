@@ -74,7 +74,7 @@ namespace CarrierGame.Demo
         /// <summary>The air of a body: its scale height (m, 0: none) and where it ends.</summary>
         public static float ScaleHeight(WarpPoint w)
         {
-            if (w == null || w.kind != WarpPoint.Kind.Planet) return 0f;
+            if (w == null || w.kind != WarpPoint.Kind.Planet || w.airless) return 0f;
             return Mathf.Clamp(w.bodyRadius * 0.035f, 6000f, 18000f);
         }
         public static float AirTop(WarpPoint w) => ScaleHeight(w) * 8f;

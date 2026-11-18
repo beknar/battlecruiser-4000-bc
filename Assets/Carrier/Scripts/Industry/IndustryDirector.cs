@@ -24,6 +24,16 @@ namespace CarrierGame
         static float heldCredits;
         static bool haveHeld;
 
+        /// <summary>This system's save written, and its state forgotten, before another star system is
+        /// opened (which reads its own).</summary>
+        public static void LeaveSystem()
+        {
+            if (Instance != null) Instance.Save();
+            ResetStatics();
+            WorldState.ResetForSystem();
+            IndustryLedger.ResetForSystem();
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {

@@ -68,7 +68,7 @@ WINDOWS = os.name == "nt"
 EXE = ".exe" if WINDOWS else ""
 
 STAGES = ["tools", "server", "unity", "build", "serverproc", "autotest", "hud", "modes", "nav", "services", "fleet", "ships", "water", "industry", "crew", "stream", "approach", "strike", "vrask", "coop",
-          "aibot", "web", "system", "land", "orbit", "station"]
+          "aibot", "web", "system", "land", "orbit", "station", "ninehells"]
 QUICK = ["tools", "server", "unity", "serverproc", "hud", "modes", "coop"]
 # stages of the deprecated games (Carrier Demo, Asteroid Ambush): run only when named with --only
 DEPRECATED = ["autotest"]
@@ -90,6 +90,7 @@ SELFTESTS = {
     "land": (["-landtest"], 900),
     "orbit": (["-orbittest"], 1800),
     "station": (["-stationtest"], 1800),
+    "ninehells": (["-system", "ninehells", "-ninehellstest"], 900),
 }
 # the frigates a player can fly (Assets/Carrier/Data/frigates.json), each tested by the ships stage
 FRIGATES = ["Sentinel", "Lancer", "Warden", "Talon", "Vanguard", "Halberd", "Rapier", "Claymore", "Bulwark", "Stiletto", "Sovereign", "Dominion"]

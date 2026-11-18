@@ -38,6 +38,8 @@ namespace CarrierGame.Demo
             // in a web build: open the page with ?systemtest, and the results go to the browser console
             bool web = LaunchArgs.PageHas("systemtest");
             if (!LaunchArgs.Has("-systemtest") && !web) return;
+            // (told another star system: started once that one is open)
+            if (StarSystems.Leaving) { StarSystems.WhenThere(Boot); return; }
             var t = new GameObject("SystemTest").AddComponent<SystemTest>();
             t.web = web;
             t.dir = LaunchArgs.FolderAfter("-systemtest", Application.persistentDataPath);
@@ -80,6 +82,8 @@ namespace CarrierGame.Demo
             t.fleetOnly = LaunchArgs.Switch("fleettest");
             // -vrasktest (or ?vrasktest): only the Vrask (their four ships, the raiders at Comet Mirren)
             t.vraskOnly = LaunchArgs.Switch("vrasktest");
+            // -ninehellstest (with -system ninehells): only the Nine Hells, the second star system
+            t.nineHellsOnly = LaunchArgs.Switch("ninehellstest");
             // -cooptest (or ?cooptest), with -connect address:port (?server=...&connect): co-op with
             // the scripted second player (Tools/CoopTest/bot.py); -coopquick (?coopquick) skips the
             // part at Corsair Haven
@@ -177,6 +181,13 @@ namespace CarrierGame.Demo
             if (coopOnly)
             {
                 yield return CoopTest(kb, coopQuick);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
+            if (nineHellsOnly)
+            {
+                yield return NineHellsTest(kb);
                 Log("done");
                 if (!web) Application.Quit();
                 yield break;

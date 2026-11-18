@@ -450,8 +450,9 @@ namespace CarrierGame.Demo
                 if (dd < anyD) { anyD = dd; any = h.transform; }
                 if (dd < 12000f * 12000f && Cover.Visible(transform.position, h.transform.position) && dd < bestD) { bestD = dd; best = h.transform; }
             }
-            // (none in sight: close on the nearest, out of its hiding place or not)
-            return best != null ? best : (any != null && anyD < 6000f * 6000f ? any : null);
+            // (none in sight: hunt the nearest, however far it has gone or wherever it hides; a fight
+            // isn't over till the last of them is)
+            return best != null ? best : any;
         }
 
         static bool Fit(Transform t) => t != null && t.gameObject.activeInHierarchy && t.TryGetComponent(out Health h) && !h.Dead && !h.Captured;

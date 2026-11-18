@@ -14,7 +14,8 @@ namespace CarrierGame
     /// warp drive in the star system) is added to the new one with the same settings. Then every
     /// reference in the level to the old ship, or to anything on it, is pointed at the same thing
     /// on the new ship (the controls, the camera, the map, landing, docking, the ambush, the
-    /// orbits...), and the old ship goes without ever having woken.
+    /// orbits...), and the old ship goes without ever having woken. The ship is then painted in
+    /// the player's scheme for its class (ShipPaint), as it is after SwapTo.
     /// </summary>
     [DefaultExecutionOrder(-1000)]
     public class PlayerFrigate : MonoBehaviour
@@ -27,6 +28,13 @@ namespace CarrierGame
         void Awake()
         {
             if (ship == null) return;
+            PutInChosen();
+            // in the player's paint (ShipPaint: none for a test or a reel unless given -paint)
+            ShipPaint.ApplyPlayer(ship);
+        }
+
+        void PutInChosen()
+        {
             Flying = FrigateClass.Of(ship);
             var roster = FrigateRoster.Get();
             var entry = roster != null ? roster.Find(FrigateChoice.Current) : null;
@@ -55,6 +63,7 @@ namespace CarrierGame
             var cc = Swap(pf.ship, entry.prefab);
             pf.ship = cc;
             Flying = entry.id;
+            ShipPaint.ApplyPlayer(cc);
             foreach (var d in FindObjectsByType<Demo.CarrierDemoInput>(FindObjectsSortMode.None)) d.ShipChanged();
             Debug.Log($"[PlayerFrigate] now flying the {entry.displayName}");
             return cc;

@@ -8,7 +8,8 @@ namespace CarrierGame.Demo
     /// The pause menu: Esc on the keyboard, Start on the pad. The game stops while it is open.
     /// Resume, Restart (the level from the beginning), Sound on/off, Music on/off, the song playing
     /// (left/right, or click its &lt; or &gt; side, for the one before or the next), the HUD's settings (its size:
-    /// left/right, or click the &lt; or &gt; side of the row), and Quit. Restart and Quit ask for a
+    /// left/right, or click the &lt; or &gt; side of the row), Paint the ship (the start menu's
+    /// Customise step, for the ship being flown), and Quit. Restart and Quit ask for a
     /// second press to make sure. The captain, chosen on the start menu, is shown but can't be
     /// changed once the game has started. Mouse (hover and click), keyboard (up/down or W/S,
     /// Enter or Space, Esc to resume) and pad (D-pad or left stick, A, B or Start to resume).
@@ -30,8 +31,9 @@ namespace CarrierGame.Demo
         // (no frigate here: the frigate is chosen at the start of the game, on the start menu,
         // and kept for the game: its crew, parts and hold go with it)
         // (nor the captain: she is chosen on the start menu too, and stays for the game)
-        enum Item { Resume, Restart, Sound, Music, Song, Coop, HudCaptain, HudSize, HudFleet, Quit }
-        static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Music, Item.Song, Item.Coop, Item.HudCaptain, Item.HudSize, Item.HudFleet, Item.Quit };
+        // (the ship's paint can be changed, though: Paint opens the start menu's Customise step for it)
+        enum Item { Resume, Restart, Sound, Music, Song, Coop, Paint, HudCaptain, HudSize, HudFleet, Quit }
+        static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Music, Item.Song, Item.Coop, Item.Paint, Item.HudCaptain, Item.HudSize, Item.HudFleet, Item.Quit };
 
         int selected;
         Item? confirming;
@@ -86,6 +88,7 @@ namespace CarrierGame.Demo
                 case Item.Music: return MusicDirector.On ? "Music: on" : "Music: off";
                 case Item.Song: return MusicDirector.On && MusicDirector.NowPlaying.Length > 0 ? $"Song:  <   {MusicDirector.NowPlaying}   >" : "Song:  <   (music off)   >";
                 case Item.Coop: return CoopClient.Active ? $"Co-op: {CoopClient.Instance.Players.Count} playing" : "Co-op: join a game";
+                case Item.Paint: return "Paint the ship";
                 case Item.HudCaptain: return HudSettings.ShowCaptain ? "HUD: the captain shown" : "HUD: the captain hidden";
                 case Item.HudSize: return $"HUD size:  <   {Mathf.RoundToInt(HudSettings.Size * 100f)}%   >";
                 case Item.HudFleet: return HudSettings.FleetPanels ? "HUD: the fleet's panels shown" : "HUD: the fleet's panels hidden";
@@ -117,6 +120,11 @@ namespace CarrierGame.Demo
                     Close();
                     var coop = FindAnyObjectByType<CoopMenu>();
                     if (coop != null) coop.Open();
+                    break;
+                case Item.Paint:
+                    Close();
+                    var start = FindAnyObjectByType<StartMenu>();
+                    if (start != null) start.OpenPaint();
                     break;
                 case Item.Restart: Restart(); break;
                 case Item.Quit: Quit(); break;

@@ -14,11 +14,15 @@ namespace CarrierGame.Demo
     /// shows once a run (the pause menu's Ship item brings it back), and never for the self-tests,
     /// the autotest, the reels, or a frigate given on the command line or the page address.
     ///
-    /// Mouse (click a frigate, a captain or Launch), keyboard (up/down or W/S the frigate,
-    /// left/right or A/D the captain, Enter or Space to launch) and pad (D-pad or left stick up and
-    /// down the frigate, D-pad left/right or LB/RB the captain, A to launch).
+    /// Mouse (click a frigate, a captain or Customise), keyboard (up/down or W/S the frigate,
+    /// left/right or A/D the captain, Enter or Space to go on) and pad (D-pad or left stick up and
+    /// down the frigate, D-pad left/right or LB/RB the captain, A to go on).
+    ///
+    /// Then the Customise step (StartMenu.Paint.cs): the ship's paint, on the turning preview as
+    /// it is chosen; Done (Enter, or A) launches. The pause menu's Paint item opens that step
+    /// alone, for the ship being flown.
     /// </summary>
-    public class StartMenu : MonoBehaviour
+    public partial class StartMenu : MonoBehaviour
     {
         public static bool IsOpen => InputFocus.Has(InputFocus.Panel.StartMenu);
 
@@ -67,7 +71,8 @@ namespace CarrierGame.Demo
         Camera previewCam;
         RenderTexture previewTex;
         GameObject previewModel;
-        int previewOf = -1;
+        string previewOf;           // the class shown
+        string previewPaint;        // and the paint it has on (a code, "" none)
         float previewYaw = 200f;
         int savedMainMask;
         Camera savedMain;
@@ -82,6 +87,8 @@ namespace CarrierGame.Demo
             roster = FrigateRoster.Get();
             if (roster == null || roster.frigates.Length == 0 || IsOpen || !InputFocus.Take(InputFocus.Panel.StartMenu)) return;
             openedFrame = Time.frameCount;
+            step = Step.Ships;
+            paintOnly = false;
             IndustryDirector.LoadSaved();
             offered = System.Array.FindAll(roster.frigates, FrigateRoster.MayStartIn);
             selected = Mathf.Max(0, IndexOf(string.IsNullOrEmpty(PlayerFrigate.Flying) ? FrigateChoice.Current : PlayerFrigate.Flying));
@@ -120,6 +127,9 @@ namespace CarrierGame.Demo
             InputFocus.Release(InputFocus.Panel.StartMenu);
             if (paused) { Time.timeScale = savedScale; AudioListener.pause = false; paused = false; }
             DropPreview();
+            step = Step.Ships;
+            paintOnly = false;
+            typing = false;
         }
 
         void OnDestroy()
@@ -140,7 +150,9 @@ namespace CarrierGame.Demo
             Close();
             SoundFX.Ui(Sfx.UiLock);
             if (change && !LiveSwap) { GameMenu.ReloadLevel(); return; }
+            // (the new ship is painted as it goes in; the same one, now)
             if (change) PlayerFrigate.SwapTo(e.id);
+            else ShipPaint.ApplyPlayer();
             var coop = GetComponent<CoopMenu>();
             if (coop != null) coop.Offer();
         }
@@ -165,6 +177,7 @@ namespace CarrierGame.Demo
         void Update()
         {
             if (!IsOpen || Time.frameCount == openedFrame) return;
+            if (step == Step.Paint) { PaintUpdate(); return; }
             var k = Keyboard.current;
             var pad = Gamepad.current;
             if (k != null)
@@ -173,7 +186,7 @@ namespace CarrierGame.Demo
                 if (k.downArrowKey.wasPressedThisFrame || k.sKey.wasPressedThisFrame) Choose(selected + 1);
                 if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame) Captain.Index--;
                 if (k.rightArrowKey.wasPressedThisFrame || k.dKey.wasPressedThisFrame) Captain.Index++;
-                if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame || k.spaceKey.wasPressedThisFrame) { Launch(); return; }
+                if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame || k.spaceKey.wasPressedThisFrame) { Next(); return; }
             }
             if (pad != null)
             {
@@ -188,7 +201,7 @@ namespace CarrierGame.Demo
                     Choose(selected + (y > 0f ? -1 : 1));
                     stickRepeat = Time.unscaledTime + (stickRepeat == 0f ? 0.35f : 0.2f);
                 }
-                if (pad.buttonSouth.wasPressedThisFrame || pad.startButton.wasPressedThisFrame) { Launch(); return; }
+                if (pad.buttonSouth.wasPressedThisFrame || pad.startButton.wasPressedThisFrame) { Next(); return; }
             }
             var mouse = Mouse.current;
             if (mouse != null && mouse.leftButton.wasPressedThisFrame)
@@ -197,7 +210,7 @@ namespace CarrierGame.Demo
                 var gui = new Vector2(mp.x, Screen.height - mp.y);
                 for (int i = 0; i < rowRects.Count; i++) if (rowRects[i].Contains(gui)) { Choose(i); return; }
                 for (int i = 0; i < captainRects.Length; i++) if (captainRects[i].Contains(gui)) { Captain.Index = i; return; }
-                if (launchRect.Contains(gui)) Launch();
+                if (launchRect.Contains(gui)) Next();
             }
         }
 
@@ -236,14 +249,17 @@ namespace CarrierGame.Demo
             previewModel = null;
             previewCam = null;
             previewTex = null;
-            previewOf = -1;
+            previewOf = null;
+            previewPaint = null;
         }
 
         /// <summary>A copy of a frigate's visible parts (no behaviours): its hull, turrets, CIWS and
-        /// bow gun, without the shield bubble or engine plumes.</summary>
+        /// bow gun, without the shield bubble or engine plumes. (The turrets' parts go under a
+        /// "Turrets" child, as on the ship, so the paint puts no logo or lettering on them.)</summary>
         public static GameObject ModelOf(GameObject prefab)
         {
             var root = new GameObject("Frigate preview model");
+            Transform turrets = null;
             var rt = prefab.transform;
             foreach (var mr in prefab.GetComponentsInChildren<MeshRenderer>(true))
             {
@@ -252,7 +268,18 @@ namespace CarrierGame.Demo
                 if (mf == null || mf.sharedMesh == null) continue;
                 var part = new GameObject(mr.name);
                 part.layer = PreviewLayer;
-                part.transform.SetParent(root.transform, false);
+                var under = root.transform;
+                if (mr.GetComponentInParent<CarrierTurret>(true) != null)
+                {
+                    if (turrets == null)
+                    {
+                        turrets = new GameObject("Turrets").transform;
+                        turrets.gameObject.layer = PreviewLayer;
+                        turrets.SetParent(root.transform, false);
+                    }
+                    under = turrets;
+                }
+                part.transform.SetParent(under, false);
                 var m = rt.worldToLocalMatrix * mr.transform.localToWorldMatrix;
                 part.transform.localPosition = m.GetColumn(3);
                 part.transform.localRotation = m.rotation;
@@ -268,18 +295,31 @@ namespace CarrierGame.Demo
         void LateUpdate()
         {
             if (!IsOpen || previewCam == null || roster == null) return;
-            if (previewOf != selected)
+            // the ship chosen (or being painted), in its paint: the one being made, or the class's own
+            bool painting = step == Step.Paint;
+            string id = painting ? paintId : offered[selected].id;
+            if (previewOf != id || previewModel == null)
             {
                 if (previewModel != null) Destroy(previewModel);
-                previewModel = ModelOf(offered[selected].prefab);
+                var prefab = painting ? paintPrefab : offered[selected].prefab;
+                if (prefab == null) return;
+                previewModel = ModelOf(prefab);
                 previewModel.transform.position = PreviewAt;
-                previewOf = selected;
+                previewOf = id;
+                previewPaint = null;
+            }
+            // (a class's own: read once, as it comes up)
+            string paint = painting ? EditCode : previewPaint ?? ShipPaint.ForPlayer(id)?.ToCode() ?? "";
+            if (paint != previewPaint)
+            {
+                ShipPaint.Apply(previewModel, paint.Length > 0 ? ShipPaint.FromText(paint) : null, id);
+                previewPaint = paint;
             }
             previewYaw += 14f * (paused ? Time.unscaledDeltaTime : Time.deltaTime);
             // put back every frame: while the game runs the level may shift everything (to keep
             // the player's ship near the middle of the world), the preview with it
             previewModel.transform.SetPositionAndRotation(PreviewAt, Quaternion.Euler(0f, previewYaw, 0f));
-            float len = Mathf.Max(100f, stats[selected].hull > 0f ? Bounds(previewModel).size.magnitude : 200f);
+            float len = Mathf.Max(100f, Bounds(previewModel).size.magnitude);
             var cam = previewCam.transform;
             cam.position = PreviewAt + new Vector3(0f, len * 0.32f, -len * 1.45f);
             cam.LookAt(PreviewAt);
@@ -298,6 +338,7 @@ namespace CarrierGame.Demo
         {
             if (!IsOpen || roster == null) return;
             GUI.depth = -110;   // over the HUD and the pause menu
+            if (step == Step.Paint) { PaintGUI(); return; }
             float s = Hud.S;
             Hud.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0.01f, 0.03f, 0.92f));
             float pad = 24f * s;
@@ -393,8 +434,8 @@ namespace CarrierGame.Demo
             launchRect = new Rect(panel.xMax - pad - 260f * s, panel.yMax - pad - 64f * s, 260f * s, 56f * s);
             Hud.Fill(launchRect, new Color(0.25f, 0.45f, 0.8f, 0.75f));
             Hud.Outline(launchRect, Mathf.Max(1f, 2f * s), new Color(1f, 0.72f, 0.3f));
-            GUI.Label(launchRect, "<b>LAUNCH</b>", Hud.Text(22, false, TextAnchor.MiddleCenter));
-            string hint = Gamepad.current != null ? "D-pad up/down frigate   LB/RB captain   A launch" : "Up/down frigate   Left/right captain   Enter launch";
+            GUI.Label(launchRect, "<b>CUSTOMISE</b>", Hud.Text(22, false, TextAnchor.MiddleCenter));
+            string hint = Gamepad.current != null ? "D-pad up/down frigate   LB/RB captain   A customise" : "Up/down frigate   Left/right captain   Enter customise";
             GUI.Label(new Rect(panel.x + pad, panel.yMax - pad - 26f * s, w - 300f * s, 24f * s), $"<color=#9aa4b0>{hint}</color>", Hud.Text(13, false));
         }
     }

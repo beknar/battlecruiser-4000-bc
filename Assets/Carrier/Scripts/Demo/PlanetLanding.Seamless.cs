@@ -256,6 +256,56 @@ namespace CarrierGame.Demo
             else if (World.NearBase(tu, tv, 3000.0, out double bu, out double bv, out bool hostileBase) && hostileBase) { tu = bu - HostileBaseStandoff; tv = bv; }
         }
 
+        /// <summary>Which pad of a base was chosen last (0 its own, 1.. its landing field's; the self-test).</summary>
+        public int LastPad { get; private set; }
+
+        /// <summary>Down on the surface by a base with a pad: where its own pad is (the self-test).</summary>
+        public Vector3? OwnPad => Current != State.InSpace && Surface != null && Site != null && Site.hasOutpost ? PadNear(Site.pad) : (Vector3?)null;
+
+        /// <summary>The pad the auto-lander would come down on now (0 the base's own, 1.. its
+        /// field's), -1 away from a surface with a pad: its choice (the self-test).</summary>
+        public int PadFor()
+        {
+            var own = OwnPad;
+            if (own == null) return -1;
+            ChoosePad(own.Value, false);
+            return LastPad;
+        }
+
+        /// <summary>Over the ground by a base: its own pad, unless another ship is down on it or low
+        /// over it; then the nearest free pad of its landing field (its own all the same if every
+        /// one is taken). On the surface, where the ships down there are.</summary>
+        Vector3 ChoosePad(Vector3 own, bool tell)
+        {
+            LastPad = 0;
+            if (!Taken(own, SurfaceWorld.PadRadius)) return own;
+            Vector3 best = own;
+            float bestD = float.MaxValue;
+            foreach (var c in Surface.GetComponentsInChildren<Collider>(false))
+            {
+                if (!c.name.StartsWith("Pad ") || c.transform.parent == null || c.transform.parent.name != "Outpost landing field") continue;
+                Vector3 p = c.transform.position;
+                float d = Flat(p - own);
+                if (d > SurfaceWorld.FieldRadius(new TileFeatures { baseName = "" }) + 600f || Taken(p, SurfaceWorld.FieldPadRadius)) continue;
+                if (d < bestD && int.TryParse(c.name.Substring(4), out int n)) { bestD = d; best = p; LastPad = n - 1; }
+            }
+            if (tell && LastPad > 0) Notices.Post($"The base's own pad is taken: down on pad {LastPad + 1} of its landing field");
+            return best;
+        }
+
+        static float Flat(Vector3 d) { d.y = 0f; return d.magnitude; }
+
+        /// <summary>Another ship (any but ours) down on or low over the ground at p, within `radius`.</summary>
+        bool Taken(Vector3 p, float radius)
+        {
+            foreach (var t in PlayerShips.All)
+            {
+                if (t == null || t == carrier.transform || !t.gameObject.activeInHierarchy) continue;
+                if (Flat(t.position - p) < radius + 60f && t.position.y - p.y < 800f) return true;
+            }
+            return false;
+        }
+
         /// <summary>Straight over to the surface by a place (over it from the body's centre):
         /// the ground there built, then the ship over to it, coming in toward the pad.</summary>
         IEnumerator JumpDown(WarpPoint body, Vector3 over)
@@ -382,6 +432,7 @@ namespace CarrierGame.Demo
         IEnumerator Approach()
         {
             AutopilotStage = "approach";
+            Vector3? chosenPad = null;
             while (Autopilot && Current == State.OnSurface)
             {
                 if (carrier.Destroyed) { StopAutopilot(null); yield break; }
@@ -390,6 +441,12 @@ namespace CarrierGame.Demo
                 var tr = carrier.transform;
                 Vector3 p = tr.position;
                 Vector3 pad = Site.hasOutpost ? PadNear(Site.pad) : new Vector3(p.x, Surface.FloorAt(p), p.z);
+                // (a free pad: the base's own, or one of its landing field's if a ship is on it; chosen once)
+                if (Site.hasOutpost)
+                {
+                    if (chosenPad == null) chosenPad = ChoosePad(pad, true);
+                    pad = chosenPad.Value;
+                }
                 Vector3 to = pad - p; to.y = 0f;
                 float d = to.magnitude;
                 float floor = Surface.FloorAt(p);

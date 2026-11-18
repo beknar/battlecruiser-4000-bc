@@ -185,14 +185,26 @@ namespace CarrierGame.Demo
                     foreach (var m in Missile.Active) if (m != null && m.underwater) seen.Add(m);
                     yield return null;
                 }
-                yield return new WaitForSeconds(2f);
+                // (watched as they run, for 2 s: one may hit or run out before then)
+                bool flameless = true, looked = false;
+                int bubbles = 0;
+                for (float t2 = 0f; t2 < 2f; t2 += Time.deltaTime)
+                {
+                    foreach (var m in Missile.Active) if (m != null && m.underwater) seen.Add(m);
+                    var running = seen.Where(m => m != null).ToArray();
+                    if (running.Length > 0)
+                    {
+                        looked = true;
+                        flameless &= running.All(m => m.GetComponentInChildren<TrailRenderer>() == null &&
+                            m.GetComponentsInChildren<Renderer>().All(r => r.sharedMaterials.All(x => x == null || !x.IsKeywordEnabled("_EMISSION"))));
+                        bubbles = Mathf.Max(bubbles, running.Sum(m => m.TryGetComponent(out TorpedoWake w) ? w.Bubbles : 0));
+                    }
+                    yield return null;
+                }
                 Shot("w_torpedo");
-                var running = seen.Where(m => m != null).ToArray();
-                bool flameless = running.All(m => m.GetComponentInChildren<TrailRenderer>() == null &&
-                    m.GetComponentsInChildren<Renderer>().All(r => r.sharedMaterials.All(x => x == null || !x.IsKeywordEnabled("_EMISSION"))));
-                int bubbles = running.Sum(m => m.TryGetComponent(out TorpedoWake w) ? w.Bubbles : 0);
-                if (running.Length > 0)
-                    Check(flameless && bubbles > 20, $"torpedoes run with no flame, trailing bubbles ({bubbles})");
+                Log($"  torpedo bubbles: {bubbles}");
+                if (looked)
+                    Check(flameless && bubbles > 20, "torpedoes run with no flame, trailing bubbles");
                 yield return new WaitForSeconds(4f);
                 foreach (var m in Missile.Active) if (m != null && m.underwater) seen.Add(m);
                 Check(seen.Count > 0, $"the {foeName} fires torpedoes at the ship under the water ({seen.Count}; " +

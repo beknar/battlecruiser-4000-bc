@@ -6,7 +6,7 @@ beam that charges for 10 seconds and a hex shield. Every ship comes apart before
 The game is Star System, a whole star system at its real size. The frigate can also land on its
 planets, moons and asteroid fields and fly all the way round them, and mine asteroids, comets and
 planets for 27 different minerals. Ore is refined, built into ship parts and traded; destroyers
-and a cruiser are built at shipyards, flown, or sent to fly with you as a fleet; wrecks are
+and two cruisers are built at shipyards, flown, or sent to fly with you as a fleet; wrecks are
 salvaged. Five modes of play (combat, mining, navigation, services, fleet) each have their own
 keys. Up to seven players fly together through a co-op server, which takes players with its API
 keys. It runs on Windows and in a web browser, with keyboard and mouse or an Xbox 360 / XInput
@@ -141,7 +141,7 @@ for the other reels.
 The first game, with nothing saved yet:
 
 - **The ship.** A frigate, chosen on the start menu (the Sentinel, Lancer, Warden, Talon or
-  Vanguard), with the captain chosen there too. The destroyers and the cruiser are built later,
+  Vanguard), with the captain chosen there too. The destroyers and the cruisers are built later,
   at a shipyard.
 - **Where.** In orbit of Thalassa, the ocean world. The orbits start where the system's clock
   has them.
@@ -155,7 +155,7 @@ The first game, with nothing saved yet:
   ship), the hold and the credits, the crews and the people waiting to sign on, the ships built
   (berthed, commanded, and the fleet), and the world (craters, rubble, what has been destroyed)
   are saved as the game goes, and the next game carries on from them: the hold, the credits and
-  the fittings as they were, each ship's crew as it was (not full), and a destroyer or the
+  the fittings as they were, each ship's crew as it was (not full), and a destroyer or a
   cruiser among the ships offered on the start menu if one was being commanded.
 - **Starting afresh.** `StarSystem.exe -newgame` starts a game as if nothing were saved, and
   saves nothing either: the next game without it carries on from the old save. For a fresh
@@ -178,7 +178,7 @@ There is no script: what to do next is the player's. A usual way up:
 4. **Fight and salvage** (combat mode, 1). Pirates lie in wait in the asteroid fields and
    round their bases; capital ship groups wait on the way in to Cinder and Glacis. A destroyed
    hostile leaves a wreck, with steel, aluminium, copper and sometimes a part to salvage (Z). Until it is stripped (or drifts apart after 15 min) the wreck is a point of interest on the system map and in the navigation list; salvaged, it is off both.
-5. **Build a bigger ship.** With the parts in a shipyard's storage, lay down a destroyer or the
+5. **Build a bigger ship.** With the parts in a shipyard's storage, lay down a destroyer or a
    cruiser. Once built, take command of her, with crew recruited to fill her complement, or have
    her **join your fleet** and fly the frigate still (fleet mode, 5).
 6. **Go anywhere.** The system map (M) warps to the planets, moons, fields, comets and Lagrange
@@ -229,7 +229,7 @@ the game with their turrets cut out of the hull (`Tools/Blender/convert_frigates
 
 ### Destroyers and the cruiser
 
-Every game starts in a frigate. Five destroyers and a heavy cruiser can be flown once they have
+Every game starts in a frigate. Five destroyers and two cruisers can be flown once they have
 been built at a shipyard and taken command of (see
 [Shipyards](#shipyards-destroyers-and-the-cruiser)). Until then the start menu doesn't offer
 them, and nor does `-frigate`; afterwards it offers the one the player commands. That holds for
@@ -238,10 +238,11 @@ AI players and the reels too: only the self-tests may start in any ship.
 - **Destroyers** are tougher than any frigate but slower. They have no bow main gun. They carry
   more turrets (their own, plus ball mounts on the hull), fewer CIWS mounts (one or two), and a
   limited stock of missiles fired from launch cells on the deck.
-- **The cruiser** is tougher than any destroyer and has more turrets. It has the bow main gun,
-  six CIWS mounts and missiles.
-- **Crews.** Destroyers need a bigger crew than any frigate (350 to 460), and the cruiser needs
-  the most (800). A new ship comes off the slips empty. Taking command of it brings the crew
+- **The cruisers** are tougher than any destroyer and have more turrets. They have the bow main
+  gun, four or six CIWS mounts and missiles. The Sovereign is the all-rounder; the Dominion trades
+  half the missiles, two CIWS mounts and some armour for the heaviest, longest-ranged guns and beam.
+- **Crews.** Destroyers need a bigger crew than any frigate (350 to 460), and the cruisers need
+  the most (800 and 900). A new ship comes off the slips empty. Taking command of it brings the crew
   across from the ship you were flying, as many as it needs, and the rest are recruited.
 - **Missiles.** Each missile fired is one fewer in the magazine. The magazine is refilled when
   the ship docks at a station or lands at a site. Fire them with 4 (M in a level without a warp
@@ -255,10 +256,15 @@ AI players and the reels too: only the self-tests may start in any ship.
 | Bulwark | Heavy destroyer | 8: four twins, 4 flank mounts | 2 | none | 16 (4) | 15000 / 12000 | 100 m/s, 10°/s | 460 |
 | Stiletto | Strike destroyer | 7: one big dorsal turret, 6 ball mounts | 1 | none | 20 (8) | 11500 / 9000 | 110 m/s, 12°/s | 350 |
 | Sovereign | Heavy cruiser | 12: eight twins, 4 ball mounts | 6 | 3200/s, 16 s charge | 32 (8) | 26000 / 20000 | 90 m/s, 8°/s | 800 |
+| Dominion | Gun cruiser | 12: three triples, five twins, 4 ball mounts | 4 | 3600/s, 18 s charge | 16 (4) | 24000 / 18000 | 95 m/s, 7°/s | 900 |
 
-The six were AI-made models (`ai models/destroyer1.glb` to `destroyer5.glb`, `cruiser1.glb`),
-repainted like the frigates and turned to lie bow first along the axis with
-`Tools/Blender/align_glb.py`. They were then converted by `convert_frigates.py` (the `ships` in
+The seven were AI-made models (`ai models/destroyer1.glb` to `destroyer5.glb`, `cruiser1.glb`,
+`cruiser2.glb`), repainted like the frigates and turned to lie bow first along the axis with
+`Tools/Blender/align_glb.py`. The Dominion (`cruiser2.glb`) was rebuilt as well by
+`Tools/Blender/build_cruiser2.py`: its crooked AI turrets replaced with new ones built square to
+the ship, more detail modelled on (a mast, sensor domes, vents, conduits, antennas), and a new
+texture baked with strong panel lines, with a normal map of them (the `normalMap` in
+`frigates.json`). They were then converted by `convert_frigates.py` (the `ships` in
 `frigates_spec.json`), which also gives where their ball mounts and missile cells go.
 
 ### The Sentinel
@@ -1000,7 +1006,7 @@ fitted to the frigate to make it better. All of it is in
   - **Crew**: recruit, where the place recruits, or drop crew off (one or ten at a time): they
     go ashore and join those waiting there to sign on (never below the few a ship keeps through
     anything). A screen that opened because the crew is short opens on this page.
-  - **Shipyard**, where there is one: build destroyers and the cruiser, and take command of
+  - **Shipyard**, where there is one: build destroyers and the cruisers, and take command of
     the ships berthed there (see below).
 - **Jobs take time** (20 to 45 s a batch to refine, 80 to 180 s a part), one at a time on each
   line, the refinery's and the factory's. They go on while the frigate is away.
@@ -1100,12 +1106,12 @@ tank, pipe, window and pad textures made by `Tools/Textures/make_industry_textur
 
 ### Shipyards: destroyers and the cruiser
 
-Every site with a shipyard builds the destroyers and the cruiser: in deep space (Kestrel Deep
+Every site with a shipyard builds the destroyers and the cruisers: in deep space (Kestrel Deep
 Yard), in orbit (Ochre Orbital Works), on a planet (Ochre Foundry), on moons (Mnemos Works,
 Steropes Heavy Industries) and on an asteroid (Belt Smelter). The site's **Shipyard** page lists
 the ships. A ship is built from parts and sections (built at a factory) and steel, all in that
 site's storage. Laying one down takes them out of storage (stopping it puts them back). It
-then takes 9 to 20 minutes on the slips, two ships at a time, while the player is away.
+then takes 9 to 21 minutes on the slips, two ships at a time, while the player is away.
 
 - A finished ship is berthed at its yard, with nobody aboard. The player can have one of each
   class.
@@ -1125,6 +1131,7 @@ then takes 9 to 20 minutes on the slips, two ships at a time, while the player i
 | Bulwark | 4 hull frame section, 8 turret mount, 2 missile cell block, 1 bridge module, 12 crew quarters, 1 reactor core, 2 fusion thruster, 1 shield emitter, 2 armour plating, 2 armour plating, 200 t steel plate | 11 min |
 | Stiletto | 4 hull frame section, 7 turret mount, 2 missile cell block, 1 bridge module, 9 crew quarters, 1 reactor core, 2 fusion thruster, 1 shield emitter, 2 armour plating, 1 fire-control computer, 120 t steel plate | 9.33333 min |
 | Sovereign | 8 hull frame section, 12 turret mount, 2 missile cell block, 1 bridge module, 20 crew quarters, 2 reactor core, 3 fusion thruster, 2 shield emitter, 4 armour plating, 2 capacitor bank, 1 beam focusing lens, 1 fire-control computer, 400 t steel plate, 100 t titanium billets | 20 min |
+| Dominion | 8 hull frame section, 12 turret mount, 1 missile cell block, 1 bridge module, 23 crew quarters, 2 reactor core, 3 fusion thruster, 2 shield emitter, 4 armour plating, 2 capacitor bank, 1 beam focusing lens, 2 fire-control computer, 2 rail barrels, 450 t steel plate, 80 t titanium billets | 21 min |
 
 ### Fleets
 
@@ -1162,7 +1169,7 @@ ships** in all. In fleet mode the others take orders while the player flies thei
   "towed"), and the ships berthed at the yards. B views a ship of the fleet, and back.
 - **Saved.** The fleet, and its ships' crews, are saved with the game.
 - **One of each class.** A shipyard builds one ship of each class (the five destroyers and the
-  cruiser), so a fleet today is at most seven ships: a frigate and the six.
+  two cruisers), so a fleet today is at most eight ships: a frigate and the seven.
 - **Not shared in co-op.** The other players don't see a player's fleet.
 
 ### Crew and the settlements
@@ -1974,7 +1981,7 @@ Each part can also be run alone:
 ## Command-line modes
 
 - `-frigate <id>` (or `?frigate=<id>` on the web), with any game: fly that frigate (Sentinel,
-  Lancer, Warden, Talon or Vanguard) without the start menu. A destroyer or the cruiser is flown
+  Lancer, Warden, Talon or Vanguard) without the start menu. A destroyer or a cruiser is flown
   only if the save has it built and in command; otherwise the game starts in the Sentinel. The
   self-tests fly the Sentinel unless told otherwise, and may be given any ship.
 - `-industrysave <file>`: save the game there instead of the player's data folder. Automated

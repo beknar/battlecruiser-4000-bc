@@ -16,6 +16,7 @@ The ships in frigates_spec.json were aligned (from the recoloured GLBs, recolour
   Sovereign (cruiser1)   0 --up (the deck's normal, measured)    Halberd (destroyer1)  pca+180 --long3d --roll -14.5
   Rapier (destroyer2)    0                                        Claymore (destroyer3) 0
   Bulwark (destroyer4)   pca                                      Stiletto (destroyer5) pca+180 --pitch 15.09 --roll -8.8
+  Dominion (cruiser2)    none: it came lying right (build_cruiser2.py only re-normalises it)
 Check each one with grid_glb.py / closeup_glb.py: in a top view of the aligned model the image's
 right is -X (the bow); in a side view it is +X.
 """

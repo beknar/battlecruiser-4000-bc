@@ -92,7 +92,7 @@ SELFTESTS = {
     "station": (["-stationtest"], 1800),
 }
 # the frigates a player can fly (Assets/Carrier/Data/frigates.json), each tested by the ships stage
-FRIGATES = ["Sentinel", "Lancer", "Warden", "Talon", "Vanguard", "Halberd", "Rapier", "Claymore", "Bulwark", "Stiletto", "Sovereign"]
+FRIGATES = ["Sentinel", "Lancer", "Warden", "Talon", "Vanguard", "Halberd", "Rapier", "Claymore", "Bulwark", "Stiletto", "Sovereign", "Dominion"]
 BUILD_METHODS = {"CarrierDemo": "Build", "AsteroidAmbush": "BuildAsteroids", "StarSystem": "BuildStarSystem",
                  "StarSystemWeb": "BuildStarSystemWeb"}
 # files a Unity build or batch run rewrites without changing them (reverted if they were clean before)

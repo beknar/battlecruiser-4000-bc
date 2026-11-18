@@ -4,7 +4,7 @@ Every ship in Star System, the player's and the enemies', as the game builds the
 numbers come from the game's data and its scene builder:
 
 - player ships: `Assets/Carrier/Data/frigates.json` and the hardpoint files beside it
-  (`frigate_*_hardpoints.json`, `destroyer_*_hardpoints.json`, `cruiser_sovereign_hardpoints.json`);
+  (`frigate_*_hardpoints.json`, `destroyer_*_hardpoints.json`, `cruiser_*_hardpoints.json`);
 - shipyard costs: `Assets/Carrier/Resources/Data/industry.json`;
 - the Vrask's ships: `Assets/Carrier/Data/vrask.json` (and `CarrierBuilder.Vrask.cs`);
 - enemy ships: `Assets/Carrier/Editor/CarrierBuilder.cs`, `CarrierBuilder.CapitalShips.cs`,
@@ -19,8 +19,8 @@ ship is meant to be used, judged from its numbers, not rules the game enforces.
 
 ## Player ships
 
-There are eleven: five frigates to choose from on the start menu, and five destroyers and a
-cruiser built at a shipyard. You fly one at a time; ships you've built can sail with you, crewed (or
+There are twelve: five frigates to choose from on the start menu, and five destroyers and two
+cruisers built at a shipyard. You fly one at a time; ships you've built can sail with you, crewed (or
 towed, which halves your speed), as your fleet (up to ten in all, ordered in fleet mode, key 5).
 
 ### Every player ship has
@@ -82,40 +82,41 @@ towed, which halves your speed), as your fleet (up to ten in all, ordered in fle
   firing forward. It suits head-on fights against cruisers and destroyers, and bombarding
   ground defences from orbit. It is slow to arrive and slow to turn, so fighters can get behind it.
 
-### Destroyers and cruiser (built at a shipyard)
+### Destroyers and cruisers (built at a shipyard)
 
 These are built at a shipyard: Ochre Foundry, Mnemos Works, Kestrel Deep Yard, Belt Smelter,
 Steropes Heavy Industries or Ochre Orbital Works. Their missiles fire from launch cells and are
-refilled when docked or landed at a site. The destroyers have no bow beam; the cruiser does.
+refilled when docked or landed at a site. The destroyers have no bow beam; the cruisers do.
 
-| | Halberd | Rapier | Claymore | Bulwark | Stiletto | Sovereign |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Class | Missile destroyer | Fast destroyer | Gun destroyer | Heavy destroyer | Strike destroyer | Heavy cruiser |
-| Length (m) | 300 | 280 | 300 | 290 | 270 | 420 |
-| Hull | 12,000 | 11,000 | 13,000 | 15,000 | 11,500 | **26,000** |
-| Shield | 10,000 | 9,500 | 10,500 | 12,000 | 9,000 | **20,000** |
-| Shield recharge (/s) | 320 | 340 | 330 | 300 | 350 | **450** |
-| Hull + shield | 22,000 | 20,500 | 23,500 | 27,000 | 20,500 | **46,000** |
-| Max speed | 108 | **112** | 105 | 100 | 110 | 90 |
-| Acceleration | 17 | **19** | 16 | 15 | 18 | 12 |
-| Turn rate | 12 | **13** | 11 | 10 | 12 | 8 |
-| Guns | 5 turrets (quad forward) + 3 ball mounts | 4 turrets + 3 ball mounts | 3 heavy single turrets + 5 ball mounts | 4 twin turrets + 4 flank mounts | 1 big dorsal turret + 6 ball mounts | 8 turrets + 4 ball mounts |
-| Gun damage / shot | 70 | 65 | 120 | 95 | 80 | **125** |
-| Gun interval | 0.75 | 0.6 | 0.9 | 0.85 | 0.7 | 0.8 |
-| Gun range | 5,000 | 4,800 | 5,400 | 5,200 | 5,000 | **5,600** |
-| Bow beam (dmg/s) | none | none | none | none | none | **3,200** (16 s charge) |
-| Missiles (cells) | 24 (6) | 12 (4) | 12 (6) | 16 (4) | 20 (8) | **32** (8) |
-| CIWS mounts | 2 | 1 | 2 | 2 | 1 | **6** |
-| Cargo (t) | 900 | 700 | 850 | 1,100 | 750 | **1,600** |
-| Part slots | 5 | 5 | 6 | 6 | 5 | **8** |
-| Crew | 380 | 360 | 420 | 460 | 350 | 800 |
-| Shipyard time | 10 min | 9 min | 10 min | 11 min | 9 min 20 s | 20 min |
-| Steel plate (t) | 150 | 120 | 160 | 200 | 120 | 400, plus 100 t titanium billet |
+| | Halberd | Rapier | Claymore | Bulwark | Stiletto | Sovereign | Dominion |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Class | Missile destroyer | Fast destroyer | Gun destroyer | Heavy destroyer | Strike destroyer | Heavy cruiser | Gun cruiser |
+| Length (m) | 300 | 280 | 300 | 290 | 270 | 420 | 430 |
+| Hull | 12,000 | 11,000 | 13,000 | 15,000 | 11,500 | **26,000** | 24,000 |
+| Shield | 10,000 | 9,500 | 10,500 | 12,000 | 9,000 | **20,000** | 18,000 |
+| Shield recharge (/s) | 320 | 340 | 330 | 300 | 350 | **450** | 420 |
+| Hull + shield | 22,000 | 20,500 | 23,500 | 27,000 | 20,500 | **46,000** | 42,000 |
+| Max speed | 108 | **112** | 105 | 100 | 110 | 90 | 95 |
+| Acceleration | 17 | **19** | 16 | 15 | 18 | 12 | 13 |
+| Turn rate | 12 | **13** | 11 | 10 | 12 | 8 | 7 |
+| Guns | 5 turrets (quad forward) + 3 ball mounts | 4 turrets + 3 ball mounts | 3 heavy single turrets + 5 ball mounts | 4 twin turrets + 4 flank mounts | 1 big dorsal turret + 6 ball mounts | 8 turrets + 4 ball mounts | 3 triple and 5 twin turrets + 4 ball mounts |
+| Gun damage / shot | 70 | 65 | 120 | 95 | 80 | 125 | **165** |
+| Gun interval | 0.75 | 0.6 | 0.9 | 0.85 | 0.7 | 0.8 | 1.0 |
+| Gun range | 5,000 | 4,800 | 5,400 | 5,200 | 5,000 | 5,600 | **6,200** |
+| Bow beam (dmg/s) | none | none | none | none | none | 3,200 (16 s charge) | **3,600** (18 s charge) |
+| Missiles (cells) | 24 (6) | 12 (4) | 12 (6) | 16 (4) | 20 (8) | **32** (8) | 16 (4) |
+| CIWS mounts | 2 | 1 | 2 | 2 | 1 | **6** | 4 |
+| Cargo (t) | 900 | 700 | 850 | 1,100 | 750 | **1,600** | 1,400 |
+| Part slots | 5 | 5 | 6 | 6 | 5 | **8** | **8** |
+| Crew | 380 | 360 | 420 | 460 | 350 | 800 | 900 |
+| Shipyard time | 10 min | 9 min | 10 min | 11 min | 9 min 20 s | 20 min | 21 min |
+| Steel plate (t) | 150 | 120 | 160 | 200 | 120 | 400, plus 100 t titanium billet | 450, plus 80 t titanium billet |
 
 Every one also needs parts: hull frames, turret mounts, missile cells, a bridge module, crew
 quarters, a reactor core, fusion thrusters, a shield emitter and armour plating. On top of those,
 the Halberd and Stiletto need fire control, the Rapier vectoring jets and the Claymore rail barrels.
-The Sovereign needs a capacitor bank, a beam lens and fire control. `industry.json` has the tonnes.
+The Sovereign needs a capacitor bank, a beam lens and fire control; the Dominion the same, with
+rail barrels besides. `industry.json` has the tonnes.
 
 **Roles**
 
@@ -137,15 +138,20 @@ The Sovereign needs a capacitor bank, a beam lens and fire control. `industry.js
   guns and missile load, six CIWS mounts and the biggest hold. It is the only player ship meant to
   fight the dreadnought battle group head-on, and the best fleet leader. Its cost (400 t steel,
   100 t titanium, a crew of 800, 20 minutes) and its slowness are the price.
+- **Dominion, gunline.** A battleship among cruisers: nineteen barrels in eight turrets (three
+  triples forward, each firing over the one ahead) and four ball mounts, the heaviest guns
+  (165 a shot, 6.2 km) and the heaviest beam. It wins gun duels at long range with capital
+  ships, stations and batteries. It has half the Sovereign's missiles, four CIWS mounts and less
+  armour, and is the slowest ship of all to turn, so fighters that get close are its problem.
 
 ### The player fleet at a glance
 
 | Want | Take |
 | --- | --- |
 | Speed, scouting, catching fighters | Lancer, then Rapier |
-| Killing capital ships quickly | Talon (beam), Stiletto or Halberd (missiles), Sovereign |
-| Taking punishment | Warden, Vanguard, then Bulwark, then Sovereign |
-| Fighter and drone defence (CIWS) | Sentinel, Warden or Vanguard (4 CIWS each), Sovereign (6) |
+| Killing capital ships quickly | Talon (beam), Stiletto or Halberd (missiles), Sovereign, Dominion (guns and beam) |
+| Taking punishment | Warden, Vanguard, then Bulwark, then Dominion and Sovereign |
+| Fighter and drone defence (CIWS) | Sentinel, Warden or Vanguard (4 CIWS each), Sovereign (6), Dominion (4) |
 | Mining and hauling | Warden (800 t) among frigates; Bulwark (1,100 t) and Sovereign (1,600 t) among the rest |
 | Bombarding a planet | Any (all have the kinetic strike). Vanguard or Warden survive ground fire best |
 

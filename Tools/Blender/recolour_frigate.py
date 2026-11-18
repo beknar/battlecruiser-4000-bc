@@ -1,7 +1,7 @@
 """Recolour an AI-made frigate's texture into the starting frigate's paint scheme, and write a copy
 of the GLB with the new texture.
 
-Run:  python recolour_frigate.py <reference.glb> <model.glb> <out.glb> [--method luma|lab|scheme|scheme-dark]
+Run:  python recolour_frigate.py <reference.glb> <model.glb> <out.glb> [--method luma|lab|scheme|scheme-dark|scheme-mono]
       [--split a,b] [--accent-hue lo,hi[,min_sat]] [--png out.png]
 (needs Pillow and numpy)
 
@@ -20,6 +20,9 @@ and yellow trim. The panel detail and shading of each model are kept; only the c
   middle brightness) to light grey (brighter than b times it). --accent-hue lo,hi[,min_sat] picks
   the accent by hue (degrees; lo > hi wraps past red) instead of the green trim, for a model
   painted with other accents (frigate5's tan and red parts).
+- scheme-mono: the same, but every texel that isn't an accent counts as hull, however grey: for
+  a model painted in one pale, barely saturated colour (cruiser2), where telling the hull from the
+  greys by saturation splits even panels into blotches.
 
 With luma and lab, strongly coloured trim (the green lights and stripes) becomes the starting frigate's
 red trim, at the brightness the remap gave it. The empty parts of the atlas are left alone.
@@ -218,7 +221,7 @@ def accent_mask(h, s, l, accent_hue):
     return in_hue & (s > min_sat) & (l > 0.12)
 
 
-def recolour_scheme(img, ref, accent="red", split=(0.55, 1.0), accent_hue=None):
+def recolour_scheme(img, ref, accent="red", split=(0.55, 1.0), accent_hue=None, mono=False):
     """The starting frigate's paint, part by part: the model's main colour (its blue hull) becomes
     the light hull grey, darkening to the slate panels where the model is darker; its accent colour
     (green, or the hues given by accent_hue) becomes the red trim, or with accent="dark" the slate
@@ -232,6 +235,8 @@ def recolour_scheme(img, ref, accent="red", split=(0.55, 1.0), accent_hue=None):
     acc = m & accent_mask(h, s, l, accent_hue)
     if accent_hue is not None:
         acc &= ~body
+    if mono:
+        body = m & ~acc
     grey = m & ~body & ~acc
     out = img.copy()
     # the hull: brightness relative to the hull's middle sets light grey or slate, and shades it
@@ -270,7 +275,8 @@ def main():
     ref = np.asarray(image_of(rjs, rbin).resize((1024, 1024), Image.BILINEAR), dtype=np.float32) / 255
     img = np.asarray(image_of(js, binc), dtype=np.float32) / 255
     if method.startswith("scheme"):
-        new = recolour_scheme(img, ref, "dark" if method == "scheme-dark" else "red", split, accent_hue)
+        new = recolour_scheme(img, ref, "dark" if method == "scheme-dark" else "red", split, accent_hue,
+                              mono=method == "scheme-mono")
     else:
         new = (recolour_luma if method == "luma" else recolour_lab)(img, ref)
     im = Image.fromarray((np.clip(new, 0, 1) * 255 + 0.5).astype(np.uint8))

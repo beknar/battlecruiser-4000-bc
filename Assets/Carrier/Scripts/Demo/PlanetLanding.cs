@@ -721,6 +721,25 @@ namespace CarrierGame.Demo
         static readonly RaycastHit[] Hits = new RaycastHit[8];
 
         /// <summary>What is under a point: ground, pad, rock, or the sea / lava / deep cloud.</summary>
+        /// <summary>Landed repairs made (the self-test).</summary>
+        public static int LandedRepairs { get; private set; }
+
+        void RepairAtBase(Vector3 at)
+        {
+            var site = IndustrySite.PadUnder(at);
+            if (site == null) return;
+            var place = WarpPoint.All.Find(w => w != null && w.repairsLanded && w.displayName == site.siteName);
+            if (place == null) return;
+            var hull = carrier.GetComponent<Health>();
+            if (hull == null) return;
+            float before = hull.Current;
+            hull.Repair();
+            var shield = carrier.GetComponentInChildren<Shield>();
+            if (shield != null) shield.SetOffline(false);
+            LandedRepairs++;
+            Notices.Post($"{place.displayName}: {(hull.Current - before > 0.5f ? $"hull repaired (+{hull.Current - before:F0})" : "hull sound")}");
+        }
+
         float FloorUnder(Vector3 p, out bool pad, out bool liquid)
         {
             pad = false;
@@ -790,6 +809,8 @@ namespace CarrierGame.Demo
                 // (down: the engines throttled back, so they don't burn on with her sat there)
                 carrier.throttle = 0f;
                 Notices.Post(OnPad ? "Touchdown on the landing pad" : $"Touchdown on {Body.displayName}");
+                // a base whose pad repairs a ship (WarpPoint.repairsLanded): the hull made good
+                if (OnPad) RepairAtBase(tr.position);
                 PadSupport.Rumble(0.5f, 0.3f, 0.3f);
                 SoundFX.PlayPeaceful(Sfx.Impact, tr.position, 0.5f, 0.5f);
             }

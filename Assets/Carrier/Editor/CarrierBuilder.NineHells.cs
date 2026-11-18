@@ -38,6 +38,7 @@ namespace Carrier.EditorTools
             public Prefabs prefabs;
             public readonly List<NhComet> comets = new List<NhComet>();
             public readonly List<NhStream> streams = new List<NhStream>();
+            public readonly List<NhLagrange> lagrange = new List<NhLagrange>();
         }
 
         static string NineHellsDataPath => Path.Combine(Application.dataPath, "Carrier", "Data", "nine_hells.json");
@@ -232,6 +233,7 @@ namespace Carrier.EditorTools
         static void NineHellsParts(NineHellsRefs R)
         {
             NineHellsSky(R);
+            NineHellsSites(R);
         }
 
         static Material MoonLook(string name, int seed) => PlanetMat($"Moon_{name.Replace("'", "")}", MoonMap(name.Replace("'", ""), seed), null, Color.black, 0.03f);
@@ -298,6 +300,21 @@ namespace Carrier.EditorTools
                 o.meanAnomaly0 = co.meanAnomaly0 - st.behind;
                 o.reach = 40000f;
                 orbits[st.t.name] = o;
+            }
+            // the Lagrange point sites: on their planet's point, following it round
+            foreach (var lg in R.lagrange)
+            {
+                if (lg.t == null || !orbits.TryGetValue(lg.planet, out var planetOrbit)) continue;
+                var go = new GameObject($"{lg.t.name} (L{lg.n})");
+                go.transform.SetParent(sys, false);
+                var sp = planetOrbit.transform.position - sys.position;
+                go.transform.position = sys.position + Orbit.LagrangePoint(sp, planetOrbit.periapsis, planetOrbit.ahead, planetOrbit.massRatio, lg.n);
+                lg.t.SetParent(go.transform, true);
+                var o = go.AddComponent<Orbit>();
+                o.kind = Orbit.Kind.Lagrange;
+                o.secondary = planetOrbit;
+                o.point = lg.n;
+                o.reach = 6000f;
             }
             // what is left at the top of the system (the installations): on the orbit
             // of the body or belt it is nearest, if it is in that one's reach

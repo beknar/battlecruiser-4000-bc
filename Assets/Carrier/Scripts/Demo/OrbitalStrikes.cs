@@ -207,6 +207,23 @@ namespace CarrierGame.Demo
         }
 
         /// <summary>A strike lands on a body at (u, v): everything within `radius` of it is hit.</summary>
+        /// <summary>Strikes that broke on a city's energy shield (the self-test).</summary>
+        public static int ShieldHeld { get; private set; }
+
+        /// <summary>A shielded city (WarpPoint.shielded) on `body` that a strike at u, v of
+        /// `radius` would reach, or null: its shield stands over it, some 2 km round.</summary>
+        public static WarpPoint Shielding(WarpPoint body, double u, double v, float radius)
+        {
+            if (body == null) return null;
+            Vector3 at = GroundPoint(body, u, v);
+            foreach (var w in WarpPoint.All)
+            {
+                if (w == null || !w.shielded || w.landsOn != body) continue;
+                if (Vector3.Distance(w.Position, at) < radius + 2500f) return w;
+            }
+            return null;
+        }
+
         public static Result Hit(WarpPoint body, double u, double v, float radius, float craterDepth, string weapon, bool seen) =>
             Hit(body, u, v, radius, craterDepth, weapon, seen, BuildingRebuildMinutes, CasualtiesPerBuilding);
 
@@ -218,6 +235,14 @@ namespace CarrierGame.Demo
             var res = new Result();
             var landing = PlanetLanding.Instance;
             if (landing == null || body == null) return res;
+            // (a city under an energy shield: the strike breaks on the shield, nothing below is touched)
+            var shield = Shielding(body, u, v, radius);
+            if (shield != null)
+            {
+                ShieldHeld++;
+                Notices.Post($"{weapon} breaks on {shield.displayName}'s energy shield: the city is untouched");
+                return res;
+            }
             var w = landing.WorldFor(body);
             var mem = WorldState.Body(body.displayName);
             var units = new HashSet<long>();

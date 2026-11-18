@@ -1049,26 +1049,53 @@ namespace CarrierGame.Demo
             yield return FadeIn();
             Caption("THE SIEGE OF PORT OCHRE", $"A Vrask Maw and two Skinks hold station {(Vector3.Distance(sp, body.Position) - body.bodyRadius) / 1000f:F0} km over Ochre's city, and shell it every two hours of the game's clock", 6.5f);
             yield return Wait(3.5f);
-            int strikes0 = WorldState.Strikes.Count;
+            int strikes0 = WorldState.Strikes.Count, clouds0 = MushroomCloud.Raised;
             float flight = Mathf.Clamp(fall / 4000f, 3f, 30f), t0 = Time.time;
             siege.RaidNow(nuke: true, force: true);
             Note($"a nuclear raid on {siege.target} from {fall / 1000f:F0} km: {flight:F0} s to fall");
             Caption("A NUCLEAR RAID", "Rarely the Maw sends a nuclear missile down instead of its shells", 5f);
-            yield return Wait(Mathf.Clamp(flight - 4f, 0.5f, 5f));
-            if (Time.time < t0 + flight - 4f && WorldState.Strikes.Count == strikes0)
+            yield return Wait(4f);
+
+            // ---- the burst, from the side: 45 km off the city on its sunlit side, 12 km up, looking at
+            // the air over it (cut in a few seconds before the missile comes down)
+            yield return FadeOut(0.3f);
+            float until = t0 + flight - 4f;
+            while (Time.time < until && WorldState.Strikes.Count == strikes0) yield return null;
+            Vector3 Zero() => OrbitalStrikes.GroundPoint(body, site.su, site.sv);
+            Vector3 zUp = (Zero() - body.Position).normalized;
+            Vector3 toSun = RenderSettings.sun != null ? -RenderSettings.sun.transform.forward : Vector3.Cross(zUp, Vector3.right);
+            Vector3 flat = Vector3.ProjectOnPlane(toSun, zUp);
+            if (flat.sqrMagnitude < 0.05f) flat = Vector3.ProjectOnPlane(Vector3.Cross(zUp, Vector3.up + Vector3.right * 0.3f), zUp);
+            // (turned 35 degrees off the sun, so the cloud is lit from the side and has shape)
+            flat = Quaternion.AngleAxis(35f, zUp) * flat.normalized;
+            Vector3 flatLocal = body.transform.InverseTransformDirection(flat);
+            Shot(982, null, Vector3.zero, 0f, 0f, 0f, 0f);
+            float camT0 = Time.time;
+            perFrame = () =>
             {
-                yield return FadeOut(0.3f);
-                float until = t0 + flight - 3f;
-                while (Time.time < until && WorldState.Strikes.Count == strikes0) yield return null;
-                yield return FadeIn(0.3f);
-            }
-            float done = Time.time + 12f;
+                Vector3 z = Zero();
+                Vector3 u = (z - body.Position).normalized;
+                Vector3 side = body.transform.TransformDirection(flatLocal).normalized;
+                // (easing back a little as the cloud climbs)
+                float back = Mathf.Lerp(46000f, 60000f, Smooth((Time.time - camT0) / 20f));
+                Vector3 eye = z + side * back + u * 12000f;
+                Vector3 look = z + u * 9000f;
+                cam.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(look - eye, u));
+            };
+            yield return null;
+            yield return FadeIn(0.3f);
+            float done = Time.time + 10f;
             while (Time.time < done && WorldState.Strikes.Count == strikes0) yield return null;
-            yield return Wait(1f);
+            Note($"the burst: a cloud raised {MushroomCloud.Raised > clouds0}, {(MushroomCloud.Last != null ? MushroomCloud.Last.Height / 1000f : 0f):F0} km high");
+            yield return Wait(2.5f);
+            Caption("THE FLASH AND THE CLOUD", "A nuclear burst in air: a flash seen across the planet, then its cloud climbs kilometres high, seen from orbit", 6f);
+            yield return Wait(6.5f);
             Caption("PORT OCHRE", "On a world with air the blast takes the whole city: every building ruined for eight hours, and half its people killed", 6f);
             Note($"the raid: {siege.LastRaid}");
-            yield return Wait(5.5f);
+            Note($"the cloud at {(MushroomCloud.Last != null ? MushroomCloud.Last.Age : 0f):F0} s: its cap {(MushroomCloud.Last != null ? MushroomCloud.Last.CapHeight / 1000f : 0f):F1} km up");
+            yield return Wait(6f);
             yield return FadeOut();
+            perFrame = null;
 
             // ---- down to the ruins
             if (landing == null || place == null) yield break;

@@ -162,9 +162,11 @@ namespace CarrierGame.Demo
                 held = cc.Clamped && cc.ClampedBy == fang.transform;
                 noWarp = !drive.CanWarp(out why);
             }
+            // (which way it comes in, how many waves and how long it takes vary from run to run: noted, not checked)
+            Log($"  the Fang came in {vector}, launched {fangPods.Waves - waves0} wave(s) of pods and clamped on after {clampAt:F0} s");
             Check(tactics != null && tactics.Clamps > clamps0 && fangPods.Waves > waves0 && suppress && vector.Length > 0,
-                  $"the Fang comes in {vector}, its guns on the frigate's weapons ({suppress}), launches {fangPods.Waves - waves0} wave(s) of pods " +
-                  $"and clamps onto the hull after {clampAt:F0} s ({tactics?.Clamps - clamps0 ?? 0} clamp(s))");
+                  $"the Fang comes in from above or below, its guns on the frigate's weapons ({suppress}), launches its pods " +
+                  $"and clamps onto the hull ({tactics?.Clamps - clamps0 ?? 0} clamp(s))");
             Check(held && noWarp, $"clamped, it holds the frigate (clamped {held}, top speed {CarrierController.ClampSpeed} m/s) and the warp drive is refused ({why})");
             // hold and extract: it stays while its boarders fight, and casts off when they are done
             int castOffs0 = tactics != null ? tactics.CastOffs : 0;

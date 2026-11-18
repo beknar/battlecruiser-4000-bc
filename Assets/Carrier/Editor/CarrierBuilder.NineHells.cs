@@ -190,6 +190,15 @@ namespace Carrier.EditorTools
 
             // what is built and what waits there (each part its own; none yet but the bodies)
             NineHellsParts(R);
+            // the game starts at Heaven, K'rzyn's capital: the frigate over the city (and, in play,
+            // landed there once the start menu is closed: StartLandedAt)
+            var heavenWp = sys.GetComponentsInChildren<WarpPoint>(true).FirstOrDefault(w => w.displayName == "Heaven");
+            if (heavenWp != null)
+            {
+                start = heavenWp.ArrivalPoint(heavenWp.Position + (R.star.position - heavenWp.Position).normalized * 100000f);
+                Vector3 hl = Vector3.ProjectOnPlane(heavenWp.Position - start, (start - home.Position).normalized);
+                frigate.transform.SetPositionAndRotation(start, Quaternion.LookRotation(hl.sqrMagnitude > 1f ? hl : Vector3.forward, (start - home.Position).normalized));
+            }
 
             BerthRings(sys, layer);
             SetUpNineHellsOrbits(R, frigate.transform);
@@ -216,6 +225,7 @@ namespace Carrier.EditorTools
             docking.drive = drive;
             demoGo.AddComponent<IndustryDirector>().carrier = cc;
             demoGo.AddComponent<IndustryPanel>().carrier = cc;
+            demoGo.AddComponent<StartLandedAt>().place = "Heaven";
 
             foreach (var w in sys.GetComponentsInChildren<WarpPoint>())
                 Log($"nine hells: warp point {w.displayName,-18} {w.kind,-13} {w.transform.position.magnitude / 1000f,6:F0} km from the star");

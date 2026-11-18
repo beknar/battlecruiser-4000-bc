@@ -49,6 +49,7 @@ namespace CarrierGame.Demo
             Check(P("Judecca") != null && P("Judecca").hostile && P("Sheol").hostile && P("Gilgal").hostile && !P("K'rzyn").hostile,
                   "Judecca, Gilgal and Sheol are hostile; K'rzyn is home");
             float startFrom = P("K'rzyn") != null ? Vector3.Distance(cc.transform.position, P("K'rzyn").Position) : -1f;
+            float startOverHeaven = P("Heaven") != null ? Vector3.Distance(cc.transform.position, P("Heaven").Position) : -1f;
             // the sky: Gilgal's ring, the comets and the streams that follow them
             var gilgal = P("Gilgal");
             var ring = gilgal != null ? gilgal.transform.Find("Ring") : null;
@@ -80,6 +81,7 @@ namespace CarrierGame.Demo
             var home = P("K'rzyn");
             Check(home != null && startFrom >= 0f && startFrom < home.arrivalDistance * 1.6f,
                   $"the frigate starts over K'rzyn ({startFrom / 1000f:F0} km off)");
+            Check(startOverHeaven >= 0f && startOverHeaven < 40000f, $"the game starts over Heaven, K'rzyn's capital ({startOverHeaven / 1000f:F0} km above it)");
 
             // out to Rephaim on the map, and back home to land
             yield return WarpTo(kb, "Rephaim", "nh_rephaim");

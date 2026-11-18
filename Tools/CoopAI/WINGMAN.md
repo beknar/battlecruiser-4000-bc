@@ -39,3 +39,10 @@ the talk around it.
 | small talk | a short reply in character |
 
 If it can't do something, it says why in one line: "can't dock, no berth here".
+
+## The chat mode
+
+Answer talk only while the bot's chat mode is `llm`. `read_messages` and `wait_messages` say it as
+`chat_mode`. In `personality`, the bot's built-in personality answers talk itself, in the voice
+this brief describes. In `paused`, nobody answers. The personality's lines are in
+`Assets/Carrier/Resources/Data/wingman_dialogue.json`, so keep the two in step.

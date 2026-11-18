@@ -1707,7 +1707,7 @@ goes to the captain's notices. The server passes chat on like any other game mes
 `-coopbot`:
 
 ```
-StarSystem.exe -coopbot -connect <address>:<port> -name Wingman [-frigate Lancer] [-botport 7781] [-batchmode -nographics]
+StarSystem.exe -coopbot -connect <address>:<port> -name Wingman [-frigate Lancer] [-botport 7781] [-chatmode llm|personality|paused] [-batchmode -nographics]
 ```
 
 - **On a Linux server**, beside the co-op server: unpack the Linux build (say to
@@ -1740,15 +1740,31 @@ ships`, `everyone` or `wingmen` reaches every bot. It answers each order on the 
 | `cargo` | Reports what is in its hold (ore by mineral, goods, parts), how full the hold is, and its credits. `what's in your hold?`, `how full is your hold?`, `inventory` and `manifest` do the same. |
 | `give [N] credits [to <name>]` | Transfers credits from its hold to that player (whoever asked, if no name is given): N (`give me 500 credits`, `transfer 2k credits to Ann`, `give Ann 500 credits`, `pay me 300`), half (`give me half your credits`) or all (`give me all your credits`). Without an amount it asks how many. The player's game adds them to the ship's hold and says so. Credits go only to human players in the same level, and only from a player the server let in with an AI key (on an open server, one that says it is a bot). They come back to the wingman if the player's game doesn't confirm them within 10 s, and a game that only sees them after 6 s refuses them. |
 | `status` | Reports its hull, shield, missiles, hold, credits, what it is doing and where it is. |
+| `chat on`, `chat off`, `chat pause`, `chat resume` | Switches its chat mode (see below) to `llm`, `personality`, `paused`, or back to the mode before the pause. Only its leader or the game's host may switch it. If it has neither, anyone may. `chat mode?` says the mode. |
 | `help` | Lists these orders. |
 
 It also says when it starts a fight, when the target is destroyed, when it arrives, when it sells a
 load (how much, where, and for how much), and when it can't do what it was told.
 
-A message to it that isn't an order (`Wingman, how's it going?`) is talk, and the bot leaves talk
-for whoever is listening on the channel through its API (see **Talking to the wingman** below).
-When nothing has listened for 90 s, it answers talk with its list of orders, at most once every
-30 s.
+A message to it that isn't an order (`Wingman, how's it going?`) is talk. Its **chat mode**
+decides who answers talk:
+
+- `llm` (the default): whoever is listening on the channel through its API (see **Talking to the
+  wingman** below). When nothing has listened for 90 s, its built-in personality answers.
+- `personality`: the built-in personality, always. The LLM is off.
+- `paused`: nobody. It says it is standing by, at most once every 30 s.
+
+Orders work in every mode. Switch it with `chat on|off|pause|resume` on the comms, `-chatmode` on
+the command line, or the API. It keeps the mode between runs.
+
+**The built-in personality** (`WingmanPersonality`, its lines in
+`Resources/Data/wingman_dialogue.json`) makes small talk in the wingman's voice. It knows about
+20 topics by their keywords, such as the ship, the hold, the last battle, where it is, the Vrask,
+the corsairs, home and the captain, and it tells jokes. Its answers use its live hull, shield,
+hold, credits, the place nearest it, the hostiles on its scope and who it is following. Some
+answers ask a question with numbered choices (`Long version or short? (1) long (2) short`). The
+next line, a number or a word, picks the branch, up to three deep, and what was talked about
+changes later answers. Each player's conversation is forgotten after 2 minutes of quiet.
 
 **An AI at the controls.** The bot game answers a small HTTP API on this machine only
 (`127.0.0.1`, port `-botport`, 7781 by default):
@@ -1761,12 +1777,15 @@ When nothing has listened for 90 s, it answers talk with its list of orders, at 
 - `GET /destinations`: the places to warp to, nearest first.
 - `POST /say {"text"}`: sends a message on the channel.
 - `POST /order {"order","target"}`: gives an order (`give` takes the target `<N|all|half>[ to <name>]`).
+- `GET /chatmode`: the chat mode, and `listener_seen_s`, the seconds since a listener last read
+  the channel. `POST /chatmode {"mode"}` switches it (`llm`, `personality`, `paused`, or `on`,
+  `off`, `pause`, `resume`). `/status` and `/messages` say the mode too, as `chat_mode`.
 - `POST /quit`: closes the game.
 
 `Tools/CoopAI/coop_ai_mcp.py` turns that API into an MCP server over stdio. It needs no
 packages. Its tools are `status`, `read_messages`, `wait_messages` (waits for the next message),
-`cargo`, `give_credits`, `say`, `order`, `destinations`, `launch_bot` (starts the bot game headless
-and connects it) and `stop_bot`. Claude or any MCP client can then fly the wingman and talk to
+`cargo`, `give_credits`, `say`, `order`, `destinations`, `get_chat_mode`, `set_chat_mode`,
+`launch_bot` (starts the bot game headless and connects it) and `stop_bot`. Claude or any MCP client can then fly the wingman and talk to
 the players:
 
 ```
@@ -1787,7 +1806,9 @@ through Claude Code:
    prints a line for each message addressed to the wingman (`--all` for every player's message), and
    each line wakes the session. Claude reads it, checks `status` or `cargo` if the answer needs
    facts, and answers with `say`. It can also act on what it's asked with `order` or
-   `give_credits`. While a listener is reading the channel, the bot leaves talk to it.
+   `give_credits`. While a listener is reading the channel and the chat mode is `llm`, the bot
+   leaves talk to it. In the other modes `listen.py` keeps listening, but prints only the change
+   of mode.
 4. `Tools/CoopAI/WINGMAN.md` is the voice brief: short radio lines, facts only from its
    instruments, quiet in a fight.
 
@@ -1801,6 +1822,9 @@ tokens.
   (`Tools/CoopAI/aibot_test.py`) then checks:
   - that the bot greets it and follows it;
   - its orders by name, the API, and the MCP server against the live bot;
+  - its chat mode: switched on the comms and through the API, its built-in personality answering
+    talk (a branch picked by number), and paused talk answered with "standing by" while orders
+    still work;
   - that told to mine it mines a field, and told to sell it docks at a market, sells the ore
     and goes back to mining;
   - that it reports its cargo, and that `give` moves its credits to the test player (with the
@@ -1873,8 +1897,10 @@ The games run one at a time, in a 1280x720 window.
 - **Unit tests.**
   - The game (`Assets/Carrier/Tests/EditMode`): the co-op enemy scaling, the co-op messages
     and the server address, minerals and the cargo hold, Kepler orbits and the Lagrange points,
-    comet tails, noise, the captain's portraits and lines, the data files, and the frigates
-    (every one with its modelled turrets, a CIWS mount or more and one main gun).
+    comet tails, noise, the captain's portraits and lines, the data files, the frigates
+    (every one with its modelled turrets, a CIWS mount or more and one main gun), and the AI
+    wingman's chat mode and built-in personality (topics, branches, the timeout, facts in its
+    lines, no line twice running, and its dialogue file).
   - The server (`Server/CoopServer.Tests`): the allow-list, and reading and reloading the
     settings.
   - The run's own regression checker (`Tools/Tests/test_regression.py`).

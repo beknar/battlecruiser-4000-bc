@@ -19,7 +19,8 @@ import coop_ai_mcp as M  # noqa: E402
 
 class FakeBot(BaseHTTPRequestHandler):
     """The bot game's API, as far as the tests need it: answers, and remembers what it was sent."""
-    said, orders, queries = [], [], []
+    said, orders, queries, modes = [], [], [], []
+    mode = "llm"
 
     def log_message(self, *a):
         pass
@@ -40,9 +41,11 @@ class FakeBot(BaseHTTPRequestHandler):
             FakeBot.queries.append(q)
             after = int(q["after"][0])
             msgs = [{"seq": i, "from": "Ann", "text": f"m{i}"} for i in range(1, 4) if i > after]
-            self.reply(200, {"last": 3, "messages": msgs})
+            self.reply(200, {"last": 3, "chat_mode": FakeBot.mode, "messages": msgs})
         elif self.path == "/cargo":
             self.reply(200, {"capacity_t": 600, "used_t": 46, "credits": 918, "items": [{"id": "Iron", "amount": 46}]})
+        elif self.path == "/chatmode":
+            self.reply(200, {"mode": FakeBot.mode, "listener_seen_s": 4.5, "listening": True, "resumes_to": FakeBot.mode})
         elif self.path == "/destinations":
             self.reply(200, {"destinations": [{"name": "Ochre", "kind": "Planet", "km": 12.5}]})
         else:
@@ -53,6 +56,10 @@ class FakeBot(BaseHTTPRequestHandler):
         if self.path == "/say":
             FakeBot.said.append(body["text"])
             self.reply(200, {"ok": True})
+        elif self.path == "/chatmode":
+            FakeBot.modes.append(body["mode"])
+            FakeBot.mode = {"on": "llm", "off": "personality", "pause": "paused", "resume": "llm", "unpause": "llm"}.get(body["mode"], body["mode"])
+            self.reply(200, {"ok": True, "previous": "llm", "mode": FakeBot.mode, "listener_seen_s": 4.5})
         elif self.path == "/order":
             FakeBot.orders.append(body)
             ok = body["order"] != "dock"
@@ -81,7 +88,7 @@ class Protocol(unittest.TestCase):
         tools = M.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})["result"]["tools"]
         names = [t["name"] for t in tools]
         self.assertEqual(names, ["status", "read_messages", "wait_messages", "cargo", "give_credits", "say", "order", "destinations",
-                                 "launch_bot", "stop_bot"])
+                                 "get_chat_mode", "set_chat_mode", "launch_bot", "stop_bot"])
         order = next(t for t in tools if t["name"] == "order")
         self.assertEqual(order["inputSchema"]["required"], ["order"])
         self.assertEqual(order["inputSchema"]["properties"]["order"]["enum"], M.ORDERS)
@@ -140,6 +147,8 @@ class Tools(unittest.TestCase):
         FakeBot.said.clear()
         FakeBot.orders.clear()
         FakeBot.queries.clear()
+        FakeBot.modes.clear()
+        FakeBot.mode = "llm"
 
     def test_status(self):
         r = call("status")
@@ -204,6 +213,24 @@ class Tools(unittest.TestCase):
         self.assertTrue(r["result"]["isError"])
         self.assertIn("can't dock", body(r))
 
+    def test_chat_mode_is_read_and_switched(self):
+        r = json.loads(body(call("get_chat_mode")))
+        self.assertEqual(r["mode"], "llm")
+        self.assertEqual(r["listener_seen_s"], 4.5)
+        self.assertFalse(call("set_chat_mode", {"mode": "OFF"})["result"]["isError"])
+        self.assertEqual(FakeBot.modes, ["off"])
+        self.assertEqual(json.loads(body(call("get_chat_mode")))["mode"], "personality")
+        self.assertEqual(json.loads(body(call("read_messages")))["chat_mode"], "personality")
+        bad = call("set_chat_mode", {"mode": "loud"})
+        self.assertTrue(bad["result"]["isError"])
+        self.assertIn("unknown chat mode", body(bad))
+        self.assertEqual(FakeBot.modes, ["off"], "a mode it doesn't know never reaches the game")
+
+    def test_launch_bot_refuses_an_unknown_chat_mode(self):
+        r = call("launch_bot", {"game": str(SCRIPT), "chatmode": "loud"})
+        self.assertTrue(r["result"]["isError"])
+        self.assertIn("chatmode", body(r))
+
     def test_destinations(self):
         self.assertEqual(json.loads(body(call("destinations")))["destinations"][0]["name"], "Ochre")
 
@@ -234,6 +261,17 @@ class Listener(unittest.TestCase):
         self.assertFalse(listen.wanted(dict(m, to_me=False), False))
         self.assertTrue(listen.wanted(dict(m, to_me=False), True))
         self.assertFalse(listen.wanted(dict(m, mine=True), True), "the bot's own lines are never news")
+        self.assertFalse(listen.wanted(m, False, "personality"), "the bot answers talk itself")
+        self.assertFalse(listen.wanted(m, True, "paused"), "nobody answers talk")
+        self.assertTrue(listen.wanted(m, False, "llm"))
+
+    def test_a_change_of_chat_mode_is_printed(self):
+        import listen
+        self.assertIsNone(listen.mode_note("llm", "llm"))
+        self.assertIsNone(listen.mode_note("llm", None), "an older bot that doesn't say")
+        self.assertIn("personality", listen.mode_note("llm", "personality"))
+        self.assertIn("still listening", listen.mode_note("personality", "paused"))
+        self.assertIn("chat mode llm", listen.mode_note("paused", "llm"))
 
 
 if __name__ == "__main__":

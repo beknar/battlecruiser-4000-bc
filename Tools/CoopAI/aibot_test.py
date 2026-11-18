@@ -10,8 +10,11 @@ its HTTP API, and through the MCP server (coop_ai_mcp.py):
     talk that isn't to it is left alone
   - the API: /say reaches the players, /order is carried out (and a nonsense one refused),
     /messages has the channel (who it was to), /destinations has the places to warp to
-  - talk to it is answered with its orders while nobody listens, and left alone once a listener
-    reads the channel; a waiting /messages call answers as soon as something is said
+  - talk to it is answered by its built-in personality while nobody listens, and left alone once a
+    listener reads the channel; a waiting /messages call answers as soon as something is said
+  - the chat mode: /chatmode reads it, "Wingman, chat off" makes the personality answer (a branch
+    picked by number), paused answers talk with "standing by" while orders still work, resume
+    goes back to the mode before the pause
   - the MCP server's status and say tools work against the live bot
   - after selling ore: 'cargo' reports the hold, 'give me N credits' sends a gift the player's game
     acknowledges, a gift with no receipt comes back to the bot, and it won't give more than it has
@@ -202,11 +205,15 @@ async def main():
             check(len(d) > 0 and all("name" in x and "km" in x for x in d), "/destinations lists the places to warp to",
                   ", ".join(x["name"] for x in d[:5]))
 
-            # talk to it: with nobody listening it gives its orders; with a listener, it leaves talk alone
+            # talk to it: with nobody listening its own personality answers; with a listener, it leaves talk alone
+            await api("/chatmode", {"mode": "llm"})
             n = len(me.heard)
             await me.say(f"{BOT}, how's it going out there?")
-            r = await me.hear("orders only", 10, n)
-            check(r is not None, "talk to it, with nobody listening, is answered with its orders", r or "no answer")
+            await asyncio.sleep(4)
+            answers = [t for _, t in me.heard[n:] if t.lower().startswith(BOT.lower() + ":")
+                       and not t[len(BOT) + 1:].strip().lower().startswith(own)]
+            check(len(answers) > 0 and not any("orders only" in a for a in answers),
+                  "talk to it, with nobody listening, is answered by its own personality", "; ".join(answers) or "no answer")
             last = (await api("/messages?listener=1&after=0")).get("last", 0)
             n = len(me.heard)
             await me.say(f"{BOT}, nice flying back there")
@@ -226,6 +233,43 @@ async def main():
                 got = await api(f"/messages?after={last}")
             check(any(m.get("text") == "anyone there?" for m in got.get("messages", [])) and took < 10,
                   "a waiting /messages call answers when something is said", f"after {took:.1f} s")
+
+            # the chat mode
+            r = await api("/chatmode")
+            check(r.get("mode") == "llm" and 0 <= r.get("listener_seen_s", -1) < 90, "/chatmode says llm, a listener just seen", json.dumps(r))
+            n = len(me.heard)
+            await me.say(f"{BOT}, chat off")
+            r = await me.hear("chat mode personality", 10, n)
+            s = await api("/status")
+            check(r is not None and s.get("chat_mode") == "personality", "'chat off' switches to its own personality", r or "no answer")
+            n = len(me.heard)
+            await me.say(f"{BOT}, tell me about the vrask")
+            q = await me.hear("(1) long", 10, n)
+            n = len(me.heard)
+            await me.say(f"{BOT}, 2")
+            await asyncio.sleep(4)
+            answers = [t for _, t in me.heard[n:] if t.lower().startswith(BOT.lower() + ":")
+                       and not t[len(BOT) + 1:].strip().lower().startswith(own)]
+            check(q is not None and len(answers) == 1 and "(1)" not in answers[0],
+                  "with a listener still reading, the personality answers, and a number picks a branch", f"{q}; {'; '.join(answers)}")
+            r = await api("/chatmode", {"mode": "pause"})
+            check(r.get("ok") is True and r.get("mode") == "paused" and r.get("previous") == "personality", "POST /chatmode pauses it", json.dumps(r))
+            n = len(me.heard)
+            await me.say(f"{BOT}, nice flying back there")
+            await asyncio.sleep(4)
+            # (not its own "chat mode paused" announcement, which may arrive late)
+            r = [t for _, t in me.heard[n:] if "standing by" in t.lower() and "chat mode" not in t.lower()]
+            check(len(r) > 0, "paused, talk is answered with 'standing by'", "; ".join(r) or "no answer")
+            n = len(me.heard)
+            await me.say(f"{BOT}, status")
+            r = await me.hear("hull", 10, n)
+            check(r is not None, "and orders still work", r or "no answer")
+            r = await api("/chatmode", {"mode": "resume"})
+            m = (await api("/messages?after=0")).get("chat_mode")
+            check(r.get("mode") == "personality" and m == "personality", "resume goes back to the mode before the pause", json.dumps(r))
+            r = await api("/chatmode", {"mode": "loud"})
+            check(r.get("ok") is False and "error" in r, "/chatmode refuses a mode it doesn't know", json.dumps(r))
+            await api("/chatmode", {"mode": "llm"})
 
             # the MCP server, against the live bot
             n = len(me.heard)

@@ -10,10 +10,10 @@ namespace CarrierGame
     /// game without graphics or the battle simulator.
     ///
     /// A fire stands upright whatever it is on (a wreck's pieces tumble), flickers its light if it
-    /// has one, and isn't drawn beyond `MaxDistance` of the camera (its own distance fade, the
-    /// pack's CameraDistance, is left alone: at the game's distances it would hide the smoke). Kindled for a time, it dies
-    /// down at its end (its flames stop, its smoke thins out) and goes, leaving `then` (its
-    /// smoke) burning on if it has one.</summary>
+    /// has one, and isn't drawn beyond `MaxDistance` of the camera (the pack's own cut-off, which
+    /// kills its particles a few hundred metres off at the game's sizes, is set out of the way
+    /// by the builder). Kindled for a time, it dies down at its end (its flames stop, its smoke
+    /// thins out) and goes, leaving `then` (its smoke) burning on if it has one.</summary>
     public class FireFx : MonoBehaviour
     {
         [Tooltip("Its light's intensity, flickering (0: none).")]

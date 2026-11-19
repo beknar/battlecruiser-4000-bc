@@ -86,6 +86,7 @@ namespace Carrier.EditorTools
                 BuildMaterials();
                 RemapModelMaterials();
                 var p = BuildPrefabs();
+                BuildFireKit();                     // the fires on wrecks and ruins (if the pack is there)
                 var frigate = BuildFrigates(p);     // every frigate a player can fly; the starting one
                 BuildScene(p, frigate);
                 TakeScreenshots();

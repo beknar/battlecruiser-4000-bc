@@ -50,7 +50,7 @@ Fit: how useful it is to Battlecruiser 4000 BC, a space game with planets, orbit
 
 - **Bunker Builder: Modular Bunker Building Kit** (high): Underground bunkers, sci-fi labs and military bases: base interiors and fortified surface sites.
 - **Modular Sci Fi Outpost** (high): Sci-fi outpost with interiors, screens and alien rocks: surface bases, mining outposts, landing-pad surroundings.
-- **Realistic Fire VFX** (high): VFX Graph fire, embers and smoke: burning settlements and wrecks on a planet's surface. It needs the Visual Effect Graph package (not in the project yet), and VFX Graph needs compute shaders, so it won't run in the WebGL build: the web game would need a fallback.
+- **Realistic Fire VFX** (high, now used): VFX Graph fire, embers and smoke, on burning wrecks and on settlements struck from orbit (`Tools/stage_firefx.py`, `CarrierBuilder.FireFx`). The Visual Effect Graph package is in the manifest for it. VFX Graph needs compute shaders, so the web game shows no fires when it falls back to WebGL 2.
 - **Realistic Gun VFX** (high): Muzzle flashes, impacts, decals, tracers and an overheat effect: turret and point-defence fire, hull hits.
 - **Modular Cave** (medium): Caves and ancient temples: the Ruins of the Ancients, asteroid interiors.
 - **Modular Destroyed Buildings** (medium): Ruined, half-collapsed buildings (fantasy styling): bombed settlements, the Ruins of the Ancients.

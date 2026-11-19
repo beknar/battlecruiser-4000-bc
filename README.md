@@ -2330,6 +2330,25 @@ blasters and Vrask weapons keep their own look. To restore them:
 
 Without the pack, the guns show the bolts' own glow and the small explosion, as before.
 
+The fires come from the Unity Asset Store pack **Realistic Fire VFX** (Hivemind), in
+`Assets/Carrier/Kit/FireFX`. They are VFX Graph effects (the Visual Effect Graph package is in the
+manifest for them):
+- **Wrecks:** a wreck's two biggest pieces burn for four minutes, sized to the wreck.
+- **Settlements:** a building struck from orbit while the ship is down there burns for ten
+  minutes, then smoulders. Rubble from an earlier strike smoulders.
+
+To restore them:
+1. Download the pack in **Package Manager > My Assets** (Download, not Import).
+2. Run `python Tools/stage_firefx.py`. It copies the three effects the game uses (about 50 MB), with
+   everything they need, into the Kit.
+3. Build, or run **Tools > Carrier > Rebuild Fire FX**.
+
+`CarrierBuilder.FireFx` makes the game's own versions in `Kit/FireFX/Game`, and the `FireKit` that
+the game loads them by in `Kit/FireFX/Resources`. At most 40 fires burn at once, and none are drawn
+beyond 9 km. VFX Graph needs compute shaders, so the web game on WebGL 2 (the fallback when the
+browser has no WebGPU), the battle simulator and the AI wingman show none. Without the pack nothing
+burns, as before.
+
 `Assets/Carrier/Resources/CarrierAudio` (the sound effect library and the music) is licensed
 too and not in the repo. Without it, the sound effects are synthesised in code and there is no
 music.

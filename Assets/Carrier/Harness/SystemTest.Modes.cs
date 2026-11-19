@@ -302,7 +302,7 @@ namespace CarrierGame.Demo
             var salvage = Salvage.Instance;
             var hold = demo.Cargo;
             if (salvage == null || hold == null) { Check(false, "salvage: no salvage or no hold"); yield break; }
-            int made0 = salvage.WrecksMade;
+            int made0 = salvage.WrecksMade, fire0 = FireFx.Kindled;
             var t = cc.transform;
             var prey = new GameObject("Practice hulk");
             prey.SetActive(false);
@@ -328,6 +328,24 @@ namespace CarrierGame.Demo
             if (wreck != null) Log($"  {wreck.Name}: {wreck.Summary()} ({wreck.Tonnes:F0} t)");
             Check(salvage.WrecksMade == made0 + 1 && wreck != null && wreck.Of == "Practice hulk" && !wreck.Empty && wreck.Tonnes > 0f,
                   $"a hostile destroyed leaves a wreck: {(wreck != null ? wreck.Name : "none")}, with materials to salvage");
+            if (FireKit.Get() != null)
+            {
+                // (one fire on each of its two biggest pieces: the practice hulk has one)
+                Check(FireFx.Kindled > fire0 && wreck != null && wreck.GetComponentsInChildren<FireFx>().Length >= 1,
+                      $"the wreck burns ({FireFx.Kindled - fire0} fires)");
+                yield return new WaitForSeconds(2f);
+                int particles = wreck != null ? wreck.GetComponentsInChildren<FireFx>().Sum(f => f.Particles) : 0;
+                Check(particles > 0, $"its fires have flames and smoke ({particles} particles)");
+                if (wreck != null)
+                {
+                    yield return CloseUp(wreck.transform.position, wreck.Size * 2.5f, "md_wreck_fire");
+                    yield return new WaitForSeconds(6f);
+                    foreach (var f in wreck.GetComponentsInChildren<FireFx>())
+                        Log($"  {f.name}: {f.Particles} particles, {f.transform.lossyScale.x:F1}x");
+                    yield return CloseUp(wreck.transform.position, wreck.Size * 2.5f, "md_wreck_fire_later");
+                }
+            }
+            else Log("  (no fires: the Realistic Fire VFX pack isn't in Kit/FireFX, or this device has no compute shaders)");
             Targets.Remove(preyAt);
             if (wreck == null) { if (prey != null) Destroy(prey); yield break; }
             var wreckPoint = wreck.GetComponent<WarpPoint>();

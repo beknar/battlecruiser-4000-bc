@@ -131,6 +131,7 @@ namespace CarrierGame.Demo
             yield return WaitLanding(landing, PlanetLanding.State.InSpace, 30f);
 
             // ---- Port Ochre: rubble where its buildings stood
+            int fire0 = FireFx.Kindled;
             landing.LandOn(port);
             yield return WaitLanding(landing, PlanetLanding.State.OnSurface, 60f);
             yield return new WaitForSeconds(3f);
@@ -138,6 +139,20 @@ namespace CarrierGame.Demo
             var group = landing.Surface != null ? landing.Surface.GetComponentsInChildren<Transform>(true).FirstOrDefault(x => x.name == "Settlement: Port Ochre") : null;
             if (group != null) yield return LookAt(group.position, "sk_port_ochre_ruins", 6f, 18f);
             Check(ruined > 0, $"down at Port Ochre: {ruined} buildings in rubble");
+            if (FireKit.Get() != null)
+            {
+                Check(FireFx.Kindled > fire0, $"Port Ochre's rubble smoulders ({FireFx.Kindled - fire0} fires)");
+                var smoke = group != null ? group.GetComponentInChildren<FireFx>() : null;
+                if (smoke != null)
+                {
+                    yield return new WaitForSeconds(6f);
+                    var cam = Camera.main;
+                    Log($"  {smoke.name}: {smoke.Particles} particles, {smoke.transform.lossyScale.x:F1}x, at {smoke.transform.position}, " +
+                        $"the camera {(cam != null ? Vector3.Distance(cam.transform.position, smoke.transform.position) : -1f):F0} m off, sea depth {Sea.Depth(smoke.transform.position):F0}");
+                    yield return CloseUp(smoke.transform.position + Vector3.up * 10f, 120f, "sk_rubble_smoke");
+                }
+            }
+            else Log("  (no fires: the Realistic Fire VFX pack isn't in Kit/FireFX, or this device has no compute shaders)");
             landing.TakeOff();
             yield return WaitLanding(landing, PlanetLanding.State.InSpace, 30f);
 

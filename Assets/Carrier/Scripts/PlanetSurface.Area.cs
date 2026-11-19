@@ -332,14 +332,19 @@ namespace CarrierGame
             if (!buildings.TryGetValue(key, out var b) || b.t == null) return false;
             buildings.Remove(key);
             Vector3 at = b.t.position;
-            Rubble(b.t.parent, new Vector3(at.x, at.y - b.t.localPosition.y, at.z), b.i);
+            Rubble(b.t.parent, new Vector3(at.x, at.y - b.t.localPosition.y, at.z), b.i, true);
             Destroy(b.t.gameObject);
             Ruined++;
             return true;
         }
 
-        /// <summary>A heap of broken blocks where a building stood.</summary>
-        void Rubble(Transform parent, Vector3 at, int seed)
+        /// <summary>How big a ruined building's fire is (times the pack's own size: its ground fire
+        /// is about 2.5 m across, its smoke 2 m).</summary>
+        public const float RuinFireScale = 14f;
+
+        /// <summary>A heap of broken blocks where a building stood: burning, if it has just been
+        /// struck (then smouldering), or smouldering, struck before the ship came down.</summary>
+        void Rubble(Transform parent, Vector3 at, int seed, bool fresh)
         {
             var rng = new System.Random(seed * 7919 + 17);
             var heap = new GameObject("Rubble");
@@ -358,6 +363,14 @@ namespace CarrierGame
                 if (Kit.rubble != null) r.sharedMaterial = Kit.rubble;
                 r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             }
+            var fires = FireKit.Get();
+            if (fires == null) return;
+            if (fresh)
+            {
+                var blaze = FireFx.Kindle(fires.groundFire, heap.transform, at, RuinFireScale, fires.ruinBurn);
+                if (blaze != null) blaze.then = fires.smoulder;
+            }
+            else FireFx.Kindle(fires.smoulder, heap.transform, at, RuinFireScale);
         }
 
         void BuildSettlement(Tile t, TileFeatures f, GameObject layout)
@@ -391,7 +404,7 @@ namespace CarrierGame
                 if (Destroyed.Contains(key))
                 {
                     // (struck from orbit: rubble where it stood, till it is rebuilt)
-                    Rubble(group.transform, new Vector3(at.x, ground, at.z), i);
+                    Rubble(group.transform, new Vector3(at.x, ground, at.z), i, false);
                     Destroy(c.gameObject);
                     Ruined++;
                     continue;

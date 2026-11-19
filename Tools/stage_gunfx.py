@@ -62,7 +62,7 @@ def needed(root, index, start):
             continue
         seen.add(g)
         a = os.path.join(root, g, "asset")
-        if not os.path.exists(a) or not by_guid[g].endswith((".prefab", ".mat", ".shadergraph", ".shadersubgraph", ".asset")):
+        if not os.path.exists(a) or not by_guid[g].endswith((".prefab", ".mat", ".shadergraph", ".shadersubgraph", ".asset", ".vfx", ".vfxoperator", ".vfxblock")):
             continue
         for x in GUID.findall(open(a, encoding="utf-8", errors="ignore").read()):
             if x in by_guid:

@@ -8,7 +8,7 @@ namespace CarrierGame
     /// What is left of a destroyed ship, gun or station, to salvage (in combat mode): a few of
     /// its scorched pieces drifting where it died, holding refined materials and now and then a
     /// ship part (Salvage decides what). A wreck lasts `life` seconds, or until it has been
-    /// stripped. It is only in this game: in co-op each player has their own wrecks. While it
+    /// stripped. Its biggest pieces burn for a few minutes (FireFx), where fires are shown. It is only in this game: in co-op each player has their own wrecks. While it
     /// lasts it is a point of interest (on the system map and in the navigation list, to warp
     /// to); salvaged or gone, it is off them.
     /// </summary>
@@ -28,6 +28,10 @@ namespace CarrierGame
         /// <summary>What it was the wreck of (one that respawns leaves one wreck at a time).</summary>
         public Health From;
         public float life = 900f;
+
+        /// <summary>How big a wreck's fire is (times the pack's own size: its blaze is about a metre
+        /// tall) per metre of the wreck.</summary>
+        public const float WreckFirePerMetre = 0.35f;
 
         float dieAt;
         // (what it held at first: the beam takes a share of that each time, so a wreck is
@@ -149,6 +153,20 @@ namespace CarrierGame
                 pr.SetPropertyBlock(dark);
             }
             go.SetActive(true);
+            // its two biggest pieces burning for a while (if the fires are there to show)
+            var fires = FireKit.Get();
+            if (fires != null)
+            {
+                // (its pieces, biggest first, before any fire joins them)
+                var pieces = go.GetComponentsInChildren<MeshRenderer>().Take(2).ToArray();
+                for (int i = 0; i < pieces.Length; i++)
+                {
+                    // (on top of the piece, not lost inside it)
+                    var b = pieces[i].bounds;
+                    FireFx.Kindle(i == 0 ? fires.blaze : fires.groundFire, go.transform, b.center + Vector3.up * b.extents.y * 0.8f,
+                                  Mathf.Clamp(size * WreckFirePerMetre, 2f, 120f) * (i == 0 ? 1f : 0.5f), fires.wreckBurn);
+                }
+            }
             return w;
         }
     }

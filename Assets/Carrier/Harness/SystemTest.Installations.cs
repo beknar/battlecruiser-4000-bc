@@ -30,6 +30,24 @@ namespace CarrierGame.Demo
             oc.distance = d0; oc.pitch = p0; oc.yaw = y0;
         }
 
+        /// <summary>A picture of a point from close by (`distance` off), from a camera of its own
+        /// drawn over the game's for a moment.</summary>
+        IEnumerator CloseUp(Vector3 p, float distance, string shot)
+        {
+            var go = new GameObject("Close-up camera");
+            var cam = go.AddComponent<Camera>();
+            var main = Camera.main;
+            cam.depth = (main != null ? main.depth : 0f) + 10f;
+            cam.farClipPlane = Mathf.Max(20000f, distance * 10f);
+            cam.nearClipPlane = 0.5f;
+            Vector3 from = p + (Vector3.back + Vector3.up * 0.35f).normalized * distance;
+            go.transform.SetPositionAndRotation(from, Quaternion.LookRotation(p - from));
+            yield return new WaitForSeconds(0.3f);
+            Shot(shot);
+            yield return null;
+            Destroy(go);
+        }
+
         /// <summary>Fly the frigate toward a point until within `within` of it, `stop` says so, or out of time.</summary>
         IEnumerator FlyTo(Vector3 p, float within, float seconds, float throttle = 0.7f, Func<bool> stop = null)
         {

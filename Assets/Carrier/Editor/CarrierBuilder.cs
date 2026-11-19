@@ -641,6 +641,7 @@ namespace Carrier.EditorTools
             p.explosionSmall = MakeExplosion("ExplosionSmall", 2f, 22f, 0.7f, 3000f);
             p.beam = MakeBolt("BeamBolt", "FX_BeamBolt", new Vector3(1.4f, 1.4f, 24f), 2400f, 60f, p.explosionSmall);
             p.frigateBolt = MakeBolt("FrigateBolt", "FX_BeamBolt", new Vector3(1.0f, 1.0f, 16f), 2600f, 90f, p.explosionSmall);
+            GiveGunFx(p.frigateBolt, "turret", 1.0f);
 
             // missile
             {
@@ -802,6 +803,7 @@ namespace Carrier.EditorTools
             if (mhp != null)
             {
                 var bolt = MakeBolt("FrigateBolt_" + fs.id, "FX_BeamBolt", V3(fs.boltSize), fs.boltSpeed, fs.gunDamage, p.explosionSmall);
+                GiveGunFx(bolt, "turret", V3(fs.boltSize).x);
                 cc.mainTurrets = ModelledTurrets(root, turretParts, hullMat, bolt)
                     .Concat(ExtraMounts(root, hull.GetComponentInChildren<MeshCollider>(), bolt)).ToArray();
                 cc.missiles = AddMissileCells(root, hull.GetComponentInChildren<MeshCollider>(), p);

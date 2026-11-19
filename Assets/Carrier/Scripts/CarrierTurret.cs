@@ -304,6 +304,7 @@ namespace CarrierGame
                 if (m == null) continue;
                 var p = Pool.Take(projectilePrefab, m.position, m.rotation);
                 p.owner = owner;
+                GunFx.Muzzle(projectilePrefab, m.position, m.rotation, m);
                 if (damageScale != 1f) p.damage *= damageScale;
             }
         }

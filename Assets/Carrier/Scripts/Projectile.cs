@@ -11,6 +11,10 @@ namespace CarrierGame
         public float lifetime = 4f;
         public float damage = 40f;
         public Explosion hitEffect;
+        [Tooltip("A gun's flash at the muzzle that fires it, and its round's impact on a ship (or a missile) and on rock (anything without Health): from the Asset Store pack in the Kit, if it is there (CarrierBuilder.GunFx). An impact shows instead of the hit effect, except under the water.")]
+        public GunFx muzzleFx, impactFx, impactRockFx;
+        [Tooltip("Those effects' size, times their own (the bolt's calibre).")]
+        public float fxScale = 1f;
         [Tooltip("Small arms (projectile) or a heavy gun (cannon), for shields to react to.")]
         public HitKind kind = HitKind.Projectile;
         [HideInInspector] public Transform owner;
@@ -63,6 +67,15 @@ namespace CarrierGame
         {
             UnderwaterShots = BubblesLeft = 0;
             trailFx = null;
+        }
+
+        /// <summary>Its round's impact at a place, facing out along `normal` (the hit effect instead,
+        /// if it has no impact for this or it is under the water).</summary>
+        void Hit(Vector3 at, Vector3 normal, GunFx impact)
+        {
+            if (impact != null && Sea.Depth(at) <= 0.5f)
+                GunFx.Play(impact, at, Quaternion.LookRotation(normal), fxScale);
+            else if (hitEffect != null) Pool.Take(hitEffect, at, Quaternion.identity);
         }
 
         void Glow(bool on)
@@ -167,7 +180,7 @@ namespace CarrierGame
                                    && (owner == null || !nearer.transform.IsChildOf(owner))))
                 {
                     m.Shoot(vsMissile, owner);
-                    if (hitEffect != null) Pool.Take(hitEffect, from + transform.forward * at, Quaternion.identity);
+                    Hit(from + transform.forward * at, -transform.forward, impactFx);
                     Wake(from, from + transform.forward * at);
                     Pool.Give(gameObject);
                     return;
@@ -185,7 +198,7 @@ namespace CarrierGame
                 if (!onShield)
                 {
                     if (h != null && hitEffect == null) SoundFX.Play(Sfx.Impact, hit.point, 0.6f);
-                    if (hitEffect != null) Pool.Take(hitEffect, hit.point, Quaternion.identity);
+                    Hit(hit.point, hit.normal, h != null ? impactFx : impactRockFx);
                 }
                 Wake(from, hit.point);
                 Pool.Give(gameObject);

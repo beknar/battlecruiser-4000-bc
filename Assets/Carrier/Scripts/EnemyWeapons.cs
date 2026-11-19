@@ -208,6 +208,7 @@ namespace CarrierGame
                 dir = Quaternion.Euler(Random.Range(-spread, spread), Random.Range(-spread, spread), 0f) * dir;
                 var p = Pool.Take(gunPrefab, Muzzle(dir), Quaternion.LookRotation(dir));
                 p.owner = transform;
+                GunFx.Muzzle(gunPrefab, p.transform.position, p.transform.rotation);
                 if (gunDamage > 0f) p.damage = gunDamage;
                 ShotsFired++;
                 SoundFX.Play(gunPrefab.kind == HitKind.Cannon ? Sfx.Cannon : Sfx.Blaster, p.transform.position, 0.7f,

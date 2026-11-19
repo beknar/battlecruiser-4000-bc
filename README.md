@@ -2311,6 +2311,25 @@ Without the packs, these are missing: the cruiser model, the engine plumes, the 
 textures and the shield mesh. To restore them, put your own copies of the packs in
 `Assets/Carrier/Kit` and run **Tools > Carrier > Build Everything**.
 
+The guns' muzzle flashes and impacts come from the Unity Asset Store pack **Realistic Gun VFX**
+(Hivemind), in `Assets/Carrier/Kit/GunFX`. They are used on the turrets' rounds (every frigate,
+destroyer and cruiser), the CIWS point defence and the enemy cannons, and only for those. The beams,
+blasters and Vrask weapons keep their own look. To restore them:
+1. Download the pack in **Package Manager > My Assets** (Download, not Import).
+2. Run `python Tools/stage_gunfx.py`. It copies the URP effects the game uses, with everything they
+   need, into the Kit.
+3. Build, or run **Tools > Carrier > Rebuild Gun FX**.
+
+`CarrierBuilder.GunFx` makes the game's own versions in `Kit/GunFX/Game`:
+- **Size:** each effect is scaled to the round's calibre.
+- **Playback:** it plays once and goes back to the pool (`GunFx`). A muzzle flash follows its muzzle
+  while it plays.
+- **Removed:** gravity, collisions and the pack's decals.
+- **Impacts:** metal sparks on ships and missiles, rock on anything else. None show under the water,
+  where the old splash of bubbles stays.
+
+Without the pack, the guns show the bolts' own glow and the small explosion, as before.
+
 `Assets/Carrier/Resources/CarrierAudio` (the sound effect library and the music) is licensed
 too and not in the repo. Without it, the sound effects are synthesised in code and there is no
 music.

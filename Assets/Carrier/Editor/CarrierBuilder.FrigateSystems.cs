@@ -289,8 +289,10 @@ namespace Carrier.EditorTools
             breakupBlast = p.explosionSmall;
             ResetChunkFolder();
             p.ciwsBolt = MakeBolt("CiwsBolt", "FX_CiwsBolt", new Vector3(0.7f, 0.7f, 18f), 2300f, 8f, null);
+            GiveGunFx(p.ciwsBolt, "ciws", 0.7f);
             p.enemyCannon = MakeBolt("EnemyCannonShell", "FX_EnemyCannon", new Vector3(1.4f, 1.4f, 12f), 1500f, 30f, p.explosionSmall);
             p.enemyCannon.kind = HitKind.Cannon;
+            GiveGunFx(p.enemyCannon, "cannon", 1.4f);
             EditorUtility.SetDirty(p.enemyCannon);
             p.enemyBlaster = MakeBolt("EnemyBlasterBolt", "FX_EnemyBlaster", new Vector3(0.45f, 0.45f, 6f), 1400f, 6f, null);
             p.enemyBlaster.kind = HitKind.Projectile;

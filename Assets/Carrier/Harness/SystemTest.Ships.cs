@@ -100,6 +100,7 @@ namespace CarrierGame.Demo
             var restLines = cc.mainTurrets.ToDictionary(x => x, x => BarrelLines(x));
             foreach (var turret in cc.mainTurrets) turret.autoFire = true;
             var everFired = cc.mainTurrets.ToDictionary(x => x, x => false);
+            int fx0 = GunFx.Played;
             foreach (var (name, at) in places)
             {
                 dummy.transform.position = t.position + at;
@@ -123,6 +124,11 @@ namespace CarrierGame.Demo
             Check(bearing >= 3, $"its guns bear ahead, to the sides, above or astern ({bearing} of {places.Length} places)");
             Check(everFired.Values.All(v => v), $"every turret fired at something ({everFired.Values.Count(v => v)} of {everFired.Count})");
             Check(dh.Hits > 0, "the shots hit");
+            // (the guns' muzzle flashes and impacts, if the Asset Store pack is in the Kit: CarrierBuilder.GunFx)
+            var round = cc.mainTurrets.Select(x => x.projectilePrefab).FirstOrDefault(x => x != null);
+            if (round != null && round.muzzleFx != null)
+                Check(GunFx.Played > fx0, $"the guns' muzzle flashes and impacts play ({GunFx.Played - fx0})");
+            else Log("  (no gun effects: the Gun VFX pack isn't in the Kit)");
             Check(off == 0 && through == 0, $"no shot off target or through the hull ({off} off target, {through} through the hull)");
             Check(intoHull == 0, $"no turret points into its own hull ({intoHull})");
 

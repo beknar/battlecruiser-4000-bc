@@ -135,6 +135,7 @@ namespace CarrierGame.Demo
                     var p = Pool.Take(prefab, pos, Quaternion.LookRotation(dir));
                     p.damage = 0f;                                      // for show: the real one is in their game
                     p.owner = ship.root;
+                    GunFx.Muzzle(prefab, pos, p.transform.rotation);
                     ShotsShown++;
                     break;
                 }

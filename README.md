@@ -284,13 +284,19 @@ the game with their turrets cut out of the hull (`Tools/Blender/convert_frigates
 ### Painting your ship
 
 Once the frigate and captain are chosen, the start menu's **Customise** step paints the ship. The
-turning picture shows the paint as it is chosen. Done (Enter, or A on the pad) keeps the paint and
+turning picture shows the paint as it is chosen. Drag on it to turn the ship round and over, use
+the wheel to zoom in and out, and double-click to put her back on the turntable (it starts
+turning again by itself 4 s after you let go). On the pad, the right stick turns her and the
+triggers zoom. Done (Enter, or A on the pad) keeps the paint and
 launches; Back returns to the ships. The pause menu's **Paint the ship** item opens the same
 screen for the ship being flown, and Done paints it straight away.
 
 - **Presets.** Ten ready-made schemes: Fleet grey, Tiger stripes, Arctic splinter, Corsair red,
   Night hunter, Desert digital, Checker, Chevrons, Racing stripe and Hex armour. The factory
-  finish is the hull as it was built, unpainted. Choosing a preset keeps your lettering.
+  finish is the hull as it was built, unpainted. A logo and lettering can go on the factory
+  finish too: choose it, then a logo and type the lettering, and the hull keeps its own colours
+  with them on it. Changing anything else (a pattern, a colour other than the lettering's, the
+  scale or angle) paints her. Choosing a preset keeps your lettering.
 - **Patterns.** 100 patterns: ten families of ten. The families are bands (belly, racing
   stripes, nose, tail, waterline), stripes, chevrons, checks (checker, diamonds, plaid, brick),
   hexagons, dots and rings, waves and scales, woodland camo, splinter and digital camo, and
@@ -323,7 +329,10 @@ other players' ships in co-op and the menu's picture get a painted copy of the h
 Every other ship keeps the shared material as it was built. A scheme is written as a short code:
 `1.<pattern>.<scale %>.<angle>.<primary>.<secondary>.<trim>.<lettering colour>.<logo>.<TEXT>`.
 The colours are `RRGGBB`, the logo is -1 for none, and spaces in the text are underscores. For
-example, `1.90.100.0.d9731a.1a1a1a.e8dcc0.1a1a1a.8.TIGER-01`.
+example, `1.90.100.0.d9731a.1a1a1a.e8dcc0.1a1a1a.8.TIGER-01`. Pattern -1 is the factory finish
+with a logo or lettering on it (`1.-1.100.0.ffffff.000000.ff0000.ffd040.3.BC_4000`); the
+factory finish with neither is kept as no scheme at all. A game from before this shows pattern
+-1 as the first pattern.
 
 ### Destroyers and the cruiser
 

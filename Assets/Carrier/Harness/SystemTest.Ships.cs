@@ -218,9 +218,46 @@ namespace CarrierGame.Demo
                     for (int i = 0; i < 10; i++) yield return null;
                     Check(paintMenu.Customising, "the customise screen opens");
                     Shot("ship_paint_screen");
+                    // the preview turns and zooms by hand, and goes back on the turntable
+                    var v0 = paintMenu.PreviewView;
+                    paintMenu.TurnPreview(60f, 25f);
+                    paintMenu.ZoomPreview(0.6f);
+                    for (int i = 0; i < 3; i++) yield return null;
+                    var v1 = paintMenu.PreviewView;
+                    Shot("ship_paint_turned");
+                    paintMenu.ResetTurntable();
+                    var v2 = paintMenu.PreviewView;
+                    Check(Mathf.Abs(Mathf.DeltaAngle(v1.x, v0.x)) > 30f && v1.y > v0.y + 20f && v1.z < 0.7f && Mathf.Approximately(v2.y, v0.y) && Mathf.Approximately(v2.z, 1f),
+                          $"the preview turns ({v0.x:F0} to {v1.x:F0} round, {v0.y:F0} to {v1.y:F0} over), zooms ({v1.z:F2}) and goes back on the turntable");
                     paintMenu.DonePainting();
                     yield return null;
                     paintMenu.Close();
+                }
+                // the factory finish with a logo and lettering: the hull's own colours, the decals on them
+                var factory = ShipPaint.FromText("1.-1.100.0.ffffff.000000.ff0000.ffd040.3.BC_4000");
+                ShipPaint.Apply(cc.gameObject, factory);
+                var fm = hullRs.SelectMany(r => r.sharedMaterials).FirstOrDefault(ShipPaint.IsPainted);
+                int fdecals = 0;
+                foreach (var r in hullRs)
+                {
+                    r.GetPropertyBlock(block);
+                    if (block.GetFloat(ShipPaint.DecalsId) > 0.5f) fdecals++;
+                }
+                Check(factory != null && factory.pattern == ShipPaint.FactoryPattern && fm != null && fm.GetFloat("_PaintPattern") < -0.5f
+                      && Mathf.Approximately(fm.GetVector("_TextRect").w, 7f) && fdecals > 0,
+                      $"the factory finish takes a logo and lettering ({fdecals} renderers with them)");
+                if (demo.orbitCamera != null)
+                {
+                    var oc2 = demo.orbitCamera;
+                    float d0 = oc2.distance, y0 = oc2.yaw, p0 = oc2.pitch;
+                    var bounds = new Bounds(cc.transform.position, Vector3.zero);
+                    foreach (var r in hullRs) bounds.Encapsulate(r.bounds);
+                    oc2.distance = Mathf.Max(oc2.minDistance, bounds.size.magnitude * 0.55f);
+                    oc2.yaw = 90f; oc2.pitch = 8f;
+                    yield return null;
+                    yield return null;
+                    Shot("ship_paint_factory_" + flying);
+                    oc2.distance = d0; oc2.yaw = y0; oc2.pitch = p0;
                 }
                 yield return null;
                 ShipPaint.Apply(cc.gameObject, null);

@@ -75,7 +75,7 @@ namespace CarrierGame.Demo
             }
             // wrecks to salvage, within 30 km
             var salvage = Salvage.Instance;
-            var wrecks = salvage != null ? salvage.Near(30000f).ToList() : new List<Wreck>();
+            var wrecks = salvage != null ? salvage.Near(Salvage.Around).ToList() : new List<Wreck>();
             if (wrecks.Count > 0)
             {
                 rows.Add(new MenuRow { header = true, text = $"WRECKS ({wrecks.Count})" });
@@ -97,7 +97,14 @@ namespace CarrierGame.Demo
         public void Act(MenuRow row)
         {
             if (row.tag is Transform t && t != null) demo.SelectTarget(t);
-            else if (row.tag is Wreck w && w != null) Salvage.Instance?.Choose(w);
+            // (Enter on a wreck: salvage it, flying there first if need be)
+            else if (row.tag is Wreck w && w != null)
+            {
+                var salvage = Salvage.Instance;
+                if (salvage == null) return;
+                if (!salvage.InReach(w)) ModeMenu.Close();
+                salvage.SalvageWreck(w);
+            }
         }
 
         public bool Keys(Keyboard k, Gamepad pad, MenuRow row)
@@ -107,10 +114,9 @@ namespace CarrierGame.Demo
             {
                 var salvage = Salvage.Instance;
                 if (salvage == null) return false;
-                salvage.Choose(w);
-                // (the beam on another wreck: moved to this one)
-                if (salvage.Working != null && salvage.Working != w) salvage.Stop();
-                if (salvage.Working == null) salvage.Toggle();
+                // (this one, whatever else is under way: the beam moved, or the flight turned to it)
+                if (!salvage.InReach(w)) ModeMenu.Close();
+                salvage.SalvageWreck(w);
                 return true;
             }
             bool lineUp = (k != null && k.cKey.wasPressedThisFrame) || (pad != null && !pad.selectButton.isPressed && pad.buttonWest.wasPressedThisFrame);

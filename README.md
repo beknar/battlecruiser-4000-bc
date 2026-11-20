@@ -931,6 +931,17 @@ system to travel around.
   pad): the salvage beam strips it into the hold over a few seconds, as much as there is room for.
   What it brings aboard is the industry's own goods, stored, sold or built with like any other.
   A wreck lasts 15 minutes. Wrecks aren't shared in co-op: each player salvages their own.
+  - Which wreck Z takes: the wreck of the ship that was targeted when it was destroyed (while
+    nothing else is targeted), then the one chosen in the menu, then the nearest within 30 km. One out of reach is flown
+    to, and salvaged on arrival.
+  - In the menu, Enter or Z on a wreck salvages it (flying there first if need be), whatever
+    else is under way: the beam moves to it, or the flight turns to it.
+  - When Z can't salvage, it says why: the hold is full, the ship has no hold, she is lost, or
+    there is nothing left in the wreck.
+  - In combat mode, K doesn't land while a wreck is being salvaged or flown to, or the
+    target's or the chosen one is in the beam's reach with room in the hold: it says Z salvages
+    it. Otherwise K says which world it is landing
+    on before the fade (near an asteroid field, the field's own rock).
 - **Capital ships.**
 
   | Ship | Length | Hull | Weapons |
@@ -1468,9 +1479,9 @@ menu (only the pause menu stops it).
 | Line up on the target, until the guns bear (again, or steer, to stop) | C | A |
 | Fly to the target, to its guns' reach, and line up on it there (again, steer or the throttle to stop) | U | |
 | Kinetic strike from orbit | Y | |
-| Salvage the chosen wreck, or the nearest in reach; one out of reach is flown to, and salvaged there (again to stop) | Z | Back + X |
+| Salvage the destroyed target's wreck, the chosen wreck, or the nearest within 30 km; one out of reach is flown to, and salvaged there (again to stop) | Z | Back + X |
 | Choose the next wreck, nearest first | Shift+Z | |
-| Menu: the targets in range and the wrecks near, nearest first (Enter targets one or chooses a wreck, C lines up or flies to the wreck, U flies to it, Z salvages) | Tab | Back + Y |
+| Menu: the targets in range and the wrecks near, nearest first (Enter targets one or salvages a wreck, C lines up or flies to the wreck, U flies to it, Z salvages) | Tab | Back + Y |
 
 **Mining mode (2)**
 

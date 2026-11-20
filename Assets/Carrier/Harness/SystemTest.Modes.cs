@@ -360,16 +360,13 @@ namespace CarrierGame.Demo
             Check(menu != null && menu.Rows.Any(r => r.header && r.text.StartsWith("WRECKS")) && menu.Rows.Any(r => (Object)(r.tag as Wreck) == wreck),
                   "the combat menu lists it under WRECKS");
             for (int i = 0; i < 20 && menu != null && (Object)(menu.Selected?.tag as Wreck) != wreck; i++) yield return Key(kb, K.DownArrow);
-            yield return Key(kb, K.Enter);
-            Check(salvage.Chosen == wreck, $"Enter chooses it ({(salvage.Chosen != null ? salvage.Chosen.Name : "none")}); '{Notices.Last}'");
-            yield return Key(kb, K.Tab);
-            Shot("modes_wreck");
-
-            // Z, in reach: the beam strips it into the hold
+            // Enter, in reach: the beam strips it into the hold
             float steel0 = hold.Amount("SteelPlate");
-            yield return Key(kb, K.Z);
+            yield return Key(kb, K.Enter);
             Log($"  '{Notices.Last}'");
-            Check(salvage.Working == wreck, "Z starts the salvage beam");
+            Check(salvage.Chosen == wreck && salvage.Working == wreck, $"Enter on it starts the salvage beam ({(salvage.Chosen != null ? salvage.Chosen.Name : "none")}); '{Notices.Last}'");
+            if (ModeMenu.IsOpen) yield return Key(kb, K.Tab);
+            Shot("modes_wreck");
             yield return new WaitForSeconds(1.5f);
             Shot("modes_salvaging");
             float until = Time.time + 15f;
@@ -414,9 +411,63 @@ namespace CarrierGame.Demo
                   $"Shift+Z chooses the far wreck ({chose}), Z flies there ({flies}) and starts the beam on arrival ({(salvage.Working != null ? salvage.Working.Name : "none")}, " +
                   $"{(wreck2 != null ? salvage.DistanceTo(wreck2) / 1000f : -1f):F1} km off)");
             Shot("modes_flown_to_wreck");
+            // K by a wreck being salvaged: no landing on what is under it, Z is the key
+            var landing = PlanetLanding.Instance;
+            if (landing != null && salvage.Working != null)
+            {
+                // (in landing range of a world, K says Z salvages the wreck; out of it, there is
+                // nothing to land on anyway: either way, no landing)
+                yield return Key(kb, K.K);
+                string said = Notices.Last ?? "";
+                Check(landing.Current == PlanetLanding.State.InSpace && salvage.WreckHere() == salvage.Working && (said.Contains("Z salvages") || said.Contains("not in orbit")),
+                      $"K by the wreck being salvaged doesn't land: '{said}'");
+            }
             if (salvage.Working != null) salvage.Stop();
             cc.throttle = 0f;
             if (far != null) Destroy(far);
+
+            // the target destroyed, still targeted: Z salvages its wreck, not a nearer one (nor the
+            // one chosen before)
+            GameObject Hulk(string name, Vector3 at)
+            {
+                var go = new GameObject(name);
+                go.SetActive(false);
+                var b = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                b.transform.SetParent(go.transform, false);
+                b.transform.localScale = new Vector3(40f, 20f, 120f);
+                Object.Destroy(b.GetComponent<Collider>());
+                go.AddComponent<Health>().maxHealth = 500f;
+                go.AddComponent<TargetInfo>().displayName = name;
+                go.transform.position = at;
+                go.SetActive(true);
+                Targets.Add(go.transform);
+                return go;
+            }
+            var aimed = Hulk("Targeted hulk", t.position + t.forward * 1100f);
+            var nearer = Hulk("Nearer hulk", t.position - t.forward * 600f);
+            yield return null;
+            demo.SelectTarget(aimed.transform);
+            var aimedHealth = aimed.GetComponent<Health>();
+            // (the dead are destroyed at once: their transforms kept to take them off the list)
+            Transform aimedT = aimed.transform, nearerT = nearer.transform;
+            aimedHealth.Damage(1e6f);
+            nearer.GetComponent<Health>().Damage(1e6f);
+            yield return null;
+            Targets.Remove(aimedT);
+            Targets.Remove(nearerT);
+            var aimedWreck = Wreck.All.LastOrDefault(w => w != null && w.Of == "Targeted hulk");
+            // (a few seconds on, the dead hulk itself gone: its wreck is still the one)
+            yield return new WaitForSeconds(1f);
+            yield return Key(kb, K.Z);
+            yield return null;
+            bool onIt = aimedWreck != null && (salvage.Working == aimedWreck || salvage.Chosen == aimedWreck);
+            Check(onIt, $"Z with the destroyed ship still targeted salvages its wreck ({(salvage.Working != null ? salvage.Working.Name : salvage.Chosen != null ? salvage.Chosen.Name : "none")}), not the nearer one");
+            if (salvage.Working != null) salvage.Stop();
+            if (AutoFly.Instance != null && AutoFly.Instance.Active) AutoFly.Instance.Stop(null);
+            cc.throttle = 0f;
+            demo.ClearTarget();
+            if (aimed != null) Destroy(aimed);
+            if (nearer != null) Destroy(nearer);
         }
 
         /// <summary>A location's enemies all destroyed: it is quiet (no spawns) till the quiet

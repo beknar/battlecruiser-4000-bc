@@ -98,6 +98,10 @@ namespace CarrierGame.Demo
                       health != null && health.maxHealth > 0f && systems && v.GetComponent<ShipBreakup>() != null,
                       $"{r}: {info?.Name}, {info?.shipClass} ({info?.FactionLabel}), hull {health?.maxHealth:F0}, shield {shield?.capacity:F0}, " +
                       $"armour {armor?.rating:F2} ({armor?.plating:F0}), systems {systems}, breaks up {v.GetComponent<ShipBreakup>() != null}");
+                var plates = v.GetComponent<AblativePlates>();
+                Check(plates != null && plates.Count == VraskShip.PlatesFor(r) && plates.Attached == plates.Count
+                      && plates.GetComponentsInChildren<Collider>(true).All(c => !c.name.StartsWith("Armour plate")),
+                      $"{r}: {plates?.Count ?? 0} ablative armour plates, all on, none with a collider");
                 var w = v.GetComponent<EnemyWeapons>();
                 var guns = Guns(v);
                 bool armed;
@@ -118,6 +122,44 @@ namespace CarrierGame.Demo
                 }
                 Check(w != null && w.turrets != null && w.turrets.Length == guns.Length && armed, $"{r}'s weapons: {Arms(v)}");
             }
+            // ---- the ablative armour: plates torn off, the nearest the hits first, as it wears; not
+            // back while the fight goes on; grown back once it is over
+            if (byRole.TryGetValue(VraskShip.Role.Snare, out var worn) && worn.TryGetComponent(out AblativePlates wp) && worn.TryGetComponent(out Armor wa))
+            {
+                var wh = worn.GetComponent<Health>();
+                var ws = worn.GetComponentInChildren<Shield>(true);
+                float q0 = wp.quietSeconds, e0 = wp.enemyRange;
+                wp.quietSeconds = 3f;
+                wp.enemyRange = 0f;
+                int shed0 = AblativePlates.Shed;
+                if (ws != null) ws.SetOffline(true);
+                Vector3 side = worn.transform.position + worn.transform.right * 40f;
+                for (int k = 0; k < 40 && wa.Integrity > 0.45f; k++) { wh.Damage(400f, side, HitKind.Cannon, false); }
+                yield return null;
+                yield return null;
+                float wornTo = wa.Integrity;
+                int on = wp.Attached, shed = AblativePlates.Shed - shed0;
+                // (the plates torn off, flying loose: how many and how far out)
+                var loose = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None)
+                                  .Where(x => x.name.StartsWith("Armour plate") && x.parent == null && x.gameObject.activeInHierarchy).ToList();
+                Log($"  {loose.Count} plates flying loose, the farthest {(loose.Count > 0 ? loose.Max(x => Vector3.Distance(x.position, worn.transform.position)) : 0f):F0} m out");
+                Shot("vrask_plates_torn");
+                yield return new WaitForSeconds(1.5f);
+                bool held = Mathf.Approximately(wa.Integrity, wornTo) && wp.Attached == on;
+                // (out of the fight now, 3 s after the last hit: it grows back, 2% a second, and a
+                // plate comes back with each twelfth of it)
+                float plateBy = Time.time + 12f;
+                while (Time.time < plateBy && wp.Attached <= on) yield return null;
+                float mended = wa.Integrity;
+                Log($"  {worn.name}: armour worn to {wornTo:P0}, {shed} plates torn off ({on} of {wp.Count} on); 1.5 s on {(held ? "no change" : "changed")}; then out of the fight, {mended:P0}, {wp.Attached} on");
+                Check(shed > 0 && on == Mathf.CeilToInt(wornTo * wp.Count - 0.001f) && held && mended > wornTo + 0.02f && wp.Attached > on,
+                      $"its armour plates blow off as it wears ({shed} torn off at {wornTo:P0}), none come back in the fight, and they grow back out of it ({mended:P0})");
+                wp.quietSeconds = q0;
+                wp.enemyRange = e0;
+                if (ws != null) ws.SetOffline(false);
+                wh.Repair();
+            }
+            else Check(false, "a Snare with ablative plates");
             // the Maw the slowest of them
             var pilots = ships.Select(v => v.GetComponent<CombatPilot>()).Where(p => p != null).ToList();
             if (byRole.TryGetValue(VraskShip.Role.Maw, out var mawShip))

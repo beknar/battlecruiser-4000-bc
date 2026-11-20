@@ -97,7 +97,7 @@ namespace CarrierGame
             // (the components: from what got through the shield, and ion's from what it stopped too)
             if (systems != null && toComponents) systems.Hit(amount, shielded ? hit - amount : 0f, kind, Source);
             amount *= row.hull;
-            if (armor != null) amount = armor.Reduce(amount, kind);
+            if (armor != null) amount = armor.Reduce(amount, kind, point);
             LastHitKind = kind;
             if (amount > 0f) Damage(amount);
         }

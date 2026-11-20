@@ -6,8 +6,10 @@ namespace CarrierGame
     /// Armour plating between a ship's shield and its hull. Whole, it stops `rating` of each hit
     /// that gets through the shield (less of a hit that pierces it: DamageTable.Pierce), and what
     /// it stops wears it away: `plating` is how much it can stop before it is worn through. Worn,
-    /// it stops less in proportion. A repair (docked, landed at a base, respawned) makes it whole.
-    /// Its condition isn't saved: a ship comes into a game with its armour whole.
+    /// it stops less in proportion. A repair (docked, landed at a base, respawned) makes it whole,
+    /// and it can be grown back out of a fight (Mend: the Vrask do, AblativePlates); it never
+    /// comes back in one. Its condition isn't saved: a ship comes into a game with its armour
+    /// whole. In co-op the game that owns the ship sends how whole it is (NetSetIntegrity).
     /// </summary>
     public class Armor : MonoBehaviour
     {
@@ -27,6 +29,18 @@ namespace CarrierGame
 
         void Awake() { if (Left < 0f) Left = plating; }
 
+        /// <summary>Where the last hit that wore it landed (world), if one has (HasHitPoint).</summary>
+        public Vector3 LastHitPoint { get; private set; }
+        public bool HasHitPoint { get; private set; }
+
+        /// <summary>A hit's damage at a point (for what shows where the armour wore: AblativePlates).</summary>
+        public float Reduce(float damage, HitKind kind, Vector3 point)
+        {
+            LastHitPoint = point;
+            HasHitPoint = true;
+            return Reduce(damage, kind);
+        }
+
         /// <summary>A hit's damage to the hull after the armour (it stops its share, and wears).</summary>
         public float Reduce(float damage, HitKind kind)
         {
@@ -43,6 +57,12 @@ namespace CarrierGame
         /// <summary>Whole again.</summary>
         public void Repair() => Left = plating;
 
+        /// <summary>Some of it grown back (out of a fight), up to whole.</summary>
+        public void Mend(float amount)
+        {
+            if (amount > 0f) Left = Mathf.Min(plating, Current + amount);
+        }
+
         /// <summary>A new plating (parts fitted), keeping how worn it is.</summary>
         public void SetPlating(float value)
         {
@@ -53,6 +73,15 @@ namespace CarrierGame
         }
 
         /// <summary>Co-op: its condition, as the game that owns the ship has it.</summary>
-        public void NetSetIntegrity(float integrity) => Left = plating * Mathf.Clamp01(integrity);
+        public void NetSetIntegrity(float integrity)
+        {
+            Left = plating * Mathf.Clamp01(integrity);
+            netAt = Time.time;
+        }
+
+        float netAt = -100f;
+        /// <summary>Another game owns this ship and sends how whole its armour is (co-op, the last
+        /// word under 2 s ago): it isn't grown back here, only as that game says.</summary>
+        public bool NetDriven => Time.time - netAt < 2f;
     }
 }

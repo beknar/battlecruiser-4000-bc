@@ -165,6 +165,7 @@ namespace CarrierGame.Demo
                     tr = TractorOf(e),
                     sf = e.shields != null && e.shields.Length > 0 && e.shields[0] != null ? 1f + e.shields[0].Fraction : 0f,
                     sd = e.shields != null && e.shields.Length > 0 && e.shields[0] != null && !e.shields[0].Up,
+                    ar = e.t.TryGetComponent(out Armor arm) ? 1f + arm.Integrity : 0f,
                 });
             }
             Client.Send(new EntitiesMsg { ts = Client.ServerNow, e = list.ToArray() });
@@ -186,6 +187,8 @@ namespace CarrierGame.Demo
                     }
                 }
                 if (e.sys != null) e.sys.NetSet(s.sy);
+                // (its armour as the host has it: a Vrask ship sheds the same plates here)
+                if (s.ar > 0f && e.t.TryGetComponent(out Armor arm)) arm.NetSetIntegrity(s.ar - 1f);
                 ShowTractor(e, s.gone || s.dead ? 0 : s.tr);
                 if (s.sf > 0f && e.shields != null && e.shields.Length > 0 && e.shields[0] != null) e.shields[0].NetSet(s.sf - 1f, !s.sd);
                 if (s.gone || s.dead) continue;

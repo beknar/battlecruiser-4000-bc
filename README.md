@@ -870,7 +870,11 @@ system to travel around.
   **The Vrask.** An alien faction, lizard-like, who take prisoners, drain their life and capture
   ships. Their raiders lie in wait round Comet Mirren, far out from the corsairs' haunts, for the
   ships that come to mine its ice, and spring at 4 km. They are the first enemies with shields,
-  and their hulls are armoured. Each of their four ships has its own job: the **Snare** strips
+  and their hulls are armoured with ablative plates you can see: as you wear the armour down,
+  plates blow off the hull, the one nearest your hits first, glowing hot as they tumble away
+  (16 on a Maw, 12 on a Snare, 10 on a Fang, 8 on a Skink). Their armour never comes back in
+  a fight; out of one (no hit for 90 s and none of your ships within 15 km) they grow it back,
+  2% a second, plates and all. Each of their four ships has its own job: the **Snare** strips
   shields with ion fire from medium range, bow on; the **Fang** makes fast runs with heavy guns
   and missiles; the **Maw** holds well back and shells what the others spot with its spinal
   artillery, and carries two nuclear missiles; the **Skink** screens the others with eight

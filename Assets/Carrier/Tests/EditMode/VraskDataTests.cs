@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace CarrierGame.Tests
 {
@@ -162,6 +163,30 @@ namespace CarrierGame.Tests
             Assert.That(f.bombardShield, Is.InRange(0.1f, 0.9f));
             Assert.That(f.recoverTime, Is.GreaterThan(0f));
             Assert.That(f.engageRange, Is.GreaterThan(t.Find("Maw").artillery.range));
+        }
+
+        [Test]
+        public void ArmourWearsWhereHitAndMendsOnlyWhenTold()
+        {
+            var go = new GameObject("armour");
+            try
+            {
+                var a = go.AddComponent<Armor>();
+                a.rating = 0.4f;
+                a.plating = 1000f;
+                a.Repair();
+                float through = a.Reduce(500f, HitKind.Cannon, new Vector3(1f, 2f, 3f));
+                Assert.That(through, Is.LessThan(500f), "it stops a share");
+                Assert.That(a.Integrity, Is.LessThan(1f), "and wears");
+                Assert.That(a.HasHitPoint && a.LastHitPoint == new Vector3(1f, 2f, 3f), Is.True, "where it was hit");
+                float worn = a.Integrity;
+                a.Mend(100f);
+                Assert.That(a.Integrity, Is.EqualTo(Mathf.Min(1f, worn + 0.1f)).Within(1e-4f), "grown back by what it is given");
+                a.Mend(1e6f);
+                Assert.That(a.Integrity, Is.EqualTo(1f), "no more than whole");
+                Assert.That(VraskShip.PlatesFor(VraskShip.Role.Maw), Is.GreaterThan(VraskShip.PlatesFor(VraskShip.Role.Skink)));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
         }
     }
 }

@@ -131,6 +131,23 @@ namespace CarrierGame.Demo
                   vpicket.pilots.All(x => x != null && x.GetComponent<VraskShip>() != null),
                   $"the Gilgal picket fleet ({picket?.pilots.Length ?? 0} ships) and the Vrask picket over Sheol ({vpicket?.pilots.Length ?? 0})");
             Check(P("Jericho") != null && P("Jericho").hostile && P("Bethel").hostile, "Jericho and Bethel are the pirates'");
+            // ---- what is at each place: a band lying in wait warns of danger there, but doesn't
+            // make a friendly place the enemy's (its surface stays friendly, its station one to dock at)
+            string[] warned = { "Paradise", "Anak", "Rephaim Fuel Station", "Inner Belt", "Outer Belt", "Comet Patmos" };
+            var wrongly = warned.Where(n => P(n) == null || P(n).hostile || !P(n).dangerNear || !P(n).Threatened).ToList();
+            Check(wrongly.Count == 0, $"the places bands lie in wait by are warned of, not made hostile ({warned.Length - wrongly.Count} of {warned.Length}{(wrongly.Count > 0 ? "; wrong: " + string.Join(", ", wrongly) : "")})");
+            // the gas giants: an orbit over the equator as well as the pole
+            var eq = new[] { "Rephaim", "Gilgal" }.Where(n => P($"{n} Equatorial Orbit") == null).ToList();
+            Check(eq.Count == 0, $"the gas giants have their equatorial orbits{(eq.Count > 0 ? "; missing " + string.Join(", ", eq) : "")}");
+            // something at The Forge's high orbit: the smugglers' derelict, to salvage
+            var forgeOrbit = P("The Forge High Orbit");
+            var derelict = Wreck.All.FirstOrDefault(x => x != null && x.Stays && !x.Empty);
+            float derelictKm = forgeOrbit != null && derelict != null ? Vector3.Distance(derelict.transform.position, forgeOrbit.Position) / 1000f : -1f;
+            Check(derelict != null && derelictKm >= 0f && derelictKm < 1f && derelict.Tonnes > 0f,
+                  $"at The Forge High Orbit, a derelict to salvage: {(derelict != null ? $"{derelict.Name}, {derelict.Summary()}" : "none")} ({derelictKm:F1} km off it)");
+            // every orbit landmark says what is there
+            var bare = Landmarks.All.Where(x => x != null && x.kindLabel == "orbit" && string.IsNullOrEmpty(x.description)).Select(x => x.displayName).ToList();
+            Check(bare.Count == 0, $"every orbit landmark says what is there{(bare.Count > 0 ? "; not: " + string.Join(", ", bare) : "")}");
             // ---- the encounters: 18 bands, some on patrol, seen moving on the map
             string[] bands = { "Scavenger skiffs", "Belt claim-jumpers", "Patmos ice thieves", "Vrask scout", "Outer Belt lurkers", "Forge smugglers",
                                "Anak frigate pair", "Vrask hunting pair", "Fuel station raiders", "Rephaim corsair patrol",

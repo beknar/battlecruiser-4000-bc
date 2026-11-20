@@ -598,7 +598,7 @@ namespace CarrierGame.Demo
                     if (w.kind == WarpPoint.Kind.Star) Draw(disc, p, size * 2.2f, new Color(w.mapColor.r, w.mapColor.g, w.mapColor.b, 0.18f));
                     Draw(disc, p, size, w.mapColor);
                 }
-                if (w.hostile) Draw(ring, p, (w.Built ? 20f : 30f) * s, new Color(1f, 0.35f, 0.3f, 0.9f));
+                if (w.Threatened) Draw(ring, p, (w.Built ? 20f : 30f) * s, new Color(1f, 0.35f, 0.3f, 0.9f));
             }
             // names: the chosen place, the one under the mouse and the one the frigate is at
             // first, then the bodies, then what is built; one that would overlap another is left off
@@ -611,7 +611,7 @@ namespace CarrierGame.Demo
             {
                 Vector2 p = ScreenPosOf(w);
                 bool here = w == hereNow;
-                string name = w.displayName + (here ? "  <color=#7ee08a>(here)</color>" : "") + (w.hostile ? "  <color=#ff6050>!</color>" : "");
+                string name = w.displayName + (here ? "  <color=#7ee08a>(here)</color>" : "") + (w.Threatened ? "  <color=#ff6050>!</color>" : "");
                 var content = new GUIContent(name);
                 Vector2 size = label.CalcSize(content);
                 var r = new Rect(p.x + 12f * s, p.y - 9f * s, size.x, size.y);
@@ -785,8 +785,8 @@ namespace CarrierGame.Demo
                     y += oh + 8f * s;
                 }
                 var pois = Places.PointsOfInterest(Selected, Selected.Position);
-                string there = pois.Count == 0 ? "" : $"\n<color=#9aa4b0>Points of interest: {string.Join(", ", pois.Select(p => p.displayName + (p.hostile ? " (hostile)" : "")))}</color>";
-                var desc = new GUIContent(Selected.description + (Selected.hostile ? "\n<color=#ff6050>Hostile contacts reported.</color>" : "") + there);
+                string there = pois.Count == 0 ? "" : $"\n<color=#9aa4b0>Points of interest: {string.Join(", ", pois.Select(p => p.displayName + (p.Threatened ? " (hostile)" : "")))}</color>";
+                var desc = new GUIContent(Selected.description + (Selected.Threatened ? "\n<color=#ff6050>Hostile contacts reported.</color>" : "") + there);
                 float h = body.CalcHeight(desc, w);
                 GUI.Label(new Rect(x, y, w, h), desc, body);
                 y += h + 18f * s;

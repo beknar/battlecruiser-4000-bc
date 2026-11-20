@@ -45,7 +45,9 @@ namespace Carrier.EditorTools
             {
                 if (at == null) { Log($"nine hells: no place for {name}"); return; }
                 var g = NhPirates(R, name, By(at, frac, turn), at.Position, spot, ships);
-                at.hostile = true;
+                // (the danger near it, not the place made the enemy's: a friendly world's surface
+                // stays friendly, a friendly station stays one to dock at)
+                at.dangerNear = true;
                 at.description = (at.description + $" ({tier}: {name} lies in wait here.)").Trim();
                 made++;
             }
@@ -53,7 +55,7 @@ namespace Carrier.EditorTools
             {
                 if (at == null) { Log($"nine hells: no place for {name}"); return; }
                 var g = NhVrask(R, name, By(at, frac, turn), spot, slots);
-                at.hostile = true;
+                at.dangerNear = true;
                 at.description = (at.description + $" ({tier}: {name}, Vrask, lie in wait here.)").Trim();
                 made++;
             }

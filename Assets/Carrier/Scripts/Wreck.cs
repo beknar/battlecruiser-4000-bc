@@ -28,6 +28,9 @@ namespace CarrierGame
         /// <summary>What it was the wreck of (one that respawns leaves one wreck at a time).</summary>
         public Health From;
         public float life = 900f;
+        /// <summary>A derelict: it stays (until stripped), still where it was put (it goes round
+        /// with what it is put on), with no fires.</summary>
+        public bool Stays;
 
         /// <summary>How big a wreck's fire is (times the pack's own size: its blaze is about a metre
         /// tall) per metre of the wreck.</summary>
@@ -77,8 +80,8 @@ namespace CarrierGame
 
         void Update()
         {
-            if (Time.time >= dieAt || (empty && Contents.Count > 0)) { Destroy(gameObject); return; }
-            transform.position += drift * Time.deltaTime;
+            if ((!Stays && Time.time >= dieAt) || (empty && Contents.Count > 0)) { Destroy(gameObject); return; }
+            if (!Stays) transform.position += drift * Time.deltaTime;
             transform.Rotate(spinAxis, spinRate * Time.deltaTime, Space.World);
         }
 
@@ -109,7 +112,7 @@ namespace CarrierGame
 
         /// <summary>A wreck where `dead` died, built from a few of its pieces (its breakup's
         /// chunks, or its own meshes), darkened.</summary>
-        public static Wreck Make(Transform dead, string of, IEnumerable<(string id, float amount)> contents, float size, Health from = null)
+        public static Wreck Make(Transform dead, string of, IEnumerable<(string id, float amount)> contents, float size, Health from = null, bool burning = true)
         {
             var go = new GameObject($"Wreck of {of}");
             go.transform.position = dead.position;
@@ -154,7 +157,7 @@ namespace CarrierGame
             }
             go.SetActive(true);
             // its two biggest pieces burning for a while (if the fires are there to show)
-            var fires = FireKit.Get();
+            var fires = burning ? FireKit.Get() : null;
             if (fires != null)
             {
                 // (its pieces, biggest first, before any fire joins them)

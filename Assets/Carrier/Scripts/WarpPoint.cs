@@ -28,7 +28,15 @@ namespace CarrierGame
         [Tooltip("Shown on the map (in m): a planet's orbit is round the star, a moon's round its planet.")]
         public WarpPoint orbitParent;
         [Tooltip("Hostiles are known to be here (shown on the map).")]
+        /// <summary>The place itself is held by enemies (a pirate world, a hostile base): its
+        /// surface is a hostile one, with ground forces.</summary>
         public bool hostile;
+        /// <summary>Enemies lie in wait near it (a band by a friendly world or station): warned of
+        /// on the map and in the lists, but the place itself isn't theirs.</summary>
+        public bool dangerNear;
+
+        /// <summary>Hostile, or with enemies lying in wait near it: what the map and the lists warn of.</summary>
+        public bool Threatened => hostile || dangerNear;
         [Tooltip("A planet with no air at all (a planet has air unless it is).")]
         public bool airless;
         [Tooltip("A city under an energy shield: strikes from orbit break on it (OrbitalStrikes).")]

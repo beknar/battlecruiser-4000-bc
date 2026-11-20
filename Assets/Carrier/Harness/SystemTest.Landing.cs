@@ -131,6 +131,7 @@ namespace CarrierGame.Demo
                 bool good = site.terrain != null && landing.Altitude > 20f;
                 if (wp.hostile)
                 {
+                    // (hostile itself: a world enemies hold, not one they only lie in wait by)
                     // a hostile world: its ground forces, and whether they spot the ship
                     float until2 = Time.time + 12f;
                     int alerted = 0;

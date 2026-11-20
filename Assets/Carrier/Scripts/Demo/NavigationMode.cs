@@ -86,7 +86,7 @@ namespace CarrierGame.Demo
                 string how = CanLandAt(p) ? "pad" : DockAt(p) != null ? "dock" : "";
                 rows.Add(new MenuRow
                 {
-                    text = $"{mark}{p.displayName}  <color=#9aa4b0>{Kind(p)}{(p.hostile ? "  <color=#ff6050>hostile</color>" : "")}</color>",
+                    text = $"{mark}{p.displayName}  <color=#9aa4b0>{Kind(p)}{(p.Threatened ? "  <color=#ff6050>hostile</color>" : "")}</color>",
                     detail = $"{CombatMode.Distance(d)}   {Eta(d)}{(how.Length > 0 ? "   " + how : "")}",
                     tag = p,
                 });

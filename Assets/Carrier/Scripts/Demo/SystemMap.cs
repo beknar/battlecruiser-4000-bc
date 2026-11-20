@@ -27,6 +27,12 @@ namespace CarrierGame.Demo
     /// Tab to step through), then click WARP, double-click, or press Enter. Esc closes it.
     /// Gamepad: R3 (press the right stick) opens it; the left stick or D-pad moves between places,
     /// LB/RB step through them, A warps, B closes.
+    ///
+    /// The view can be moved and zoomed, from the whole system down to a planet and its moons:
+    /// the mouse wheel zooms about the pointer, dragging with the right or middle button moves
+    /// the map, + and - zoom about the middle, and Home shows the whole system again; on the pad
+    /// the right stick moves it and the triggers zoom. Choosing a place off the view brings it in.
+    /// Everything is drawn relative to the view's middle and kept inside the map's square.
     /// </summary>
     public class SystemMap : MonoBehaviour
     {
@@ -62,6 +68,17 @@ namespace CarrierGame.Demo
         Rect mapRect, infoRect, warpButton;
         float pxPerM = 1f;
         Vector2 center;
+        // the view: how far in (1 the whole system) and where its middle is (map metres, x and z,
+        // from the star); a drag under way and where it was last frame
+        float zoom = 1f;
+        Vector2 view;
+        bool dragging;
+        Vector2 dragLast;
+
+        /// <summary>How far the view is zoomed in (1: the whole system).</summary>
+        public float Zoom => zoom;
+        /// <summary>The most it zooms in: the map about 2,000 km across.</summary>
+        public float MaxZoom => Mathf.Max(1f, extent * 2f / 2.0e6f);
         Texture2D disc, ring, arrow;
         float extent = 1f, lastClick = -1f, stickRepeat;
         WarpPoint lastClicked;
@@ -84,6 +101,7 @@ namespace CarrierGame.Demo
             // (an ally chosen last time, from navigation's menu say, isn't carried over)
             SelectedAlly = null;
             RefreshOrder();
+            ResetView();
             if (Selected == null || IsHere(Selected))
                 Selected = order.Where(p => !IsHere(p)).OrderBy(p => Vector3.Distance(p.Position, carrier.transform.position)).FirstOrDefault();
             SoundFX.Ui(Sfx.UiLock);
@@ -104,10 +122,13 @@ namespace CarrierGame.Demo
 
         public void Toggle() { if (IsOpen) Close(); else Open(); }
 
-        public void Select(WarpPoint p)
+        /// <summary>Choose a place. Chosen by key or stick, it is brought into view; clicked on
+        /// (`bring` false), the view stays put, so a second click finds it where the first did.</summary>
+        public void Select(WarpPoint p, bool bring = true)
         {
             if (p == null || (p == Selected && SelectedAlly == null)) return;
             Selected = p;
+            if (bring) BringIntoView(p.Position);
             SelectedAlly = null;
             SoundFX.Ui(Sfx.UiLock);
         }
@@ -287,6 +308,9 @@ namespace CarrierGame.Demo
             if (k != null)
             {
                 if (k.mKey.wasPressedThisFrame || k.escapeKey.wasPressedThisFrame) { Close(); return; }
+                if (k.equalsKey.wasPressedThisFrame || k.numpadPlusKey.wasPressedThisFrame) ZoomAt(mapRect.center, 1.5f);
+                if (k.minusKey.wasPressedThisFrame || k.numpadMinusKey.wasPressedThisFrame) ZoomAt(mapRect.center, 1f / 1.5f);
+                if (k.homeKey.wasPressedThisFrame) ResetView();
                 if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame || k.spaceKey.wasPressedThisFrame) { WarpToSelected(); return; }
                 if (k.tabKey.wasPressedThisFrame) Step(k.shiftKey.isPressed ? -1 : 1);
                 if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame) StepToward(Vector2.left);
@@ -300,6 +324,12 @@ namespace CarrierGame.Demo
                 if (pad.buttonSouth.wasPressedThisFrame) { WarpToSelected(); return; }
                 if (pad.rightShoulder.wasPressedThisFrame) Step(1);
                 if (pad.leftShoulder.wasPressedThisFrame) Step(-1);
+                // the right stick moves the view, the triggers zoom it
+                float dt = Time.unscaledDeltaTime;
+                Vector2 rs = pad.rightStick.ReadValue();
+                if (rs.magnitude > 0.2f) Pan(new Vector2(-rs.x, rs.y) * mapRect.width * 0.8f * dt);
+                float zt = pad.rightTrigger.ReadValue() - pad.leftTrigger.ReadValue();
+                if (Mathf.Abs(zt) > 0.1f) ZoomAt(mapRect.center, Mathf.Pow(4f, zt * dt));
                 Vector2 d = pad.dpad.ReadValue();
                 Vector2 ls = pad.leftStick.ReadValue();
                 if (ls.magnitude > d.magnitude) d = ls;
@@ -316,6 +346,14 @@ namespace CarrierGame.Demo
                 Vector2 gui = new Vector2(mp.x, Screen.height - mp.y);
                 Hover = mapRect.Contains(gui) ? PointAt(gui) : null;
                 if (mouse.leftButton.wasPressedThisFrame) Click(gui);
+                // the wheel zooms about the pointer; a right or middle drag moves the view
+                float wheel = mouse.scroll.ReadValue().y;
+                if (Mathf.Abs(wheel) > 0.01f && mapRect.Contains(gui)) ZoomAt(gui, wheel > 0f ? 1.25f : 0.8f);
+                bool held = mouse.rightButton.isPressed || mouse.middleButton.isPressed;
+                bool pressed = mouse.rightButton.wasPressedThisFrame || mouse.middleButton.wasPressedThisFrame;
+                if (pressed && !dragging && mapRect.Contains(gui)) { dragging = true; dragLast = gui; }
+                else if (!held) dragging = false;
+                if (dragging) { Pan(gui - dragLast); dragLast = gui; }
             }
         }
 
@@ -323,6 +361,8 @@ namespace CarrierGame.Demo
         public void Click(Vector2 gui)
         {
             if (warpButton.Contains(gui)) { WarpToSelected(); return; }
+            // (only on the map's square: zoomed in, places off it are under the panel beside it)
+            if (!mapRect.Contains(gui)) return;
             // another ship of the player's side (before a place: it is drawn over them)
             var ally = AllyAt(gui);
             if (ally != null)
@@ -341,7 +381,7 @@ namespace CarrierGame.Demo
             bool twice = p == lastClicked && Time.unscaledTime - lastClick < 0.4f;
             lastClicked = p;
             lastClick = Time.unscaledTime;
-            Select(p);
+            Select(p, bring: false);
             if (twice) WarpToSelected();
         }
 
@@ -394,7 +434,69 @@ namespace CarrierGame.Demo
         static Vector2 Flat(Vector3 v) => new Vector2(v.x, v.z);
 
         public Vector2 ScreenPosOf(WarpPoint p) => ToScreen(p.Position);
-        Vector2 ToScreen(Vector3 world) => center + new Vector2(world.x, -world.z) * pxPerM;
+        // (relative to the view's middle first: zoomed in, the star is millions of pixels off)
+        Vector2 ToScreen(Vector3 world) => mapRect.center + new Vector2(world.x - viewWorld.x, -(world.z - viewWorld.y)) * pxPerM;
+        /// <summary>The map point (x, z) under a GUI position.</summary>
+        public Vector2 FromScreen(Vector2 gui) => viewWorld + new Vector2(gui.x - mapRect.center.x, -(gui.y - mapRect.center.y)) / pxPerM;
+        // the view's middle in the world (x, z), and the star's
+        Vector2 viewWorld, starFlat;
+        float BasePxPerM => mapRect.width * 0.47f / Mathf.Max(1f, extent);
+
+        /// <summary>Zoom by `factor` about a GUI position (it stays over the same place).</summary>
+        public void ZoomAt(Vector2 gui, float factor)
+        {
+            Layout();
+            Vector2 at = FromScreen(gui);
+            zoom = Mathf.Clamp(zoom * factor, 1f, MaxZoom);
+            Layout();
+            Vector2 now = FromScreen(gui);
+            view += at - now;
+            ClampView();
+            Layout();
+        }
+
+        /// <summary>Move the view by a drag of `px` (GUI space).</summary>
+        public void Pan(Vector2 px)
+        {
+            Layout();
+            view += new Vector2(-px.x, px.y) / pxPerM;
+            ClampView();
+            Layout();
+        }
+
+        /// <summary>The whole system again.</summary>
+        public void ResetView()
+        {
+            zoom = 1f;
+            view = Vector2.zero;
+            dragging = false;
+        }
+
+        /// <summary>Move the view, if need be, so a place is on it (well inside the edge).</summary>
+        public void BringIntoView(Vector3 world)
+        {
+            Layout();
+            var inner = new Rect(mapRect.x + mapRect.width * 0.1f, mapRect.y + mapRect.height * 0.1f, mapRect.width * 0.8f, mapRect.height * 0.8f);
+            if (inner.Contains(ToScreen(world))) return;
+            view = new Vector2(world.x, world.z) - starFlat;
+            ClampView();
+            Layout();
+        }
+
+        /// <summary>A place is in the map's square now (GUI space).</summary>
+        public bool InView(Vector3 world) => mapRect.Contains(ToScreen(world));
+
+        void ClampView()
+        {
+            float most = extent * 1.05f;
+            if (view.magnitude > most) view = view.normalized * most;
+        }
+
+        /// <summary>A label's rect is all on the map, below its title.</summary>
+        bool Inside(Rect r) => r.xMin >= mapRect.xMin && r.xMax <= mapRect.xMax && r.yMin >= mapRect.yMin + 40f * Hud.S && r.yMax <= mapRect.yMax;
+
+        bool OnMap(Vector2 p, float margin) =>
+            p.x > mapRect.xMin - margin && p.x < mapRect.xMax + margin && p.y > mapRect.yMin - margin && p.y < mapRect.yMax + margin;
         public Rect WarpButtonRect => warpButton;
 
         void Layout()
@@ -407,8 +509,11 @@ namespace CarrierGame.Demo
             mapRect = new Rect(x0, (Screen.height - side) * 0.5f, side, side);
             infoRect = new Rect(mapRect.xMax + margin, mapRect.y, infoW, side);
             Vector3 star = WarpPoint.All.FirstOrDefault(w => w != null && w.kind == WarpPoint.Kind.Star)?.Position ?? Vector3.zero;
-            pxPerM = side * 0.47f / Mathf.Max(1f, extent);
-            center = mapRect.center - new Vector2(star.x, -star.z) * pxPerM;
+            starFlat = new Vector2(star.x, star.z);
+            zoom = Mathf.Clamp(zoom, 1f, MaxZoom);
+            pxPerM = BasePxPerM * zoom;
+            viewWorld = starFlat + view;
+            center = ToScreen(Vector3.zero);
             warpButton = new Rect(infoRect.x + 20f * s, infoRect.yMax - 120f * s, infoRect.width - 40f * s, 50f * s);
         }
 
@@ -435,8 +540,7 @@ namespace CarrierGame.Demo
                 if (w.kind == WarpPoint.Kind.Star || w.kind == WarpPoint.Kind.Comet || w.Built) continue;
                 Vector2 c = w.orbitParent != null ? ScreenPosOf(w.orbitParent) : starPx;
                 float r = Vector2.Distance(ScreenPosOf(w), c);
-                DottedCircle(c, r, w.orbitParent != null ? new Color(0.6f, 0.7f, 0.85f, 0.25f) : new Color(0.6f, 0.7f, 0.85f, 0.35f),
-                             Mathf.Clamp(Mathf.RoundToInt(r * 0.35f), 24, 260));
+                DottedCircle(c, r, w.orbitParent != null ? new Color(0.6f, 0.7f, 0.85f, 0.25f) : new Color(0.6f, 0.7f, 0.85f, 0.35f));
             }
             // the comets' orbits, and the Lagrange points
             var label = Hud.Text(15);
@@ -450,21 +554,24 @@ namespace CarrierGame.Demo
                     if (o == null) continue;
                     if (o.kind == Orbit.Kind.Kepler && o.parent == null && o.eccentricity > 0.01)
                     {
-                        float dot = Mathf.Max(1.5f, 2f * s);
-                        for (int k = 0; k < 140; k++)
+                        Vector2 last = ToScreen(sp + o.EllipsePoint(0.0));
+                        for (int k = 1; k <= 140; k++)
                         {
                             Vector2 q = ToScreen(sp + o.EllipsePoint(k * System.Math.PI * 2.0 / 140.0));
-                            Hud.Fill(new Rect(q.x - dot * 0.5f, q.y - dot * 0.5f, dot, dot), new Color(0.55f, 0.85f, 1f, 0.3f));
+                            DottedLine(last, q, new Color(0.55f, 0.85f, 1f, 0.3f), 9f * s, 2f * s);
+                            last = q;
                         }
                     }
                     if (o.lagrangeOnMap)
                         for (int n = 1; n <= 5; n++)
                         {
                             Vector2 q = ToScreen(orbits.LagrangePoint(o, n));
+                            if (!OnMap(q, 0f)) continue;
                             var c = n >= 4 ? new Color(0.78f, 0.72f, 1f, 0.85f) : new Color(0.78f, 0.72f, 1f, 0.55f);
                             Hud.Fill(new Rect(q.x - 5f * s, q.y - 0.75f * s, 10f * s, 1.5f * s), c);
                             Hud.Fill(new Rect(q.x - 0.75f * s, q.y - 5f * s, 1.5f * s, 10f * s), c);
-                            GUI.Label(new Rect(q.x + 4f * s, q.y + 1f * s, 40f * s, 16f * s), $"<color=#b8b0f0>L{n}</color>", small);
+                            if (Inside(new Rect(q.x + 4f * s, q.y + 1f * s, 24f * s, 16f * s)))
+                                GUI.Label(new Rect(q.x + 4f * s, q.y + 1f * s, 40f * s, 16f * s), $"<color=#b8b0f0>L{n}</color>", small);
                         }
                 }
             }
@@ -472,6 +579,9 @@ namespace CarrierGame.Demo
             foreach (var w in order)
             {
                 Vector2 p = ScreenPosOf(w);
+                float big = w.kind == WarpPoint.Kind.AsteroidField ? Mathf.Max(10f * s, w.bodyRadius * pxPerM) : 40f * s;
+                if (!OnMap(p, big)) continue;
+                if (w.Built && !OnMap(p, -12f * s)) continue;
                 if (w.Built) Structure(p, w, s);
                 else if (w.kind == WarpPoint.Kind.AsteroidField) Field(p, w, s);
                 else if (w.kind == WarpPoint.Kind.Comet)
@@ -506,6 +616,7 @@ namespace CarrierGame.Demo
                 Vector2 size = label.CalcSize(content);
                 var r = new Rect(p.x + 12f * s, p.y - 9f * s, size.x, size.y);
                 bool must = w == Selected || w == Hover || here;
+                if (!OnMap(p, 0f) || !Inside(r)) continue;
                 if (!must && Overlaps(r)) continue;
                 placed.Add(r);
                 GUI.Label(new Rect(r.x, r.y, 300f * s, 24f * s), content, label);
@@ -527,11 +638,14 @@ namespace CarrierGame.Demo
                 Draw(ring, sp, 34f * s * pulse, new Color(0.55f, 0.85f, 1f, 1f));
             }
             if (Hover != null && Hover != Selected) Draw(ring, ScreenPosOf(Hover), 30f * s, new Color(1f, 1f, 1f, 0.6f));
-            var m = GUI.matrix;
-            GUIUtility.RotateAroundPivot(carrier.Heading, me);
-            Draw(arrow, me, 22f * s, new Color(0.5f, 1f, 0.6f, 1f));
-            GUI.matrix = m;
-            GUI.Label(new Rect(me.x + 12f * s, me.y + 4f * s, 200f * s, 24f * s), "<color=#7ee08a>Frigate</color>", label);
+            if (OnMap(me, 0f))
+            {
+                var m = GUI.matrix;
+                GUIUtility.RotateAroundPivot(carrier.Heading, me);
+                Draw(arrow, me, 22f * s, new Color(0.5f, 1f, 0.6f, 1f));
+                GUI.matrix = m;
+                GUI.Label(new Rect(me.x + 12f * s, me.y + 4f * s, 200f * s, 24f * s), "<color=#7ee08a>Frigate</color>", label);
+            }
             // the other ships of the player's side, each with its heading and name
             allyLabels.Clear();
             for (int i = 0; i < Allies.Count; i++)
@@ -539,6 +653,7 @@ namespace CarrierGame.Demo
                 var a = Allies[i];
                 if (a.ship == null) continue;
                 Vector2 ap = ToScreen(a.ship.position);
+                if (!OnMap(ap, 0f)) continue;
                 Vector3 f = a.ship.forward;
                 var gm = GUI.matrix;
                 GUIUtility.RotateAroundPivot(Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg, ap);
@@ -556,11 +671,21 @@ namespace CarrierGame.Demo
                 if (a.ship == SelectedAlly) Hud.Outline(allyLabels[allyLabels.Count - 1].r, Mathf.Max(1f, s), new Color(a.color.r, a.color.g, a.color.b, 0.8f));
             }
             // scale bar
-            float km50 = 50000f * pxPerM;
-            Hud.Fill(new Rect(mapRect.x + 20f * s, mapRect.yMax - 26f * s, km50, 2f * s), new Color(0.7f, 0.8f, 0.9f, 0.7f));
-            GUI.Label(new Rect(mapRect.x + 20f * s, mapRect.yMax - 50f * s, 200f, 24f * s), "50 km", label);
+            float barM = ScaleBar(mapRect.width * 0.2f / pxPerM);
+            Hud.Fill(new Rect(mapRect.x + 20f * s, mapRect.yMax - 26f * s, barM * pxPerM, 2f * s), new Color(0.7f, 0.8f, 0.9f, 0.7f));
+            GUI.Label(new Rect(mapRect.x + 20f * s, mapRect.yMax - 50f * s, mapRect.width - 40f * s, 24f * s),
+                      $"{(barM >= 1e6f ? (barM / 1e9f >= 1f ? $"{barM / 1e9f:0.#} million km" : $"{barM / 1000f:N0} km") : $"{barM / 1000f:N0} km")}" +
+                      (zoom > 1.01f ? $"   <color=#9aa4b0>zoom {zoom:0.#}x   Home: whole system</color>" : ""), label);
 
             Info(s);
+        }
+
+        /// <summary>A round length (1, 2 or 5 times a power of ten metres) at most `most`.</summary>
+        public static float ScaleBar(float most)
+        {
+            if (most <= 1f) return 1f;
+            float p = Mathf.Pow(10f, Mathf.Floor(Mathf.Log10(most)));
+            return most >= 5f * p ? 5f * p : most >= 2f * p ? 2f * p : p;
         }
 
         readonly List<Rect> placed = new List<Rect>();
@@ -629,8 +754,8 @@ namespace CarrierGame.Demo
         void Info(float s)
         {
             float x = infoRect.x + 20f * s, y = infoRect.y + 18f * s, w = infoRect.width - 40f * s;
-            var body = Hud.Text(17);
-            body.wordWrap = true;
+            // (a copy: Hud.Text's styles are shared)
+            var body = Wrapped(ref bodyStyle, 17);
             var ally = SelectedAlly != null ? AllyOf(SelectedAlly) : null;
             if (ally != null)
             {
@@ -679,9 +804,21 @@ namespace CarrierGame.Demo
             Hud.Outline(warpButton, Mathf.Max(1f, 2f * s), usable ? new Color(0.6f, 0.85f, 1f) : new Color(0.5f, 0.55f, 0.6f));
             GUI.Label(warpButton, usable ? "<b>WARP</b>" : "<color=#9aa4b0><b>WARP</b></color>", Hud.Text(24, true, TextAnchor.MiddleCenter));
             bool pad = PadSupport.UsingPad && Gamepad.current != null;
-            string help = pad ? "Stick / D-pad: choose   LB/RB: step\nA: warp   B or R3: close"
-                              : "Click a place or a ship, or arrows/WASD: choose   Tab: step\nWARP, double-click or Enter: warp   M/Esc: close";
-            GUI.Label(new Rect(x, warpButton.yMax + 12f * s, w, 50f * s), $"<color=#9aa4b0>{help}</color>", Hud.Text(14));
+            string help = pad ? "Stick / D-pad: choose   LB/RB: step\nA: warp   B or R3: close\nRight stick: move   LT/RT: zoom"
+                              : "Click, arrows or WASD: choose   Tab: step\nWARP, double-click or Enter: warp   M/Esc: close\nWheel or +/-: zoom   right-drag: move   Home: all";
+            var helpStyle = Wrapped(ref helpTextStyle, 13);
+            GUI.Label(new Rect(x, warpButton.yMax + 10f * s, w, Mathf.Max(20f * s, Screen.height - warpButton.yMax - 14f * s)), $"<color=#9aa4b0>{help}</color>", helpStyle);
+        }
+
+        GUIStyle bodyStyle, helpTextStyle;
+
+        /// <summary>A wrapping copy of Hud.Text's style (whose styles are shared), made again only
+        /// when the text size changes.</summary>
+        static GUIStyle Wrapped(ref GUIStyle kept, int basePx)
+        {
+            var src = Hud.Text(basePx);
+            if (kept == null || kept.fontSize != src.fontSize) kept = new GUIStyle(src) { wordWrap = true };
+            return kept;
         }
 
         void Field(Vector2 p, WarpPoint w, float s)
@@ -696,35 +833,68 @@ namespace CarrierGame.Demo
             }
         }
 
-        static void Draw(Texture2D t, Vector2 c, float size, Color col)
+        void Draw(Texture2D t, Vector2 c, float size, Color col)
         {
-            if (Event.current.type != EventType.Repaint) return;
+            if (Event.current.type != EventType.Repaint || !OnMap(c, -size * 0.5f)) return;
             var old = GUI.color;
             GUI.color = col;
             GUI.DrawTexture(new Rect(c.x - size * 0.5f, c.y - size * 0.5f, size, size), t);
             GUI.color = old;
         }
 
-        void DottedCircle(Vector2 c, float r, Color col, int dots)
+        /// <summary>A dotted circle, only the part of it on the map: a dot every few pixels, so
+        /// zoomed in, a huge orbit is a handful of dots across the view, not thousands.</summary>
+        void DottedCircle(Vector2 c, float r, Color col)
         {
             if (Event.current.type != EventType.Repaint || r < 2f) return;
             float s = Mathf.Max(1.5f, 2f * Hud.S);
+            float half = mapRect.width * 0.75f;                     // (the square's half-diagonal, and a bit)
+            float d = Vector2.Distance(c, mapRect.center);
+            if (d - r > half || r - d > half) return;              // (all off the map, or the map all inside it)
+            float spacing = 7f * Hud.S;
+            float from = 0f, span = Mathf.PI * 2f;
+            if (r > half)
+            {
+                // (the arc that can be on the map: round the direction of the map's middle)
+                float toMid = Mathf.Atan2(mapRect.center.y - c.y, mapRect.center.x - c.x);
+                float a = Mathf.Asin(Mathf.Clamp01(half / r)) * 1.3f;
+                from = toMid - a;
+                span = a * 2f;
+            }
+            int dots = Mathf.Clamp(Mathf.CeilToInt(span * r / spacing), 12, 3000);
             for (int i = 0; i < dots; i++)
             {
-                float a = i * Mathf.PI * 2f / dots;
-                Hud.Fill(new Rect(c.x + Mathf.Cos(a) * r - s * 0.5f, c.y + Mathf.Sin(a) * r - s * 0.5f, s, s), col);
+                float a = from + i * span / dots;
+                var p = new Vector2(c.x + Mathf.Cos(a) * r, c.y + Mathf.Sin(a) * r);
+                if (!OnMap(p, 0f)) continue;
+                Hud.Fill(new Rect(p.x - s * 0.5f, p.y - s * 0.5f, s, s), col);
             }
         }
 
-        static void DottedLine(Vector2 a, Vector2 b, Color col, float spacing)
+        /// <summary>A dotted line, the part of it on the map (a dot every `spacing` pixels).</summary>
+        void DottedLine(Vector2 a, Vector2 b, Color col, float spacing, float dot = 0f)
         {
             if (Event.current.type != EventType.Repaint) return;
-            float len = Vector2.Distance(a, b);
-            int n = Mathf.Min(400, Mathf.FloorToInt(len / spacing));
-            float s = Mathf.Max(2f, 3f * Hud.S);
-            for (int i = 1; i < n; i++)
+            // (clipped to the map's square first: zoomed in, a course can be a million pixels long)
+            float t0 = 0f, t1 = 1f;
+            Vector2 d = b - a;
+            bool Clip(float p, float q)
             {
-                Vector2 p = Vector2.Lerp(a, b, i / (float)n);
+                if (Mathf.Abs(p) < 1e-6f) return q >= 0f;
+                float r = q / p;
+                if (p < 0f) { if (r > t1) return false; if (r > t0) t0 = r; }
+                else { if (r < t0) return false; if (r < t1) t1 = r; }
+                return true;
+            }
+            if (!Clip(-d.x, a.x - mapRect.xMin) || !Clip(d.x, mapRect.xMax - a.x) || !Clip(-d.y, a.y - mapRect.yMin) || !Clip(d.y, mapRect.yMax - a.y)) return;
+            Vector2 from = a + d * t0, to = a + d * t1;
+            float len = Vector2.Distance(from, to);
+            int n = Mathf.Min(400, Mathf.FloorToInt(len / spacing));
+            float s = dot > 0f ? dot : Mathf.Max(2f, 3f * Hud.S);
+            // (the first dot only where the line really starts: not at the map's edge)
+            for (int i = t0 > 0f ? 0 : 1; i < n; i++)
+            {
+                Vector2 p = Vector2.Lerp(from, to, i / (float)Mathf.Max(1, n));
                 Hud.Fill(new Rect(p.x - s * 0.5f, p.y - s * 0.5f, s, s), col);
             }
         }

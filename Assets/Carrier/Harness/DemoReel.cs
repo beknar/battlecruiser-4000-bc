@@ -53,6 +53,8 @@ namespace CarrierGame.Demo
             VraskReel = Hud.ReelMode && LaunchArgs.Has("-vrask");
             // -cic: five frigates against the Vrask picket over Sheol, with the tactical display
             CicReel = Hud.ReelMode && LaunchArgs.Has("-cic");
+            // (the CIC reel's own ship is hidden out of the fight: none of her HUD)
+            Hud.ReelNoShip = CicReel;
             Features = Hud.ReelMode && (Orbits || All || Frigates || SeaReel || VraskReel || CicReel || LaunchArgs.Has("-features"));
             Hud.ReelShowsMarks = Features;
         }

@@ -122,7 +122,7 @@ namespace CarrierGame.Demo
 
         void OnGUI()
         {
-            if (carrier == null) return;
+            if (carrier == null || Hud.ReelNoShip) return;
             float s = Hud.S;
             var cam = Camera.main;
             if (cam != null)

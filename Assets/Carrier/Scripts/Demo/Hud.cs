@@ -17,6 +17,9 @@ namespace CarrierGame.Demo
         public static bool ReelMode;
         /// <summary>The reel shows the mining marks too (the features reels).</summary>
         public static bool ReelShowsMarks;
+        /// <summary>The reel's own ship isn't in it (hidden: the CIC reel): no console, captain,
+        /// target panel or messages of hers on the screen.</summary>
+        public static bool ReelNoShip;
 
         /// <summary>1 at 900 px tall (never below 1), times the user setting.</summary>
         public static float S => Mathf.Max(1f, Screen.height / 900f) * UserScale;

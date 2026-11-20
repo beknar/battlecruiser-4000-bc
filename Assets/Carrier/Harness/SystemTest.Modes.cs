@@ -448,11 +448,13 @@ namespace CarrierGame.Demo
             yield return null;
             demo.SelectTarget(aimed.transform);
             var aimedHealth = aimed.GetComponent<Health>();
+            // (the dead are destroyed at once: their transforms kept to take them off the list)
+            Transform aimedT = aimed.transform, nearerT = nearer.transform;
             aimedHealth.Damage(1e6f);
             nearer.GetComponent<Health>().Damage(1e6f);
             yield return null;
-            Targets.Remove(aimed.transform);
-            Targets.Remove(nearer.transform);
+            Targets.Remove(aimedT);
+            Targets.Remove(nearerT);
             var aimedWreck = Wreck.All.LastOrDefault(w => w != null && w.Of == "Targeted hulk");
             // (a few seconds on, the dead hulk itself gone: its wreck is still the one)
             yield return new WaitForSeconds(1f);

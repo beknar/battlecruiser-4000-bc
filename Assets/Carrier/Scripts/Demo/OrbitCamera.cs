@@ -25,8 +25,10 @@ namespace CarrierGame.Demo
 
         void LateUpdate()
         {
-            // no orbiting or zooming under the pause menu (it still follows its target)
-            var mouse = GameMenu.IsOpen ? null : Mouse.current;
+            // no orbiting or zooming under the pause menu or the system map, which pans and zooms
+            // itself with the same controls (it still follows its target)
+            bool held = GameMenu.IsOpen || SystemMap.IsOpen;
+            var mouse = held ? null : Mouse.current;
             if (mouse != null)
             {
                 if (mouse.rightButton.isPressed)
@@ -39,7 +41,7 @@ namespace CarrierGame.Demo
                 if (Mathf.Abs(scroll) > 0.01f)
                     distance = Mathf.Clamp(distance * (scroll > 0 ? 0.9f : 1.1f), minDistance, maxDistance);
             }
-            var pad = GameMenu.IsOpen ? null : Gamepad.current;
+            var pad = held ? null : Gamepad.current;
             if (pad != null)
             {
                 // right stick orbits (degrees per second), RT zooms in, LT zooms out

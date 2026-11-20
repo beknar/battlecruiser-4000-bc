@@ -55,6 +55,28 @@ namespace CarrierGame.Demo
             Shot("nav_map");
             Check(SystemMap.IsOpen && seen.Contains("Thalassa") && seen.Contains("Kestrel Deep Yard") && !seen.Contains("Thalassa Highport") && !seen.Contains("Port Ochre"),
                   $"the map steps through {seen.Count} places, not their points of interest");
+
+            // ---- the map's view: zoomed about a point (which stays put), + zooms, choosing a place
+            // off the view brings it in, Home shows the whole system again
+            if (SystemMap.IsOpen && thalassa != null)
+            {
+                Vector2 at = map.ScreenPosOf(thalassa);
+                map.ZoomAt(at, 400f);
+                yield return null;
+                float zoomed = map.Zoom, drift = Vector2.Distance(map.ScreenPosOf(thalassa), at);
+                yield return Key(kb, K.NumpadPlus);
+                float more = map.Zoom;
+                Shot("nav_map_zoom");
+                var far = Point("Glacis") ?? Point("Kestrel Deep Yard");
+                bool offBefore = far != null && !map.InView(far.Position);
+                map.Select(far);
+                yield return null;
+                bool inAfter = far != null && map.InView(far.Position);
+                yield return Key(kb, K.Home);
+                Log($"map view: zoom {zoomed:F0}x (Thalassa moved {drift:F1} px), + to {more:F0}x, {far?.displayName} off the view {offBefore}, in after choosing it {inAfter}, Home: {map.Zoom:F1}x");
+                Check(zoomed > 50f && drift < 3f && more > zoomed && offBefore && inAfter && Mathf.Approximately(map.Zoom, 1f),
+                      "the map zooms about the pointer, + zooms in, a place chosen off the view comes into it, Home shows it all");
+            }
             yield return Key(kb, K.Escape);
 
             // ---- at Thalassa: the menu lists its points of interest

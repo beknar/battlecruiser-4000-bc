@@ -44,6 +44,58 @@ namespace CarrierGame.Tests
         }
 
         [Test]
+        public void ALongReplyIsKeptWhole()
+        {
+            // (a full answer from the wingman's LLM: more than the old 240 characters)
+            string reply = "Wingman: " + new string('y', 330);
+            Assert.That(CoopChat.Clean(reply), Is.EqualTo(reply));
+            Assert.That(CoopChat.MaxLength, Is.GreaterThanOrEqualTo(400));
+            // (line breaks and the space before it aren't counted against the limit)
+            string lines = "   " + string.Join("\n", System.Linq.Enumerable.Repeat(new string('z', 39), 10));
+            Assert.That(CoopChat.Clean(lines).Length, Is.EqualTo(390));
+            Assert.That(CoopChat.Clean(new string('x', 500), int.MaxValue).Length, Is.EqualTo(500), "uncut, to tell whether it was cut");
+        }
+
+        [Test]
+        public void TheSendersNameIsShownOnce()
+        {
+            var bot = new CoopChat.Line { name = "Wingman", text = "Wingman: on your wing." };
+            Assert.That(CoopChat.Shown(bot), Is.EqualTo("Wingman: on your wing."));
+            var player = new CoopChat.Line { name = "web_user", text = "wingman, status" };
+            Assert.That(CoopChat.Shown(player), Is.EqualTo("web_user: wingman, status"));
+        }
+
+        [Test]
+        public void ALandedLeaderIsWaitedForInHighOrbit()
+        {
+            WarpPoint Point(string name, WarpPoint.Kind kind)
+            {
+                var go = new GameObject(name);
+                made.Add(go);
+                var w = go.AddComponent<WarpPoint>();
+                w.displayName = name;
+                w.kind = kind;
+                if (!WarpPoint.All.Contains(w)) WarpPoint.All.Add(w);
+                return w;
+            }
+            var forge = Point("The Forge", WarpPoint.Kind.Planet);
+            var orbit = Point("The Forge High Orbit", WarpPoint.Kind.Landmark);
+            var bare = Point("Seraph", WarpPoint.Kind.Moon);
+            try
+            {
+                Assert.That(Wingman.WaitingPlace(forge), Is.SameAs(orbit));
+                Assert.That(Wingman.WaitingPlace(bare), Is.SameAs(bare), "no high orbit: over the world itself");
+                Assert.That(Wingman.WaitingPlace(null), Is.Null);
+            }
+            finally
+            {
+                WarpPoint.All.Remove(forge);
+                WarpPoint.All.Remove(orbit);
+                WarpPoint.All.Remove(bare);
+            }
+        }
+
+        [Test]
         public void SayingNothingOrUnconnectedSendsNothing()
         {
             Assert.That(CoopChat.Say("hello"), Is.False, "not connected");

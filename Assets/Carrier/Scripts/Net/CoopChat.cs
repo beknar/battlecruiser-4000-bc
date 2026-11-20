@@ -31,7 +31,7 @@ namespace CarrierGame.Demo
             public string name, text;
         }
 
-        public const int MaxLength = 240, Kept = 200;
+        public const int MaxLength = 400, Kept = 200;
         public static readonly List<Line> Lines = new List<Line>();
         public static int LastSeq { get; private set; }
         /// <summary>A message has arrived (or been sent from here).</summary>
@@ -49,6 +49,7 @@ namespace CarrierGame.Demo
         int openedFrame;
         string draft = "";
         GUIStyle box, input;
+        readonly List<float> heights = new List<float>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() { Lines.Clear(); LastSeq = 0; Received = null; Instance = null; }
@@ -87,14 +88,15 @@ namespace CarrierGame.Demo
             return true;
         }
 
-        /// <summary>At most MaxLength characters, without control characters or space round it.</summary>
-        public static string Clean(string s)
+        /// <summary>At most `limit` characters (MaxLength), without control characters or space round it.</summary>
+        public static string Clean(string s, int limit = MaxLength)
         {
             if (string.IsNullOrEmpty(s)) return "";
-            var sb = new System.Text.StringBuilder(Math.Min(s.Length, MaxLength));
-            foreach (char c in s)
+            var sb = new System.Text.StringBuilder(Math.Min(s.Length, limit));
+            // (the space before it doesn't count against the limit)
+            foreach (char c in s.TrimStart())
             {
-                if (sb.Length >= MaxLength) break;
+                if (sb.Length >= limit) break;
                 if (!char.IsControl(c)) sb.Append(c);
             }
             return sb.ToString().Trim();
@@ -107,9 +109,14 @@ namespace CarrierGame.Demo
             var line = new Line { seq = ++LastSeq, time = Now, from = from, name = name ?? "", text = text };
             Lines.Add(line);
             if (Lines.Count > Kept) Lines.RemoveAt(0);
-            if (CoopClient.Instance == null || from != CoopClient.Instance.MyId) Notices.Post($"{line.name}: {text}");
+            if (CoopClient.Instance == null || from != CoopClient.Instance.MyId) Notices.Post(Shown(line));
             Received?.Invoke(line);
         }
+
+        /// <summary>A message as shown: "name: text", or the text alone when it starts with the
+        /// sender's name already (the bots say "Wingman: ...").</summary>
+        public static string Shown(Line l) =>
+            l.name.Length > 0 && l.text.StartsWith(l.name + ":", StringComparison.OrdinalIgnoreCase) ? l.text : $"{l.name}: {l.text}";
 
         void Update()
         {
@@ -151,10 +158,11 @@ namespace CarrierGame.Demo
         {
             Area = Rect.zero;
             if (!CoopClient.Active && !typing) return;
-            float s = Screen.height / 1080f;
+            // (the HUD's scale: the screen's height, and the player's text size)
+            float s = Hud.S * 900f / 1080f;
             if (box == null)
             {
-                box = new GUIStyle(GUI.skin.label) { richText = false, wordWrap = false, clipping = TextClipping.Clip };
+                box = new GUIStyle(GUI.skin.label) { richText = false, wordWrap = true, clipping = TextClipping.Clip };
                 input = new GUIStyle(GUI.skin.textField);
             }
             box.fontSize = Mathf.RoundToInt(17 * s);
@@ -173,22 +181,33 @@ namespace CarrierGame.Demo
                 w = Mathf.Min(560 * s, Screen.width - 32 * s);
                 bottom = console.height > 0f ? console.yMin - 6 * s : bottom;
             }
-            // the last six, each fading out 20 to 26 s after it came (all of them while typing)
+            // the last six, each fading out 20 to 26 s after it came (all of them while typing), each
+            // wrapped over as many lines as it takes: the whole of it, however long (up to a third
+            // of the screen's height for all of them, the oldest dropped first)
             double now = Now;
             float Alpha(Line l) => typing ? 1f : Mathf.Clamp01((26f - (float)(now - l.time)) / 6f);
+            float room = Screen.height / 3f, used = 0f;
             int shown = 0;
-            for (int i = Lines.Count - 1; i >= 0 && shown < 6 && Alpha(Lines[i]) > 0f; i--) shown++;
-            float y = bottom - (typing ? inputH + 4 * s : 0f) - shown * lh;
+            heights.Clear();
+            for (int i = Lines.Count - 1; i >= 0 && shown < 6 && Alpha(Lines[i]) > 0f; i--)
+            {
+                float h = Mathf.Max(lh, box.CalcHeight(new GUIContent(Shown(Lines[i])), w));
+                if (shown > 0 && used + h > room) break;
+                heights.Insert(0, h);
+                used += h;
+                shown++;
+            }
+            float y = bottom - (typing ? inputH + 4 * s : 0f) - used;
             Area = new Rect(x - 4 * s, y, w + 8 * s, bottom - y);
-            for (int i = Lines.Count - shown; i < Lines.Count; i++)
+            for (int i = Lines.Count - shown, k = 0; i < Lines.Count; i++, k++)
             {
                 var l = Lines[i];
-                float a = Alpha(l);
+                float a = Alpha(l), h = heights[k];
                 GUI.color = new Color(0f, 0f, 0f, 0.55f * a);
-                GUI.DrawTexture(new Rect(x - 4 * s, y, w + 8 * s, lh), Texture2D.whiteTexture);
+                GUI.DrawTexture(new Rect(x - 4 * s, y, w + 8 * s, h), Texture2D.whiteTexture);
                 GUI.color = new Color(0.55f, 0.85f, 1f, a);
-                GUI.Label(new Rect(x, y, w, lh), $"{l.name}: {l.text}", box);
-                y += lh;
+                GUI.Label(new Rect(x, y, w, h), Shown(l), box);
+                y += h;
             }
             GUI.color = Color.white;
             if (!typing) return;

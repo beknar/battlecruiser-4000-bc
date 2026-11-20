@@ -72,7 +72,8 @@ namespace CarrierGame.Demo
         void Show(string message)
         {
             toast = message;
-            toastUntil = Clock + 2.5f;
+            // (long enough to read: a long one, a comms message, stays up longer, 10 s at most)
+            toastUntil = Clock + Mathf.Clamp(message != null ? message.Length / 30f : 0f, 2.5f, 10f);
         }
 
         // ------------------------------------------------------------ the controls box
@@ -307,6 +308,13 @@ namespace CarrierGame.Demo
                 var ts = Hud.Text(20, true, TextAnchor.MiddleCenter);
                 var tc = new GUIContent(toast);
                 Vector2 tsz = ts.CalcSize(tc);
+                // (a long one, a comms message: wrapped, at most two thirds of the screen wide)
+                float most = Screen.width * 0.66f;
+                if (tsz.x > most)
+                {
+                    ts = new GUIStyle(ts) { wordWrap = true };
+                    tsz = new Vector2(most, ts.CalcHeight(tc, most));
+                }
                 var r = new Rect((Screen.width - tsz.x) * 0.5f - pad2, Screen.height - tsz.y - pad2 * 6f, tsz.x + pad2 * 2f, tsz.y + pad2);
                 if (r.Overlaps(ShipConsole.Rect)) r.y = ShipConsole.Rect.yMin - r.height - pad2;
                 Hud.Panel(r);

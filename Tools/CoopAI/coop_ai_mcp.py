@@ -233,7 +233,7 @@ TOOLS = [
      {"amount": {"type": "string", "description": "a number of credits, 'all' (the default) or 'half'"},
       "to": {"type": "string", "description": "the player's name (or part of it)"}}, [], t_give_credits),
     ("say", "Send a message on the co-op comms channel, as the bot. Every player in its level sees it.",
-     {"text": {"type": "string", "description": "the message (240 characters at most)"}}, ["text"], t_say),
+     {"text": {"type": "string", "description": "the message (400 characters at most)"}}, ["text"], t_say),
     ("order", "Order the bot's pilot. follow [player name] (no name: the last player to speak): fly in formation, "
               "warping after them; hold: stop where it is; attack [target name]: fight the target or the nearest "
               "enemy; goto <place>: warp to a destination; regroup: form up on the nearest player; dock: dock at "
@@ -292,7 +292,7 @@ def handle(msg):
                             "serverInfo": {"name": "coop-ai", "version": "1.0"},
                             "instructions": "You are flying a ship in a co-op space game, as the players' wingman. "
                                             "Listen on the comms channel (wait_messages, or read_messages) and answer players "
-                                            "with say, in short radio lines (240 characters at most). Orders addressed to the "
+                                            "with say, in short radio lines (400 characters at most). Orders addressed to the "
                                             "bot by name are carried out by it already; answer the talk, but only while the "
                                             "chat_mode in read_messages/wait_messages is llm (personality: the bot answers "
                                             "talk itself; paused: nobody does). Carry out what they ask "

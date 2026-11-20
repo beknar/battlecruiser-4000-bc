@@ -165,6 +165,33 @@ namespace CarrierGame.Demo
             var onMap = patrols.Where(x => x.TryGetComponent(out WarpPoint w) && w.hostile && Places.IsPlace(w)).Count();
             Check(patrols.Count == 7 && moved && onMap == 7,
                   $"7 of them on patrol, places of their own on the map ({onMap}); the {far?.group?.groupName} moving round {far?.body?.displayName} ({a0:F3} -> {(far != null ? far.Angle : 0f):F3} deg)");
+            // the bands where they should be: the stream bands among the stream's rocks, the Outer
+            // Belt's lurkers well clear of the Vrask brood, the Gilgal picket in the ring
+            float BandTo(string band, Vector3 at)
+            {
+                var g = groups.FirstOrDefault(x => x.groupName == band);
+                var alive = g != null ? g.pilots.Where(x => x != null).ToList() : null;
+                if (alive == null || alive.Count == 0) return -1f;
+                Vector3 mid = alive.Aggregate(Vector3.zero, (a, x) => a + x.transform.position) / alive.Count;
+                return Vector3.Distance(mid, at) / 1000f;
+            }
+            float RocksTo(string field, string band)
+            {
+                var f = P(field);
+                var g = groups.FirstOrDefault(x => x.groupName == band);
+                if (f == null || g == null || g.pilots.All(x => x == null)) return -1f;
+                Vector3 mid = g.pilots.Where(x => x != null).Aggregate(Vector3.zero, (a, x) => a + x.transform.position) / g.pilots.Count(x => x != null);
+                var rocks = f.GetComponentsInChildren<Transform>().Where(x => x.name.StartsWith("Meteoroid")).ToList();
+                return rocks.Count == 0 ? -1f : rocks.Min(x => Vector3.Distance(x.position, mid)) / 1000f;
+            }
+            float havilah = RocksTo("Havilah", "Vrask hunting pair"), shebaGap = RocksTo("Sheba", "Sheba destroyer squadron");
+            var brood = groups.FirstOrDefault(x => x.groupName == "Vrask brood");
+            float broodGap = brood != null ? BandTo("Outer Belt lurkers", brood.pilots.Where(x => x != null).Aggregate(Vector3.zero, (a, x) => a + x.transform.position) / Mathf.Max(1, brood.pilots.Count(x => x != null))) : -1f;
+            var gilgalWp = P("Gilgal");
+            float picketRadii = gilgalWp != null && picket != null ? BandTo("Gilgal picket fleet", gilgalWp.Position) * 1000f / gilgalWp.bodyRadius : -1f;
+            Check(havilah >= 0f && havilah < 3f && shebaGap >= 0f && shebaGap < 3f && broodGap > 8f && picketRadii > 1.35f && picketRadii < 2.3f,
+                  $"the bands where they belong: the Havilah pair {havilah:F1} km and the Sheba squadron {shebaGap:F1} km from their streams' rocks; " +
+                  $"the Outer Belt lurkers {broodGap:F1} km from the brood; the Gilgal picket {picketRadii:F2} radii out, in the ring");
             // docked at the top of the elevator
             yield return WarpTo(kb, "Heaven Highport", "nh_highport");
             bool docked = false;

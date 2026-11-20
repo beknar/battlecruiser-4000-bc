@@ -130,6 +130,14 @@ namespace CarrierGame.Demo
                 if (ratio < landingRange && w.arrivalDistance < bestZone) { bestZone = w.arrivalDistance; best = w; }
             }
             if (best == null) return null;
+            // a wreck here to salvage (being salvaged, the target's, chosen or in reach): Z
+            // salvages it; K doesn't land on what is under it
+            var wreck = Salvage.Instance != null ? Salvage.Instance.WreckHere() : null;
+            if (wreck != null)
+            {
+                why = $"Z salvages {wreck.Name} here";
+                return null;
+            }
             // in the approach to a station or base to dock at (Deepcut, out at the edge of the
             // Inner Belt): K docks there, it doesn't land on the field
             if (Installation.ApproachableNear(carrier.transform.position, NavigationMode.Flying) is Installation dockHere)
@@ -168,6 +176,8 @@ namespace CarrierGame.Demo
                 SoundFX.Ui(Sfx.UiError);
                 return false;
             }
+            // (which world, before the fade: an asteroid field's rock, say, isn't the field's base)
+            Notices.Post($"Landing on {body.LandingBody.displayName}");
             if (Seamless(body.LandingBody)) StartCoroutine(AutoLand(body.LandingBody));
             else StartCoroutine(Descend(body.LandingBody));
             return true;

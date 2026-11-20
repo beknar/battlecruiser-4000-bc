@@ -108,7 +108,11 @@ namespace CarrierGame.Demo
             return list.Where(c => c.Item2 > 0f && table != null && table.Kind(c.Item1) != ItemKind.None).ToList();
         }
 
-        /// <summary>The wrecks within 20 km, nearest first, worked out once a frame.</summary>
+        /// <summary>How far off a wreck is listed and salvaged without choosing it (the combat
+        /// menu lists them as far).</summary>
+        public const float Around = 30000f;
+
+        /// <summary>The wrecks within 30 km, nearest first, worked out once a frame.</summary>
         List<Wreck> NearNow()
         {
             if (nearFrame == Time.frameCount) return near;
@@ -118,7 +122,7 @@ namespace CarrierGame.Demo
             if (ship == null) return near;
             Vector3 me = ship.transform.position;
             foreach (var w in Wreck.All)
-                if (w != null && !w.Empty && (w.transform.position - me).sqrMagnitude < 20000f * 20000f) near.Add(w);
+                if (w != null && !w.Empty && (w.transform.position - me).sqrMagnitude < Around * Around) near.Add(w);
             near.Sort((a, c) => (a.transform.position - me).sqrMagnitude.CompareTo((c.transform.position - me).sqrMagnitude));
             return near;
         }
@@ -138,10 +142,35 @@ namespace CarrierGame.Demo
 
         // ------------------------------------------------------------ the beam
 
+        /// <summary>The wreck of the ship targeted, when it has been destroyed (it stays the
+        /// target; its wreck is a thing of its own), and there is still something in it.</summary>
+        public Wreck TargetWreck()
+        {
+            var t = Ship != null ? Ship.target : null;
+            if (t == null || !t.TryGetComponent(out Health h) || !h.Dead) return null;
+            return Wreck.All.LastOrDefault(w => w != null && w.From == h && !w.Empty);
+        }
+
+        /// <summary>The wreck K would land beside: one being salvaged or flown to, the target's,
+        /// or one chosen or in reach (within 30 km): Z salvages it, K doesn't land there.</summary>
+        public Wreck WreckHere()
+        {
+            if (Working != null) return Working;
+            if (FlyingToWreck) return flyingTo;
+            var w = TargetWreck() ?? (Chosen != null && !Chosen.Empty ? Chosen : null);
+            if (w != null && DistanceTo(w) < Around) return w;
+            var nearest = NearNow().FirstOrDefault();
+            return nearest != null && InReach(nearest) ? nearest : null;
+        }
+
         public void Choose(Wreck w)
         {
             Chosen = w;
             if (w == null) return;
+            // (a wreck chosen over the destroyed ship still targeted: the target let go, so Z
+            // salvages the one chosen)
+            var ship = Ship;
+            if (ship != null && ship.target != null && ship.target.TryGetComponent(out Health th) && th.Dead && TargetWreck() != w) demo.ClearTarget();
             SoundFX.Ui(Sfx.UiLock);
             Notices.Post(InReach(w) ? $"{w.Name}: in reach. Z salvages it" : $"{w.Name} chosen, {CombatMode.Distance(DistanceTo(w))} off: Z flies there and salvages it");
         }
@@ -152,11 +181,28 @@ namespace CarrierGame.Demo
         {
             if (Working != null) { Stop("Salvage beam off"); return; }
             if (FlyingToWreck) { AutoFly.Instance.Stop("Auto-flight off"); flyingTo = null; return; }
-            // the one chosen, or the nearest about
-            var w = Chosen != null && !Chosen.Empty ? Chosen : NearNow().FirstOrDefault();
+            // the destroyed target's wreck, the one chosen, or the nearest about
+            var w = TargetWreck() ?? (Chosen != null && !Chosen.Empty ? Chosen : NearNow().FirstOrDefault());
             if (w == null) { Refuse("No wreck near: destroy a hostile, or choose a wreck in the combat menu (Tab)"); return; }
+            SalvageWreck(w);
+        }
+
+        /// <summary>Salvage this wreck: the beam on it if it is in reach, or a flight there (instead
+        /// of any flight or beam under way) and the beam on arrival. Says why, if it can't.</summary>
+        public void SalvageWreck(Wreck w)
+        {
+            if (w == null || w.Empty) { Refuse("Nothing left in that wreck"); return; }
+            Chosen = w;
+            if (Working == w) return;
             if (!CanSalvage()) return;
-            if (!InReach(w)) { FlyTo(w); return; }
+            if (Working != null) Stop();
+            if (!InReach(w))
+            {
+                if (FlyingToWreck && flyingTo == w) return;
+                if (!FlyTo(w) && AutoFly.Instance == null) Refuse($"Can't fly to {w.Name} here");
+                return;
+            }
+            if (FlyingToWreck) { AutoFly.Instance.Stop(null); flyingTo = null; }
             StartOn(w);
         }
 
@@ -175,7 +221,8 @@ namespace CarrierGame.Demo
         bool CanSalvage()
         {
             var ship = Ship;
-            if (ship == null || ship.Destroyed) return false;
+            if (ship == null) return false;
+            if (ship.Destroyed) { Refuse("The ship is lost: no salvage till she is back"); return false; }
             var hold = demo.Cargo;
             if (hold == null) { Refuse($"The {ship.shipName.ToLower()} has no hold to salvage into"); return false; }
             if (hold.Full) { Refuse("The hold is full"); return false; }

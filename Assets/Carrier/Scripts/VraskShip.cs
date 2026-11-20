@@ -59,8 +59,14 @@ namespace CarrierGame
 
         void OnDestroy() => All.Remove(this);
 
+        /// <summary>How many ablative plates its hull wears, by its kind.</summary>
+        public static int PlatesFor(Role r) => r == Role.Maw ? 16 : r == Role.Snare ? 12 : r == Role.Fang ? 10 : 8;
+
         void Start()
         {
+            // its armour, seen: plates that blow off as it wears
+            if (GetComponent<Armor>() != null && GetComponent<AblativePlates>() == null)
+                gameObject.AddComponent<AblativePlates>().count = PlatesFor(role);
             if (health == null) return;
             health.onDestroyed ??= new UnityEngine.Events.UnityEvent();
             health.onRespawned ??= new UnityEngine.Events.UnityEvent();

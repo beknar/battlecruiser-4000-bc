@@ -33,6 +33,7 @@ namespace CarrierGame.Demo
         public float sf;          // its shield: 1 + how charged (0: none, or not sent)
         public bool sd;           // its shield down
         public int tr;            // the player its tractor beam holds: 1 + their id (0: none, or from an older game)
+        public float ar;          // its armour: 1 + how whole (0: none, or from an older game)
     }
 
     /// <summary>Anything that arrives.</summary>

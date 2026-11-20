@@ -79,3 +79,28 @@ once it has lost its Maws and every Snare.
 
 The two-frigate CIC reel (`-cic -cicfleet Vanguard,Talon -cicmix 2,3,2,3 -cicsection`) is
 one of these battles, played in real time.
+
+## Before and after the Vrask ablative armour
+
+The same four mixes were fought again with the Vrask armour of PR 7: plates that blow off as the
+armour wears and grow back out of a fight. That makes **480 battles before and 480 after**:
+10 pairs, 2 tactics and 6 runs for each mix. The command line is the one above with `-simreps 6`.
+
+| Vrask mix | Tactic | Battles | Won | Frigates lost | Average time (s) | Vrask destroyed | Vrask withdrew | Hits on the frigates | Hull left |
+|---|---|---|---|---|---|---|---|---|---|
+| 2 Maws 3 Snares 2 Fangs 3 Skinks | default | 60 / 60 | 59 → 59 | 2 → 2 | 100 → 101 | 9.9 → 9.9 | 0 → 0 | 33 → 17 | 98% → 98% |
+| 2 Maws 3 Snares 2 Fangs 3 Skinks | section | 60 / 60 | 60 → 60 | 0 → 0 | 80 → 80 | 7.0 → 7.0 | 60 → 60 | 115 → 121 | 97% → 97% |
+| 2 Maws 4 Snares 2 Fangs 2 Skinks | default | 60 / 60 | 59 → 60 | 2 → 0 | 101 → 102 | 9.8 → 10.0 | 0 → 0 | 44 → 52 | 98% → 99% |
+| 2 Maws 4 Snares 2 Fangs 2 Skinks | section | 60 / 60 | 60 → 60 | 0 → 0 | 89 → 89 | 8.0 → 8.0 | 60 → 60 | 100 → 95 | 98% → 97% |
+| 2 Maws 4 Snares 3 Fangs 1 Skink | default | 60 / 60 | 59 → 60 | 2 → 1 | 103 → 105 | 9.8 → 10.0 | 0 → 0 | 24 → 33 | 98% → 100% |
+| 2 Maws 4 Snares 3 Fangs 1 Skink | section | 60 / 60 | 60 → 60 | 1 → 2 | 93 → 94 | 9.0 → 8.9 | 60 → 60 | 64 → 74 | 96% → 97% |
+| 3 Maws 3 Snares 2 Fangs 2 Skinks | default | 60 / 60 | 59 → 60 | 2 → 1 | 109 → 111 | 9.8 → 9.9 | 4 → 4 | 49 → 65 | 98% → 99% |
+| 3 Maws 3 Snares 2 Fangs 2 Skinks | section | 60 / 60 | 60 → 60 | 0 → 0 | 83 → 84 | 8.0 → 8.0 | 60 → 60 | 70 → 95 | 95% → 96% |
+
+- **The fights come out the same.** Wins went from 476 to 479 of 480, frigates lost from 9 to 6,
+  and the average time from 95 to 96 s. These differences are within run-to-run noise.
+- **That is by design.** The plates only show the armour; its sums (what it stops, how it wears)
+  are unchanged. The armour grows back only after 90 s with no hit and no frigate within 15 km,
+  which never happens in a fight that lasts about 100 s.
+- **Hits on the frigates move around a lot** (17 to 121 per battle). That number swings widely
+  from run to run, and in these sims it doesn't follow the armour.

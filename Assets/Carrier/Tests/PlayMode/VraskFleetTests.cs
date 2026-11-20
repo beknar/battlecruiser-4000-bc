@@ -49,6 +49,9 @@ namespace CarrierGame.Tests
             f.noSnares = true;
             Assert.That(VraskFleet.Next(Phase.Board, f, 30f), Is.EqualTo(Phase.Board), "no Snares to go back to: the Fang goes on");
             Assert.That(VraskFleet.Next(Phase.Disable, f, 1f), Is.EqualTo(Phase.Board), "(and it doesn't flap back)");
+            f.captors = false;
+            Assert.That(VraskFleet.Next(Phase.Board, f, 30f), Is.EqualTo(Phase.Bombard), "no Fang either: back to the artillery");
+            f.captors = true;
             f.noSnares = false;
             f.freeFor = 0f;
             f.targetLost = true;

@@ -120,8 +120,8 @@ namespace CarrierGame.Demo
                 {
                     mix = VraskMix.Apply(Encounters[0].group, counts);
                     yield return null;
-                    var g = Encounters[0].group;
-                    Encounters[0] = Encounter.FromGroup(g);
+                    var remade = Encounter.FromGroup(Encounters[0].group);
+                    if (remade != null) Encounters[0] = remade; else Encounters.Clear();
                 }
                 csv = Path.Combine(dir, "duo.csv");
             }
@@ -132,7 +132,7 @@ namespace CarrierGame.Demo
             if (duo) Log($"  mix: {mix}");
             if (LaunchArgs.Has("-simlist")) { WriteCases(cases); Quit(); yield break; }
 
-            var done = Done();
+            var done = Done(duo ? (System.Func<int, string>)(i => DuoKey(cases[i])) : null);
             int from = (int)LaunchArgs.FloatAfter("-simfrom", 0f), count = (int)LaunchArgs.FloatAfter("-simcount", cases.Count);
             if (!File.Exists(csv))
                 File.WriteAllText(csv, "case,encounter,kind,fleet,size,main_gun,outcome,seconds,enemies_killed,enemies_total,frigates_lost,frigates_captured,hull_left,shield_left,withdrew,hits_taken" + (duo ? ",tactic,mix" : "") + "\n");
@@ -196,7 +196,7 @@ namespace CarrierGame.Demo
                     for (int b = a + 1; b < Classes.Count; b++)
                     {
                         var f = new[] { Classes[a], Classes[b] };
-                        if (!string.IsNullOrEmpty(only) && !only.Split(';').Any(x => string.Equals(x.Trim(), FleetName(f), System.StringComparison.OrdinalIgnoreCase))) continue;
+                        if (!string.IsNullOrEmpty(only) && !only.Split(';').Any(x => PairNamed(x, f))) continue;
                         foreach (var e in Encounters)
                             foreach (bool sec in new[] { false, true })
                                 list.Add(new Case { enc = e, fleet = f, gun = true, section = sec });
@@ -205,6 +205,14 @@ namespace CarrierGame.Demo
         }
 
         static string MixOf(Encounter e) => VraskMix.Describe(e.enemies.Where(h => h != null).Select(h => h.GetComponent<VraskShip>()).Where(v => v != null)).Replace(", ", " ");
+
+        /// <summary>A -simpairs name ("Talon+Vanguard" or "Vanguard+Talon") for this pair.</summary>
+        bool PairNamed(string name, string[] f)
+        {
+            var want = name.Split('+').Select(x => x.Trim().ToLowerInvariant()).OrderBy(x => x);
+            var have = f.Select(id => entries[id].displayName.ToLowerInvariant()).OrderBy(x => x);
+            return want.SequenceEqual(have);
+        }
 
         string FleetName(string[] f) => string.Join("+", f.Select(id => entries[id].displayName));
 
@@ -215,14 +223,27 @@ namespace CarrierGame.Demo
             File.WriteAllText(Path.Combine(dir, "cases.csv"), sb.ToString());
         }
 
-        HashSet<int> Done()
+        /// <summary>The cases already in the file. `key`: a -simduo case's pair, tactic and mix, which
+        /// its line must match too (its number alone changes with -simpairs, -simmix, -simenc).</summary>
+        HashSet<int> Done(System.Func<int, string> key = null)
         {
             var done = new HashSet<int>();
             if (!File.Exists(csv)) return done;
             foreach (var line in File.ReadAllLines(csv).Skip(1))
-                if (int.TryParse(line.Split(',')[0], out int n)) done.Add(n);
+            {
+                if (!int.TryParse(line.Split(',')[0], out int n)) continue;
+                if (key != null)
+                {
+                    // (the line's fleet, after the encounter and kind, and its last two: tactic, mix)
+                    var f = line.Split(',');
+                    if (f.Length < 4 || !string.Equals(key(n), $"{f[3]},{f[f.Length - 2]},{f[f.Length - 1]}")) continue;
+                }
+                done.Add(n);
+            }
             return done;
         }
+
+        string DuoKey(Case c) => $"{FleetName(c.fleet)},{(c.section ? "section" : "default")},{MixOf(c.enc)}";
 
         /// <summary>The hostile encounters out in space: the bands lying in wait, the defended
         /// bases and batteries (not one on a planet's surface), the strike satellites.</summary>
@@ -445,8 +466,8 @@ namespace CarrierGame.Demo
     /// - Press the attack: out of gun range, straight in at full speed (a Maw falls back as a ship
     ///   comes near; a slow ship half-throttle broadside-on never catches it).
     /// - Keep the shield up: a Fang can't ram, nor a Snare drag, a ship with its shield up. Under
-    ///   a fifth, she turns away towards her mate till it is back over half (unless her beam is
-    ///   firing, or her mate is in no better state).
+    ///   a fifth, she turns away towards her mate till it is back over half, for 20 s at most
+    ///   (not with her beam charging or firing, nor alone, nor with her mate in no better state).
     /// </summary>
     public class SimPilot : MonoBehaviour
     {
@@ -464,6 +485,7 @@ namespace CarrierGame.Demo
         Transform target;
         float nextLook;
         bool recharging;
+        float rechargeUntil, rechargeAgain;
         /// <summary>Why she has her target (a section's: "COVER: SNARE", "SNARE FIRST", ...).</summary>
         public string Why { get; private set; } = "";
 
@@ -541,10 +563,17 @@ namespace CarrierGame.Demo
             bool firing = beam != null && beam.Current == MainBeam.State.Firing;
             bool charging = beam != null && beam.Current == MainBeam.State.Charging;
             float sh = ShieldFraction;
-            if (recharging && (sh > 0.5f || firing)) recharging = false;
-            else if (!recharging && !firing && shield != null && sh < 0.2f
-                     && (mate == null || mate.ShieldFraction > sh + 0.15f || mate.HullFraction > HullFraction + 0.15f))
+            if (recharging && (sh > 0.5f || firing || charging || mate == null || Time.time > rechargeUntil))
+            {
+                recharging = false;
+                rechargeAgain = Time.time + 15f;
+            }
+            else if (!recharging && !firing && !charging && shield != null && sh < 0.2f && mate != null && Time.time > rechargeAgain
+                     && (mate.ShieldFraction > sh + 0.15f || mate.HullFraction > HullFraction + 0.15f))
+            {
                 recharging = true;
+                rechargeUntil = Time.time + 20f;
+            }
             if (recharging && target != null)
             {
                 // away from the target, towards her mate (and her guns)

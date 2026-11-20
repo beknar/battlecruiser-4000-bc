@@ -12,7 +12,9 @@ namespace CarrierGame.Demo
     /// kind already in the band (none of a kind left in it: that kind can't be added), put in the
     /// band's formation near the others and named on from them ("Snare Four"). The band's pilots
     /// and its fleet's ships are made over to match. Before the band is in a fight: in the first
-    /// frames, or between the simulator's battles.
+    /// frames, or between the simulator's battles. For a band that keeps its post (the Sheol
+    /// picket): one that patrols or moves on (EncounterPatrol, PostedOnApproach) keeps its ships'
+    /// places by their order, which this changes.
     /// </summary>
     public static class VraskMix
     {
@@ -27,7 +29,7 @@ namespace CarrierGame.Demo
             if (parts.Length != 4) return null;
             var n = new int[4];
             for (int i = 0; i < 4; i++) if (!int.TryParse(parts[i].Trim(), out n[i]) || n[i] < 0 || n[i] > 10) return null;
-            return n;
+            return n[0] + n[1] + n[2] + n[3] > 0 ? n : null;
         }
 
         /// <summary>The counts in words ("2 Maws, 3 Snares, 2 Fangs, 3 Skinks").</summary>
@@ -63,6 +65,10 @@ namespace CarrierGame.Demo
                 for (int k = mine.Count; k < counts[r]; k++)
                 {
                     Vector3 off = template.transform.position - centre;
+                    // (one at the middle: the copies round it, clear of each other)
+                    off = Vector3.ProjectOnPlane(off, Vector3.up).sqrMagnitude < 800f * 800f
+                        ? (Vector3.ProjectOnPlane(off, Vector3.up).sqrMagnitude > 1f ? Vector3.ProjectOnPlane(off, Vector3.up).normalized : Vector3.forward) * 800f + Vector3.up * off.y
+                        : off;
                     Vector3 at = centre + Quaternion.AngleAxis(37f * (k + 1), Vector3.up) * off + Vector3.up * (k % 2 == 0 ? 150f : -150f);
                     var go = UnityEngine.Object.Instantiate(template.gameObject, at, template.transform.rotation, template.transform.parent);
                     string name = $"{baseName} {(k < Words.Length ? Words[k] : (k + 1).ToString())}";

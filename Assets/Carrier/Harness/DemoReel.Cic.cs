@@ -51,7 +51,7 @@ namespace CarrierGame.Demo
         static readonly string[] CicOrder = { "Sentinel", "Lancer", "Warden", "Talon", "Vanguard" };
         static readonly string[] CicWords = { "No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve" };
         static string CicWord(int n) => n >= 0 && n < CicWords.Length ? CicWords[n] : n.ToString();
-        readonly Dictionary<SimPilot, string> cicDoing = new Dictionary<SimPilot, string>();
+        readonly Dictionary<SimPilot, (string doing, string why, Transform target)> cicDoing = new Dictionary<SimPilot, (string, string, Transform)>();
 
         /// <summary>Not in the Nine Hells: open it, and `then` once it is (false: it is here
         /// already, or can't be opened).</summary>
@@ -82,10 +82,11 @@ namespace CarrierGame.Demo
             foreach (var p in cicBlue)
             {
                 if (p == null || tac == null || tac.mode == TacticalDisplay.Mode.Results) continue;
-                string now = $"{p.Doing}{(p.section && !string.IsNullOrEmpty(p.Why) ? " [" + p.Why + "]" : "")} on {(p.Target != null ? p.Target.name : "-")}";
+                var now = (p.Doing, p.Why, p.Target);
                 if (cicDoing.TryGetValue(p, out var was) && was == now) continue;
                 cicDoing[p] = now;
-                Note($"cic blue T+{tac.ClockText} {(p.ship != null ? p.ship.shipName : p.name)}: {now}, shield {p.ShieldFraction:P0}, hull {p.HullFraction:P0}");
+                Note($"cic blue T+{tac.ClockText} {(p.ship != null ? p.ship.shipName : p.name)}: {p.Doing}{(p.section && !string.IsNullOrEmpty(p.Why) ? " [" + p.Why + "]" : "")} " +
+                     $"on {(p.Target != null ? p.Target.name : "-")}, shield {p.ShieldFraction:P0}, hull {p.HullFraction:P0}");
             }
             if (cam != null && cam.target == null && tac != null)
             {
@@ -241,8 +242,8 @@ namespace CarrierGame.Demo
             cicCapAt = Time.time;
             yield return CicHold(6.5f, false);
             tac.mode = TacticalDisplay.Mode.Full; CicMode();
-            var roles = cicRed.GroupBy(v => v.role).OrderBy(g => RoleOrder(g.Key)).Select(g => $"{g.Count()} {g.Key}{(g.Count() > 1 ? "s" : "")}");
-            Caption("COMBAT INFORMATION CENTRE", $"Blue: {cicLine}, {(cicBlue.Count == 2 ? (cicBlue[0].section ? "a section, " + cicLine.Split(',')[0] + " leading" : "a pair") : "line abreast")}. Red: {string.Join(", ", roles)}", 7f);
+            string roles = VraskMix.Describe(cicRed);
+            Caption("COMBAT INFORMATION CENTRE", $"Blue: {cicLine}, {(cicBlue.Count == 2 ? (cicBlue[0].section ? "a section, " + cicLine.Split(',')[0] + " leading" : "a pair") : "line abreast")}. Red: {roles}", 7f);
             cicCapAt = Time.time;
             yield return CicHold(8f, true);
             tac.mode = TacticalDisplay.Mode.Off; CicMode();

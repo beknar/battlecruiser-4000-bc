@@ -94,6 +94,42 @@ namespace CarrierGame.Demo
             return r != null && !r.Hidden ? r : null;
         }
 
+        /// <summary>The world the leader has landed on (its warp point), or null: not landed, not in
+        /// this level, or a world this level hasn't got.</summary>
+        public WarpPoint LandedLeader()
+        {
+            var w = CoopWorld.Instance;
+            var r = w != null && LeaderId != 0 ? w.RemoteOf(LeaderId) : null;
+            if (r == null || r.Dead || string.IsNullOrEmpty(r.Surface)) return null;
+            return WarpPoint.All.FirstOrDefault(p => p != null && p.kind != WarpPoint.Kind.Landmark
+                                                     && string.Equals(p.displayName, r.Surface, System.StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>Where it waits for a leader down on `world`: the world's high orbit (or the
+        /// world itself, when it has none).</summary>
+        public static WarpPoint WaitingPlace(WarpPoint world)
+        {
+            if (world == null) return null;
+            string orbit = world.displayName + " High Orbit", equator = world.displayName + " Equatorial Orbit";
+            return WarpPoint.All.FirstOrDefault(p => p != null && p.kind == WarpPoint.Kind.Landmark && (p.displayName == orbit || p.displayName == equator))
+                   ?? world;
+        }
+
+        void WaitOver(CarrierController cc, WarpPoint world)
+        {
+            var at = WaitingPlace(world);
+            string doing = $"holding in high orbit over {world.displayName}: {LeaderName} has landed";
+            if (Vector3.Distance(cc.transform.position, at.Position) > Mathf.Max(20000f, at.arrivalDistance * 2f))
+            {
+                // (a warp the drive won't make: it says why, and tries again in a while)
+                TryWarp(at, $"warping to {at.displayName}: {LeaderName} has landed on {world.displayName}");
+                return;
+            }
+            Steer(0f, 0f);
+            cc.throttle = 0f;
+            Doing = doing;
+        }
+
         /// <summary>The nearest hostile ship or installation within `range` of a point (alive, in the level).</summary>
         public static Transform NearestEnemy(Vector3 from, float range)
         {
@@ -280,6 +316,10 @@ namespace CarrierGame.Demo
         void FollowLeader(CarrierController cc)
         {
             var leader = Leader();
+            // the leader landed: down on a surface no one else is on (each player's own), so it
+            // waits for them over that world, in its high orbit, and forms up again when they're up
+            var down = leader == null ? LandedLeader() : null;
+            if (down != null) { WaitOver(cc, down); return; }
             if (leader == null)
             {
                 Steer(0f, 0f);

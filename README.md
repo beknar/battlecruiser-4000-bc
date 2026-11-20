@@ -1819,9 +1819,12 @@ Each build is a single self-contained file (about 47 MB) plus `coopserver.json`.
 
 **Comms.** In a co-op game, press **Enter** to open a line at the foot of the screen, beside the ship's console. Type a message, then
 press **Enter** to send it to everyone in your level, or **Esc** to drop it. The last few
-messages show under it and fade after about 20 seconds. Each message from someone else also
-goes to the captain's notices. The server passes chat on like any other game message (type
-`chat`, field `text`, 240 characters at most), so it needs no change.
+messages show under it, each wrapped over as many lines as it needs, and fade after about 20
+seconds. They scale with the HUD text size. A message that starts with its sender's name (the
+wingman's do) doesn't show the name twice. Each message from someone else also goes to the
+captain's notices. The server passes chat on like any other game message (type `chat`, field
+`text`, 400 characters at most), so it needs no change. The bot's `/say` answers `"cut":true`
+when it had to shorten a message.
 
 **The AI wingman.** Any copy of the Star System game can join as an AI player. Start it with
 `-coopbot`:
@@ -1840,6 +1843,10 @@ StarSystem.exe -coopbot -connect <address>:<port> -name Wingman [-frigate Lancer
   your save.
 - It greets the players, then forms up on the first one to join. If that player warps far
   away, it warps after them.
+- It can't land with its leader: each player's planet surface is their own, unseen by the
+  others. When its leader lands, it warps to that world's high orbit, says it is holding there,
+  and forms up again when the leader takes off. It doesn't follow a player into another star
+  system; the bot starts in the system given with `-system`.
 - It fights any enemy that comes within 6 km, then goes back to its order.
 - Its pilot flies through the same controls a player uses: the autopilot inputs, the throttle,
   the target, the guns, the bow beam, missiles, the warp drive and docking.

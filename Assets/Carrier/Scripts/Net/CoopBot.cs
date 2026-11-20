@@ -150,7 +150,7 @@ namespace CarrierGame.Demo
             if (Pilot != null && CoopClient.Active && Pilot.Doing != lastDoing)
             {
                 string now = Pilot.Doing;
-                bool worth = now.StartsWith("target destroyed") || now.StartsWith("arrived") || now.StartsWith("can't");
+                bool worth = now.StartsWith("target destroyed") || now.StartsWith("arrived") || now.StartsWith("can't") || now.StartsWith("holding in high orbit");
                 lastDoing = now;
                 if (worth) CoopChat.Say($"{Me}: {now}.");
             }
@@ -799,7 +799,9 @@ namespace CarrierGame.Demo
                     {
                         var b = Parse<SayBody>(body);
                         bool ok = b != null && CoopChat.Say(b.text);
-                        json = ok ? "{\"ok\":true}" : "{\"ok\":false,\"error\":" + Q(CoopClient.Active ? "nothing to say" : "not connected to a co-op game") + "}";
+                        // (longer than a message may be: what was said was cut, and the caller is told)
+                        bool cut = ok && b.text.Trim().Length > CoopChat.MaxLength;
+                        json = ok ? (cut ? $"{{\"ok\":true,\"cut\":true,\"max\":{CoopChat.MaxLength}}}" : "{\"ok\":true}") : "{\"ok\":false,\"error\":" + Q(CoopClient.Active ? "nothing to say" : "not connected to a co-op game") + "}";
                         break;
                     }
                     case "/order" when post:

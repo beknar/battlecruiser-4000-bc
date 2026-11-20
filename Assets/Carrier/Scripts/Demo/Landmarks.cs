@@ -39,6 +39,10 @@ namespace CarrierGame.Demo
                             Surface(b, $"{b.displayName} Northern Reach", 48f, 35f, "the northern lands");
                             Surface(b, $"{b.displayName} Southern Reach", -44f, 215f, "the southern lands");
                             Orbit(b, $"{b.displayName} High Orbit", Vector3.up, "high over its north pole");
+                            // (a gas giant: its cloud tops are landed on at the Reaches, and it has
+                            // an orbit over its equator too)
+                            if (b.surface == SurfaceKind.GasGiant)
+                                Orbit(b, $"{b.displayName} Equatorial Orbit", Vector3.right, "high over its equator");
                         }
                         else
                         {
@@ -52,6 +56,9 @@ namespace CarrierGame.Demo
                         break;
                 }
             }
+            // what waits at some of them
+            Derelict("The Forge High Orbit", "Smuggler", "Smugglers' runabout",
+                     "A smugglers' runabout, gutted and left in the parking orbit over The Forge: what the Forge smugglers didn't take is still aboard. Salvage it (Z).");
             if (All.Count > 0) Debug.Log($"[Landmarks] {All.Count} made: {string.Join(", ", All.Select(w => w.displayName))}");
         }
 
@@ -87,12 +94,39 @@ namespace CarrierGame.Demo
         }
 
         /// <summary>A high orbit over the body, along a direction in its frame (within the
-        /// reach of its points of interest).</summary>
+        /// reach of its points of interest): a parking orbit, with nothing built there.</summary>
         static void Orbit(WarpPoint body, string name, Vector3 dir, string about)
         {
-            float height = Mathf.Min(body.bodyRadius * 0.8f, Places.Reach(body) * 0.6f);
-            var w = Make(body, name, dir.normalized * (body.bodyRadius + height), "orbit", $"An orbit {about}");
+            var w = Make(body, name, OrbitOffset(body, dir), "orbit", $"An orbit {about}");
+            w.description += " A parking orbit: nothing is built here.";
             w.arrivalDistance = 4000f;
+        }
+
+        /// <summary>Where a body's orbit landmark is, in its frame (its high orbit: straight up).</summary>
+        public static Vector3 OrbitOffset(WarpPoint body, Vector3 dir)
+        {
+            float height = Mathf.Min(body.bodyRadius * 0.8f, Places.Reach(body) * 0.6f);
+            return dir.normalized * (body.bodyRadius + height);
+        }
+
+        /// <summary>A derelict to salvage at a landmark (if the level has it): a wreck that stays,
+        /// going round with the landmark, made of the pieces of a ship whose name starts with
+        /// `likeShip` (its kind of ship), holding what such a ship's wreck holds.</summary>
+        static void Derelict(string at, string likeShip, string of, string about)
+        {
+            var w = All.FirstOrDefault(x => x != null && x.displayName == at);
+            if (w == null) return;
+            var like = Object.FindObjectsByType<TargetInfo>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+                             .FirstOrDefault(i => i != null && !string.IsNullOrEmpty(i.displayName) && i.displayName.StartsWith(likeShip));
+            if (like == null) { Debug.LogWarning($"[Landmarks] no {likeShip} to make the derelict at {at} of"); return; }
+            var contents = Salvage.ContentsFor(like.transform, like, out float size, out _);
+            if (contents.Count == 0) return;
+            var wreck = Wreck.Make(like.transform, of, contents, size, null, burning: false);
+            wreck.Stays = true;
+            wreck.transform.SetParent(w.transform, false);
+            wreck.transform.localPosition = Vector3.zero;
+            if (wreck.TryGetComponent(out WarpPoint poi)) poi.description = about;
+            w.description = $"{w.description.Replace(" A parking orbit: nothing is built here.", "")} A smugglers' derelict drifts here, to salvage.";
         }
 
         /// <summary>A part of an asteroid field, as a share of its radius in its frame.</summary>

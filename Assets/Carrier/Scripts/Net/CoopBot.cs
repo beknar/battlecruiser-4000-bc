@@ -1006,7 +1006,7 @@ namespace CarrierGame.Demo
             {
                 if (!first) sb.Append(',');
                 first = false;
-                sb.Append($"{{\"name\":{Q(w.displayName)},\"kind\":{Q(string.IsNullOrEmpty(w.kindLabel) ? w.kind.ToString() : w.kindLabel)},\"hostile\":{B(w.hostile)},\"km\":{F(Vector3.Distance(w.Position, at) / 1000f)}}}");
+                sb.Append($"{{\"name\":{Q(w.displayName)},\"kind\":{Q(string.IsNullOrEmpty(w.kindLabel) ? w.kind.ToString() : w.kindLabel)},\"hostile\":{B(w.Threatened)},\"km\":{F(Vector3.Distance(w.Position, at) / 1000f)}}}");
             }
             return sb.Append("]}").ToString();
         }

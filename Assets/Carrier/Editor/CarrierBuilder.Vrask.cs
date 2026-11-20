@@ -331,7 +331,7 @@ namespace Carrier.EditorTools
             var at = sys.GetComponentsInChildren<WarpPoint>(true).FirstOrDefault(w => w.displayName == g.at);
             if (at == null) { Log($"vrask: no place '{g.at}' for the raiders"); return null; }
             if (!string.IsNullOrEmpty(g.note) && (at.description == null || !at.description.Contains(g.note))) at.description = (at.description + " " + g.note).Trim();
-            at.hostile = true;
+            at.dangerNear = true;
             Vector3 c = at.transform.position;
             // round the place, from the side away from the star (the star is at the system's centre)
             Vector3 outward = Vector3.ProjectOnPlane(c - sys.position, Vector3.up);

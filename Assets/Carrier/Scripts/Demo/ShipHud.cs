@@ -72,7 +72,8 @@ namespace CarrierGame.Demo
         void Show(string message)
         {
             toast = message;
-            toastUntil = Clock + 2.5f;
+            // (long enough to read: a long one, a comms message, stays up longer, 10 s at most)
+            toastUntil = Clock + Mathf.Clamp(message != null ? message.Length / 30f : 0f, 2.5f, 10f);
         }
 
         // ------------------------------------------------------------ the controls box

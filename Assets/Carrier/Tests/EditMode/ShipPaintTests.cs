@@ -123,6 +123,13 @@ namespace CarrierGame.Tests
             Assert.That(PaintScheme.TryParse("1.-4.1.0.ffffff.000000.ff0000.ffffff.0.", out s), Is.True);
             Assert.That(s.pattern, Is.EqualTo(0));
             Assert.That(s.scale, Is.EqualTo(PaintScheme.MinScale));
+            // -1: the factory finish, with a logo and lettering on it, kept as it is
+            Assert.That(PaintScheme.TryParse("1.-1.100.0.ffffff.000000.ff0000.ffd040.3.BC_4000", out s), Is.True);
+            Assert.That(s.pattern, Is.EqualTo(ShipPaint.FactoryPattern));
+            Assert.That(s.logo, Is.EqualTo(3));
+            Assert.That(s.text, Is.EqualTo("BC 4000"));
+            Assert.That(PaintScheme.TryParse(s.ToCode(), out var again) && again.pattern == ShipPaint.FactoryPattern && again.text == "BC 4000", Is.True, "and back");
+            Assert.That(ShipPaint.FamilyOf(ShipPaint.FactoryPattern), Is.EqualTo("Factory finish"));
         }
 
         [Test]

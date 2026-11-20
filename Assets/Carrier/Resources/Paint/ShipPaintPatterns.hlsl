@@ -459,13 +459,19 @@ float2 DecalMask(float3 p, float3 n)
 // through), and the logo and lettering over them.
 float3 PaintAlbedo(float3 albedo, float2 uv, float3 p, float3 n)
 {
-    float2 m = PaintMask(p, n);
-    float3 paint = lerp(lerp(_PaintA.rgb, _PaintB.rgb, saturate(m.x)), _PaintC.rgb, saturate(m.y));
     const float3 luma = float3(0.2126, 0.7152, 0.0722);
     // (the texture's smallest mip is its average colour)
     float3 avgCol = SAMPLE_TEXTURE2D_LOD(_BaseMap, sampler_BaseMap, uv, 14.0).rgb * _BaseColor.rgb;
     float detail = clamp(dot(albedo, luma) / max(dot(avgCol, luma), 0.02), 0.0, 2.0);
-    float3 col = paint * lerp(1.0, detail, _PaintDetail);
+    float3 col;
+    // pattern -1: the factory finish, the hull's own colours, with only the logo and lettering on it
+    if (_PaintPattern < -0.5) col = albedo;
+    else
+    {
+        float2 m = PaintMask(p, n);
+        float3 paint = lerp(lerp(_PaintA.rgb, _PaintB.rgb, saturate(m.x)), _PaintC.rgb, saturate(m.y));
+        col = paint * lerp(1.0, detail, _PaintDetail);
+    }
     float2 d = DecalMask(p, n);
     float3 decal = _PaintD.rgb * lerp(1.0, detail, _PaintDetail * 0.5);
     return lerp(col, decal, saturate(max(d.x, d.y)));

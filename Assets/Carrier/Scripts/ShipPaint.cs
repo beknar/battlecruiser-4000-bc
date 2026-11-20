@@ -53,7 +53,8 @@ namespace CarrierGame
         public PaintScheme Clamped()
         {
             var s = Clone();
-            s.pattern = Mathf.Clamp(pattern, 0, ShipPaint.Patterns - 1);
+            // (-1 is the factory finish: the hull's own colours, the logo and lettering on them)
+            s.pattern = pattern == ShipPaint.FactoryPattern ? pattern : Mathf.Clamp(pattern, 0, ShipPaint.Patterns - 1);
             s.scale = Mathf.Clamp(scale, MinScale, MaxScale);
             s.angle = ((angle % 360) + 360) % 360;
             s.logo = logo < 0 || logo >= ShipPaint.Logos ? -1 : logo;
@@ -149,6 +150,9 @@ namespace CarrierGame
     {
         public const int Families = 10, Variants = 10, Patterns = Families * Variants;
         public const int Logos = 12, MaxLetters = 12;
+        /// <summary>The pattern that is no pattern: the factory finish, with a logo and lettering on it.</summary>
+        public const int FactoryPattern = -1;
+
         public const string ShaderResource = "Paint/ShipPaint", LogoResource = "Paint/paint_logos", FontResource = "Paint/paint_font",
                             LogoUiResource = "Paint/paint_logos_ui";
         const string Pref = "paint";
@@ -178,11 +182,12 @@ namespace CarrierGame
 
         public static string PatternName(int p)
         {
+            if (p == FactoryPattern) return "the hull's own colours";
             p = Mathf.Clamp(p, 0, Patterns - 1);
             return VariantNames[p / Variants][p % Variants];
         }
 
-        public static string FamilyOf(int p) => FamilyNames[Mathf.Clamp(p, 0, Patterns - 1) / Variants];
+        public static string FamilyOf(int p) => p == FactoryPattern ? "Factory finish" : FamilyNames[Mathf.Clamp(p, 0, Patterns - 1) / Variants];
 
         /// <summary>The 24 colours of the paint screen's palette.</summary>
         public static readonly Color32[] Palette =

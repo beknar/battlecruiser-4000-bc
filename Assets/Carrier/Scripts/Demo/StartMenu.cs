@@ -77,6 +77,36 @@ namespace CarrierGame.Demo
         string previewOf;           // the class shown
         string previewPaint;        // and the paint it has on (a code, "" none)
         float previewYaw = 200f;
+        // the preview turned by hand: how far over (degrees, looking down on her) and how near
+        // (1 as it was), and when it was last turned (the turntable waits 4 s after)
+        const float PreviewPitch0 = 12.5f;
+        float previewPitch = PreviewPitch0, previewZoom = 1f, previewTurned = -100f;
+
+        /// <summary>The preview's yaw, pitch and zoom (for the tests).</summary>
+        public Vector3 PreviewView => new Vector3(previewYaw, previewPitch, previewZoom);
+
+        /// <summary>Turn the preview by hand (degrees round, and over).</summary>
+        public void TurnPreview(float yaw, float pitch)
+        {
+            previewYaw += yaw;
+            previewPitch = Mathf.Clamp(previewPitch + pitch, -60f, 80f);
+            previewTurned = Time.unscaledTime;
+        }
+
+        /// <summary>Zoom the preview by `factor` (above 1: further away).</summary>
+        public void ZoomPreview(float factor)
+        {
+            previewZoom = Mathf.Clamp(previewZoom * factor, 0.4f, 2f);
+            previewTurned = Time.unscaledTime;
+        }
+
+        /// <summary>Back on the turntable, as it was.</summary>
+        public void ResetTurntable()
+        {
+            previewPitch = PreviewPitch0;
+            previewZoom = 1f;
+            previewTurned = -100f;
+        }
         int savedMainMask;
         Camera savedMain;
 
@@ -344,13 +374,24 @@ namespace CarrierGame.Demo
                 ShipPaint.Apply(previewModel, paint.Length > 0 ? ShipPaint.FromText(paint) : null, id);
                 previewPaint = paint;
             }
-            previewYaw += 14f * (paused ? Time.unscaledDeltaTime : Time.deltaTime);
+            // the pad's right stick turns her and the triggers zoom (on the paint step); the
+            // turntable turns her by itself, 4 s after she was last turned by hand
+            var gp = UnityEngine.InputSystem.Gamepad.current;
+            if (painting && gp != null)
+            {
+                Vector2 rs = gp.rightStick.ReadValue();
+                if (rs.magnitude > 0.2f) TurnPreview(rs.x * 90f * Time.unscaledDeltaTime, -rs.y * 60f * Time.unscaledDeltaTime);
+                float zt = gp.leftTrigger.ReadValue() - gp.rightTrigger.ReadValue();
+                if (Mathf.Abs(zt) > 0.1f) ZoomPreview(Mathf.Pow(2f, zt * Time.unscaledDeltaTime));
+            }
+            if (Time.unscaledTime - previewTurned > 4f) previewYaw += 14f * (paused ? Time.unscaledDeltaTime : Time.deltaTime);
             // put back every frame: while the game runs the level may shift everything (to keep
             // the player's ship near the middle of the world), the preview with it
             previewModel.transform.SetPositionAndRotation(PreviewAt, Quaternion.Euler(0f, previewYaw, 0f));
             float len = Mathf.Max(100f, Bounds(previewModel).size.magnitude);
             var cam = previewCam.transform;
-            cam.position = PreviewAt + new Vector3(0f, len * 0.32f, -len * 1.45f);
+            // (at the start, as it always was: 1.48 lengths off, looking down 12.5 degrees)
+            cam.position = PreviewAt + Quaternion.Euler(previewPitch, 0f, 0f) * new Vector3(0f, 0f, -len * 1.485f * previewZoom);
             cam.LookAt(PreviewAt);
         }
 

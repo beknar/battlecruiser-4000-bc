@@ -26,7 +26,10 @@ namespace CarrierGame.Demo
         GameObject paintPrefab;
 
         PaintScheme edit = new PaintScheme();
-        bool factory;                 // the factory finish (unpainted) chosen
+        // the factory finish chosen: the hull's own colours (a logo and lettering may go on them)
+        bool factory => edit.pattern == ShipPaint.FactoryPattern;
+        /// <summary>The factory finish with nothing on it: kept as no scheme at all.</summary>
+        bool PlainFactory => factory && edit.logo < 0 && PaintScheme.SanitizeText(draft).Length == 0;
         PaintScheme opened;           // as it was when the step opened (null: the factory finish)
         int presetIndex = -1;         // the preset last chosen (-1 the factory finish, -2 none)
         string draft = "";            // the lettering as typed (cleaned on the way to the hull)
@@ -48,7 +51,10 @@ namespace CarrierGame.Demo
         const string TextControl = "paintLettering";
 
         /// <summary>The paint shown and kept ("" the factory finish).</summary>
-        string EditCode => factory ? "" : Scheme().ToCode();
+        string EditCode => PlainFactory ? "" : Scheme().ToCode();
+
+        /// <summary>The paint as it is being made (a code; "" the plain factory finish), for the tests.</summary>
+        public string PaintCode => EditCode;
 
         PaintScheme Scheme()
         {
@@ -105,8 +111,7 @@ namespace CarrierGame.Demo
 
         void SetScheme(PaintScheme s)
         {
-            factory = s == null;
-            edit = s != null ? s.Clone() : ShipPaint.FromPreset(0);
+            edit = s != null ? s.Clone() : FactoryScheme();
             draft = edit.text ?? "";
             presetIndex = factory ? -1 : -2;
             string code = edit.ToCode();
@@ -115,21 +120,39 @@ namespace CarrierGame.Demo
             hsvSlot = -1;
         }
 
-        /// <summary>Something was changed: it is a scheme of the player's own now.</summary>
-        void Touched(bool keepPreset = false)
+        /// <summary>The factory finish, to start from: no logo or lettering, a preset's colours
+        /// kept for when a pattern is chosen.</summary>
+        static PaintScheme FactoryScheme()
         {
-            factory = false;
+            var f = ShipPaint.FromPreset(0);
+            f.pattern = ShipPaint.FactoryPattern;
+            f.logo = -1;
+            f.text = "";
+            return f;
+        }
+
+        /// <summary>Something was changed: it is a scheme of the player's own now. A change to the
+        /// logo or lettering alone (`decal`) leaves the factory finish the factory finish, with
+        /// them on it; anything else paints her (the first pattern, if none was chosen).</summary>
+        void Touched(bool keepPreset = false, bool decal = false)
+        {
+            if (factory && decal) return;
+            if (factory) edit.pattern = 0;
             if (!keepPreset) presetIndex = -2;
         }
 
         void ChoosePreset(int i)
         {
-            if (i < 0) { factory = true; presetIndex = -1; }
+            if (i < 0)
+            {
+                // (the logo and lettering stay, on the hull's own colours)
+                edit.pattern = ShipPaint.FactoryPattern;
+                presetIndex = -1;
+            }
             else
             {
                 edit = ShipPaint.FromPreset(i, edit);
                 edit.text = draft;
-                factory = false;
                 presetIndex = i;
             }
             hsvSlot = -1;
@@ -156,7 +179,7 @@ namespace CarrierGame.Demo
         public void DonePainting()
         {
             if (step != Step.Paint) return;
-            ShipPaint.Set(paintId, factory ? null : Scheme());
+            ShipPaint.Set(paintId, PlainFactory ? null : Scheme());
             typing = false;
             GUIUtility.keyboardControl = 0;
             if (paintOnly)
@@ -205,7 +228,7 @@ namespace CarrierGame.Demo
                 case RowLogo: edit.logo = (edit.logo + 1 + dir + ShipPaint.Logos + 1) % (ShipPaint.Logos + 1) - 1; break;
                 default: return;
             }
-            Touched();
+            Touched(decal: row == RowLogo || (slot == 3 && row >= RowSwatch && row <= RowVal));
         }
 
         static int NearestSwatch(Color32 c)
@@ -314,6 +337,34 @@ namespace CarrierGame.Demo
             SoundFX.Ui(Sfx.UiClear);
         }
 
+        // ------------------------------------------------------------ turning the preview
+
+        /// <summary>The mouse on the picture: drag to turn the ship (round and over), the wheel to
+        /// zoom, a double-click to put her back on the turntable.</summary>
+        void TurnPreviewWithMouse(Rect pic)
+        {
+            var e = Event.current;
+            if (e.type == EventType.MouseDown && e.button == 0 && pic.Contains(e.mousePosition))
+            {
+                if (e.clickCount >= 2) ResetTurntable();
+                else turningPreview = true;
+                e.Use();
+            }
+            else if (e.type == EventType.MouseDrag && turningPreview)
+            {
+                TurnPreview(e.delta.x * 0.4f, e.delta.y * 0.3f);
+                e.Use();
+            }
+            else if (e.type == EventType.MouseUp && turningPreview) { turningPreview = false; e.Use(); }
+            else if (e.type == EventType.ScrollWheel && pic.Contains(e.mousePosition))
+            {
+                ZoomPreview(e.delta.y > 0f ? 1.12f : 1f / 1.12f);
+                e.Use();
+            }
+        }
+
+        bool turningPreview;
+
         // ------------------------------------------------------------ drawing (and the mouse)
 
         static bool Clicked(Rect r)
@@ -417,11 +468,16 @@ namespace CarrierGame.Demo
             var pic = new Rect(rx + (aw - picW) * 0.5f, top, picW, picH);
             if (previewTex != null) GUI.DrawTexture(pic, previewTex, ScaleMode.ScaleToFit, false);
             Hud.Outline(pic, Mathf.Max(1f, s), new Color(1f, 1f, 1f, 0.15f));
-            if (factory) GUI.Label(new Rect(pic.x + 8f * s, pic.y + 6f * s, pic.width, 20f * s), "<color=#9aa4b0>Factory finish</color>", small);
+            if (factory) GUI.Label(new Rect(pic.x + 8f * s, pic.y + 6f * s, pic.width, 20f * s),
+                                   $"<color=#9aa4b0>Factory finish{(PlainFactory ? "" : ", with the logo and lettering")}</color>", small);
+            GUI.Label(new Rect(pic.x + 8f * s, pic.yMax - 22f * s, pic.width - 16f * s, 20f * s),
+                      "<color=#6f7a86>drag to turn, wheel to zoom, double-click: back on the turntable</color>", small);
+            TurnPreviewWithMouse(pic);
 
             float gy = pic.yMax + 12f * s;
             GUI.Label(new Rect(rx, gy, aw, 22f * s),
-                      $"<b>PATTERN</b>   {ShipPaint.FamilyOf(edit.pattern)}: {ShipPaint.PatternName(edit.pattern)}  <color=#9aa4b0>({edit.pattern + 1} of {ShipPaint.Patterns})</color>", head);
+                      factory ? "<b>PATTERN</b>   none: the factory finish  <color=#9aa4b0>(choose one to paint her)</color>"
+                              : $"<b>PATTERN</b>   {ShipPaint.FamilyOf(edit.pattern)}: {ShipPaint.PatternName(edit.pattern)}  <color=#9aa4b0>({edit.pattern + 1} of {ShipPaint.Patterns})</color>", head);
             gy += 26f * s;
             float fw = Mathf.Min(170f * s, aw * 0.3f), cw = (aw - fw) / ShipPaint.Variants;
             float ch = Mathf.Clamp((bottom - gy - 2f * 34f * s - 8f * s) / ShipPaint.Families, 12f * s, 30f * s);
@@ -485,7 +541,7 @@ namespace CarrierGame.Demo
                 var pc = ShipPaint.Palette[i];
                 Hud.Fill(r, Ui(pc));
                 if (pc.r == cur.r && pc.g == cur.g && pc.b == cur.b) Hud.Outline(r, Mathf.Max(1f, 2f * s), Color.white);
-                if (Clicked(r)) { edit.SetColor(slot, pc); focus = RowSwatch; Touched(); }
+                if (Clicked(r)) { edit.SetColor(slot, pc); focus = RowSwatch; Touched(decal: slot == 3); }
             }
             cy += sw2 * 3f + 8f * s;
             SyncHsv();
@@ -504,7 +560,7 @@ namespace CarrierGame.Demo
                     if (i == 0) hue = nv; else if (i == 1) sat = nv; else val = nv;
                     FromHsv();
                     focus = row;
-                    Touched();
+                    Touched(decal: slot == 3);
                 }
                 cy += 30f * s;
             }
@@ -530,7 +586,7 @@ namespace CarrierGame.Demo
                     GUI.color = old;
                 }
                 if (sel) Hud.Outline(r, Mathf.Max(1f, 2f * s), Color.white);
-                if (Clicked(r)) { edit.logo = i; focus = RowLogo; Touched(); }
+                if (Clicked(r)) { edit.logo = i; focus = RowLogo; Touched(decal: true); }
             }
             cy += lc * 2f + 10f * s;
 
@@ -554,7 +610,7 @@ namespace CarrierGame.Demo
                     if (((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == ' ') && sb.Length < ShipPaint.MaxLetters) sb.Append(c);
                 }
                 draft = sb.ToString();
-                Touched(true);
+                Touched(true, decal: true);
             }
             typing = GUI.GetNameOfFocusedControl() == TextControl;
             if (typing) focus = RowText;

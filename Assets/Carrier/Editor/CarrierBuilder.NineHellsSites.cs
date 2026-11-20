@@ -164,6 +164,8 @@ namespace Carrier.EditorTools
             var heaven = R.sys.GetComponentsInChildren<WarpPoint>(true).FirstOrDefault(w => w.displayName == "Heaven");
             if (heaven != null) heaven.shielded = true;
             var highport = Elevator(R, krzyn, heaven, b);
+            if (ip.refinerySpace == null || ip.factorySpace == null)
+                Log("nine hells: no orbital refinery or factory prefab: K'rzyn's orbital sites, its defence satellites and Bastion not built");
             if (ip.refinerySpace != null && ip.factorySpace != null)
             {
                 Vector3 kc = krzyn.Position;

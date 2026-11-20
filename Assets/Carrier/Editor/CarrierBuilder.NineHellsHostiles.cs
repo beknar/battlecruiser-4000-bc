@@ -199,7 +199,8 @@ namespace Carrier.EditorTools
             {
                 Vector3 gc = gilgal.Position;
                 Vector3 outward = Vector3.ProjectOnPlane(gc - R.sys.position, Vector3.up).normalized;
-                Vector3 post = gc - outward * (gilgal.bodyRadius * 2.6f) + Vector3.up * 4000f;
+                // (in the ring, 1.35 to 2.3 times her radius, on the side toward the star: it keeps the rings)
+                Vector3 post = gc - outward * (gilgal.bodyRadius * 1.8f) + Vector3.up * 4000f;
                 var ships = new List<(GameObject, string, Action<CombatPilot>, float, float)>
                 {
                     (p.enemyDreadnought, "Pirate Dreadnought Leviathan", pl => NhCapital(pl, 45f, 55f, 6f, 8f, 3300f, 1.5f), 180f, 180f),

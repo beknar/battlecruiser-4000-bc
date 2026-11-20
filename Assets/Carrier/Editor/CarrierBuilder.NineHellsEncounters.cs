@@ -15,6 +15,10 @@ namespace Carrier.EditorTools
     /// </summary>
     public static partial class CarrierBuilder
     {
+        /// <summary>A meteoroid stream (Havilah, Sheba): a field 50 km long and a couple wide.</summary>
+        static bool IsStream(WarpPoint w) =>
+            w != null && w.kind == WarpPoint.Kind.AsteroidField && w.description != null && w.description.StartsWith("A meteoroid stream");
+
         static void NineHellsEncounters(NineHellsRefs R)
         {
             var p = R.prefabs;
@@ -30,14 +34,17 @@ namespace Carrier.EditorTools
             (GameObject, string, Action<CombatPilot>, float, float) Dd(string n) => (p.enemyDreadnought, n, Dread, 180f, 180f);
             WarpPoint W(string n) => R.sys.GetComponentsInChildren<WarpPoint>(true).FirstOrDefault(w => w.displayName == n);
 
-            // where a band lies in wait by a place: off its side away from the star, a little way in
+            // where a band lies in wait by a place: off its side away from the star, a little way in;
+            // in a field, `frac` of its radius from its middle (0: 0.4); in a meteoroid stream, among
+            // its rocks, along it (it is only a couple of km wide, but 50 km long)
             Vector3 By(WarpPoint at, float frac, float turn = 0f)
             {
                 if (at == null) return Vector3.zero;
                 Vector3 c = at.Position;
+                if (IsStream(at)) return c + at.transform.forward * (at.bodyRadius * (frac > 0f ? frac : 0.2f)) * (turn > 90f ? -1f : 1f) + Vector3.up * 300f;
                 Vector3 away = Vector3.ProjectOnPlane(c - R.sys.position, Vector3.up);
                 away = away.sqrMagnitude > 1f ? away.normalized : Vector3.forward;
-                float r = at.kind == WarpPoint.Kind.AsteroidField ? at.bodyRadius * 0.4f : at.bodyRadius + (at.arrivalDistance - at.bodyRadius) * frac;
+                float r = at.kind == WarpPoint.Kind.AsteroidField ? at.bodyRadius * (frac > 0f ? frac : 0.4f) : at.bodyRadius + (at.arrivalDistance - at.bodyRadius) * frac;
                 return c + Quaternion.AngleAxis(turn, Vector3.up) * away * r;
             }
             int made = 0;
@@ -94,7 +101,9 @@ namespace Carrier.EditorTools
             Lying("Belt claim-jumpers", "Easy", W("Inner Belt"), 0f, 140f, new[] { F("Claim-jumper"), D("Claim-jumper Drone A"), D("Claim-jumper Drone B"), D("Claim-jumper Drone C") });
             Lying("Patmos ice thieves", "Easy", W("Comet Patmos"), 0.6f, 0f, new[] { F("Ice Thief A"), F("Ice Thief B") });
             LyingVrask("Vrask scout", "Easy", W("Paradise"), 0.7f, 60f, new[] { ("Skink", "Scout", 0f, 0f, 0f) });
-            Lying("Outer Belt lurkers", "Easy", W("Outer Belt"), 0f, 0f, new[] { F("Lurker A"), F("Lurker B"), F("Lurker C") });
+            // (out at the belt's edge, across it from the Vrask brood: an easy fight that doesn't
+            // wake the boss, 9 km off)
+            Lying("Outer Belt lurkers", "Easy", W("Outer Belt"), 1.15f, 20f, new[] { F("Lurker A"), F("Lurker B"), F("Lurker C") });
             Wander(PatrolOf("Forge smugglers", W("The Forge"), 2.2f, 30f, new[] { F("Smuggler A"), F("Smuggler B"), D("Smuggler Drone") }),
                    "Forge smugglers", "Easy", W("The Forge"), 2.2f, 2f, 30f, "Two smugglers' fighters and a drone running contraband round The Forge.");
 

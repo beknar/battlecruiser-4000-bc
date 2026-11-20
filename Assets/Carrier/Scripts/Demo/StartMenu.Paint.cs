@@ -104,6 +104,8 @@ namespace CarrierGame.Demo
             typing = wantType = false;
             dragging = -1;
             step = Step.Paint;
+            ResetTurntable();
+            turningPreview = false;
             previewPaint = null;
             openedFrame = Time.frameCount;
             SoundFX.Ui(Sfx.UiClear);
@@ -195,6 +197,8 @@ namespace CarrierGame.Demo
 
         void BackFromPaint()
         {
+            ResetTurntable();
+            turningPreview = false;
             typing = false;
             GUIUtility.keyboardControl = 0;
             if (paintOnly) { Close(); return; }
@@ -212,7 +216,7 @@ namespace CarrierGame.Demo
                 case RowPreset:
                     ChoosePreset(((presetIndex < -1 ? -1 : presetIndex) + 1 + dir + ShipPaint.Presets.Length + 1) % (ShipPaint.Presets.Length + 1) - 1);
                     return;
-                case RowPattern: edit.pattern = (edit.pattern + dir + ShipPaint.Patterns) % ShipPaint.Patterns; break;
+                case RowPattern: edit.pattern = factory ? (dir > 0 ? 0 : ShipPaint.Patterns - 1) : (edit.pattern + dir + ShipPaint.Patterns) % ShipPaint.Patterns; break;
                 case RowScale: edit.scale = Mathf.Clamp(edit.scale + dir * 5, PaintScheme.MinScale, PaintScheme.MaxScale); break;
                 case RowAngle: edit.angle = (edit.angle + dir * 15 + 360) % 360; break;
                 case RowSlot: slot = (slot + dir + 4) % 4; return;
@@ -332,7 +336,8 @@ namespace CarrierGame.Demo
 
         void Family(int dir)
         {
-            edit.pattern = (edit.pattern + dir * ShipPaint.Variants + ShipPaint.Patterns) % ShipPaint.Patterns;
+            edit.pattern = factory ? (dir > 0 ? 0 : ShipPaint.Patterns - ShipPaint.Variants)
+                                   : (edit.pattern + dir * ShipPaint.Variants + ShipPaint.Patterns) % ShipPaint.Patterns;
             Touched();
             SoundFX.Ui(Sfx.UiClear);
         }
@@ -344,8 +349,12 @@ namespace CarrierGame.Demo
         void TurnPreviewWithMouse(Rect pic)
         {
             var e = Event.current;
+            // (a release anywhere ends a turn, even one another control has used)
+            if (e.rawType == EventType.MouseUp && turningPreview) turningPreview = false;
             if (e.type == EventType.MouseDown && e.button == 0 && pic.Contains(e.mousePosition))
             {
+                // (a click on the picture stops the typing, as a click on nothing does)
+                if (typing) { GUI.FocusControl(null); GUIUtility.keyboardControl = 0; }
                 if (e.clickCount >= 2) ResetTurntable();
                 else turningPreview = true;
                 e.Use();
@@ -355,7 +364,6 @@ namespace CarrierGame.Demo
                 TurnPreview(e.delta.x * 0.4f, e.delta.y * 0.3f);
                 e.Use();
             }
-            else if (e.type == EventType.MouseUp && turningPreview) { turningPreview = false; e.Use(); }
             else if (e.type == EventType.ScrollWheel && pic.Contains(e.mousePosition))
             {
                 ZoomPreview(e.delta.y > 0f ? 1.12f : 1f / 1.12f);
@@ -485,7 +493,7 @@ namespace CarrierGame.Demo
             for (int f = 0; f < ShipPaint.Families; f++)
             {
                 float y = gy + f * ch;
-                bool famSel = edit.pattern / ShipPaint.Variants == f;
+                bool famSel = !factory && edit.pattern / ShipPaint.Variants == f;
                 GUI.Label(new Rect(rx, y, fw - 6f * s, ch), famSel ? $"<b>{ShipPaint.FamilyNames[f]}</b>" : $"<color=#9aa4b0>{ShipPaint.FamilyNames[f]}</color>",
                           Hud.Text(12, false, TextAnchor.MiddleLeft));
                 for (int v = 0; v < ShipPaint.Variants; v++)

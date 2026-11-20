@@ -126,8 +126,9 @@ namespace CarrierGame.Demo
         System.Collections.Generic.List<HelpRow> keyRows, padRows;
 
         /// <summary>The controls box's text, a line a row (for the self-test and the logs).</summary>
-        string KeyHelp => keyHelp ??= Flatten(ModeBar(false), KeyRows);
-        string PadHelp => padHelp ??= Flatten(ModeBar(true), PadRows);
+        // (the cache checked first: another mode, ship or fleet since, even with the box hidden)
+        string KeyHelp { get { HelpFor(Carrier); return keyHelp ??= Flatten(ModeBar(false), KeyRows); } }
+        string PadHelp { get { HelpFor(Carrier); return padHelp ??= Flatten(ModeBar(true), PadRows); } }
 
         /// <summary>The controls for the mode the player is in, leaving out systems this ship doesn't
         /// have, then the keys that are the same in every mode: a key and what it does, a row each.</summary>

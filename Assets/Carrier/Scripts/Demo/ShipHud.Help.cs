@@ -45,13 +45,12 @@ namespace CarrierGame.Demo
         const string MoreKeys = "more keys: - makes the text smaller, H hides this";
 
         GUIStyle keyStyle, whatStyle, headStyle, noteStyle;
-        int stylesSize = -1;
+        float stylesFor = -1f;
 
         void HelpStyles(float s)
         {
-            int size = Mathf.RoundToInt(17 * s);
-            if (size == stylesSize && keyStyle != null) return;
-            stylesSize = size;
+            if (Mathf.Approximately(s, stylesFor) && keyStyle != null) return;
+            stylesFor = s;
             keyStyle = new GUIStyle(Hud.Text(14, true, TextAnchor.MiddleCenter)) { wordWrap = false };
             keyStyle.normal.textColor = KeyColour;
             whatStyle = new GUIStyle(Hud.Text(15)) { wordWrap = true };
@@ -142,6 +141,9 @@ namespace CarrierGame.Demo
                 whatW = Mathf.Max(whatW, whatStyle.CalcSize(new GUIContent(r.what)).x + 2f);
             }
             whatW = Mathf.Min(whatW, Mathf.Min(300f * s, Screen.width * 0.22f));
+            // (two columns no wider than the screen: what they do narrower, wrapped, if need be)
+            float most = (Screen.width - pad * 4f - colGap) * 0.5f - keyW - gap;
+            if (most > 60f * s) whatW = Mathf.Min(whatW, most);
             float colW = keyW + gap + whatW;
             float capH = keyStyle.CalcSize(new GUIContent("Ag")).y + 2f * s;
 
@@ -171,6 +173,9 @@ namespace CarrierGame.Demo
                 bool lastFits = y + h + pad <= room;
                 // (a heading needs its first row with it)
                 if (r.heading && i + 1 < rows.Count) lastFits = y + h + Height(rows[i + 1], false) + pad <= room;
+                // (a column's first row goes in whatever its height: too tall for the room, it is
+                // still shown, but the box is said to be cut)
+                if (!lastFits && colEmpty && columns >= MostColumns) laidCut = true;
                 if (!lastFits && !colEmpty)
                 {
                     if (columns < MostColumns) { NewColumn(); h = Height(r, true); }
@@ -179,6 +184,13 @@ namespace CarrierGame.Demo
                         // (no more room: the rest give way to a line saying so, rows taken back till it fits)
                         float nh = noteStyle.CalcHeight(new GUIContent(MoreKeys), colW) + rowGap;
                         while (placed.Count > 0 && placed[placed.Count - 1].what.x >= x && y + nh + pad > room)
+                        {
+                            y = placed[placed.Count - 1].top;
+                            placed.RemoveAt(placed.Count - 1);
+                        }
+                        // (and a heading left with nothing under it)
+                        while (placed.Count > 0 && placed[placed.Count - 1].what.x >= x && placed[placed.Count - 1].row >= 0
+                               && rows[placed[placed.Count - 1].row].heading)
                         {
                             y = placed[placed.Count - 1].top;
                             placed.RemoveAt(placed.Count - 1);

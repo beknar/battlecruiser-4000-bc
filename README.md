@@ -161,6 +161,32 @@ StarSystem.exe -reel <dir> -cic -screen-fullscreen 0 -screen-width 1920 -screen-
 The display's lines are drawn with GL. Add `-cicnogl` to draw them with IMGUI instead, if they
 don't show.
 
+Three options change the battle:
+- `-cicfleet Vanguard,Talon` picks the frigates, in order. The first one leads.
+- `-cicmix 2,3,2,3` remakes the picket with that many Maws, Snares, Fangs and Skinks. Extra
+  ships are removed and missing ones are copied from a ship of the same kind.
+- `-cicsection` flies the frigates as a section, with the tactics below.
+
+The hidden player ship's HUD is left off the screen, and each frigate's moves go in the reel's
+log (`cic blue` lines), so radio calls can be timed to them. The two-frigate reel was recorded
+with `-cic -cicfleet Vanguard,Talon -cicmix 2,3,2,3 -cicsection`.
+
+**Flying as a section.** A pair of frigates that fight the Vrask's way of fighting (disable,
+hold, board):
+- **Cover each other.** If one frigate is held in a tractor beam or has a Fang clamped to her,
+  the other goes for that Snare or that Fang first.
+- **Fire together.** The wing takes the lead's target. The lead chooses in this order: Snares
+  first (without them nothing can hold a ship to board it, and with the Maws gone too the Vrask
+  break off), then a Fang on its run, then the Maws, then the Skinks. Nearer and more damaged
+  ships come first, and the beam isn't spent on a Skink.
+- **Stay together.** Both circle the target the same way, and the wing closes up if she gets
+  more than 2 km from the lead.
+- **Press the attack.** Out of gun range, a frigate flies straight in at full speed. A Maw falls
+  back from anything that closes, and a slow ship at the default pilot's 70% throttle never
+  catches it.
+- **Keep the shield up.** A Fang can't ram, and a Snare can't drag, a ship whose shield is up.
+  Below a fifth, a frigate turns away towards her mate until the shield is back above half.
+
 ## Playing the game
 
 ### A new game
@@ -1989,6 +2015,13 @@ battle goes to `<dir>/battles.csv` as it ends (outcome, time, enemies destroyed,
 captured, hull and shield left, hits taken), so a run can be stopped and started again: `-simfrom N
 -simcount M` runs a batch, skipping cases already in the file; `-simlimit S` caps a battle (600 s);
 `-simlist` writes the cases and quits. `docs/frigates-performance.md` is the report on a full run.
+
+`-simduo` runs pairs of frigates instead. Every pair of two different classes, with their main
+guns, fights one band (`-simenc`, the Sheol picket by default; run it with `-system ninehells`).
+The band can be remade to a mix with `-simmix 2,3,2,3`. Each pair fights flown both ways, by the
+simulator's own pilot and as a section, `-simreps` times each (2 by default; `-simpairs
+"Talon+Vanguard"` runs only the pairs named). Results go to `<dir>/duo.csv`, with the tactic and
+the mix added. `docs/frigates-section.md` is the report on a run.
 
 ## Tests
 

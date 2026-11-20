@@ -1425,6 +1425,8 @@ namespace CarrierGame.Demo
             if (k.friendly)
             {
                 string d = k.pilot != null ? k.pilot.Doing : "";
+                // (a section's: why she has her target too)
+                if (k.pilot != null && k.pilot.section && k.pilot.Why.StartsWith("COVER")) d += " / " + k.pilot.Why;
                 if (k.ship != null && k.ship.Clamped) return "CLAMPED BY FANG";
                 if (k.ship != null && k.ship.Tractored) return "HELD: TRACTOR / " + d;
                 if (k.boarded) return "BOARDED / " + d;

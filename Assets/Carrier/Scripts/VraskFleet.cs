@@ -134,7 +134,10 @@ namespace CarrierGame
                     // (with no Snare to disable it, the Fang goes in as it is)
                     return f.Disabled || (f.noSnares && f.captors) ? Phase.Board : Phase.Disable;
                 case Phase.Board:
-                    return !f.Disabled && f.freeFor >= recoverTime ? Phase.Disable : Phase.Board;
+                    // (nothing left to board with: the artillery, if it has it)
+                    if (!f.captors) return f.artillery ? Phase.Bombard : Phase.Board;
+                    // (back to the Snares, if it has any: with none, the Fang goes on as it is)
+                    return !f.Disabled && f.freeFor >= recoverTime && !f.noSnares ? Phase.Disable : Phase.Board;
             }
             return now;
         }
@@ -253,6 +256,7 @@ namespace CarrierGame
                     return !f.artillery ? $"no artillery: the Snares go in on {t}" : f.shieldDown || f.shield <= bombardShield ? $"{t}'s shield at {f.shield:P0}: the Snares go in"
                          : f.closing ? $"{t} closes on the line: the Snares go in" : f.Disabled ? $"{t} free again" : $"{t} shelled: the Snares go in";
                 case Phase.Board:
+                    if (f.noSnares && !f.Disabled && f.captors) return $"no Snares left: the Fang goes in on {t} as it is";
                     return $"{t} disabled ({(f.enginesDown ? "engines out" : f.heldFast ? "held fast" : f.held ? "held, its shield down" : "boarders aboard")}): the Fang goes in";
                 case Phase.Pursue: return f.targetLost ? "the target taken or destroyed: after the cripples" : f.fleeing ? $"{t} is running: after it" : "nothing left to work";
                 case Phase.Withdraw: return "the Maw and the Snares lost: breaking off";

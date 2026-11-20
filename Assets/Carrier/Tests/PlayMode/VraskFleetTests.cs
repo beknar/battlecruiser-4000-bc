@@ -46,6 +46,13 @@ namespace CarrierGame.Tests
             Assert.That(VraskFleet.Next(Phase.Board, f, 30f), Is.EqualTo(Phase.Board), "free only a moment");
             f.freeFor = 20f;
             Assert.That(VraskFleet.Next(Phase.Board, f, 30f), Is.EqualTo(Phase.Disable), "free again for a while: back to the Snares");
+            f.noSnares = true;
+            Assert.That(VraskFleet.Next(Phase.Board, f, 30f), Is.EqualTo(Phase.Board), "no Snares to go back to: the Fang goes on");
+            Assert.That(VraskFleet.Next(Phase.Disable, f, 1f), Is.EqualTo(Phase.Board), "(and it doesn't flap back)");
+            f.captors = false;
+            Assert.That(VraskFleet.Next(Phase.Board, f, 30f), Is.EqualTo(Phase.Bombard), "no Fang either: back to the artillery");
+            f.captors = true;
+            f.noSnares = false;
             f.freeFor = 0f;
             f.targetLost = true;
             Assert.That(VraskFleet.Next(Phase.Board, f, 30f), Is.EqualTo(Phase.Pursue), "taken or destroyed: the main fight is over");

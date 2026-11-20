@@ -241,7 +241,7 @@ namespace CarrierGame.Demo
         void OnGUI()
         {
             var carrier = Carrier;
-            if (carrier == null) return;
+            if (carrier == null || Hud.ReelNoShip) return;
             float s = Hud.S;
             bool pad = PadSupport.UsingPad && Gamepad.current != null;
             float pad2 = 12f * s;

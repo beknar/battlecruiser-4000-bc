@@ -146,6 +146,7 @@ namespace CarrierGame.Demo
 
         void OnGUI()
         {
+            if (Hud.ReelNoShip) return;
             var old = GUI.matrix;
             drawn = UnityEngine.Rect.zero;
             GUIUtility.ScaleAroundPivot(new Vector2(Scale, Scale), new Vector2(0f, Screen.height));

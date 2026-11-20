@@ -8,7 +8,7 @@ using UnityEngine.SceneManagement;
 namespace CarrierGame.Demo
 {
     /// <summary>
-    /// The CIC reel: StarSystem.exe -reel &lt;folder&gt; -cic. Five frigates (the Sentinel, Lancer,
+    /// The CIC reel: StarSystem.exe -reel &lt;folder&gt; -cic. Five frigates by default (the Sentinel, Lancer,
     /// Warden, Talon and Vanguard, each flown by the battle simulator's SimPilot) come in line
     /// abreast against the Vrask picket over Sheol in the Nine Hells (two Maws, three Snares, two
     /// Fangs, three Skinks, fighting as a fleet), and fight it out to the end. The reel cuts
@@ -19,6 +19,12 @@ namespace CarrierGame.Demo
     /// hit is cut. Then the results card, the final analysis (the battle replayed on the plot at
     /// 10-20x with callouts at its key moments) and an end card. The reel opens the Nine Hells by
     /// itself. Each part runs under a time limit (Safe), and the reel always ends.
+    ///
+    /// Its options: -cicfleet Talon,Vanguard (the frigates, in their order: the first leads),
+    /// -cicmix 2,3,2,3 (the picket made over to that many Maws, Snares, Fangs and Skinks:
+    /// VraskMix) and -cicsection (the frigates flown as a section: SimPilot.section). Each
+    /// frigate's move and the reason for her target go in the reel's log as they change ("cic
+    /// blue"), for a voice-over's radio calls.
     /// </summary>
     public partial class DemoReel
     {
@@ -43,6 +49,9 @@ namespace CarrierGame.Demo
         bool cicDone;
         const float CicLimit = 720f;            // the battle's longest (game seconds)
         static readonly string[] CicOrder = { "Sentinel", "Lancer", "Warden", "Talon", "Vanguard" };
+        static readonly string[] CicWords = { "No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve" };
+        static string CicWord(int n) => n >= 0 && n < CicWords.Length ? CicWords[n] : n.ToString();
+        readonly Dictionary<SimPilot, (string doing, string why, Transform target)> cicDoing = new Dictionary<SimPilot, (string, string, Transform)>();
 
         /// <summary>Not in the Nine Hells: open it, and `then` once it is (false: it is here
         /// already, or can't be opened).</summary>
@@ -69,6 +78,16 @@ namespace CarrierGame.Demo
         {
             if (cicReelStart < 0f) cicReelStart = Time.time;
             if (!finished && Time.time - cicReelStart > 1700f) { Note("cic: the reel's time cap"); finished = true; }
+            // each frigate's move, as it changes (for the voice-over's radio calls)
+            foreach (var p in cicBlue)
+            {
+                if (p == null || tac == null || tac.mode == TacticalDisplay.Mode.Results) continue;
+                var now = (p.Doing, p.Why, p.Target);
+                if (cicDoing.TryGetValue(p, out var was) && was == now) continue;
+                cicDoing[p] = now;
+                Note($"cic blue T+{tac.ClockText} {(p.ship != null ? p.ship.shipName : p.name)}: {p.Doing}{(p.section && !string.IsNullOrEmpty(p.Why) ? " [" + p.Why + "]" : "")} " +
+                     $"on {(p.Target != null ? p.Target.name : "-")}, shield {p.ShieldFraction:P0}, hull {p.HullFraction:P0}");
+            }
             if (cam != null && cam.target == null && tac != null)
             {
                 var k = tac.Tracks.FirstOrDefault(x => !x.dead && x.t != null);
@@ -137,6 +156,12 @@ namespace CarrierGame.Demo
             cicGroup = groups.FirstOrDefault(g => g != null && g.groupName == "Sheol picket");
             if (cicGroup == null)
                 cicGroup = groups.Where(g => g != null && g.pilots != null && g.GetComponent<VraskFleet>() != null).OrderByDescending(g => g.pilots.Length).FirstOrDefault();
+            var mix = VraskMix.Parse(LaunchArgs.ValueOf("-cicmix"));
+            if (mix != null && cicGroup != null)
+            {
+                Note($"cic: the picket made over: {VraskMix.Apply(cicGroup, mix)}");
+                yield return null;
+            }
             cicEnc = BattleSim.Encounter.FromGroup(cicGroup);
             if (cicEnc == null) { Note("cic: no Vrask band to fight"); yield break; }
             cicFleet = cicGroup.GetComponent<VraskFleet>();
@@ -160,17 +185,18 @@ namespace CarrierGame.Demo
             // (a Vrask ship lost stays lost: none comes back mid-battle)
             foreach (var h in cicEnc.enemies) if (h != null) h.respawnHeld = true;
 
-            // the five frigates, line abreast 11 km off, bows on the picket
+            // the frigates, line abreast 11 km off, bows on the picket
             c = cicEnc.Centre;
             dir = CicStarDir(c);
             Vector3 start = BattleSim.Clear(c + dir * 11000f, dir);
             Vector3 side = Vector3.Cross(CicUp(c), -dir);
             side = side.sqrMagnitude > 1e-4f ? side.normalized : Vector3.right;
             var roster = FrigateRoster.Get();
-            var entries = (roster != null ? roster.frigates : new FrigateRoster.Entry[0])
-                .Where(e => e != null && e.prefab != null && e.category == FrigateRoster.Frigate)
-                .OrderBy(e => { int i = Array.FindIndex(CicOrder, n => string.Equals(n, e.displayName, StringComparison.OrdinalIgnoreCase)); return i < 0 ? 99 : i; })
-                .Take(5).ToList();
+            var order = (LaunchArgs.ValueOf("-cicfleet") ?? "").Split(new[] { ',', '+' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).ToArray();
+            if (order.Length == 0) order = CicOrder;
+            var all = (roster != null ? roster.frigates : new FrigateRoster.Entry[0]).Where(e => e != null && e.prefab != null && e.category == FrigateRoster.Frigate).ToList();
+            var entries = order.Select(n => all.FirstOrDefault(e => string.Equals(n, e.displayName, StringComparison.OrdinalIgnoreCase) || string.Equals(n, e.id, StringComparison.OrdinalIgnoreCase)))
+                               .Where(e => e != null).Take(5).ToList();
             cicBlue.Clear();
             for (int k = 0; k < entries.Count; k++)
             {
@@ -182,7 +208,8 @@ namespace CarrierGame.Demo
                 if (p != null) cicBlue.Add(p);
             }
             if (cicBlue.Count == 0) { Note("cic: couldn't make the frigates"); yield break; }
-            foreach (var p in cicBlue) { p.fleet = cicBlue; p.encounter = cicEnc; }
+            bool section = LaunchArgs.Has("-cicsection");
+            foreach (var p in cicBlue) { p.fleet = cicBlue; p.encounter = cicEnc; p.section = section; }
             cam.maxDistance = Mathf.Max(cam.maxDistance, 9000f);
             if (cicMark == null) cicMark = new GameObject("CIC camera mark").transform;
             yield return null;
@@ -193,7 +220,7 @@ namespace CarrierGame.Demo
             // (drawn level over Sheol, the picket at the top)
             tac.Begin(frameOf, CicUp(c), -dir, cicBlue, cicRed, cicFleet, cicGroup, "SHEOL");
             cicLine = string.Join(", ", cicBlue.Select(p => p.ship != null ? p.ship.shipName : p.name));
-            Note($"cic: blue {cicLine}, {Vector3.Distance(start, c) / 1000f:F1} km from the picket; positions on {(frameOf != null ? frameOf.name : "the world")}");
+            Note($"cic: blue {cicLine}{(section ? ", flown as a section" : "")}, {Vector3.Distance(start, c) / 1000f:F1} km from the picket; positions on {(frameOf != null ? frameOf.name : "the world")}");
             done(true);
         }
 
@@ -211,12 +238,12 @@ namespace CarrierGame.Demo
             }
             yield return Wait(0.5f);
             yield return FadeIn(1f);
-            Caption("BATTLECRUISER 4000 BC", "Five frigates against the Vrask picket over Sheol, in the Nine Hells", 6f);
+            Caption("BATTLECRUISER 4000 BC", $"{CicWord(cicBlue.Count)} frigate{(cicBlue.Count == 1 ? "" : "s")} against {CicWord(cicRed.Count).ToLowerInvariant()} Vrask over Sheol, in the Nine Hells", 6f);
             cicCapAt = Time.time;
             yield return CicHold(6.5f, false);
             tac.mode = TacticalDisplay.Mode.Full; CicMode();
-            var roles = cicRed.GroupBy(v => v.role).OrderBy(g => RoleOrder(g.Key)).Select(g => $"{g.Count()} {g.Key}{(g.Count() > 1 ? "s" : "")}");
-            Caption("COMBAT INFORMATION CENTRE", $"Blue: {cicLine}, line abreast. Red: {string.Join(", ", roles)}", 7f);
+            string roles = VraskMix.Describe(cicRed);
+            Caption("COMBAT INFORMATION CENTRE", $"Blue: {cicLine}, {(cicBlue.Count == 2 ? (cicBlue[0].section ? "a section, " + cicLine.Split(',')[0] + " leading" : "a pair") : "line abreast")}. Red: {roles}", 7f);
             cicCapAt = Time.time;
             yield return CicHold(8f, true);
             tac.mode = TacticalDisplay.Mode.Off; CicMode();

@@ -67,7 +67,8 @@ namespace CarrierGame.Demo
                 yield return Key(kb, K.NumpadPlus);
                 float more = map.Zoom;
                 Shot("nav_map_zoom");
-                var far = Point("Glacis") ?? Point("Kestrel Deep Yard");
+                var far = new[] { "Glacis", "Pelagia", "Kestrel Deep Yard", "Comet Iskra" }.Select(Point)
+                          .FirstOrDefault(p => p != null && p != map.Selected && !map.InView(p.Position));
                 bool offBefore = far != null && !map.InView(far.Position);
                 map.Select(far);
                 yield return null;

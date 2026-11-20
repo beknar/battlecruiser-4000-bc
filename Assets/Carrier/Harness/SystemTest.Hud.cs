@@ -39,6 +39,13 @@ namespace CarrierGame.Demo
                 $"top-left panel {help.width:F0} x {help.height:F0} (the controls only); alerts '{ShipConsole.Alerts}'");
             Shot("h0_console");
             results.Add(("the console is in the bottom-left corner", corner && (help.height == 0f || help.yMax < r.yMin)));
+            // the controls box: a key cap a row, in one column or two, on the screen and clear of the console
+            var shipHud = FindAnyObjectByType<ShipHud>();
+            string keys = shipHud != null ? shipHud.HelpText(false) : "";
+            Log($"controls box {help.width:F0} x {help.height:F0}, {(shipHud != null ? shipHud.HelpColumns : 0)} column(s){(shipHud != null && shipHud.HelpCut ? ", rows cut" : "")}");
+            results.Add(("the controls box is on the screen, above the console, every key shown",
+                         help.width > 0f && help.xMax <= Screen.width && help.yMax < r.yMin && shipHud != null && !shipHud.HelpCut
+                         && new[] { "throttle", "level off", "text size", "menu", "hide help" }.All(k => keys.Contains(k))));
 
             // ---- the captains' faces
             int[] found = Captain.Roster.Select((c, i) => Captain.FacesFound(i)).ToArray();

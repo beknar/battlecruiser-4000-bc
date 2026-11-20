@@ -88,14 +88,15 @@ namespace CarrierGame.Demo
             return true;
         }
 
-        /// <summary>At most MaxLength characters, without control characters or space round it.</summary>
-        public static string Clean(string s)
+        /// <summary>At most `limit` characters (MaxLength), without control characters or space round it.</summary>
+        public static string Clean(string s, int limit = MaxLength)
         {
             if (string.IsNullOrEmpty(s)) return "";
-            var sb = new System.Text.StringBuilder(Math.Min(s.Length, MaxLength));
-            foreach (char c in s)
+            var sb = new System.Text.StringBuilder(Math.Min(s.Length, limit));
+            // (the space before it doesn't count against the limit)
+            foreach (char c in s.TrimStart())
             {
-                if (sb.Length >= MaxLength) break;
+                if (sb.Length >= limit) break;
                 if (!char.IsControl(c)) sb.Append(c);
             }
             return sb.ToString().Trim();

@@ -50,6 +50,10 @@ namespace CarrierGame.Tests
             string reply = "Wingman: " + new string('y', 330);
             Assert.That(CoopChat.Clean(reply), Is.EqualTo(reply));
             Assert.That(CoopChat.MaxLength, Is.GreaterThanOrEqualTo(400));
+            // (line breaks and the space before it aren't counted against the limit)
+            string lines = "   " + string.Join("\n", System.Linq.Enumerable.Repeat(new string('z', 39), 10));
+            Assert.That(CoopChat.Clean(lines).Length, Is.EqualTo(390));
+            Assert.That(CoopChat.Clean(new string('x', 500), int.MaxValue).Length, Is.EqualTo(500), "uncut, to tell whether it was cut");
         }
 
         [Test]

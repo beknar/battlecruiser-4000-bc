@@ -150,9 +150,17 @@ namespace CarrierGame.Demo
             if (Pilot != null && CoopClient.Active && Pilot.Doing != lastDoing)
             {
                 string now = Pilot.Doing;
-                bool worth = now.StartsWith("target destroyed") || now.StartsWith("arrived") || now.StartsWith("can't") || now.StartsWith("holding in high orbit");
+                bool worth = now.StartsWith("target destroyed") || now.StartsWith("arrived") || now.StartsWith("can't");
                 lastDoing = now;
                 if (worth) CoopChat.Say($"{Me}: {now}.");
+            }
+            // waiting over a world for a landed leader: said once a landing (not again after each
+            // fight while it waits)
+            var over = Pilot != null ? Pilot.WaitingOver : null;
+            if (over != lastWaitingOver)
+            {
+                lastWaitingOver = over;
+                if (over != null && CoopClient.Active) CoopChat.Say($"{Me}: {Pilot.WaitingLine}.");
             }
             // a fight starting is said once, whatever it says it is doing on the way in
             bool fighting = Pilot != null && Pilot.Fighting;
@@ -172,6 +180,8 @@ namespace CarrierGame.Demo
                 Respond(ctx, 200, MessagesJson(after));
             }
         }
+
+        WarpPoint lastWaitingOver;
 
         IEnumerable<CoopPlayer> Humans()
         {
@@ -800,7 +810,7 @@ namespace CarrierGame.Demo
                         var b = Parse<SayBody>(body);
                         bool ok = b != null && CoopChat.Say(b.text);
                         // (longer than a message may be: what was said was cut, and the caller is told)
-                        bool cut = ok && b.text.Trim().Length > CoopChat.MaxLength;
+                        bool cut = ok && CoopChat.Clean(b.text, int.MaxValue).Length > CoopChat.MaxLength;
                         json = ok ? (cut ? $"{{\"ok\":true,\"cut\":true,\"max\":{CoopChat.MaxLength}}}" : "{\"ok\":true}") : "{\"ok\":false,\"error\":" + Q(CoopClient.Active ? "nothing to say" : "not connected to a co-op game") + "}";
                         break;
                     }

@@ -76,6 +76,7 @@ namespace CarrierGame.Demo
 
         void Set(Order o)
         {
+            WaitingOver = null;
             // (leaving the Mine order: the laser off, the approach stopped)
             if (Current == Order.Mine && o != Order.Mine) StopMiningGear();
             Current = o;
@@ -115,10 +116,24 @@ namespace CarrierGame.Demo
                    ?? world;
         }
 
+        /// <summary>The world it waits over for its landed leader (null when it isn't waiting).</summary>
+        public WarpPoint WaitingOver { get; private set; }
+
+        /// <summary>What it says while it waits over a world.</summary>
+        public string WaitingLine => WaitingOver == null ? "" :
+            $"{LeaderName} has landed on {WaitingOver.displayName}. Holding {(WaitingPlace(WaitingOver) != WaitingOver ? "in high orbit over" : "over")} it";
+
         void WaitOver(CarrierController cc, WarpPoint world)
         {
+            if (WaitingOver != world)
+            {
+                // (a new wait: a warp refused on the way after the leader doesn't hold this one up)
+                WaitingOver = world;
+                warpBlockedUntil = 0f;
+                nextWarp = 0f;
+            }
             var at = WaitingPlace(world);
-            string doing = $"holding in high orbit over {world.displayName}: {LeaderName} has landed";
+            string doing = $"holding {(at != world ? "in high orbit over" : "over")} {world.displayName}: {LeaderName} has landed";
             if (Vector3.Distance(cc.transform.position, at.Position) > Mathf.Max(20000f, at.arrivalDistance * 2f))
             {
                 // (a warp the drive won't make: it says why, and tries again in a while)
@@ -320,6 +335,7 @@ namespace CarrierGame.Demo
             // waits for them over that world, in its high orbit, and forms up again when they're up
             var down = leader == null ? LandedLeader() : null;
             if (down != null) { WaitOver(cc, down); return; }
+            WaitingOver = null;
             if (leader == null)
             {
                 Steer(0f, 0f);

@@ -70,8 +70,11 @@ namespace CarrierGame.Demo
                 Wreck.All.RemoveAt(0);
                 if (old != null) Destroy(old.gameObject);
             }
-            Wreck.Make(t, of, contents, size, h);
+            var made = Wreck.Make(t, of, contents, size, h);
             WrecksMade++;
+            // (the ship targeted: its wreck is the one Z goes for, as long as nothing else is
+            // targeted; the ship itself is gone in a few seconds)
+            if (ship != null && ship.target == t) targetWreck = made;
         }
 
         /// <summary>What a wreck of `t` holds: by its size, more for a capital ship (and a part,
@@ -142,35 +145,42 @@ namespace CarrierGame.Demo
 
         // ------------------------------------------------------------ the beam
 
-        /// <summary>The wreck of the ship targeted, when it has been destroyed (it stays the
-        /// target; its wreck is a thing of its own), and there is still something in it.</summary>
+        // the wreck of the ship that was targeted when it died
+        Wreck targetWreck;
+
+        /// <summary>The wreck of the ship that was targeted when it was destroyed, while nothing
+        /// else is targeted (the dead ship stays targeted only till it is gone, a few seconds)
+        /// and there is still something in it.</summary>
         public Wreck TargetWreck()
         {
+            if (targetWreck == null || targetWreck.Empty) { targetWreck = null; return null; }
             var t = Ship != null ? Ship.target : null;
-            if (t == null || !t.TryGetComponent(out Health h) || !h.Dead) return null;
-            return Wreck.All.LastOrDefault(w => w != null && w.From == h && !w.Empty);
+            // (something else targeted since: that is what the player is after now)
+            if (t != null && !(t.TryGetComponent(out Health h) && h.Dead)) return null;
+            return targetWreck;
         }
 
-        /// <summary>The wreck K would land beside: one being salvaged or flown to, the target's,
-        /// or one chosen or in reach (within 30 km): Z salvages it, K doesn't land there.</summary>
+        /// <summary>The wreck K would land beside, in combat mode (where Z salvages): one being
+        /// salvaged or flown to, or the target's or the chosen one in the beam's reach, with
+        /// room in the hold for it. K says Z salvages it instead of landing. Null otherwise: K
+        /// lands as ever (in another mode, with the hold full, or the wreck out of reach).</summary>
         public Wreck WreckHere()
         {
+            if (!Modes.Is(ModeOfPlay.Combat)) return null;
             if (Working != null) return Working;
             if (FlyingToWreck) return flyingTo;
+            var hold = demo != null ? demo.Cargo : null;
+            if (hold == null || hold.Full) return null;
             var w = TargetWreck() ?? (Chosen != null && !Chosen.Empty ? Chosen : null);
-            if (w != null && DistanceTo(w) < Around) return w;
-            var nearest = NearNow().FirstOrDefault();
-            return nearest != null && InReach(nearest) ? nearest : null;
+            return w != null && InReach(w) ? w : null;
         }
 
         public void Choose(Wreck w)
         {
             Chosen = w;
             if (w == null) return;
-            // (a wreck chosen over the destroyed ship still targeted: the target let go, so Z
-            // salvages the one chosen)
-            var ship = Ship;
-            if (ship != null && ship.target != null && ship.target.TryGetComponent(out Health th) && th.Dead && TargetWreck() != w) demo.ClearTarget();
+            // (another wreck chosen: the target's let go, so Z salvages the one chosen)
+            if (w != targetWreck) targetWreck = null;
             SoundFX.Ui(Sfx.UiLock);
             Notices.Post(InReach(w) ? $"{w.Name}: in reach. Z salvages it" : $"{w.Name} chosen, {CombatMode.Distance(DistanceTo(w))} off: Z flies there and salvages it");
         }
@@ -192,9 +202,10 @@ namespace CarrierGame.Demo
         public void SalvageWreck(Wreck w)
         {
             if (w == null || w.Empty) { Refuse("Nothing left in that wreck"); return; }
-            Chosen = w;
             if (Working == w) return;
             if (!CanSalvage()) return;
+            Chosen = w;
+            if (w != targetWreck) targetWreck = null;
             if (Working != null) Stop();
             if (!InReach(w))
             {
@@ -202,7 +213,9 @@ namespace CarrierGame.Demo
                 if (!FlyTo(w) && AutoFly.Instance == null) Refuse($"Can't fly to {w.Name} here");
                 return;
             }
-            if (FlyingToWreck) { AutoFly.Instance.Stop(null); flyingTo = null; }
+            // (in reach: any auto-flight under way stopped, or it takes her out of reach)
+            if (AutoFly.Instance != null && AutoFly.Instance.Active) AutoFly.Instance.Stop(null);
+            flyingTo = null;
             StartOn(w);
         }
 
@@ -235,6 +248,7 @@ namespace CarrierGame.Demo
             var fly = AutoFly.Instance;
             if (w == null || fly == null || !CanSalvage()) return false;
             Chosen = w;
+            if (w != targetWreck) targetWreck = null;
             flyingTo = w;
             return fly.Begin(w.Name, () => w != null ? w.transform.position : Ship.transform.position, range * 0.6f + w.Size,
                              () => { flyingTo = null; if (w != null && !w.Empty && InReach(w) && Working == null) StartOn(w); },

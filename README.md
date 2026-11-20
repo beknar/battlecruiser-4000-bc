@@ -931,15 +931,16 @@ system to travel around.
   pad): the salvage beam strips it into the hold over a few seconds, as much as there is room for.
   What it brings aboard is the industry's own goods, stored, sold or built with like any other.
   A wreck lasts 15 minutes. Wrecks aren't shared in co-op: each player salvages their own.
-  - Which wreck Z takes: the wreck of the ship still targeted (a destroyed ship stays the target),
-    then the one chosen in the menu, then the nearest within 30 km. One out of reach is flown
+  - Which wreck Z takes: the wreck of the ship that was targeted when it was destroyed (while
+    nothing else is targeted), then the one chosen in the menu, then the nearest within 30 km. One out of reach is flown
     to, and salvaged on arrival.
   - In the menu, Enter or Z on a wreck salvages it (flying there first if need be), whatever
     else is under way: the beam moves to it, or the flight turns to it.
   - When Z can't salvage, it says why: the hold is full, the ship has no hold, she is lost, or
     there is nothing left in the wreck.
-  - K doesn't land while a wreck is being salvaged, flown to, targeted or chosen (within 30 km),
-    or is in the beam's reach: it says Z salvages it. Otherwise K says which world it is landing
+  - In combat mode, K doesn't land while a wreck is being salvaged or flown to, or the
+    target's or the chosen one is in the beam's reach with room in the hold: it says Z salvages
+    it. Otherwise K says which world it is landing
     on before the fade (near an asteroid field, the field's own rock).
 - **Capital ships.**
 

@@ -415,9 +415,12 @@ namespace CarrierGame.Demo
             var landing = PlanetLanding.Instance;
             if (landing != null && salvage.Working != null)
             {
+                // (in landing range of a world, K says Z salvages the wreck; out of it, there is
+                // nothing to land on anyway: either way, no landing)
                 yield return Key(kb, K.K);
-                Check(landing.Current == PlanetLanding.State.InSpace && (Notices.Last ?? "").Contains("Z salvages"),
-                      $"K by the wreck doesn't land: '{Notices.Last}'");
+                string said = Notices.Last ?? "";
+                Check(landing.Current == PlanetLanding.State.InSpace && salvage.WreckHere() == salvage.Working && (said.Contains("Z salvages") || said.Contains("not in orbit")),
+                      $"K by the wreck being salvaged doesn't land: '{said}'");
             }
             if (salvage.Working != null) salvage.Stop();
             cc.throttle = 0f;
@@ -450,7 +453,9 @@ namespace CarrierGame.Demo
             yield return null;
             Targets.Remove(aimed.transform);
             Targets.Remove(nearer.transform);
-            var aimedWreck = Wreck.All.LastOrDefault(w => w != null && w.From == aimedHealth);
+            var aimedWreck = Wreck.All.LastOrDefault(w => w != null && w.Of == "Targeted hulk");
+            // (a few seconds on, the dead hulk itself gone: its wreck is still the one)
+            yield return new WaitForSeconds(1f);
             yield return Key(kb, K.Z);
             yield return null;
             bool onIt = aimedWreck != null && (salvage.Working == aimedWreck || salvage.Chosen == aimedWreck);

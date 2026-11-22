@@ -1,0 +1,119 @@
+{
+    "note": "What convert_lizards.py needs to know about the four Empire frigates, ai models/empire-*-frigate.glb, in the layout of lizard_spec.json (read its note): each is aligned from the raw GLB by its long axis (turn pca or pca+180 so the engines end up astern, long3d, then the yaw/roll that make it most mirror-symmetric, found by align_grid.py --sym), then all positions are in the aligned frame: bow at -X, +Z up, keel on z = 0, 1 unit long, centred in X and Y. Boxes are [x0, x1, y0, y1, z0, z1]; +Y is starboard. These models are one big piece with the turrets moulded into it, so most turrets use housing_mode \"box\" (every face whose middle is in the box is cut, the hull's own included); a loose turret part uses \"islands\". Points are role points (kind, pos, dir, size = radius). Measured with align_grid.py (gridded views, --zoom, --probe ray hits, --islands) and checked with its --marks renders.",
+    "ships": [
+        {
+            "id": "Assault",
+            "prefix": "Empire",
+            "faction": "empire",
+            "role": "line / assault frigate",
+            "source": "empire-assault-frigate.glb",
+            "align": {"turn": "pca+180", "long3d": true, "sym_yaw": 0.6, "sym_roll": 0.4, "drop": [-0.51, -0.43, -0.2, 0.2, 0.0, 0.3]},
+            "length": 260,
+            "notes": "Long armoured hull, blunt bow with a cluster of short antennae, a stepped dorsal spine with four deck turrets (a loose bow mount, a twin mount, two spine mounts), a twin-cylinder sponson on each flank, open drone bays in each flank amidships, two missile hatches aft on the spine, four canted fins and two big nozzles in the stern. A loose needle forward of the bow (a stray sliver ~10 m off the hull) is dropped.",
+            "turrets": [
+                {"name": "BowMount", "facing": "-X", "up": "+Z", "housing": [-0.44, -0.33, -0.05, 0.04, 0.18, 0.23]},
+                {"name": "FwdTwin", "facing": "-X", "up": "+Z", "housing_mode": "box", "housing": [-0.287, -0.216, -0.035, 0.030, 0.212, 0.26]},
+                {"name": "SpineFwd", "facing": "-X", "up": "+Z", "housing_mode": "box", "housing": [-0.097, -0.018, -0.028, 0.028, 0.215, 0.26]},
+                {"name": "SpineAft", "facing": "-X", "up": "+Z", "housing_mode": "box", "housing": [0.048, 0.128, -0.032, 0.032, 0.225, 0.27]},
+                {"name": "SponsonStbd", "facing": "-X", "up": "+Y", "housing_mode": "box", "housing": [-0.12, -0.02, 0.10, 0.145, 0.10, 0.15]},
+                {"name": "SponsonPort", "facing": "-X", "up": "-Y", "housing_mode": "box", "housing": [-0.12, -0.02, -0.145, -0.10, 0.10, 0.15]}
+            ],
+            "engines": [
+                {"pos": [0.485, 0.051, 0.118], "r": 0.026},
+                {"pos": [0.485, -0.051, 0.118], "r": 0.026}
+            ],
+            "ciws": [[-0.15, 0.06], [-0.15, -0.06], [0.30, 0.10], [0.30, -0.10]],
+            "missile_cells": [[0.216, 0.029, 0.231], [0.221, -0.023, 0.231], [0.160, 0.030, 0.233], [0.160, -0.025, 0.233]],
+            "points": [
+                {"name": "CiwsFwdStbd", "kind": "ciws", "pos": [-0.15, 0.06, 0.221], "dir": "+Z", "size": 0.01},
+                {"name": "CiwsFwdPort", "kind": "ciws", "pos": [-0.15, -0.06, 0.2155], "dir": "+Z", "size": 0.01},
+                {"name": "CiwsAftStbd", "kind": "ciws", "pos": [0.30, 0.10, 0.1935], "dir": "+Z", "size": 0.01},
+                {"name": "CiwsAftPort", "kind": "ciws", "pos": [0.30, -0.10, 0.1841], "dir": "+Z", "size": 0.01},
+                {"name": "CellAftStbd", "kind": "missile_cell", "pos": [0.216, 0.029, 0.231], "dir": "+Z", "size": 0.01},
+                {"name": "CellAftPort", "kind": "missile_cell", "pos": [0.221, -0.023, 0.231], "dir": "+Z", "size": 0.01},
+                {"name": "CellFwdStbd", "kind": "missile_cell", "pos": [0.160, 0.030, 0.233], "dir": "+Z", "size": 0.01},
+                {"name": "CellFwdPort", "kind": "missile_cell", "pos": [0.160, -0.025, 0.233], "dir": "+Z", "size": 0.01},
+                {"name": "DroneBayStbd", "kind": "drone_bay", "pos": [0.05, 0.1148, 0.128], "dir": "+Y", "size": 0.03},
+                {"name": "DroneBayPort", "kind": "drone_bay", "pos": [0.05, -0.1022, 0.128], "dir": "-Y", "size": 0.03}
+            ]
+        },
+        {
+            "id": "Patrol",
+            "prefix": "Empire",
+            "faction": "empire",
+            "role": "escort / patrol frigate",
+            "source": "empire-patrol-frigate.glb",
+            "align": {"turn": "pca", "long3d": true, "sym_yaw": 0.4, "sym_roll": -2.7},
+            "length": 220,
+            "notes": "Rounded split bow (a dark slot between upper and lower jaws), a long gallery along each flank (boarding pods), an oval ring on the forward deck (a loose part: the sensor), a chin turret under the bow (a loose part), a turret with a long barrel on an oval platform aft, two engine pods on short pylons (twin nozzles each), swept fins with red stripes, and a four-nozzle cluster in the stern.",
+            "turrets": [
+                {"name": "AftTurret", "facing": "-X", "up": "+Z", "pivot": [0.31, 0.0, 0.196], "single_muzzle": true, "housing_mode": "box", "housing": [0.21, 0.335, -0.03, 0.035, 0.196, 0.24]},
+                {"name": "ChinTurret", "facing": "-X", "up": "-Z", "single_muzzle": true, "housing": [-0.37, -0.30, -0.03, 0.03, 0.01, 0.05]}
+            ],
+            "engines": [
+                {"pos": [0.484, -0.016, 0.113], "r": 0.016},
+                {"pos": [0.484, 0.020, 0.113], "r": 0.016},
+                {"pos": [0.479, -0.016, 0.077], "r": 0.016},
+                {"pos": [0.479, 0.020, 0.077], "r": 0.016},
+                {"pos": [0.413, -0.112, 0.107], "r": 0.009},
+                {"pos": [0.413, -0.093, 0.107], "r": 0.009},
+                {"pos": [0.418, 0.099, 0.107], "r": 0.009},
+                {"pos": [0.418, 0.120, 0.107], "r": 0.009}
+            ],
+            "ciws": [[-0.30, 0.05], [0.20, -0.05]],
+            "points": [
+                {"name": "CiwsFwd", "kind": "ciws", "pos": [-0.30, 0.05, 0.2003], "dir": "+Z", "size": 0.01},
+                {"name": "CiwsAft", "kind": "ciws", "pos": [0.20, -0.05, 0.1715], "dir": "+Z", "size": 0.01},
+                {"name": "BoardingPodStbd", "kind": "boarding_pod", "pos": [-0.05, 0.0996, 0.11], "dir": "+Y", "size": 0.02},
+                {"name": "BoardingPodPort", "kind": "boarding_pod", "pos": [-0.05, -0.1019, 0.11], "dir": "-Y", "size": 0.02},
+                {"name": "SensorRing", "kind": "sensor", "pos": [-0.213, 0.0, 0.212], "dir": "+Z", "size": 0.04}
+            ]
+        },
+        {
+            "id": "Raider",
+            "prefix": "Empire",
+            "faction": "empire",
+            "role": "fast attack / raider",
+            "source": "empire-raider-frigate.glb",
+            "align": {"turn": "pca", "long3d": true, "sym_yaw": 0.7, "sym_roll": -3.8},
+            "length": 180,
+            "notes": "Low, rounded wedge with a dark gun slot across the chin (fixed guns), two dorsal turrets on the spine, rows of launch cells along each flank (point defence: the ciws), and four nozzles astern, two in pods on outriggers and two lower in the hull. The model's centre line is ~0.01 units to starboard of the bounding-box centre.",
+            "turrets": [
+                {"name": "DorsalFwd", "facing": "-X", "up": "+Z", "housing_mode": "box", "housing": [-0.345, -0.255, -0.03, 0.03, 0.20, 0.26]},
+                {"name": "DorsalMid", "facing": "-X", "up": "+Z", "housing_mode": "box", "housing": [-0.045, 0.05, -0.022, 0.022, 0.22, 0.26]}
+            ],
+            "engines": [
+                {"pos": [0.485, -0.125, 0.171], "r": 0.017},
+                {"pos": [0.485, 0.148, 0.171], "r": 0.017},
+                {"pos": [0.485, -0.090, 0.083], "r": 0.017},
+                {"pos": [0.485, 0.107, 0.083], "r": 0.017}
+            ],
+            "ciws": [[-0.07, 0.13], [-0.07, -0.13], [0.10, 0.13], [0.10, -0.13]],
+            "guns": [
+                {"name": "ChinGuns", "pos": [-0.42, 0.0, 0.139], "facing": "-X", "muzzles": [[-0.49, 0.03, 0.139], [-0.49, -0.03, 0.139]]}
+            ]
+        },
+        {
+            "id": "Recon",
+            "prefix": "Empire",
+            "faction": "empire",
+            "role": "reconnaissance / target designator",
+            "source": "empire-recon-frigate.glb",
+            "align": {"turn": "pca", "long3d": true, "sym_roll": 1.9},
+            "length": 190,
+            "notes": "Long rounded hull with a lit sensor face in the bow (the designator), a row of small domes along the dorsal spine (two cut as light turrets: a loose one forward, one aft), a boxy aft superstructure carrying a cluster of masts and antennae (the sensor), two long radiator vanes on outriggers astern and two big glowing nozzles in the stern.",
+            "turrets": [
+                {"name": "DomeFwd", "facing": "-X", "up": "+Z", "single_muzzle": true, "housing": [-0.19, -0.16, -0.03, 0.03, 0.22, 0.245]},
+                {"name": "DomeAft", "facing": "-X", "up": "+Z", "single_muzzle": true, "housing_mode": "box", "housing": [0.155, 0.19, -0.025, 0.015, 0.21, 0.25]}
+            ],
+            "engines": [
+                {"pos": [0.460, -0.0787, 0.113], "r": 0.024},
+                {"pos": [0.460, 0.0644, 0.113], "r": 0.024}
+            ],
+            "points": [
+                {"name": "Designator", "kind": "designator", "pos": [-0.495, 0.0, 0.12], "dir": "-X", "size": 0.02},
+                {"name": "SensorMast", "kind": "sensor", "pos": [0.30, 0.0, 0.25], "dir": "+Z", "size": 0.03}
+            ]
+        }
+    ]
+}

@@ -7,13 +7,17 @@ turret cutting, same JSON layout) with these additions:
     align_grid.py --sym and recorded in the spec), then scaled to 1 unit long, centred, keel on z = 0,
     bow at -X. Spec coordinates are in that frame (the frame of work/lfN.glb).
   * "housing" may be a list of boxes (their union), and with housing_mode "faces" an "exclude" box
-    (or list) keeps faces in it out (small deck spikes inside a turret's box);
+    (or list) keeps faces in it out (small deck spikes inside a turret's box); housing_mode "box"
+    is "faces" with the hull's own part included too (models made as one piece, where a turret is
+    part of the hull: every face whose middle is in the box is cut);
+  * align "drop": boxes of faces deleted (stray slivers off the hull), see drop();
   * engines may give their own "dir" (default: astern);
   * "guns": fixed guns left in the hull (a mount point, a facing, muzzles);
   * "points": role-specific points (tractor emitter, ion muzzles, breach point, boarding-pod
     launchers, spinal muzzle, point-defence mounts, ...), each with a kind, position and direction;
   * the texture is written as a real PNG (convert_frigates.py's img.save() writes the packed JPEG
-    bytes under a .png name), optionally downscaled (--tex-size, default 2048).
+    bytes under a .png name), optionally downscaled (--tex-size, default 2048), and with
+    "tex_levels" [lift, gain] brought up from near black;
 
 Run:  blender -b --python convert_lizards.py -- <spec.json> <ai_models_dir> <models_dir> <data_dir>
                                                [id ...] [--preview <dir>] [--tex-size N]
@@ -92,8 +96,8 @@ def select_faces(obj, box, mode, part=None, exclude=None):
     for p in part:
         sizes[p] = sizes.get(p, 0) + 1
     hull = max(sizes, key=sizes.get)
-    if mode == "faces":
-        return [i for i, poly in enumerate(me.polygons) if part[i] != hull and in_box(poly.center, box)
+    if mode in ("faces", "box"):
+        return [i for i, poly in enumerate(me.polygons) if (mode == "box" or part[i] != hull) and in_box(poly.center, box)
                 and not (exclude and in_box(poly.center, exclude))]
     lo, hi = {}, {}
     for i, poly in enumerate(me.polygons):
@@ -215,12 +219,34 @@ def align(hull, a):
     if a.get("sym_yaw") or a.get("sym_roll"):
         hull.data.transform(Matrix.Rotation(math.radians(a.get("sym_roll", 0)), 4, "X")
                             @ Matrix.Rotation(math.radians(a.get("sym_yaw", 0)), 4, "Z"))
-    co = pts()
+    if a.get("drop"):
+        normalise(hull)
+        drop(hull, a["drop"])
+    normalise(hull)
+    print("ALIGNED", round(math.degrees(ang), 2), "deg about Z")
+
+
+def drop(hull, box):
+    """Delete the faces whose middle is in the box (or boxes), in the frame normalised once before
+    the drop (stray slivers beyond the hull, e.g. a loose needle off the bow), and loose vertices."""
+    bm = bmesh.new()
+    bm.from_mesh(hull.data)
+    faces = [f for f in bm.faces if in_box(f.calc_center_median(), box)]
+    bmesh.ops.delete(bm, geom=faces, context="FACES")
+    loose = [v for v in bm.verts if not v.link_faces]
+    bmesh.ops.delete(bm, geom=loose, context="VERTS")
+    bm.to_mesh(hull.data)
+    bm.free()
+    print("DROPPED", len(faces), "faces")
+
+
+def normalise(hull):
+    """1 unit long, centred in X and Y, keel on z = 0."""
+    co = np.array([tuple(v.co) for v in hull.data.vertices])
     lo, hi = co.min(axis=0), co.max(axis=0)
     s = 1.0 / (hi[0] - lo[0])
     c = (lo + hi) / 2
     hull.data.transform(Matrix.Scale(s, 4) @ Matrix.Translation(Vector((-c[0], -c[1], -lo[2]))))
-    print("ALIGNED", round(math.degrees(ang), 2), "deg about Z")
 
 
 def preview(name, hull, turret_parts):
@@ -259,12 +285,22 @@ def preview(name, hull, turret_parts):
             pitch.matrix_world = Matrix.Identity(4)
 
 
-def save_png(img, path, size):
-    """Write the texture as a real PNG (downscaled to size if bigger)."""
+def save_png(img, path, size, levels=None):
+    """Write the texture as a real PNG (downscaled to size if bigger). levels [lift, gain]: each
+    colour becomes lift + gain * it (0..1), to bring a near-black paint up to a dark grey that
+    shows against space (the Greys' Shroud and Reaper)."""
     w, h = img.size
     copy = img.copy()
     if size and max(w, h) > size:
         copy.scale(size, size * h // w)
+    if levels:
+        lift, gain = levels
+        px = np.empty(len(copy.pixels), dtype=np.float32)
+        copy.pixels.foreach_get(px)
+        px = px.reshape(-1, 4)
+        px[:, :3] = np.clip(lift + gain * px[:, :3], 0.0, 1.0)
+        copy.pixels.foreach_set(px.ravel())
+        print("TEXTURE LEVELS", lift, gain)
     scene = bpy.context.scene
     s = scene.render.image_settings
     s.file_format = "PNG"
@@ -288,8 +324,8 @@ def convert(f):
         if o is not hull:
             bpy.data.objects.remove(o, do_unlink=True)
     hull.name = hull.data.name = "Hull"
-    tris = sum(len(p.vertices) - 2 for p in hull.data.polygons)
     align(hull, f["align"])
+    tris = sum(len(p.vertices) - 2 for p in hull.data.polygons)
 
     lo, hi = bounds(hull)
     centre = (lo + hi) / 2
@@ -361,7 +397,7 @@ def convert(f):
     img = next((n.image for n in mat.node_tree.nodes if n.type == "TEX_IMAGE" and n.image), None) if mat and mat.use_nodes else None
     pre = f.get("prefix", "Frigate")
     if img:
-        save_png(img, os.path.join(MODELS, f"{pre}_{f['id']}_BaseColor.png"), TEX)
+        save_png(img, os.path.join(MODELS, f"{pre}_{f['id']}_BaseColor.png"), TEX, f.get("tex_levels"))
         img.filepath_raw = os.path.join(MODELS, f"{pre}_{f['id']}_BaseColor.png")   # what the FBX's material names
 
     bpy.ops.object.select_all(action="DESELECT")

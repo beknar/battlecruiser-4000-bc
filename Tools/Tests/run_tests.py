@@ -24,6 +24,7 @@ Stages, in order (--quick runs the ones marked *):
   approach     -approachtest: the real-size system; the ground seen from orbit; the auto-lander down to a pad and back; by hand onto a moon
   strike       -striketest: strikes from orbit: satellites on settlements (off-screen and watched), the frigate's kinetic rods, craters, rubble
   vrask        -vrasktest: the Vrask: their four ships at Comet Mirren (armour, shields, their own weapons), springing, firing, the Snares' tractor capture, boarding (pods shot down, breaching, repelled, captured, the Fang's clamp), the Maw's artillery (spotted, from beyond 8 km, a wide blast) and nukes, the siege of Port Ochre (a nuclear strike's ruins), the fleet engagement (picket, artillery first, a Skink shooting a missile down, disable, tractor, the Fang's boarding, withdrawal), destroyed, spawned back
+  sensors      -sensortest: the sensors: a ship hard to see unseen far out, an unknown contact closer, named closer still, given away by firing; no warp lock from what can't be seen
   nav          -navtest: the navigation mode: the map's places, their points of interest, auto-travel in real time to dock and to land
   fleet        -fleettest: the fleet: ships joining at a yard crewed or towed, orders, following, attacking, warping with the leader, losses
   services     -servicestest: the services mode: a station's trade page (sell at worth, buy at a markup), dropping crew off, a refinery buying minerals only
@@ -67,7 +68,7 @@ WINDOW = ["-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", 
 WINDOWS = os.name == "nt"
 EXE = ".exe" if WINDOWS else ""
 
-STAGES = ["tools", "server", "unity", "build", "serverproc", "autotest", "hud", "modes", "nav", "services", "fleet", "ships", "water", "industry", "crew", "stream", "approach", "strike", "vrask", "coop",
+STAGES = ["tools", "server", "unity", "build", "serverproc", "autotest", "hud", "modes", "nav", "services", "fleet", "ships", "water", "industry", "crew", "stream", "approach", "strike", "vrask", "sensors", "coop",
           "aibot", "web", "system", "land", "orbit", "station", "ninehells"]
 QUICK = ["tools", "server", "unity", "serverproc", "hud", "modes", "coop"]
 # stages of the deprecated games (Carrier Demo, Asteroid Ambush): run only when named with --only
@@ -82,6 +83,7 @@ SELFTESTS = {
     "approach": (["-approachtest"], 1500),
     "strike": (["-striketest"], 1200),
     "vrask": (["-vrasktest"], 2500),
+    "sensors": (["-sensortest"], 600),
     "modes": (["-modestest"], 600),
     "nav": (["-navtest"], 2100),
     "services": (["-servicestest"], 900),

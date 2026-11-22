@@ -648,7 +648,7 @@ namespace CarrierGame.Demo
                 targetIndex = carrier.target == null && tries == 0 ? (targetIndex % targets.Count + targets.Count) % targets.Count
                                                                    : (targetIndex + dir + targets.Count) % targets.Count;
                 var t = targets[targetIndex];
-                if (t == null || CombatPilot.IsHidden(t)) continue;
+                if (t == null || Sensors.Hidden(t)) continue;
                 if (!TargetDisplay.InRange(t, carrier.transform.position)) continue;
                 Select(t);
                 return;

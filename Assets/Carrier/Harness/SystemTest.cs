@@ -82,6 +82,8 @@ namespace CarrierGame.Demo
             t.fleetOnly = LaunchArgs.Switch("fleettest");
             // -vrasktest (or ?vrasktest): only the Vrask (their four ships, the raiders at Comet Mirren)
             t.vraskOnly = LaunchArgs.Switch("vrasktest");
+            // -sensortest (or ?sensortest): only the sensors (a ship hard to see, unknown contacts)
+            t.sensorOnly = LaunchArgs.Switch("sensortest");
             // -ninehellstest (with -system ninehells): only the Nine Hells, the second star system
             t.nineHellsOnly = LaunchArgs.Switch("ninehellstest");
             // -cooptest (or ?cooptest), with -connect address:port (?server=...&connect): co-op with
@@ -188,6 +190,13 @@ namespace CarrierGame.Demo
             if (nineHellsOnly)
             {
                 yield return NineHellsTest(kb);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
+            if (sensorOnly)
+            {
+                yield return SensorTest(kb);
                 Log("done");
                 if (!web) Application.Quit();
                 yield break;

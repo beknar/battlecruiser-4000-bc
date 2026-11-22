@@ -155,6 +155,7 @@ namespace CarrierGame.Demo
                 if (t == null || !t.gameObject.activeInHierarchy) continue;
                 if (!t.TryGetComponent(out TargetInfo info) || !info.Hostile) continue;
                 if (t.TryGetComponent(out Health h) && h.Dead) continue;
+                if (Sensors.Unseen(t)) continue;   // (one the sensors can't see: not known of)
                 float d = (t.position - from).sqrMagnitude;
                 if (d < bd) { bd = d; best = t; }
             }

@@ -928,7 +928,7 @@ namespace CarrierGame.Demo
                 sb.Append(",\"nearby\":[");
                 bool first = true;
                 Vector3 at = cc.transform.position;
-                foreach (var t in Targets.All.Where(t => t != null && t.gameObject.activeInHierarchy && (t.position - at).sqrMagnitude < 50000f * 50000f)
+                foreach (var t in Targets.All.Where(t => t != null && t.gameObject.activeInHierarchy && !Sensors.Unseen(t) && (t.position - at).sqrMagnitude < 50000f * 50000f)
                              .OrderBy(t => t.TryGetComponent(out TargetInfo i) && i.Hostile ? 0 : 1).ThenBy(t => (t.position - at).sqrMagnitude).Take(12))
                 {
                     var info = t.GetComponent<TargetInfo>();

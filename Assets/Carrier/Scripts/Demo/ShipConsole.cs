@@ -103,7 +103,7 @@ namespace CarrierGame.Demo
                 if (!TargetDisplay.InRange(info.transform, me)) continue;
                 var h = info.GetComponent<Health>();
                 if (h != null && h.Dead) continue;
-                if (CombatPilot.IsHidden(info.transform)) continue;
+                if (Sensors.Hidden(info.transform)) continue;
                 n++;
                 nearest = Mathf.Min(nearest, Vector3.Distance(info.transform.position, me));
                 if (Cover.Active && Cover.Visible(info.transform.position, me)) seen++;

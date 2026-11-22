@@ -2264,6 +2264,11 @@ Each part can also be run alone:
   the frigate and a tractor holding it, then the Fang boarding; the Maw and both Snares
   destroyed and the rest withdrawing into hiding); each destroyed; and all of them back with the
   spawns, no longer holding off.
+  Add `-sensortest` (or `?sensortest` on the web) to test the sensors: a drone next to the
+  frigate made hard to see (a twentieth of a ship's signature) is off the screen, the target
+  list and the console's count 4 km out, and locks no warp; at 1.2 km it is an unknown contact,
+  at 500 m it is named; firing gives it away at 4 km, and it fades again once quiet; without
+  a signature it is seen as any ship.
   Add `-modestest` (or `?modestest` on the web) to test the modes of play: a game starts in
   combat mode; 1 to 5 change mode, each with its keys in the controls box; a mode's keys work
   in it and not in another (V scans in mining mode, not in combat); services away from a site

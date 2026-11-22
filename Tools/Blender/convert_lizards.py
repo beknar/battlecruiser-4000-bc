@@ -16,7 +16,8 @@ turret cutting, same JSON layout) with these additions:
   * "points": role-specific points (tractor emitter, ion muzzles, breach point, boarding-pod
     launchers, spinal muzzle, point-defence mounts, ...), each with a kind, position and direction;
   * the texture is written as a real PNG (convert_frigates.py's img.save() writes the packed JPEG
-    bytes under a .png name), optionally downscaled (--tex-size, default 2048).
+    bytes under a .png name), optionally downscaled (--tex-size, default 2048), and with
+    "tex_levels" [lift, gain] brought up from near black;
 
 Run:  blender -b --python convert_lizards.py -- <spec.json> <ai_models_dir> <models_dir> <data_dir>
                                                [id ...] [--preview <dir>] [--tex-size N]
@@ -284,12 +285,22 @@ def preview(name, hull, turret_parts):
             pitch.matrix_world = Matrix.Identity(4)
 
 
-def save_png(img, path, size):
-    """Write the texture as a real PNG (downscaled to size if bigger)."""
+def save_png(img, path, size, levels=None):
+    """Write the texture as a real PNG (downscaled to size if bigger). levels [lift, gain]: each
+    colour becomes lift + gain * it (0..1), to bring a near-black paint up to a dark grey that
+    shows against space (the Greys' Shroud and Reaper)."""
     w, h = img.size
     copy = img.copy()
     if size and max(w, h) > size:
         copy.scale(size, size * h // w)
+    if levels:
+        lift, gain = levels
+        px = np.empty(len(copy.pixels), dtype=np.float32)
+        copy.pixels.foreach_get(px)
+        px = px.reshape(-1, 4)
+        px[:, :3] = np.clip(lift + gain * px[:, :3], 0.0, 1.0)
+        copy.pixels.foreach_set(px.ravel())
+        print("TEXTURE LEVELS", lift, gain)
     scene = bpy.context.scene
     s = scene.render.image_settings
     s.file_format = "PNG"
@@ -386,7 +397,7 @@ def convert(f):
     img = next((n.image for n in mat.node_tree.nodes if n.type == "TEX_IMAGE" and n.image), None) if mat and mat.use_nodes else None
     pre = f.get("prefix", "Frigate")
     if img:
-        save_png(img, os.path.join(MODELS, f"{pre}_{f['id']}_BaseColor.png"), TEX)
+        save_png(img, os.path.join(MODELS, f"{pre}_{f['id']}_BaseColor.png"), TEX, f.get("tex_levels"))
         img.filepath_raw = os.path.join(MODELS, f"{pre}_{f['id']}_BaseColor.png")   # what the FBX's material names
 
     bpy.ops.object.select_all(action="DESELECT")

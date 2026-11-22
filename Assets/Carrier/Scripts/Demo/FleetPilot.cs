@@ -200,7 +200,7 @@ namespace CarrierGame.Demo
             float bestD = float.MaxValue;
             foreach (var t in Targets.All)
             {
-                if (t == null || !t.gameObject.activeInHierarchy || Dead(t) || CombatPilot.IsHidden(t)) continue;
+                if (t == null || !t.gameObject.activeInHierarchy || Dead(t) || Sensors.Hidden(t)) continue;
                 // (hostiles only, as the wingmen pick them: not whatever is in the target list)
                 if (!t.TryGetComponent(out TargetInfo info) || !info.Hostile) continue;
                 float dMe = Vector3.Distance(t.position, me), dLead = Vector3.Distance(t.position, lead);

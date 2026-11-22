@@ -131,6 +131,8 @@ namespace CarrierGame
             foreach (var p in Active)
             {
                 if (p == null || p.Current == State.Lurk || (p.health != null && p.health.Dead)) continue;
+                // (one the players' sensors can't see gives nothing away: no warp lock, no music)
+                if (Sensors.Unseen(p.transform)) continue;
                 if ((p.transform.position - point).sqrMagnitude < range * range) return true;
             }
             return false;

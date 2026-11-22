@@ -47,7 +47,7 @@ namespace CarrierGame
             float bestDist = float.MaxValue;
             foreach (var info in TargetInfo.All)
             {
-                if (info == null || !info.IsSmallCraft || !info.Hostile) continue;
+                if (info == null || !info.IsSmallCraft || !info.Hostile || Sensors.Unseen(info.transform)) continue;
                 var h = info.GetComponent<Health>();
                 if (h != null && h.Dead) continue;
                 Vector3 p = info.transform.position;

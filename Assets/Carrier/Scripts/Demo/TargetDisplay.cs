@@ -31,7 +31,7 @@ namespace CarrierGame.Demo
         bool wasDead;
         float lastSeenHit, flashUntil;
 
-        string ShownName => info != null ? info.Name : Targets.NameOf(shown);
+        string ShownName => info != null ? Sensors.NameOf(shown, info.Name) : Targets.NameOf(shown);
         static readonly Color Green = new Color(0.45f, 1f, 0.55f);
 
         /// <summary>Pointers toward an off-screen target: right, left, up, down. The browser has no
@@ -136,8 +136,9 @@ namespace CarrierGame.Demo
         /// patrol on the far side of the star system doesn't clutter the screen.</summary>
         public const float MarkerRange = 30000f;
 
-        /// <summary>Close enough to show, target and count (within MarkerRange of a point).</summary>
-        public static bool InRange(Transform t, Vector3 from) => t != null && (t.position - from).sqrMagnitude <= MarkerRange * MarkerRange;
+        /// <summary>Close enough to show, target and count: within MarkerRange of a point, or,
+        /// for a ship hard to see (Signature), within what the sensors see of it (Sensors).</summary>
+        public static bool InRange(Transform t, Vector3 from) => t != null && Sensors.DetectedFrom(t, from, PlayerShips.Primary);
 
         /// <summary>Small dim brackets and a name on hostiles that aren't targeted.</summary>
         void Marker(Camera cam, Transform t, float s)
@@ -157,7 +158,7 @@ namespace CarrierGame.Demo
             Hud.Corners(r, half * 0.6f, Mathf.Max(1f, 1.5f * s), c);
             var st = Hud.Text(13);
             GUI.Label(new Rect(r.xMax + 4f * s, r.y - 2f * s, 400f * s, 30f * s),
-                      $"<color=#ff8a80aa>{(ti ? ti.Name : t.name)}</color>", st);
+                      $"<color=#ff8a80aa>{Sensors.NameOf(t, ti ? ti.Name : t.name)}</color>", st);
         }
 
         /// <summary>Corner brackets around the target, or an arrow at the screen edge if it's off screen.</summary>
@@ -317,6 +318,16 @@ namespace CarrierGame.Demo
         string StatsText()
         {
             var sb = new System.Text.StringBuilder();
+            // not yet identified (a ship hard to see, at the edge of the sensors): only where it is
+            if (shown != null && !Sensors.Identified(shown))
+            {
+                Vector3 uc = shown.TransformPoint(localCenter);
+                float ukm = Vector3.Distance(carrier.transform.position, uc) / 1000f;
+                float uspeed = mover != null ? mover.Velocity.magnitude : 0f;
+                sb.Append("Class  <b>Unknown</b>   (unidentified: closer, or when it fires, to identify)\n");
+                sb.Append($"Range  {ukm:F2} km      Speed  {uspeed:F0} m/s\n");
+                return sb.ToString();
+            }
             var inst = info == null && shown != null ? shown.GetComponent<Installation>() : null;
             string cls = info != null ? info.shipClass : inst != null ? inst.kind.ToString() : "Unknown";
             string faction = info != null ? info.FactionLabel : inst != null && !inst.hostile ? "Friendly" : "Unknown";

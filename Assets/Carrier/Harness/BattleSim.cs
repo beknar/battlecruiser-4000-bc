@@ -647,7 +647,7 @@ namespace CarrierGame.Demo
             float bestS = 0f, anyD = float.MaxValue;
             foreach (var h in encounter.enemies)
             {
-                if (h == null || !Fit(h.transform)) continue;
+                if (h == null || !Fit(h.transform) || Sensors.Unseen(h.transform)) continue;
                 float d = Vector3.Distance(h.transform.position, transform.position);
                 if (d < anyD) { anyD = d; any = h.transform; }
                 if (d > 12000f || !Cover.Visible(transform.position, h.transform.position)) continue;

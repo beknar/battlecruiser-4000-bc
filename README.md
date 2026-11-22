@@ -2275,7 +2275,9 @@ Each part can also be run alone:
   ECCM), a contact 25 km off lost from its sensors, ghost contacts on them seen through up close,
   and its missile into the jammer's 1.5 km scrambled. Then an EMP burst: charging with the
   frigate in reach (the HUD's warning), its pulse knocking a component out for a time cut by the
-  frigate's ECCM (the HUD counting it down), and the component back after.
+  frigate's ECCM (the HUD counting it down), and the component back after. Last a drone bay: it
+  launches drones at the frigate 6 km off, the frigate's CIWS goes for them, and called home
+  they are stock again.
   Add `-modestest` (or `?modestest` on the web) to test the modes of play: a game starts in
   combat mode; 1 to 5 change mode, each with its keys in the controls box; a mode's keys work
   in it and not in another (V scans in mining mode, not in combat); services away from a site

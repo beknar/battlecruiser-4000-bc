@@ -242,6 +242,39 @@ namespace CarrierGame.Demo
             yield return new WaitForSeconds(outFor + 0.5f);
             Check(sysF != null && !sysF.IsDown(hitSys), $"the {ShipSystems.Label(hitSys)} back after the EMP's time");
 
+            // ---- a drone bay (PR 8): in the fight it launches drones at the frigate; the frigate's
+            // CIWS (on again) goes for them; called home, those left are stock again
+            Put(6000f);
+            if (pilot != null) pilot.NetLurk(false);
+            foreach (var c in ciws) c.enabled = true;
+            var bay = drone.AddComponent<DroneBay>();
+            bay.stock = 4;
+            bay.maxOut = 2;
+            bay.launchInterval = 1f;
+            yield return null;
+            yield return null;
+            Check(bay.Out.Count == 2 && bay.Stock == 2, $"a drone bay 6 km off launches at the frigate: {bay.Out.Count} out, {bay.Stock} left in stock");
+            float until3 = Time.time + 40f;
+            bool engaged2 = false;
+            float closest = float.MaxValue;
+            while (Time.time < until3 && !engaged2 && bay.Lost == 0)
+            {
+                foreach (var c in ciws) foreach (var d in bay.Out) if (d != null && c.EngagedTarget == d.transform) engaged2 = true;
+                foreach (var d in bay.Out) if (d != null) closest = Mathf.Min(closest, Vector3.Distance(d.transform.position, me.position));
+                yield return null;
+            }
+            string ciwsSays = string.Join(", ", System.Linq.Enumerable.Select(ciws, c => $"{(c.enabled ? "on" : "off")}/{(c.active ? "active" : "inactive")}/{c.mounts?.Length ?? 0} mounts/target {(c.EngagedTarget != null ? c.EngagedTarget.name : "none")}"));
+            Check(engaged2 || bay.Lost > 0, $"the frigate's CIWS goes for the drones (engaged {engaged2}, {bay.Lost} shot down; the drones came within {closest:F0} m; CIWS {ciwsSays})");
+            Shot("s6_drones");
+            int out2 = bay.Out.Count, recovered0 = bay.Recovered;
+            bay.recall = true;
+            until3 = Time.time + 60f;
+            while (bay.Out.Count > 0 && Time.time < until3) yield return null;
+            Check(bay.Out.Count == 0 && bay.Recovered - recovered0 == out2 && bay.Stock == 4 - bay.Lost,
+                  $"called home: {bay.Recovered - recovered0} back aboard, the stock {bay.Stock} (lost {bay.Lost})");
+            Destroy(bay);
+            foreach (var c in ciws) c.enabled = false;
+
             cc.SetTarget(null);
             foreach (var c in ciws) c.enabled = true;
             Destroy(drone);

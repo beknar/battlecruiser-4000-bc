@@ -9,7 +9,7 @@
    2.1s  ok: 500 m: named
    2.1s  ok: 4 km out, it fires: seen and named at once (was hidden True)
    5.6s  ok: 3 s quiet: gone from the sensors again (seen False, named False, in range False, hidden True (ambush False), 4040 m, signature 0.05)
-   5.7s  ok: without a signature: seen and named at 4 km, as any ship
+   5.6s  ok: without a signature: seen and named at 4 km, as any ship
    5.7s  ok: cloaked, 6.6 km out: unseen (ECCM 0.7: seen inside 5.1 km)
    5.7s  ok: cloaked, 4.3 km out: inside what this frigate's ECCM sees
    5.7s  ok: it fires: the cloak drops, and it is seen
@@ -24,7 +24,10 @@
   11.1s  ok: this frigate's missile into the jammer's 1.5 km is scrambled (1)
   11.1s  ok: the jammer gone: no jamming
   11.1s  ok: an EMP burst charging with the frigate in reach: 'EMP charging: Hostile Drone, 2.0 km—get beyond 2.5 km in 2.0 s'
-  13.1s  ok: the pulse knocks the shield generator out for 2.9 s (ECCM 0.7); the HUD: 'EMP: shield generator back in 3 s'
-  16.5s  ok: the shield generator back after the EMP's time
-  16.5s  PASS: sensors (24 of 24)
-  16.5s  done
+  13.1s  ok: the pulse knocks the engines out for 2.9 s (ECCM 0.7); the HUD: 'EMP: engines back in 3 s'
+  16.5s  ok: the engines back after the EMP's time
+  16.5s  ok: a drone bay 6 km off launches at the frigate: 2 out, 2 left in stock
+  31.8s  ok: the frigate's CIWS goes for the drones (engaged True, 0 shot down; the drones came within 2161 m; CIWS on/active/4 mounts/target Sensor test drone Drone 1)
+  46.2s  ok: called home: 2 back aboard, the stock 4 (lost 0)
+  46.2s  PASS: sensors (27 of 27)
+  46.2s  done

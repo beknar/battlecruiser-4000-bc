@@ -115,8 +115,19 @@ namespace CarrierGame.Demo
 
         /// <summary>A message as shown: "name: text", or the text alone when it starts with the
         /// sender's name already (the bots say "Wingman: ...").</summary>
-        public static string Shown(Line l) =>
-            l.name.Length > 0 && l.text.StartsWith(l.name + ":", StringComparison.OrdinalIgnoreCase) ? l.text : $"{l.name}: {l.text}";
+        public static string Shown(Line l)
+        {
+            bool bot = l.name.Length > 0 && l.text.StartsWith(l.name + ":", StringComparison.OrdinalIgnoreCase);
+            string text = l.text;
+            // an AI wingman's radio through jamming on my ship comes through broken up (what people
+            // type to each other is left alone; the bot's API reads the clean text)
+            if (bot && CoopClient.Instance != null && l.from != CoopClient.Instance.MyId)
+            {
+                float j = Jamming.On(PlayerShips.Primary);
+                if (j > 0.05f) text = l.name + ":" + Jamming.Garble(text.Substring(l.name.Length + 1), j, l.seq);
+            }
+            return bot ? text : $"{l.name}: {text}";
+        }
 
         void Update()
         {

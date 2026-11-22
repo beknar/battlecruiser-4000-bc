@@ -88,6 +88,8 @@ namespace CarrierGame
         {
             byShip.Clear();
             cache.Clear();
+            seenThrough.Clear();
+            GhostsSeenThrough = 0;
             RangeOf = null;
             // (once each: off first, as the statics outlive a play session in the editor)
             Projectile.Spawned -= OnShot;
@@ -142,7 +144,8 @@ namespace CarrierGame
         static float RangeFrom(Transform observer)
         {
             float r = RangeOf != null && observer != null ? RangeOf(observer) : 0f;
-            return r > 0f ? r : PlayerRange;
+            // (jammed: the sensors see that much less far)
+            return (r > 0f ? r : PlayerRange) * (1f - Jamming.On(observer));
         }
 
         /// <summary>Is the contact `t` seen by any of the players' ships (or, with `from`, by a
@@ -166,8 +169,8 @@ namespace CarrierGame
         {
             if (t == null || CombatPilot.IsHidden(t)) return false;
             var s = Of(t);
-            if (s != null && observer == null) observer = PlayerShips.Primary;
-            float range = s == null ? PlayerRange : RangeFrom(observer) * Against(s, observer);
+            if ((s != null || Jamming.Any) && observer == null) observer = PlayerShips.Primary;
+            float range = s == null ? (Jamming.Any ? RangeFrom(observer) : PlayerRange) : RangeFrom(observer) * Against(s, observer);
             return (t.position - from).sqrMagnitude <= range * range;
         }
 
@@ -175,8 +178,10 @@ namespace CarrierGame
         {
             if (t == null) return default;
             var s = Of(t);
-            // (no signature: seen as always, by the ambush rule alone; its range is the caller's to check)
-            if (s == null) return new Seen { detected = !CombatPilot.IsHidden(t), identified = true };
+            // (no signature: seen as always, by the ambush rule alone, its range the caller's to check;
+            // named at any range, unless jamming cuts what the sensors can make out)
+            if (s == null && !Jamming.Any) return new Seen { detected = !CombatPilot.IsHidden(t), identified = true };
+            if (s == null) return Plain(t);
             float now = Time.time;
             if (cache.TryGetValue(t, out var c) && now - c.at < Refresh) return c;
             c = new Seen { at = now };
@@ -209,6 +214,82 @@ namespace CarrierGame
             float sig = s.Current;
             if (s.hiddenScale < 1f && !s.Lit && observer != null) sig *= 1f + FrigateClass.EccmOf(observer);
             return sig;
+        }
+
+        /// <summary>A ship without a signature while something jams: seen as always, named only
+        /// within half of what a player's (jammed) sensors see, from any of them unjammed.</summary>
+        static Seen Plain(Transform t)
+        {
+            float now = Time.time;
+            if (cache.TryGetValue(t, out var c) && now - c.at < Refresh) return c;
+            c = new Seen { at = now, detected = !CombatPilot.IsHidden(t) };
+            foreach (var p in PlayerShips.All)
+            {
+                if (p == null || !p.gameObject.activeInHierarchy || !PlayerShips.Present(p)) continue;
+                float id = RangeFrom(p) * IdentifyShare;
+                if (Jamming.On(p) <= 0f || (t.position - p.position).sqrMagnitude <= id * id) { c.identified = true; break; }
+            }
+            if (cache.Count > 512) Prune();
+            cache[t] = c;
+            return c;
+        }
+
+        // ------------------------------------------------------------------ ghosts and masking
+
+        /// <summary>A ghost contact (EcmEmitter): a false return on the players' sensors, an
+        /// unknown contact that moves like a ship, gone once looked at closely.</summary>
+        public struct Ghost { public int id; public Vector3 at; }
+
+        static readonly List<(int id, Vector3 at)> ghostBuf = new List<(int, Vector3)>();
+        static readonly Dictionary<int, float> seenThrough = new Dictionary<int, float>();
+        /// <summary>How near (m) a ghost has to be to be seen through: a close look.</summary>
+        public const float GhostLook = 1500f;
+        /// <summary>How long (s) a ghost seen through stays gone.</summary>
+        public const float GhostGone = 90f;
+        /// <summary>Ghosts seen through so far (the tests, the HUD's notice).</summary>
+        public static int GhostsSeenThrough { get; private set; }
+
+        /// <summary>The ghost contacts the players' sensors show now (each jammer's, less those seen
+        /// through: one a player's ship comes within GhostLook of is seen through, and goes).</summary>
+        public static void Ghosts(List<Ghost> into)
+        {
+            into.Clear();
+            if (!Jamming.Any) return;
+            ghostBuf.Clear();
+            foreach (var e in EcmEmitter.All) if (e != null) e.GhostPlaces(ghostBuf);
+            float now = Time.time;
+            foreach (var (id, at) in ghostBuf)
+            {
+                if (seenThrough.TryGetValue(id, out float until) && now < until) continue;
+                bool shown = false, through = false;
+                foreach (var p in PlayerShips.All)
+                {
+                    if (p == null || !p.gameObject.activeInHierarchy || !PlayerShips.Present(p)) continue;
+                    float range = RangeFrom(p), d2 = (at - p.position).sqrMagnitude, idr = GhostLook;
+                    // (only jammed sensors are fooled; looked at closely, it is seen through)
+                    if (Jamming.On(p) <= 0f) continue;
+                    if (d2 <= idr * idr) { through = true; break; }
+                    if (d2 <= range * range) shown = true;
+                }
+                if (through)
+                {
+                    seenThrough[id] = now + GhostGone;
+                    GhostsSeenThrough++;
+                    Notices.Post("Ghost contact: a false return, gone");
+                    continue;
+                }
+                if (shown) into.Add(new Ghost { id = id, at = at });
+            }
+        }
+
+        /// <summary>Where the players' sensors show a ship: a jammer's escort not yet named at a
+        /// false place near its own (masking); any other where it is.</summary>
+        public static Vector3 ShownAt(Transform t)
+        {
+            if (t == null) return Vector3.zero;
+            if (!Jamming.Any || Identified(t)) return t.position;
+            var e = Jamming.Strongest(t.position);
+            return e != null && e.transform.root != t.root ? e.Masked(t) : t.position;
         }
 
         /// <summary>Can an enemy `observer` see the player's ship `target`: within its sensor

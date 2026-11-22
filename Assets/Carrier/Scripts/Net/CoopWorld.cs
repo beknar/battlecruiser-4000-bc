@@ -91,7 +91,7 @@ namespace CarrierGame.Demo
             typeof(ThrusterFlare), typeof(EngineThrust), typeof(BarrelSpin), typeof(Drift), typeof(Obstacle), typeof(NetPuppet),
             typeof(OrbitHome), typeof(Beacon), typeof(TractorBeam),
             // (worked out on each machine: what its player's sensors see, its warp drive's inhibitors)
-            typeof(Signature), typeof(Cloak), typeof(Interdictor), typeof(FrigateClass),
+            typeof(Signature), typeof(Cloak), typeof(Interdictor), typeof(FrigateClass), typeof(EcmEmitter),
         };
 
         /// <summary>A behaviour that stays on on a guest's puppets (shown, or worked out on each

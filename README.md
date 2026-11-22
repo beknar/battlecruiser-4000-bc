@@ -2271,7 +2271,9 @@ Each part can also be run alone:
   a signature it is seen as any ship. Then a cloak: unseen just beyond what the frigate's ECCM
   sees (a Sentinel's: 5.1 km), seen inside it, the cloak dropping when it fires and coming back
   once it is quiet; a targeting laser on the frigate, the HUD naming the painter and its bearing;
-  and a warp inhibitor's field refusing the warp.
+  and a warp inhibitor's field refusing the warp. Last a jammer: the frigate jammed (after its
+  ECCM), a contact 25 km off lost from its sensors, ghost contacts on them seen through up close,
+  and its missile into the jammer's 1.5 km scrambled.
   Add `-modestest` (or `?modestest` on the web) to test the modes of play: a game starts in
   combat mode; 1 to 5 change mode, each with its keys in the controls box; a mode's keys work
   in it and not in another (V scans in mining mode, not in combat); services away from a site

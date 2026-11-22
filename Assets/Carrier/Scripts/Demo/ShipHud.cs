@@ -336,6 +336,18 @@ namespace CarrierGame.Demo
                 GUI.Label(wr, wc, ws);
             }
 
+            // jammed: how much (ECCM already taken off)
+            float jammed = carrier.Destroyed ? 0f : Jamming.On(carrier.transform);
+            if (jammed > 0.05f)
+            {
+                var jst = Hud.Text(16, true, TextAnchor.MiddleCenter);
+                var jct = new GUIContent($"<color=#c080ff>JAMMED {jammed:P0}</color>  <size={Mathf.RoundToInt(13 * s)}>sensors, aim, missiles and comms degraded</size>");
+                Vector2 jsz = jst.CalcSize(jct);
+                var jrect = new Rect((Screen.width - jsz.x) * 0.5f - pad2 * 2f, Screen.height * 0.045f, jsz.x + pad2 * 4f, jsz.y + pad2);
+                Hud.Panel(jrect);
+                GUI.Label(jrect, jct, jst);
+            }
+
             // painted by a targeting laser: who, and from where (a tone as it starts)
             string painted = carrier.Destroyed ? "" : Designation.HudText(carrier.transform);
             if (painted.Length > 0 && !wasPainted) SoundFX.Ui(Sfx.UiAlert);

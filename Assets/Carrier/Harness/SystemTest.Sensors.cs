@@ -172,6 +172,48 @@ namespace CarrierGame.Demo
             warp = drive.CanWarp(out why);
             Check(warp, $"the field gone: the warp free ({warp} {why})");
 
+            // ---- a jammer (PR 6): the frigate's sensors cut, ghosts on them, missiles scrambled close in
+            var far = new GameObject("Sensor test far contact").transform;
+            far.position = me.position - me.forward * 25000f;
+            bool farBefore = TargetDisplay.InRange(far, me.position);
+            var jammer = drone.AddComponent<EcmEmitter>();
+            jammer.radius = 6000f;
+            jammer.strength = 0.8f;
+            jammer.ghosts = 3;
+            jammer.ghostRange = new Vector2(4000f, 5500f);
+            Put(2000f);
+            yield return null;
+            float jam = Jamming.On(me);
+            Sensors.Forget();
+            bool farAfter = TargetDisplay.InRange(far, me.position);
+            Check(jam > 0.2f && farBefore && !farAfter,
+                  $"2 km from a jammer (80 %): jammed {jam:P0} after this frigate's ECCM; a contact 25 km off seen before, not now");
+            var ghostList = new System.Collections.Generic.List<Sensors.Ghost>();
+            Sensors.Ghosts(ghostList);
+            Check(ghostList.Count > 0, $"ghost contacts on the jammed sensors: {ghostList.Count}");
+            Shot("s4_jammed");
+            int through0 = Sensors.GhostsSeenThrough;
+            jammer.ghostRange = new Vector2(100f, 400f);
+            Put(500f);
+            yield return null;
+            Sensors.Ghosts(ghostList);
+            Check(ghostList.Count == 0 && Sensors.GhostsSeenThrough > through0, $"looked at closely, the ghosts are seen through ({Sensors.GhostsSeenThrough - through0}) and gone");
+            // a missile of this frigate's, inside the jammer's 1.5 km: scrambled
+            Put(1200f);
+            var msl = new GameObject("Sensor test missile").AddComponent<Missile>();
+            msl.transform.position = me.position + me.forward * 200f;
+            msl.owner = me;
+            msl.target = dt;
+            int scrambled0 = jammer.Scrambled;
+            float until = Time.time + 6f;
+            while (jammer.Scrambled == scrambled0 && msl != null && Time.time < until) yield return null;
+            Check(jammer.Scrambled > scrambled0, $"this frigate's missile into the jammer's 1.5 km is scrambled ({jammer.Scrambled - scrambled0})");
+            if (msl != null) Destroy(msl.gameObject);
+            Destroy(jammer);
+            Destroy(far.gameObject);
+            yield return null;
+            Check(Jamming.On(me) == 0f, "the jammer gone: no jamming");
+
             cc.SetTarget(null);
             foreach (var c in ciws) c.enabled = true;
             Destroy(drone);

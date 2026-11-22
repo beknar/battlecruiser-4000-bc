@@ -133,8 +133,13 @@ namespace CarrierGame.Demo
             float s = Hud.S;
             var cam = Camera.main;
             if (cam != null)
+            {
                 foreach (var t in Targets.All)
                     if (t != null && t != carrier.target) Marker(cam, t, s);
+                // ghost contacts on jammed sensors: unknown contacts, like any other till seen through
+                Sensors.Ghosts(ghosts);
+                foreach (var g in ghosts) GhostMarker(cam, g.at, s);
+            }
             if (cam != null && carrier.target != null && carrier.target == shown) Brackets(cam, s);
             Panel(s);
         }
@@ -147,6 +152,19 @@ namespace CarrierGame.Demo
         /// for a ship hard to see (Signature), within what the sensors see of it (Sensors).</summary>
         public static bool InRange(Transform t, Vector3 from) => t != null && Sensors.DetectedFrom(t, from, PlayerShips.Primary);
 
+        readonly System.Collections.Generic.List<Sensors.Ghost> ghosts = new System.Collections.Generic.List<Sensors.Ghost>();
+
+        /// <summary>A ghost contact's marker: as an unknown contact's.</summary>
+        void GhostMarker(Camera cam, Vector3 at, float s)
+        {
+            Vector3 sp = cam.WorldToScreenPoint(at);
+            if (sp.z <= 0f || sp.x < 0 || sp.x > Screen.width || sp.y < 0 || sp.y > Screen.height) return;
+            float half = 11f * s;
+            var r = new Rect(sp.x - half, Screen.height - sp.y - half, half * 2f, half * 2f);
+            Hud.Corners(r, half * 0.6f, Mathf.Max(1f, 1.5f * s), new Color(1f, 0.45f, 0.4f, 0.6f));
+            GUI.Label(new Rect(r.xMax + 4f * s, r.y - 2f * s, 400f * s, 30f * s), $"<color=#ff8a80aa>{Sensors.UnknownContact}</color>", Hud.Text(13));
+        }
+
         /// <summary>Small dim brackets and a name on hostiles that aren't targeted.</summary>
         void Marker(Camera cam, Transform t, float s)
         {
@@ -154,7 +172,11 @@ namespace CarrierGame.Demo
             if (h != null && h.Dead) return;
             if (CombatPilot.IsHidden(t)) return;   // an ambusher still lying in wait isn't on the screen
             if (!InRange(t, carrier.transform.position)) return;
-            Vector3 sp = cam.WorldToScreenPoint(t.position);
+            // (where the sensors show it: a jammer's escort at a false place till named; jammed
+            // markers jitter)
+            Vector3 sp = cam.WorldToScreenPoint(Sensors.ShownAt(t));
+            float jam = Jamming.On(carrier.transform);
+            if (jam > 0.05f) sp += (Vector3)(Random.insideUnitCircle * jam * 14f * s);
             if (sp.z <= 0f || sp.x < 0 || sp.x > Screen.width || sp.y < 0 || sp.y > Screen.height) return;
             var gp = new Vector2(sp.x, Screen.height - sp.y);
             if (ShipHud.HelpRect.Contains(gp) || ShipConsole.Rect.Contains(gp) || PanelRect.Contains(gp) || FleetDirector.PanelsRect.Contains(gp)) return;
@@ -171,7 +193,8 @@ namespace CarrierGame.Demo
         /// <summary>Corner brackets around the target, or an arrow at the screen edge if it's off screen.</summary>
         void Brackets(Camera cam, float s)
         {
-            Vector3 c = shown.TransformPoint(localCenter);
+            // (where the sensors show it: a masked escort's false place till named)
+            Vector3 c = shown.TransformPoint(localCenter) + (Sensors.ShownAt(shown) - shown.position);
             Vector3 sp = cam.WorldToScreenPoint(c);
             float km = Vector3.Distance(carrier.transform.position, c) / 1000f;
             string label = $"{ShownName}   {km:F1} km";

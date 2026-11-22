@@ -250,6 +250,7 @@ namespace CarrierGame.Demo
             }
             var to = Addressed.ToList();
             if (to.Count == 0) { SoundFX.Ui(Sfx.UiError); Notices.Post("The ships under tow can't take orders"); return; }
+            if (Leader != null && Jamming.OrderLost(Leader.transform)) return;
             foreach (var s in to) s.Give(o, target);
             SoundFX.Ui(Sfx.UiLock);
             string who = Selected != null ? $"The {Selected.displayName}" : "The fleet";

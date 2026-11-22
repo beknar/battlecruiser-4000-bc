@@ -17,9 +17,10 @@ namespace Carrier.EditorTools
 
         /// <summary>The boarding pod: a missile (so co-op shows it and point defence can shoot it
         /// down), slower and tougher, that puts breachers aboard instead of exploding.</summary>
-        static BoardingPod MakeBoardingPod(Prefabs p)
+        static BoardingPod MakeBoardingPod(Prefabs p, string prefix = VraskShip.Faction, Color? trailGlow = null)
         {
-            var go = new GameObject("VraskBoardingPod");
+            string name = prefix + "BoardingPod";
+            var go = new GameObject(name);
             var model = Place(OwnModel("Missile"), go.transform, "Model");
             model.transform.localScale *= 1.8f;
             var pod = go.AddComponent<BoardingPod>();
@@ -38,15 +39,15 @@ namespace Carrier.EditorTools
             trail.time = 1.0f;
             trail.startWidth = 2.6f;
             trail.endWidth = 0f;
-            trail.sharedMaterial = Additive("FX_VraskPodTrail", new Color(0.45f, 1.4f, 0.55f) * 3f);
+            trail.sharedMaterial = Additive($"FX_{prefix}PodTrail", trailGlow ?? new Color(0.45f, 1.4f, 0.55f) * 3f);
             trail.shadowCastingMode = ShadowCastingMode.Off;
-            Log("vrask boarding pod: 420 m/s, toughness 40, breachers " + Boarders.PodMin + "-" + Boarders.PodMax);
-            return SavePrefab<BoardingPod>(go, "VraskBoardingPod");
+            Log($"{prefix.ToLowerInvariant()} boarding pod: 420 m/s, toughness 40, breachers " + Boarders.PodMin + "-" + Boarders.PodMax);
+            return SavePrefab<BoardingPod>(go, name);
         }
 
         /// <summary>A ship's pod hatches (and the Fang's tactics): at its boarding_pod points, or the
         /// Snare's at its tractor projector, launching at what its beam holds.</summary>
-        static void AddBoarding(GameObject root, VraskShip vs, VraskShipStats s)
+        static void AddBoarding(GameObject root, VraskShip vs, FactionShipStats s)
         {
             if (vraskPod == null) { Log($"{s.displayName}: no boarding pod prefab"); return; }
             var hatches = vs.PointsOf("boarding_pod");

@@ -278,7 +278,7 @@ namespace CarrierGame
             if (targetShip != null) targetShip.Clamp(transform, 0.3f);
             SoundFX.Play(Sfx.Impact, hit.point, 1f, 0.4f);
             // its own party through the breaching ram
-            Boarders.Board(t, Boarders.RamParty);
+            Boarders.Board(t, Boarders.RamParty, Boarders.FactionOf(transform));
         }
 
         /// <summary>Cast off (if clamped) and fly clear for a while.</summary>

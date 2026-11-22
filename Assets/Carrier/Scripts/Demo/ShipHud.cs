@@ -311,7 +311,7 @@ namespace CarrierGame.Demo
             {
                 var big = Hud.Text(40, true, TextAnchor.MiddleCenter);
                 var msg = carrier.Captured
-                    ? new GUIContent($"<color=#ff6050>{carrier.shipName.ToUpper()} CAPTURED BY THE VRASK</color>\n" +
+                    ? new GUIContent($"<color=#ff6050>{carrier.shipName.ToUpper()} CAPTURED BY THE {carrier.CapturedBy.ToUpper()}</color>\n" +
                                      $"<size={Mathf.RoundToInt(22 * s)}>{carrier.LastTaken} of the crew taken prisoner; " +
                                      $"the survivors bring her back to the last warp point in {Mathf.CeilToInt(carrier.RespawnIn)} s</size>")
                     : new GUIContent($"<color=#ff6050>{carrier.shipName.ToUpper()} DESTROYED</color>\n" +

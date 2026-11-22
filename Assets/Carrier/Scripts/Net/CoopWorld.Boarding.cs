@@ -35,19 +35,19 @@ namespace CarrierGame.Demo
                 Missile.Downed += OnDowned;
                 return;
             }
-            if (Boarders.SendAboard == (System.Func<Transform, int, bool>)SendBoard) Boarders.SendAboard = null;
+            if (Boarders.SendAboard == (System.Func<Transform, int, string, bool>)SendBoard) Boarders.SendAboard = null;
             if (Boarders.RemoteCount == (System.Func<Transform, int>)RemoteBoarders) Boarders.RemoteCount = null;
             Missile.Downed -= OnDowned;
         }
 
         /// <summary>Boarders getting aboard a ship: another player's is boarded in their game (the
         /// host tells it; true either way, so it isn't fought here).</summary>
-        bool SendBoard(Transform ship, int n)
+        bool SendBoard(Transform ship, int n, string faction)
         {
             if (!On || ship == null || !remoteByRoot.TryGetValue(ship.root, out var rp) || rp == null) return false;
             if (IsHost)
             {
-                Client.Send(new BoardMsg { to = rp.Id, n = n });
+                Client.Send(new BoardMsg { to = rp.Id, n = n, fa = faction == VraskShip.Faction ? null : faction });
                 BoardsSent++;
             }
             return true;
@@ -62,7 +62,7 @@ namespace CarrierGame.Demo
         {
             if (me == null || myHealth == null || myHealth.Dead || m.n <= 0) return;
             BoardsTaken++;
-            Boarders.Board(me.transform, m.n);
+            Boarders.Board(me.transform, m.n, Boarders.FactionOr(m.fa));
         }
 
         /// <summary>A missile or pod shot down by this game's own guns (mine, my fleet's): the others

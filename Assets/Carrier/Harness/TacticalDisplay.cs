@@ -43,6 +43,7 @@ namespace CarrierGame.Demo
             public Shield shield;
             public SimPilot pilot;
             public CarrierController ship;
+            public FactionShip faction;
             public VraskShip vrask;
             public SnareTactics snare;
             public FangTactics fang;
@@ -163,7 +164,7 @@ namespace CarrierGame.Demo
         /// <summary>Start following a battle: the frigates (blue) against the Vrask (red), the
         /// positions taken from `frameOf` (the place both sides are carried along with), drawn on
         /// the plane square to `planeUp` with `planeNorth` at the top (000).</summary>
-        public void Begin(Transform frameOf, Vector3 planeUp, Vector3 planeNorth, IList<SimPilot> blue, IList<VraskShip> red, VraskFleet vraskFleet, EncounterGroup band, string where)
+        public void Begin(Transform frameOf, Vector3 planeUp, Vector3 planeNorth, IList<SimPilot> blue, IList<FactionShip> red, VraskFleet vraskFleet, EncounterGroup band, string where)
         {
             frame = frameOf;
             up = planeUp.sqrMagnitude > 1e-6f ? planeUp.normalized : Vector3.up;
@@ -187,16 +188,16 @@ namespace CarrierGame.Demo
                 k.ciws = p.GetComponent<CiwsDirector>();
                 k.beam = p.GetComponentInChildren<MainBeam>(true);
             }
-            var counts = new Dictionary<VraskShip.Role, int>();
+            var counts = new Dictionary<string, int>();
             foreach (var v in red)
             {
                 if (v == null) continue;
-                counts.TryGetValue(v.role, out int c);
-                counts[v.role] = c + 1;
-                string role = v.role.ToString().ToUpperInvariant();
-                char g = v.role == VraskShip.Role.Maw ? 'M' : v.role == VraskShip.Role.Snare ? 'S' : v.role == VraskShip.Role.Fang ? 'F' : 'K';
-                var k = NewTrack(v.transform, false, $"H{Tracks.Count(x => !x.friendly) + 1:00}", $"{role} {(char)('A' + c)}", g, role);
-                k.vrask = v;
+                counts.TryGetValue(v.RoleName, out int c);
+                counts[v.RoleName] = c + 1;
+                string role = v.RoleName.ToUpperInvariant();
+                var k = NewTrack(v.transform, false, $"H{Tracks.Count(x => !x.friendly) + 1:00}", $"{role} {(char)('A' + c)}", v.RoleLetter, role);
+                k.faction = v;
+                k.vrask = v as VraskShip;
                 k.snare = v.GetComponent<SnareTactics>();
                 k.fang = v.GetComponent<FangTactics>();
                 k.maw = v.GetComponent<MawTactics>();
@@ -212,7 +213,8 @@ namespace CarrierGame.Demo
             nextTrail = Time.time;
             nextSample = Time.time + 1f;
             Hook(true);
-            Log($"{place} ACTION: BLUE {BlueCount} FRIGATES, RED {RedCount} VRASK", Cyan);
+            string them = string.Join(" AND ", red.Where(v => v != null).Select(v => v.FactionName.ToUpperInvariant()).Distinct());
+            Log($"{place} ACTION: BLUE {BlueCount} FRIGATES, RED {RedCount} {(them.Length > 0 ? them : "VRASK")}", Cyan);
             Poll();
             Sample1();
         }
@@ -549,7 +551,7 @@ namespace CarrierGame.Demo
             lastPoll = Time.time;
             foreach (var k in Tracks)
             {
-                if (k.t == null || (k.vrask == null && k.pilot == null))
+                if (k.t == null || (k.faction == null && k.pilot == null))
                 {
                     if (!k.dead) { k.dead = true; k.diedAt = Clock; Log($"{k.Label} LOST", Grey); }
                     k.vel = Vector3.zero;

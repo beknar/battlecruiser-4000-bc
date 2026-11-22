@@ -64,11 +64,9 @@ namespace CarrierGame.Demo
                     e.ts0 = e.ts1 = -1;
                 }
                 // the things that start fights (ambushes, defence grids) are the host's too
-                foreach (var b in FindObjectsByType<EncounterGroup>(FindObjectsSortMode.None)) Off(b);
-                foreach (var b in FindObjectsByType<VraskFleet>(FindObjectsSortMode.None)) Off(b);
-                foreach (var b in FindObjectsByType<DefenseGrid>(FindObjectsSortMode.None)) Off(b);
-                foreach (var b in FindObjectsByType<AmbushDirector>(FindObjectsSortMode.None)) Off(b);
-                foreach (var b in FindObjectsByType<SpawnDirector>(FindObjectsSortMode.None)) Off(b);
+                // (and each faction's fleet: HostOnly)
+                foreach (var type in HostOnly)
+                    foreach (var o in FindObjectsByType(type, FindObjectsSortMode.None)) Off(o as Behaviour);
                 Debug.Log("[Co-op] the enemies are the host's: puppets here");
             }
             else

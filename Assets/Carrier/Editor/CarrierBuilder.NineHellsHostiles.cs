@@ -92,7 +92,7 @@ namespace Carrier.EditorTools
             if (vrask == null || p.vrask.Count == 0) { Log($"nine hells: {groupName}: no Vrask"); return null; }
             Vector3 outward = Vector3.ProjectOnPlane(centre - R.sys.position, Vector3.up);
             outward = outward.sqrMagnitude > 1f ? outward.normalized : Vector3.forward;
-            var pilots = new List<(CombatPilot pilot, VraskShipStats s)>();
+            var pilots = new List<(CombatPilot pilot, FactionShipStats s)>();
             foreach (var slot in slots)
             {
                 var s = vrask.Find(slot.ship);

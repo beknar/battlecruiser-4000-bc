@@ -218,7 +218,7 @@ namespace CarrierGame.Demo
             tac = gameObject.AddComponent<TacticalDisplay>();
             tac.Logged += line => Note("cic  " + line);
             // (drawn level over Sheol, the picket at the top)
-            tac.Begin(frameOf, CicUp(c), -dir, cicBlue, cicRed, cicFleet, cicGroup, "SHEOL");
+            tac.Begin(frameOf, CicUp(c), -dir, cicBlue, cicRed.Cast<FactionShip>().ToList(), cicFleet, cicGroup, "SHEOL");
             cicLine = string.Join(", ", cicBlue.Select(p => p.ship != null ? p.ship.shipName : p.name));
             Note($"cic: blue {cicLine}{(section ? ", flown as a section" : "")}, {Vector3.Distance(start, c) / 1000f:F1} km from the picket; positions on {(frameOf != null ? frameOf.name : "the world")}");
             done(true);

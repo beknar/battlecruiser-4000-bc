@@ -21,7 +21,7 @@ namespace Carrier.EditorTools
         static NukeMissile vraskNuke;
 
         /// <summary>The artillery shell: a long green-white streak, slow, bursting wide.</summary>
-        static ArtilleryShell MakeArtilleryShell(Prefabs p, VraskArtillery a)
+        static ArtilleryShell MakeArtilleryShell(Prefabs p, FactionArtillery a)
         {
             var go = new GameObject("VraskArtilleryShell");
             var vis = GameObject.CreatePrimitive(PrimitiveType.Capsule);
@@ -54,7 +54,7 @@ namespace Carrier.EditorTools
         }
 
         /// <summary>The nuclear missile: the missile's model, bigger and slower, a white trail.</summary>
-        static NukeMissile MakeNuke(Prefabs p, VraskNukes n)
+        static NukeMissile MakeNuke(Prefabs p, FactionNukes n)
         {
             var go = new GameObject("VraskNuke");
             var model = Place(OwnModel("Missile"), go.transform, "Model");
@@ -85,7 +85,7 @@ namespace Carrier.EditorTools
 
         /// <summary>The Maw's spinal artillery at its spinal_muzzle, its nuclear silos at its
         /// nuke_cells, and its tactics.</summary>
-        static void AddArtillery(Prefabs p, GameObject root, VraskShip vs, VraskShipStats s)
+        static void AddArtillery(Prefabs p, GameObject root, VraskShip vs, FactionShipStats s)
         {
             var a = s.artillery;
             if (a == null || a.range <= 0f) return;

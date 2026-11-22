@@ -185,9 +185,9 @@ namespace CarrierGame
             if (!was && condition[i] < DownBelow) down[i] = true;
             else if (was && condition[i] > BackAbove) down[i] = false;
             if (down[i] == was) return;
-            if (down[i] && tell) KnockedOut++;
-            // (knocked out by an EMP as well: it stays out, nothing to tell)
+            // (knocked out by an EMP as well: it is out already, nothing to count or tell)
             if (knocked[i]) return;
+            if (down[i] && tell) KnockedOut++;
             Apply(s, tell);
         }
 
@@ -215,7 +215,12 @@ namespace CarrierGame
                 int i = (int)s;
                 if (!knocked[i] || Time.time < knockedUntil[i]) continue;
                 knocked[i] = false;
-                if (down[i]) continue;
+                if (down[i])
+                {
+                    // (worn out by hits meanwhile: still out, and said so)
+                    if (transform == PlayerShips.Primary) Notices.Post($"The EMP is over, but our {Label(s)} {Are(s)} still out: damaged");
+                    continue;
+                }
                 Apply(s, false);
                 if (transform == PlayerShips.Primary) Notices.Post($"Our {Label(s)} {Are(s)} back from the EMP");
             }
@@ -354,9 +359,14 @@ namespace CarrierGame
                 int g = (n + 1) * Bits <= 30 ? (v >> (n * Bits)) & 63 : 0;
                 condition[i] = 1f - (g & 31) / 31f;
                 bool off = (g & 32) != 0;
-                if (down[i] == off) continue;
-                down[i] = off;
-                Apply(s, false);
+                bool was = Off(i);
+                // (out at good condition: the other game's EMP, a knock that lapses with the copy's
+                // updates; out worn: down, as the condition says)
+                bool emp = off && condition[i] > BackAbove;
+                down[i] = off && !emp;
+                knocked[i] = emp;
+                if (emp) knockedUntil[i] = netUntil;
+                if (Off(i) != was) Apply(s, false);
             }
         }
     }

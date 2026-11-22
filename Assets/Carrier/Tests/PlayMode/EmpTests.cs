@@ -115,6 +115,33 @@ namespace CarrierGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator ACopyShowsTheOtherGamesKnockAndLetsItLapse()
+        {
+            var host = Ship("Host's");
+            var copy = Ship("Copy");
+            host.Knock(ShipSystem.Engines, 30f);
+            copy.NetSet(host.ToWire());
+            Assert.That(copy.EnginesDown, Is.True, "the host's EMP shows on the copy");
+            Assert.That(copy.Condition(ShipSystem.Engines), Is.EqualTo(1f), "at good condition: a knock, not wear");
+            // (its updates stop: the knock lapses with them, as wear wouldn't)
+            yield return new WaitForSeconds(3.3f);
+            Assert.That(copy.EnginesDown, Is.False, "no word from the host for a while: back");
+        }
+
+        [Test]
+        public void AGuestsBurstShowsTheHostsCharge()
+        {
+            var b = Make("Shroud").AddComponent<EmpBurst>();
+            b.chargeTime = 4f;
+            b.autoFire = false;
+            b.NetSet(0.5f);
+            Assert.That(b.Current, Is.EqualTo(EmpBurst.State.Charging));
+            Assert.That(b.Charge, Is.EqualTo(0.5f).Within(0.02f));
+            b.NetSet(-1f);
+            Assert.That(b.Current, Is.EqualTo(EmpBurst.State.Cooling), "the host's has burst");
+        }
+
+        [UnityTest]
         public IEnumerator ABurstHitsOnlyTheShipsInItsReach()
         {
             var near = Ship("Near");

@@ -4,37 +4,69 @@ using UnityEngine;
 namespace CarrierGame
 {
     /// <summary>
-    /// The Vrask's numbers, from Data/vrask.json: their bolts, each of their four ships (its
-    /// model, hull, shield, armour, how it flies and its weapons) and the raiding group the star
-    /// system is given. The scene builder reads it (CarrierBuilder.Vrask) and bakes the numbers into
-    /// the prefabs and the level, as it does Data/frigates.json, so a change shows after a rebuild.
+    /// A faction's numbers, from its file in Data/ (vrask.json, greys.json, empire.json): its
+    /// bolts, each of its ships (its model, hull, shield, armour, how it flies and its weapons),
+    /// the group it puts in a star system, how its ships fight together and, for the Vrask, the
+    /// siege of a city. The scene builder reads it (CarrierBuilder.Faction) and bakes the numbers
+    /// into the prefabs and the level, as it does Data/frigates.json, so a change shows after a
+    /// rebuild. A field a faction has no use for is left out of its file.
     /// </summary>
     [Serializable]
-    public class VraskTable
+    public class FactionTable
+    {
+        /// <summary>The faction's name, as TargetInfo.group has it ("Vrask", "Greys", "Empire");
+        /// the Vrask's file, from before there were others, leaves it out.</summary>
+        public string faction;
+        /// <summary>What its builder's assets are named with ("Vrask": VraskBoardingPod,
+        /// FX_VraskTractor); its name if left out.</summary>
+        public string prefix;
+        /// <summary>Its colours: its shield bubble, its beams (tractor), its pods' trails (r, g, b,
+        /// brightness); the Vrask's green if left out.</summary>
+        public float[] shieldColor, beamColor, trailColor;
+
+        public FactionBolt[] bolts;
+        public FactionShipStats[] ships;
+        public FactionGroup group;
+        /// <summary>The siege of a city from orbit (VraskBombardment).</summary>
+        public FactionSiege siege;
+        /// <summary>How a group of them fights together (VraskFleet, for the Vrask).</summary>
+        public FactionFleetStats fleet;
+
+        public static T Parse<T>(string json) where T : FactionTable => JsonUtility.FromJson<T>(json);
+        public static FactionTable Parse(string json) => JsonUtility.FromJson<FactionTable>(json);
+
+        /// <summary>A ship by its id ("Snare", "Fang", "Maw", "Skink"...), or null.</summary>
+        public FactionShipStats Find(string id) => ships == null ? null : Array.Find(ships, s => s.id == id);
+
+        /// <summary>A bolt by its name, or null.</summary>
+        public FactionBolt Bolt(string name) => bolts == null ? null : Array.Find(bolts, b => b.name == name);
+
+        /// <summary>Its name, the Vrask's if its file leaves it out.</summary>
+        public string Name => string.IsNullOrEmpty(faction) ? VraskShip.Faction : faction;
+        /// <summary>What its assets are named with.</summary>
+        public string Prefix => string.IsNullOrEmpty(prefix) ? Name : prefix;
+
+        public Color ShieldTint => Glow(shieldColor, new Color(0.45f, 1.6f, 0.55f));
+        public Color BeamGlow => Glow(beamColor, new Color(0.35f, 1.4f, 0.6f) * 2.5f);
+        public Color TrailGlow => Glow(trailColor, Color.clear);
+
+        static Color Glow(float[] c, Color fallback) =>
+            c != null && c.Length >= 3 ? new Color(c[0], c[1], c[2]) * (c.Length >= 4 ? c[3] : 1f) : fallback;
+    }
+
+    /// <summary>The Vrask's table (Data/vrask.json).</summary>
+    [Serializable]
+    public class VraskTable : FactionTable
     {
         public const string DataPath = "Assets/Carrier/Data/vrask.json";
 
-        public VraskBolt[] bolts;
-        public VraskShipStats[] ships;
-        public VraskGroup group;
-        /// <summary>The siege of a city from orbit (VraskBombardment).</summary>
-        public VraskSiege siege;
-        /// <summary>How a group of them fights together (VraskFleet).</summary>
-        public VraskFleetStats fleet;
-
-        public static VraskTable Parse(string json) => JsonUtility.FromJson<VraskTable>(json);
-
-        /// <summary>A ship by its id ("Snare", "Fang", "Maw", "Skink"), or null.</summary>
-        public VraskShipStats Find(string id) => ships == null ? null : Array.Find(ships, s => s.id == id);
-
-        /// <summary>A bolt by its name, or null.</summary>
-        public VraskBolt Bolt(string name) => bolts == null ? null : Array.Find(bolts, b => b.name == name);
+        public static new VraskTable Parse(string json) => JsonUtility.FromJson<VraskTable>(json);
     }
 
     /// <summary>One kind of shot: what it does (`kind`, a HitKind: "Ion", "Cannon", "Penetrator"...),
     /// how hard and how fast, and how it looks (an additive glow of `color`: r, g, b, brightness).</summary>
     [Serializable]
-    public class VraskBolt
+    public class FactionBolt
     {
         public string name, material, kind;
         public float damage, speed;
@@ -52,7 +84,7 @@ namespace CarrierGame
     /// swing `cone` degrees. `volley`: the points are one gun firing from all of them at once.
     /// </summary>
     [Serializable]
-    public class VraskWeapon
+    public class FactionWeapon
     {
         public string label, on, bolt;
         public float interval, range, cone, yawSpeed;
@@ -61,7 +93,7 @@ namespace CarrierGame
 
     /// <summary>One of the four Vrask ships.</summary>
     [Serializable]
-    public class VraskShipStats
+    public class FactionShipStats
     {
         /// <summary>"Snare", "Fang", "Maw" or "Skink" (VraskShip.Role).</summary>
         public string id;
@@ -92,8 +124,8 @@ namespace CarrierGame
         public float podInterval, podRange;
         /// <summary>Long-range artillery (ArtilleryGun: the Maw's spinal gun), and nuclear missiles
         /// (NukeLauncher: the Maw's silos); a range of 0, or a stock of 0: none.</summary>
-        public VraskArtillery artillery;
-        public VraskNukes nukes;
+        public FactionArtillery artillery;
+        public FactionNukes nukes;
         /// <summary>An escort's work (the Skink: SkinkTactics, PointDefence): how far its sensors
         /// reach (m; the Maw fires at what they see), its patrol orbit round the ships it screens
         /// (m: nearest, farthest), how near the formation (m) it runs a threat down, and how many
@@ -107,7 +139,7 @@ namespace CarrierGame
         public float salvoInterval, missileRange;
 
         public float[] engineColor;
-        public VraskWeapon[] guns;
+        public FactionWeapon[] guns;
 
         public Color EngineGlow => engineColor != null && engineColor.Length >= 3 ? new Color(engineColor[0], engineColor[1], engineColor[2]) : new Color(0.45f, 1f, 0.6f);
     }
@@ -117,7 +149,7 @@ namespace CarrierGame
     /// damage at the centre of a blast `blastRadius` wide (m) and the share at its edge, and their
     /// glow (r, g, b, brightness).</summary>
     [Serializable]
-    public class VraskArtillery
+    public class FactionArtillery
     {
         public string label, on;
         public float interval, range, minRange, cone, shellSpeed, damage, blastRadius, edge;
@@ -128,7 +160,7 @@ namespace CarrierGame
     /// space (damage at its centre, its reach in m, the share at its edge), how far (m) and how
     /// often (s) one is launched, how fast it flies (m/s) and how much point defence it takes.</summary>
     [Serializable]
-    public class VraskNukes
+    public class FactionNukes
     {
         public int stock;
         public float damage, blastRadius, edge, range, interval, speed, toughness;
@@ -143,7 +175,7 @@ namespace CarrierGame
     /// `nukePopulationShare` of the people left. `note`: the destination's description;
     /// `cityNote`: added to the city's.</summary>
     [Serializable]
-    public class VraskSiege
+    public class FactionSiege
     {
         public string name, at, body, ship, escort, note, cityNote;
         public int escorts, shells;
@@ -160,7 +192,7 @@ namespace CarrierGame
     /// no nearer the target than (m), how far (m) any of its ships sees, and how near the group
     /// (m) a ship can be its target.</summary>
     [Serializable]
-    public class VraskFleetStats
+    public class FactionFleetStats
     {
         public string note;
         public float holdLine, bombardTime, bombardShield, reactRange, recoverTime, pursueTime;
@@ -170,7 +202,7 @@ namespace CarrierGame
     /// <summary>One ship's place in the raiding group, round the place it hunts at (degrees round
     /// from the side away from the star, metres out, metres up).</summary>
     [Serializable]
-    public class VraskSlot
+    public class FactionSlot
     {
         public string ship, name;
         public float angle, distance, height;
@@ -179,10 +211,10 @@ namespace CarrierGame
     /// <summary>The raiding group: where it lies in wait (a warp point by name), how near it
     /// spots a ship, what the place's description adds, and its ships.</summary>
     [Serializable]
-    public class VraskGroup
+    public class FactionGroup
     {
         public string name, at, note;
         public float spotRange;
-        public VraskSlot[] slots;
+        public FactionSlot[] slots;
     }
 }

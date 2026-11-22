@@ -14,9 +14,9 @@ namespace Carrier.EditorTools
     public static partial class CarrierBuilder
     {
         /// <summary>The Skink's point defence and escort tactics: its "pd" guns as the mounts.</summary>
-        static void AddEscort(GameObject root, VraskShip vs, VraskShipStats s, List<CarrierTurret> turrets)
+        static void AddEscort(GameObject root, VraskShip vs, FactionShipStats s, List<CarrierTurret> turrets)
         {
-            var set = (s.guns ?? new VraskWeapon[0]).FirstOrDefault(w => w.on == "pd");
+            var set = (s.guns ?? new FactionWeapon[0]).FirstOrDefault(w => w.on == "pd");
             var mounts = set == null ? new CarrierTurret[0]
                 : turrets.Where(t => t != null && (t.label == set.label || t.label.StartsWith(set.label + ":"))).ToArray();
             var pd = root.AddComponent<PointDefence>();

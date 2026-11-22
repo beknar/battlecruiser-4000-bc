@@ -71,6 +71,9 @@ namespace CarrierGame.Demo
         // message's count is n)
         public int bd;
         public bool cpt;
+        // ... and by which faction (with cpt; "" or left out: the Vrask); a "board" message's
+        // boarders' faction (the same)
+        public string cby, fa;
         // a player's ship: its paint (PaintScheme.ToCode; "" or left out: unpainted)
         public string pt;
         // an artillery shell's aim (a fire message of kind "shell": from the reach arf)
@@ -114,6 +117,8 @@ namespace CarrierGame.Demo
         /// dead: no explosion in the other games).</summary>
         public int bd;
         public bool cpt;
+        /// <summary>The faction that took it (with cpt; older games leave it out: the Vrask).</summary>
+        public string cby;
         /// <summary>Its paint (ShipPaint: PaintScheme.ToCode, "" unpainted; older games leave
         /// it out, and ignore it).</summary>
         public string pt = "";
@@ -150,7 +155,7 @@ namespace CarrierGame.Demo
 
     /// <summary>Boarders the host's pods have put aboard one player's ship (n of them).</summary>
     [Serializable]
-    class BoardMsg { public string t = CoopWire.Board; public int to, n; }
+    class BoardMsg { public string t = CoopWire.Board; public int to, n; public string fa; }
 
     /// <summary>A missile or pod shot down: whose it was (src), and where.</summary>
     [Serializable]

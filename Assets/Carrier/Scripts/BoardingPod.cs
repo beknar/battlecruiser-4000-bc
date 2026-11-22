@@ -40,7 +40,7 @@ namespace CarrierGame
                 if (ShieldLets(ship) && Boarders.CanBoard(ship))
                 {
                     Breached++;
-                    Boarders.Board(ship, Random.Range(crewMin, crewMax + 1));
+                    Boarders.Board(ship, Random.Range(crewMin, crewMax + 1), Boarders.FactionOf(owner));
                     SoundFX.Play(Sfx.Impact, transform.position, 1f, 0.55f);
                     Finish(null);
                     return;

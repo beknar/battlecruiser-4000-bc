@@ -204,7 +204,7 @@ namespace CarrierGame.Demo
             return list;
         }
 
-        static string MixOf(Encounter e) => VraskMix.Describe(e.enemies.Where(h => h != null).Select(h => h.GetComponent<VraskShip>()).Where(v => v != null)).Replace(", ", " ");
+        static string MixOf(Encounter e) => VraskMix.Describe(e.enemies.Where(h => h != null).Select(h => h.GetComponent<FactionShip>()).Where(v => v != null)).Replace(", ", " ");
 
         /// <summary>A -simpairs name ("Talon+Vanguard" or "Vanguard+Talon") for this pair.</summary>
         bool PairNamed(string name, string[] f)
@@ -600,10 +600,11 @@ namespace CarrierGame.Demo
             return null;
         }
 
-        /// <summary>How much a section wants a Vrask ship dead, by its role (`d`: how far it is).</summary>
+        /// <summary>How much a section wants a faction's ship dead, by its role (`d`: how far it is).</summary>
         static float RoleWeight(Transform t, float d)
         {
-            if (!t.TryGetComponent(out VraskShip v)) return 1.5f;
+            if (!t.TryGetComponent(out FactionShip f)) return 1.5f;
+            if (!(f is VraskShip v)) return f.SectionWeight(d);
             switch (v.role)
             {
                 case VraskShip.Role.Snare: return 3f;

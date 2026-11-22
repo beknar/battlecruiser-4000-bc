@@ -19,6 +19,8 @@ namespace CarrierGame
 
         /// <summary>Taken by boarders, and waiting to come back.</summary>
         public bool Captured => health != null && health.Captured;
+        /// <summary>The faction that took it (the Vrask's if no boarders say).</summary>
+        public string CapturedBy => Boarders.FactionOr(GetComponent<Boarders>()?.Faction);
         /// <summary>A boarding ship is clamped to the hull now.</summary>
         public bool Clamped => Time.time < clampUntil && !Destroyed;
         public Transform ClampedBy => Clamped ? clampedBy : null;
@@ -71,7 +73,7 @@ namespace CarrierGame
             if (transform == PlayerShips.Primary)
             {
                 SoundFX.Ui(Sfx.UiAlert);
-                Notices.Post($"Captured by the Vrask: {LastTaken} of your crew taken");
+                Notices.Post($"Captured by the {CapturedBy}: {LastTaken} of your crew taken");
             }
         }
     }

@@ -107,14 +107,15 @@ namespace CarrierGame.Demo
         }
 
         /// <summary>A fleet ship taken by boarders (Boarders): lost from the fleet as a destroyed one
-        /// is, but counted as captured; those of her crew still aboard are prisoners of the Vrask
-        /// too. She is taken away (Health.Capture).</summary>
+        /// is, but counted as captured; those of her crew still aboard are prisoners of the boarders'
+        /// faction too. She is taken away (Health.Capture).</summary>
         void Taken(FleetPilot p)
         {
             if (p == null || !Ships.Contains(p)) return;
             int aboard = p.TryGetComponent(out Crew c) ? c.Aboard : 0;
             int taken = aboard + (p.TryGetComponent(out Boarders b) ? b.Prisoners : 0);
-            WorldState.TakePrisoners(aboard);          // (the boarders' own prisoners are counted already)
+            string by = Boarders.FactionOr(b != null ? b.Faction : null);
+            WorldState.TakePrisoners(aboard, by);      // (the boarders' own prisoners are counted already)
             WorldState.ShipTaken();
             Ships.Remove(p);
             Lost++;
@@ -124,7 +125,7 @@ namespace CarrierGame.Demo
             if (viewing == p) View(null);
             Renumber();
             SoundFX.Ui(Sfx.UiAlert);
-            Notices.Post($"The {p.displayName} is captured by the Vrask: {taken} of her crew taken prisoner");
+            Notices.Post($"The {p.displayName} is captured by the {by}: {taken} of her crew taken prisoner");
         }
 
         void Renumber()

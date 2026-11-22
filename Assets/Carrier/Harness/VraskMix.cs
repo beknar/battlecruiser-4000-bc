@@ -33,9 +33,14 @@ namespace CarrierGame.Demo
         }
 
         /// <summary>The counts in words ("2 Maws, 3 Snares, 2 Fangs, 3 Skinks").</summary>
-        public static string Describe(IEnumerable<VraskShip> ships) =>
-            string.Join(", ", Order.Select(r => (r, n: ships.Count(v => v != null && v.role == r))).Where(x => x.n > 0)
-                                   .Select(x => $"{x.n} {x.r}{(x.n > 1 ? "s" : "")}"));
+        public static string Describe(IEnumerable<FactionShip> ships)
+        {
+            // (the Vrask's roles in their order, then any other faction's as they come)
+            var list = ships.Where(v => v != null).ToList();
+            var roles = Order.Select(r => r.ToString()).Concat(list.Select(v => v.RoleName)).Distinct();
+            return string.Join(", ", roles.Select(r => (r, n: list.Count(v => v.RoleName == r))).Where(x => x.n > 0)
+                                          .Select(x => $"{x.n} {x.r}{(x.n > 1 ? "s" : "")}"));
+        }
 
         /// <summary>Make the band `g` over to `counts` (Maw, Snare, Fang, Skink). What it did, for a log.</summary>
         public static string Apply(EncounterGroup g, int[] counts)

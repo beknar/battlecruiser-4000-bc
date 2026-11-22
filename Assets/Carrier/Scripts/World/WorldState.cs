@@ -24,14 +24,26 @@ namespace CarrierGame
         public static void ResetForSystem() => ResetStatics();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { Clock = 0; bodies.Clear(); timers.Clear(); Strikes.Clear(); ScarsChanged = null; Restored = null; Prisoners = ShipsTaken = 0; }
+        static void ResetStatics() { Clock = 0; bodies.Clear(); timers.Clear(); Strikes.Clear(); ScarsChanged = null; Restored = null; held.Clear(); ShipsTaken = 0; }
 
-        /// <summary>The players' crew the Vrask hold, taken in boardings (Boarders), and the
-        /// players' ships they have taken (saved).</summary>
-        public static int Prisoners { get; private set; }
+        /// <summary>The players' crew each faction holds (the Vrask, the Empire...), taken in
+        /// boardings (Boarders) and abductions, and the players' ships taken (saved).</summary>
+        static readonly Dictionary<string, int> held = new Dictionary<string, int>();
+        /// <summary>Every faction's prisoners together.</summary>
+        public static int Prisoners { get { int n = 0; foreach (var v in held.Values) n += v; return n; } }
         public static int ShipsTaken { get; private set; }
 
-        public static void TakePrisoners(int n) { if (n > 0) Prisoners += n; }
+        /// <summary>The players' crew a faction holds (the Vrask's if none is named).</summary>
+        public static int PrisonersOf(string faction) => held.TryGetValue(FactionOr(faction), out int n) ? n : 0;
+
+        public static void TakePrisoners(int n, string faction = null)
+        {
+            if (n <= 0) return;
+            string f = FactionOr(faction);
+            held[f] = PrisonersOf(f) + n;
+        }
+
+        static string FactionOr(string faction) => string.IsNullOrEmpty(faction) ? VraskShip.Faction : faction;
         public static void ShipTaken() => ShipsTaken++;
 
         public static void Advance(float dt) { if (dt > 0f) Clock += dt * IndustryLedger.SpeedUp; }
@@ -153,15 +165,27 @@ namespace CarrierGame
         public class Saved
         {
             public double clock;
-            /// <summary>The Vrask's prisoners and the ships they took (0 in a save from before them).</summary>
+            /// <summary>The Vrask's prisoners (where they always were, so an older game reads
+            /// them), and the ships taken (0 in a save from before them).</summary>
             public int prisoners, shipsTaken;
+            /// <summary>The other factions' prisoners (a save from before them has none).</summary>
+            public List<SavedPrisoners> held = new List<SavedPrisoners>();
             public List<SavedBody> bodies = new List<SavedBody>();
             public List<SavedTimer> timers = new List<SavedTimer>();
         }
 
+        /// <summary>A faction's prisoners in a save.</summary>
+        [Serializable]
+        public class SavedPrisoners
+        {
+            public string faction;
+            public int n;
+        }
+
         public static Saved Snapshot()
         {
-            var s = new Saved { clock = Clock, prisoners = Prisoners, shipsTaken = ShipsTaken };
+            var s = new Saved { clock = Clock, prisoners = PrisonersOf(VraskShip.Faction), shipsTaken = ShipsTaken };
+            foreach (var kv in held) if (kv.Key != VraskShip.Faction) s.held.Add(new SavedPrisoners { faction = kv.Key, n = kv.Value });
             foreach (var kv in bodies)
             {
                 var b = new SavedBody { name = kv.Key, explored = new List<int>(kv.Value.explored), scars = new List<Scar>(kv.Value.scars) };
@@ -183,7 +207,10 @@ namespace CarrierGame
             timers.Clear();
             Strikes.Clear();
             Clock = s != null ? Math.Max(0.0, s.clock) : 0.0;
-            Prisoners = s != null ? Math.Max(0, s.prisoners) : 0;
+            held.Clear();
+            // (the Vrask's in the count they always had; the others' in the list)
+            if (s != null && s.prisoners > 0) TakePrisoners(s.prisoners, VraskShip.Faction);
+            if (s?.held != null) foreach (var h in s.held) if (h != null) TakePrisoners(h.n, h.faction);
             ShipsTaken = s != null ? Math.Max(0, s.shipsTaken) : 0;
             if (s?.timers != null) foreach (var t in s.timers) if (t != null && t.name != null) timers[t.name] = t.at;
             if (s?.bodies != null) RestoreBodies(s.bodies);
@@ -214,7 +241,8 @@ namespace CarrierGame
             timers.Clear();
             Strikes.Clear();
             Clock = 0;
-            Prisoners = ShipsTaken = 0;
+            held.Clear();
+            ShipsTaken = 0;
         }
     }
 

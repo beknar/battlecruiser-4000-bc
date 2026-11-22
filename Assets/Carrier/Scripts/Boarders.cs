@@ -62,7 +62,7 @@ namespace CarrierGame
         /// <summary>A fight is over: repelled or captured (the tests, the HUD).</summary>
         public static event Action<Boarders> Over;
         /// <summary>Co-op: takes a boarding of a ship another player's game flies (true: sent there).</summary>
-        public static Func<Transform, int, bool> SendAboard;
+        public static Func<Transform, int, string, bool> SendAboard;
         /// <summary>Co-op: boarders aboard another player's ship, as its game last said.</summary>
         public static Func<Transform, int> RemoteCount;
 
@@ -98,17 +98,28 @@ namespace CarrierGame
         /// <summary>`n` boarders get aboard a ship (a pod's breach, a Fang's ram): they join any
         /// already fighting there, or start a fight. In co-op, another player's ship is boarded in
         /// that player's game (SendAboard). Returns the fight here (null: sent, or no crew).</summary>
-        public static Boarders Board(Transform ship, int n)
+        public static Boarders Board(Transform ship, int n, string faction = null)
         {
             ship = TractorBeam.ShipOf(ship);
             if (ship == null || n <= 0) return null;
-            if (SendAboard != null && SendAboard(ship, n)) return null;
+            faction = FactionOr(faction);
+            if (SendAboard != null && SendAboard(ship, n, faction)) return null;
             if (!CanBoard(ship)) return null;
             var b = ship.GetComponent<Boarders>();
             if (b == null) b = ship.gameObject.AddComponent<Boarders>();
+            if (b.Result != Outcome.Fighting) b.Faction = faction;
             b.Add(n);
             return b;
         }
+
+        /// <summary>The faction boarding (the Vrask, the Empire's marines...).</summary>
+        public string Faction { get; private set; } = VraskShip.Faction;
+
+        /// <summary>A faction's name, the Vrask's if none (older games and saves say none).</summary>
+        public static string FactionOr(string faction) => string.IsNullOrEmpty(faction) ? VraskShip.Faction : faction;
+
+        /// <summary>The faction of the ship `t` is part of, the Vrask's if it has none.</summary>
+        public static string FactionOf(Transform t) => FactionOr(FactionShip.Of(t)?.FactionName);
 
         /// <summary>The boarders on a ship (its fight, over or not), or null.</summary>
         public static Boarders On(Transform ship)
@@ -183,9 +194,9 @@ namespace CarrierGame
             if (Primary)
             {
                 SoundFX.Ui(Sfx.UiAlert);
-                Notices.Post(first ? $"Boarders! {n} Vrask breachers are aboard" : $"{n} more boarders aboard: {Aboard} now");
+                Notices.Post(first ? $"Boarders! {n} {Faction} breachers are aboard" : $"{n} more boarders aboard: {Aboard} now");
             }
-            else if (first && Ours) Notices.Post($"The {ShipName} is boarded: {n} Vrask aboard");
+            else if (first && Ours) Notices.Post($"The {ShipName} is boarded: {n} {Faction} aboard");
             // (a crew already down to its survivors can't fight them off)
             Step(0f);
         }
@@ -240,7 +251,7 @@ namespace CarrierGame
             Result = Outcome.Captured;
             Ended = Time.time;
             Prisoners = Mathf.RoundToInt(CrewTaken);
-            WorldState.TakePrisoners(Prisoners);
+            WorldState.TakePrisoners(Prisoners, Faction);
             Over?.Invoke(this);
             health.Capture();
         }

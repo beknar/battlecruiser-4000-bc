@@ -88,6 +88,19 @@ namespace CarrierGame.Demo
             typeof(OrbitHome), typeof(Beacon), typeof(TractorBeam),
         };
 
+        /// <summary>A behaviour that stays on on a guest's puppets (shown, or worked out on each
+        /// machine from what is synced): a faction adds its own.</summary>
+        public static void KeepOnPuppets(Type t) { if (t != null) Keep.Add(t); }
+
+        /// <summary>What starts and runs fights, the host's only: off in a guest's game (ambushes,
+        /// defence grids, the spawner, each faction's fleet). A faction adds its own fleet.</summary>
+        static readonly List<Type> HostOnly = new List<Type>
+        {
+            typeof(EncounterGroup), typeof(VraskFleet), typeof(DefenseGrid), typeof(AmbushDirector), typeof(SpawnDirector),
+        };
+
+        public static void HostOnlyBehaviour(Type t) { if (t != null && !HostOnly.Contains(t)) HostOnly.Add(t); }
+
         void Awake() => Instance = this;
 
         void Start()

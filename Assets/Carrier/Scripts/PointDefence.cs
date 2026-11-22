@@ -4,7 +4,7 @@ using UnityEngine;
 namespace CarrierGame
 {
     /// <summary>
-    /// A Vrask ship's point defence (the Skink's rapid guns): the mirror of the players' CIWS
+    /// A faction ship's point defence (the Vrask Skink's rapid guns): the mirror of the players' CIWS
     /// (CiwsDirector). Every few tenths of a second each of its mounts takes the nearest thing of
     /// the players' it can bring to bear that threatens the Vrask: a missile of theirs on its way
     /// to a Vrask ship (first: counted at a quarter of its distance), then a fighter or drone of
@@ -70,7 +70,7 @@ namespace CarrierGame
             foreach (var m in mounts)
             {
                 if (!m) continue;
-                var pick = armed ? Pick(m.transform.position, m.CanBear) : null;
+                var pick = armed ? Pick(m.transform.position, m.CanBear, Faction) : null;
                 on.TryGetValue(m, out var was);
                 if (pick != null)
                 {
@@ -89,13 +89,13 @@ namespace CarrierGame
         /// <summary>For a mount at `from` (`bears`: can it be brought to bear on a point): the
         /// players' missile on its way to a Vrask ship, or their fighter or drone, it should take
         /// (a missile first: at a quarter of its distance), or null.</summary>
-        public static Transform Pick(Vector3 from, System.Func<Vector3, bool> bears)
+        public static Transform Pick(Vector3 from, System.Func<Vector3, bool> bears, string faction = null)
         {
             Transform best = null;
             float bestD = float.MaxValue;
             foreach (var m in Missile.Active)
             {
-                if (m == null || m.Hostile || m.owner == null || !AtVrask(m)) continue;
+                if (m == null || m.Hostile || m.owner == null || !AtFaction(m, faction)) continue;
                 Vector3 p = m.transform.position;
                 float d = (p - from).sqrMagnitude * 0.25f;
                 if (d >= bestD || !bears(p)) continue;
@@ -120,7 +120,18 @@ namespace CarrierGame
         }
 
         /// <summary>A missile on its way to a Vrask ship.</summary>
-        public static bool AtVrask(Missile m) => m != null && m.target != null && m.target.GetComponentInParent<VraskShip>() != null;
+        public static bool AtVrask(Missile m) => AtFaction(m, VraskShip.Faction);
+
+        /// <summary>A missile on its way to a ship of `faction` (null: the Vrask's).</summary>
+        public static bool AtFaction(Missile m, string faction)
+        {
+            var f = m != null ? FactionShip.Of(m.target) : null;
+            return f != null && f.FactionName == (string.IsNullOrEmpty(faction) ? VraskShip.Faction : faction);
+        }
+
+        string faction;
+        /// <summary>The faction whose ships it protects: its own ship's (the Vrask's if it has none).</summary>
+        string Faction => faction ??= FactionShip.Of(transform)?.FactionName ?? VraskShip.Faction;
 
         /// <summary>What a hostile ship's shot does to the players' missiles, as a share of its
         /// damage: its point defence's `missileScale`, or nothing (a hostile gun that isn't point

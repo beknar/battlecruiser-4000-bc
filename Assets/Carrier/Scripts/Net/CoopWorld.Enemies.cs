@@ -52,6 +52,13 @@ namespace CarrierGame.Demo
             puppeting = on;
             if (on)
             {
+                // (what this game made during play on its own is the host's to have now, not
+                // ours: gone, or it would hang there, a target the host doesn't know of)
+                foreach (var e in ents.Values.Where(x => !string.IsNullOrEmpty(x.key)).ToList())
+                {
+                    RemoveEnt(e);
+                    if (e.t != null) Destroy(e.t.gameObject);
+                }
                 foreach (var e in ents.Values)
                 {
                     if (e.t == null) continue;
@@ -157,6 +164,13 @@ namespace CarrierGame.Demo
             bool full = sends++ % 10 == 0 || playersNow != playersSentTo;
             playersSentTo = playersNow;
             if (full) MarkFar();
+            // (one made during play that was destroyed outright, with no respawn, and never said
+            // gone: gone now, said once)
+            foreach (var e in ents.Values.Where(x => x.t == null && !string.IsNullOrEmpty(x.key)).ToList())
+            {
+                RemoveEnt(e);
+                goneIds.Add((e.id, e.key));
+            }
             var list = new List<CoopEntity>(ents.Count + goneIds.Count);
             foreach (var (id, key) in goneIds) list.Add(new CoopEntity { id = id, gone = true, dead = true, k = key });
             goneIds.Clear();
@@ -209,6 +223,8 @@ namespace CarrierGame.Demo
         // ------------------------------------------------------------------ enemies made during play
 
         int madeHere;
+        /// <summary>This game's own tag for the enemies it makes alone (another game's are never the same).</summary>
+        static readonly string RunTag = "s" + System.Guid.NewGuid().ToString("N").Substring(0, 8);
         /// <summary>Enemies made during play, here or as the host's puppets.</summary>
         public int RuntimeEntities => ents.Values.Count(e => !string.IsNullOrEmpty(e.key));
 
@@ -218,7 +234,8 @@ namespace CarrierGame.Demo
         {
             if (go == null || entByTransform.ContainsKey(go.transform)) return;
             // (alone, it is still listed, so it is sent if co-op starts)
-            string id = $"rt:{(On ? Client.MyId : 0)}:{++madeHere}";
+            // (unique even when made alone, before co-op: this game's own tag, not a player id)
+            string id = $"rt:{(On ? Client.MyId.ToString() : RunTag)}:{++madeHere}";
             var e = AddEnt(id, go.transform, key);
             if (scaledFor > 1) ScaleOne(e, CoopScaling.Toughness(scaledFor));
         }
@@ -243,8 +260,9 @@ namespace CarrierGame.Demo
         void RemoveEnt(Ent e)
         {
             ents.Remove(e.id);
-            if (e.t != null) entByTransform.Remove(e.t);
-            if (e.h != null) entByHealth.Remove(e.h);
+            // (by reference: a destroyed object compares as null, but is still the key)
+            if ((object)e.t != null) entByTransform.Remove(e.t);
+            if ((object)e.h != null) entByHealth.Remove(e.h);
         }
 
         void ScaleOne(Ent e, float k)
@@ -278,7 +296,7 @@ namespace CarrierGame.Demo
         /// <summary>Out of co-op: the host's enemies made during play go with it.</summary>
         void DropRuntimePuppets()
         {
-            foreach (var e in ents.Values.Where(x => !string.IsNullOrEmpty(x.key) && x.puppet != null).ToList())
+            foreach (var e in ents.Values.Where(x => !string.IsNullOrEmpty(x.key)).ToList())
             {
                 RemoveEnt(e);
                 if (e.t != null) Destroy(e.t.gameObject);
@@ -302,6 +320,12 @@ namespace CarrierGame.Demo
                     RemoveEnt(e);
                     if (e.t != null) Destroy(e.t.gameObject);
                     continue;
+                }
+                else if (e.t == null && !string.IsNullOrEmpty(e.key) && !s.dead)
+                {
+                    // lost here (destroyed when the host said it died) but alive again there: again here
+                    RemoveEnt(e);
+                    if (string.IsNullOrEmpty(s.k) || (e = MakePuppet(s)) == null) continue;
                 }
                 if (e.t == null) continue;
                 if (e.h != null)

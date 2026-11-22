@@ -1,0 +1,88 @@
+{
+    "note": "The Empire, an aggressive military power of long grey warships that fights as a disciplined line: their bolts, their four ships and their bands in the star systems. The scene builder (CarrierBuilder.Empire) reads this and bakes the numbers into the prefabs (Prefabs/EmpireAssault, EmpirePatrol, EmpireRaider, EmpireRecon) and the levels: run Tools > Carrier > Build Everything after changing anything here. Models and hardpoints: Models/Empire_<Id>.fbx and Data/empire_<id>_hardpoints.json (Tools/Blender/build_empire.sh). Units as in vrask.json; the new fields as in greys.json. A gun set on 'ciws' is a CIWS: rapid guns at the ship's ciws points, made its point defence (PointDefence) against the players' missiles, drones and fighters; 'pd' on a gun set's label in pdGuns makes those guns point defence too (the Raider's chin guns). pods: marines in boarding pods at its boarding_pod points (PodLauncher), launched at a disabled ship. Their armour is ablative plating (Armor, AblativePlates), stopping beams and kinetics alike.",
+    "faction": "Empire",
+    "prefix": "Empire",
+    "shieldColor": [1.4, 0.55, 0.45, 1.0],
+    "beamColor": [1.5, 0.45, 0.35, 2.0],
+    "trailColor": [1.4, 0.6, 0.4, 3.0],
+    "bolts": [
+        { "name": "EmpireCannon", "material": "FX_EmpireCannon", "kind": "Cannon", "damage": 55, "speed": 1800, "size": [1.3, 1.3, 11], "color": [1.4, 0.8, 0.4, 6] },
+        { "name": "EmpireAutocannon", "material": "FX_EmpireAuto", "kind": "Projectile", "damage": 14, "speed": 2200, "size": [0.6, 0.6, 8], "color": [1.5, 0.7, 0.4, 5] },
+        { "name": "EmpireCiws", "material": "FX_EmpireCiws", "kind": "Projectile", "damage": 5, "speed": 2400, "size": [0.35, 0.35, 6], "color": [1.6, 0.9, 0.5, 5] }
+    ],
+    "ships": [
+        {
+            "id": "Assault", "prefab": "EmpireAssault", "model": "Empire_Assault", "texture": "Empire_Assault_BaseColor.png", "hardpoints": "empire_assault_hardpoints.json",
+            "displayName": "Imperial Assault Frigate", "shipClass": "Line frigate", "threat": "High", "weapons": "6 turrets, a missile battery, 4 CIWS, a bay of combat drones",
+            "role": "The line: closes bow-on to its guns' range and holds, its ablative armour taking energy and kinetic fire alike; turrets, missiles from further out at a painted target, CIWS and drones",
+            "hull": 4200, "shield": 1500, "shieldRecharge": 60, "armor": 0.45, "plating": 2200, "explosion": 2.6, "respawn": 120,
+            "style": "Capital", "cruiseSpeed": 80, "attackSpeed": 110, "turnRate": 12, "acceleration": 14,
+            "standoff": 3200, "circleSpeed": 1.5, "holdFacing": true, "hideBelow": 0,
+            "sensorRange": 25000,
+            "salvoSize": 4, "salvoInterval": 26, "missileRange": 8000,
+            "drones": { "stock": 6, "maxOut": 3, "perLaunch": 2, "launchInterval": 15, "launchRange": 9000 },
+            "engineColor": [1.0, 0.6, 0.35],
+            "guns": [
+                { "label": "Turrets", "on": "turrets", "bolt": "EmpireCannon", "interval": 3.2, "range": 5000, "yawSpeed": 25 },
+                { "label": "CIWS", "on": "ciws", "bolt": "EmpireCiws", "interval": 0.12, "range": 1800, "cone": 150, "yawSpeed": 160 }
+            ]
+        },
+        {
+            "id": "Patrol", "prefab": "EmpirePatrol", "model": "Empire_Patrol", "texture": "Empire_Patrol_BaseColor.png", "hardpoints": "empire_patrol_hardpoints.json",
+            "displayName": "Imperial Patrol Frigate", "shipClass": "Escort frigate", "threat": "Medium", "weapons": "2 turrets, 2 CIWS, marines in boarding pods, a warp inhibitor",
+            "role": "Escort and screen: keeps by the Assault frigates with its CIWS over them, holds a ship from running with its warp inhibitor, boards a disabled one with marines, and restocks the Assault frigates' drones",
+            "hull": 2600, "shield": 1300, "shieldRecharge": 70, "armor": 0.25, "plating": 800, "explosion": 2.0, "respawn": 90,
+            "style": "Capital", "cruiseSpeed": 200, "attackSpeed": 280, "turnRate": 30, "acceleration": 45,
+            "standoff": 3000, "circleSpeed": 4, "hideBelow": 0,
+            "sensorRange": 30000, "interdict": 12000,
+            "pods": 3, "podInterval": 25, "podRange": 3000,
+            "engineColor": [1.0, 0.6, 0.35],
+            "guns": [
+                { "label": "Turrets", "on": "turrets", "bolt": "EmpireCannon", "interval": 3.0, "range": 4500, "yawSpeed": 30 },
+                { "label": "CIWS", "on": "ciws", "bolt": "EmpireCiws", "interval": 0.12, "range": 1800, "cone": 150, "yawSpeed": 160 }
+            ]
+        },
+        {
+            "id": "Raider", "prefab": "EmpireRaider", "model": "Empire_Raider", "texture": "Empire_Raider_BaseColor.png", "hardpoints": "empire_raider_hardpoints.json",
+            "displayName": "Imperial Raider", "shipClass": "Fast attack frigate", "threat": "Medium", "weapons": "2 autocannon turrets, chin guns that double as point defence",
+            "role": "Fast attack: goes for the lightest targets first (drones and fighters, the wingman, then the lightest ship), runs in and out before the heavies arrive; its guns shoot missiles down",
+            "hull": 1800, "shield": 900, "shieldRecharge": 80, "armor": 0.2, "plating": 500, "explosion": 1.6, "respawn": 75,
+            "style": "Fighter", "cruiseSpeed": 260, "attackSpeed": 420, "turnRate": 70, "acceleration": 150,
+            "breakOffDistance": 400, "extendDistance": 2000, "hideBelow": 0,
+            "sensorRange": 20000, "pdMissileScale": 2.5,
+            "engineColor": [1.0, 0.6, 0.35],
+            "guns": [
+                { "label": "Autocannons", "on": "turrets", "bolt": "EmpireAutocannon", "interval": 0.6, "range": 2500, "yawSpeed": 60 },
+                { "label": "Chin guns", "on": "guns", "bolt": "EmpireAutocannon", "interval": 0.45, "range": 2200, "cone": 35, "yawSpeed": 90 }
+            ]
+        },
+        {
+            "id": "Recon", "prefab": "EmpireRecon", "model": "Empire_Recon", "texture": "Empire_Recon_BaseColor.png", "hardpoints": "empire_recon_hardpoints.json",
+            "displayName": "Imperial Recon Frigate", "shipClass": "Recon frigate", "threat": "Medium", "weapons": "2 light turrets, a targeting laser, a warp inhibitor",
+            "role": "Scout and designator: holds well out, seeing furthest of the fleet, its laser on the target so the fleet fires tighter and its missiles from further out; its warp inhibitor keeps the target from running",
+            "hull": 1600, "shield": 1000, "shieldRecharge": 80, "armor": 0.15, "plating": 300, "explosion": 1.5, "respawn": 90,
+            "style": "Capital", "cruiseSpeed": 230, "attackSpeed": 320, "turnRate": 40, "acceleration": 60,
+            "standoff": 9000, "circleSpeed": 3, "hideBelow": 0,
+            "sensorRange": 40000, "designatorRange": 20000, "interdict": 15000,
+            "engineColor": [1.0, 0.6, 0.35],
+            "guns": [
+                { "label": "Light turrets", "on": "turrets", "bolt": "EmpireAutocannon", "interval": 1.0, "range": 3500, "yawSpeed": 40 }
+            ]
+        }
+    ],
+    "group": {
+        "name": "Imperial task force",
+        "at": "Brontes",
+        "note": "An Imperial task force holds Brontes: grey warships in a disciplined line, and they don't take kindly to visitors.",
+        "spotRange": 14000,
+        "slots": [
+            { "ship": "Assault", "name": "A", "angle": 0, "distance": 4000, "height": 0 },
+            { "ship": "Assault", "name": "B", "angle": 25, "distance": 4600, "height": 200 },
+            { "ship": "Patrol", "name": "A", "angle": -20, "distance": 3200, "height": -150 },
+            { "ship": "Patrol", "name": "B", "angle": 45, "distance": 3400, "height": 150 },
+            { "ship": "Raider", "name": "A", "angle": -60, "distance": 6000, "height": 300 },
+            { "ship": "Raider", "name": "B", "angle": 70, "distance": 6200, "height": -300 },
+            { "ship": "Recon", "name": "", "angle": 0, "distance": 11000, "height": 600 }
+        ]
+    }
+}

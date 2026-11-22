@@ -2286,6 +2286,13 @@ Each part can also be run alone:
   a flank, the Scout calling in the watcher from the Trojans (it drops out of warp by the frigate),
   and with its engines out the Reaper locking its tractor on, the warp refused; the Reaper abducting
   crew (the Greys' prisoners) and a sample, and the band vanishing, the Reaper towing the frigate off.
+  Add `-empiretest` (or `?empiretest` on the web) to test the Empire: their task force holding
+  Brontes, each of its four ships with its gear (the Assault frigate's ablative armour and plates,
+  CIWS, missiles and drone bay; the Patrol frigate's CIWS, marines and warp inhibitor; the
+  Raider's guns as point defence; the Recon's targeting laser and inhibitor); sprung, the Recon
+  painting the frigate, the drones out, a Raider on the lightest target, the CIWS shooting a missile
+  down, a Patrol frigate restocking drones, the warp inhibited, the marines' pods at the frigate
+  with its engines out, and under half the band left, falling back in order.
   Add `-modestest` (or `?modestest` on the web) to test the modes of play: a game starts in
   combat mode; 1 to 5 change mode, each with its keys in the controls box; a mode's keys work
   in it and not in another (V scans in mining mode, not in combat); services away from a site

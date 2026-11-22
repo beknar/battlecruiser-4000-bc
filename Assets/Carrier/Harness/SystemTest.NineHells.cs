@@ -163,8 +163,9 @@ namespace CarrierGame.Demo
             yield return new WaitForSeconds(4f);
             bool moved = far != null && far.Angle > a0 && Vector3.Distance(far.transform.position - far.body.Position, p0) > 1f;
             var onMap = patrols.Where(x => x.TryGetComponent(out WarpPoint w) && w.hostile && Places.IsPlace(w)).Count();
-            Check(patrols.Count == 7 && moved && onMap == 7,
-                  $"7 of them on patrol, places of their own on the map ({onMap}); the {far?.group?.groupName} moving round {far?.body?.displayName} ({a0:F3} -> {(far != null ? far.Angle : 0f):F3} deg)");
+            // (the Vrask's and the others' seven, and the Empire's battle group round Rephaim)
+            Check(patrols.Count == 8 && moved && onMap == 8,
+                  $"8 of them on patrol, places of their own on the map ({onMap} of {patrols.Count}); the {far?.group?.groupName} moving round {far?.body?.displayName} ({a0:F3} -> {(far != null ? far.Angle : 0f):F3} deg)");
             // the bands where they should be: the stream bands among the stream's rocks, the Outer
             // Belt's lurkers well clear of the Vrask brood, the Gilgal picket in the ring
             float BandTo(string band, Vector3 at)
@@ -231,6 +232,16 @@ namespace CarrierGame.Demo
                       $"down on the research station's pad on Goliath ({landing.OnPad}): repaired, hull {hp0:F0} -> {(hull != null ? hull.Current : 0f):F0}; '{Notices.Last}'");
                 landing.TakeOff();
                 yield return WaitLanding(landing, PlanetLanding.State.InSpace, 30f);
+            }
+            // ---- the Empire: a forward base's picket at Emim, a battle group on patrol round Rephaim
+            {
+                EncounterGroup Band(string n) => GameObject.Find(n)?.GetComponent<EncounterGroup>();
+                int Imperial(EncounterGroup g) => g != null && g.pilots != null ? g.pilots.Count(pl => pl != null && pl.GetComponent<EmpireShip>() != null) : 0;
+                var fwd = Band("Imperial forward base");
+                var bg = Band("Imperial battle group");
+                var bgPatrol = bg != null ? bg.GetComponentInParent<EncounterPatrol>() ?? EncounterPatrol.All.FirstOrDefault(x => x != null && x.group == bg) : null;
+                Check(Imperial(fwd) == 6 && fwd.GetComponent<EmpireFleet>() != null && Imperial(bg) == 6 && bg.GetComponent<EmpireFleet>() != null && bgPatrol != null,
+                      $"the Empire: a forward base of {Imperial(fwd)} at Emim, a battle group of {Imperial(bg)} on patrol round {bgPatrol?.body?.displayName}");
             }
             // ---- the Greys: a cell at Goliath's ruins, with its fleet; its raids on Nineveh's
             // research station take people from it; a watcher at Ptolomea

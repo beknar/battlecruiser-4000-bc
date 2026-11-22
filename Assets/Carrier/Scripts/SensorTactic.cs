@@ -3,17 +3,18 @@ using UnityEngine;
 namespace CarrierGame
 {
     /// <summary>
-    /// What the Greys' four ways of fighting share (ScoutTactics, ShroudTactics, LanceTactics,
-    /// ReaperTactics): a ship that hunts by its sensors (Sensors.CanSee: it goes only for a
+    /// What the ways of fighting of the factions that hunt by their sensors share (the Greys':
+    /// ScoutTactics, ShroudTactics, LanceTactics, ReaperTactics; the Empire's: AssaultTactics,
+    /// PatrolTactics, RaiderTactics, ReconTactics): a ship that hunts by its sensors (Sensors.CanSee: it goes only for a
     /// player's ship it can see, and searches where one was last seen), thinking four times a
     /// second, with the last word on where its pilot goes while it fights.
     /// </summary>
-    public abstract class GreysTactic : MonoBehaviour, CombatPilot.ITactics
+    public abstract class SensorTactic : MonoBehaviour, CombatPilot.ITactics
     {
         protected CombatPilot pilot;
         protected EnemyWeapons weapons;
         protected Health health;
-        protected GreysShip ship;
+        protected FactionShip ship;
         float nextThink;
 
         /// <summary>The player's ship it is after (seen now, or last seen).</summary>
@@ -29,7 +30,7 @@ namespace CarrierGame
             pilot = GetComponent<CombatPilot>();
             weapons = GetComponent<EnemyWeapons>();
             health = GetComponent<Health>();
-            ship = GetComponent<GreysShip>();
+            ship = GetComponent<FactionShip>();
             if (pilot != null) pilot.tactics = this;
         }
 
@@ -121,4 +122,7 @@ namespace CarrierGame
         /// <summary>The share of its hull a ship has left (1: no Health).</summary>
         protected static float HullOf(Transform t) => t != null && t.TryGetComponent(out Health h) ? h.Current / Mathf.Max(1f, h.maxHealth) : 1f;
     }
+
+    /// <summary>The Greys' ways of fighting (SensorTactic).</summary>
+    public abstract class GreysTactic : SensorTactic { }
 }

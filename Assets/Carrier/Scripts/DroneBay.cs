@@ -170,6 +170,15 @@ namespace CarrierGame
             }
         }
 
+        /// <summary>Drones put back in its stock (a Patrol frigate's logistics), up to its full
+        /// stock: true if any went in.</summary>
+        public bool Restock(int n)
+        {
+            int before = Stock;
+            Stock = Mathf.Min(stock, Stock + Mathf.Max(0, n));
+            return Stock > before;
+        }
+
         /// <summary>The nearest of its bays to a point (its ship if it has none).</summary>
         Vector3 HomeFor(Vector3 from)
         {

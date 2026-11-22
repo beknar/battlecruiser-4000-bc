@@ -583,6 +583,9 @@ namespace Carrier.EditorTools
             public Missile missile;
             public CarrierTurret mainTurret;
             public GameObject enemyCruiser, enemyDrone, enemyFighter, enemyDestroyer, enemyDreadnought;
+            /// <summary>A drone bay's drone (DroneBay): the EnemyDrone with a fighter's pilot, out of
+            /// hiding from the start, no circling of its own, no respawn.</summary>
+            public GameObject bayDrone;
             /// <summary>The Vrask's ships by id: Snare, Fang, Maw, Skink (CarrierBuilder.Vrask).</summary>
             public readonly Dictionary<string, GameObject> vrask = new Dictionary<string, GameObject>();
         }
@@ -708,11 +711,37 @@ namespace Carrier.EditorTools
             p.enemyFighter = MakeEnemy("EnemyFighter", Model("Mega_City/SM_ship_flying"), KitRotation["Mega_City/SM_ship_flying"], 1.5f, 260f,
                 p.explosion, 0.55f, "Hostile Fighter", "Strike fighter", "Medium", TargetInfo.Kind.Fighter, "Blaster cannons",
                 go => ArmFighter(go, p));
+            p.bayDrone = MakeBayDrone(p.enemyDrone);
             MakeCapitalShips(p);
             MakeVrask(p);          // the Vrask, the alien faction (Data/vrask.json)
             AssetDatabase.SaveAssets();
             MakeCoopSpawnables(p);
             return p;
+        }
+
+        /// <summary>A drone bay's drone (DroneBay, CoopSpawnables "BayDrone"): the EnemyDrone as a
+        /// fighter that goes straight into the fight, made the same in every co-op game.</summary>
+        static GameObject MakeBayDrone(GameObject drone)
+        {
+            if (drone == null) return null;
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(drone);
+            PrefabUtility.UnpackPrefabInstance(go, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+            go.name = DroneBay.DroneKey;
+            foreach (var m in go.GetComponentsInChildren<OrbitMover>(true)) Object.DestroyImmediate(m);
+            go.GetComponent<Health>().respawnDelay = 0f;
+            var info = go.GetComponent<TargetInfo>();
+            info.displayName = "Combat drone";
+            info.shipClass = "Combat drone";
+            if (!go.TryGetComponent(out CombatPilot pl)) pl = go.AddComponent<CombatPilot>();
+            pl.style = CombatPilot.Style.Fighter;
+            pl.concealed = false;
+            pl.startLurking = false;
+            pl.cruiseSpeed = 210f;
+            pl.attackSpeed = 260f;
+            pl.turnRate = 120f;
+            pl.acceleration = 260f;
+            Log("bay drone: the EnemyDrone as a fighter, out of hiding, no respawn");
+            return SavePrefab(go, DroneBay.DroneKey);
         }
 
         /// <summary>What an enemy can be made from during play, by key, so another player's game
@@ -726,6 +755,7 @@ namespace Carrier.EditorTools
             var list = new List<CoopSpawnables.Entry>();
             void Add(GameObject prefab) { if (prefab != null) list.Add(new CoopSpawnables.Entry { key = prefab.name, prefab = prefab }); }
             Add(p.enemyDrone);
+            Add(p.bayDrone);
             reg.entries = list.ToArray();
             if (fresh) AssetDatabase.CreateAsset(reg, path);
             else EditorUtility.SetDirty(reg);

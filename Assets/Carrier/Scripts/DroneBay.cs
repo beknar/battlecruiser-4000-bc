@@ -18,8 +18,11 @@ namespace CarrierGame
     /// </summary>
     public class DroneBay : MonoBehaviour
     {
+        /// <summary>The bay drone's key in CoopSpawnables (made by the builder).</summary>
+        public const string DroneKey = "BayDrone";
+
         [Tooltip("The drone, by its key in CoopSpawnables.")]
-        public string key = "EnemyDrone";
+        public string key = DroneKey;
         public int stock = 6;
         public int maxOut = 3;
         public int perLaunch = 2;
@@ -28,8 +31,8 @@ namespace CarrierGame
         public float launchRange = 9000f;
         [Tooltip("It calls them home when no player's ship is within this (m).")]
         public float recallRange = 18000f;
-        [Tooltip("Its drones' pilot: cruise and attack speed (m/s), turn (deg/s), hull.")]
-        public float droneSpeed = 260f, droneTurn = 120f, droneHull = 300f;
+        [Tooltip("How fast (m/s) and how sharply (deg/s) its drones fly home when called.")]
+        public float droneSpeed = 260f, droneTurn = 120f;
         [Tooltip("Set by its tactics: call the drones home now.")]
         public bool recall;
         [Tooltip("Where they launch from (its drone_bay points; the ship itself if none).")]
@@ -69,8 +72,9 @@ namespace CarrierGame
 
         void OnDisable()
         {
-            // (the bay off, its ship gone: its drones go with it)
-            foreach (var d in Out.ToArray()) Retire(d, false);
+            // (the bay off: its drones go; back in stock unless its ship is gone)
+            bool alive = health == null || !health.Dead;
+            foreach (var d in Out.ToArray()) Retire(d, alive);
         }
 
         /// <summary>Its ship is in a fight: alive, its pilot (if any) out of hiding.</summary>
@@ -95,7 +99,8 @@ namespace CarrierGame
                 Out.RemoveAt(i);
                 homing.Remove(d);
                 Lost++;
-                if (d != null) CoopSpawn.Gone(d.gameObject);
+                // (not told gone: its death and breakup reach co-op as any enemy's, and once its
+                // Health has destroyed it the co-op world says it's gone)
             }
             float near = NearestPlayer();
             bool home = recall || !Fighting || near > recallRange;
@@ -118,20 +123,22 @@ namespace CarrierGame
             if (at == null) at = transform;
             var go = Instantiate(prefab, at.position + at.forward * 30f, at.rotation);
             go.name = $"{name} Drone {Launched + 1}";
-            // (a drone of the bay's: no circling on its own, no respawn, a fighter's pilot)
+            // (the bay drone is set up in its prefab, the same in every co-op game: a fighter's
+            // pilot out of hiding from the start, no circling of its own, no respawn; the EnemyDrone,
+            // for a bay given that key, is made one here)
             foreach (var m in go.GetComponentsInChildren<Demo.OrbitMover>()) m.enabled = false;
-            var h = go.GetComponent<Health>();
-            if (h != null) { h.respawnDelay = 0f; h.maxHealth = droneHull; h.Repair(); }
-            var p = go.GetComponent<CombatPilot>() ?? go.AddComponent<CombatPilot>();
-            p.style = CombatPilot.Style.Fighter;
+            if (go.TryGetComponent(out Health h)) h.respawnDelay = 0f;
+            if (!go.TryGetComponent(out CombatPilot p))
+            {
+                p = go.AddComponent<CombatPilot>();
+                p.style = CombatPilot.Style.Fighter;
+                p.cruiseSpeed = droneSpeed * 0.8f;
+                p.attackSpeed = droneSpeed;
+                p.turnRate = droneTurn;
+                p.acceleration = droneSpeed;
+            }
             p.concealed = false;
             p.startLurking = false;
-            p.cruiseSpeed = droneSpeed * 0.8f;
-            p.attackSpeed = droneSpeed;
-            p.turnRate = droneTurn;
-            p.acceleration = droneSpeed;
-            // (out of hiding at once: a pilot added here chose to lie in wait as it woke, before
-            // startLurking could be turned off)
             p.NetLurk(false);
             var info = go.GetComponent<TargetInfo>();
             if (info != null)
@@ -152,15 +159,40 @@ namespace CarrierGame
             {
                 if (d == null) continue;
                 if (!homing.Contains(d)) { homing.Add(d); d.externalMotion = true; }
-                Vector3 to = transform.position - d.transform.position;
+                Vector3 to = HomeFor(d.transform.position) - d.transform.position;
                 float dist = to.magnitude;
                 // (its ship destroyed: no home to go to; it goes down with it)
-                if (health != null && health.Dead) { Retire(d, false); continue; }
+                if (health != null && health.Dead) { Down(d); continue; }
                 if (dist < 150f) { Retire(d, true); continue; }
                 float step = Mathf.Min(dist, droneSpeed * Time.deltaTime);
                 d.transform.rotation = Quaternion.RotateTowards(d.transform.rotation, Quaternion.LookRotation(to), droneTurn * Time.deltaTime);
                 d.transform.position += to / dist * step;
             }
+        }
+
+        /// <summary>The nearest of its bays to a point (its ship if it has none).</summary>
+        Vector3 HomeFor(Vector3 from)
+        {
+            Vector3 best = transform.position;
+            float bd = float.MaxValue;
+            if (bays != null)
+                foreach (var b in bays)
+                {
+                    if (b == null) continue;
+                    float d = (b.position - from).sqrMagnitude;
+                    if (d < bd) { bd = d; best = b.position; }
+                }
+            return best;
+        }
+
+        /// <summary>A drone whose ship is gone: destroyed (its own explosion), lost.</summary>
+        void Down(CombatPilot d)
+        {
+            Out.Remove(d);
+            homing.Remove(d);
+            Lost++;
+            if (d != null && d.TryGetComponent(out Health dh) && !dh.Dead) dh.Damage(1e9f, d.transform.position, HitKind.Cannon);
+            else if (d != null) { CoopSpawn.Gone(d.gameObject); Destroy(d.gameObject); }
         }
 
         /// <summary>A drone off the field: back in the bay (stock again), or gone with its ship.</summary>

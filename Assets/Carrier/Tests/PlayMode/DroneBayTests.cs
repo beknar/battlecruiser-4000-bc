@@ -46,7 +46,7 @@ namespace CarrierGame.Tests
         [UnityTest]
         public IEnumerator ItLaunchesAFewAtATimeUpToItsLimit()
         {
-            Assume.That(CoopSpawnables.Find("EnemyDrone"), Is.Not.Null, "the drone prefab (Resources/CoopSpawnables)");
+            Assume.That(CoopSpawnables.Find(DroneBay.DroneKey), Is.Not.Null, "the drone prefab (Resources/CoopSpawnables)");
             var b = Bay();
             yield return null;
             Assert.That(b.Out.Count, Is.EqualTo(2), "two at a launch");
@@ -66,7 +66,7 @@ namespace CarrierGame.Tests
         [UnityTest]
         public IEnumerator CalledHomeEachBackIsStockAgain()
         {
-            Assume.That(CoopSpawnables.Find("EnemyDrone"), Is.Not.Null);
+            Assume.That(CoopSpawnables.Find(DroneBay.DroneKey), Is.Not.Null);
             var b = Bay();
             yield return new WaitForSeconds(0.2f);
             int out0 = b.Out.Count;
@@ -82,7 +82,7 @@ namespace CarrierGame.Tests
         [UnityTest]
         public IEnumerator OneDestroyedIsLostForGood()
         {
-            Assume.That(CoopSpawnables.Find("EnemyDrone"), Is.Not.Null);
+            Assume.That(CoopSpawnables.Find(DroneBay.DroneKey), Is.Not.Null);
             var b = Bay(stock: 2, maxOut: 2);
             yield return null;
             Assert.That(b.Out.Count, Is.EqualTo(2));

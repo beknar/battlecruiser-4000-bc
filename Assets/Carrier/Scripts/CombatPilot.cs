@@ -225,6 +225,16 @@ namespace CarrierGame
             if (health != null) { health.onRespawned.AddListener(OnRespawned); hitsWhileLurking = health.Hits; }
         }
 
+        /// <summary>Posted somewhere else: its lying-in-wait place (where it goes back to, and its
+        /// leash is measured from) moved to where it is now (a band of the Greys called in: it drops
+        /// out of warp by the ship it is sent after).</summary>
+        public void Repost()
+        {
+            lurkPoint = transform.position;
+            lurkRotation = transform.rotation;
+            AtHome = false;
+        }
+
         /// <summary>Co-op: lying in wait or not, as the host's game has it (this one is a puppet).</summary>
         public void NetLurk(bool lurk)
         {

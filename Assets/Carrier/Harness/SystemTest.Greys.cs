@@ -109,6 +109,17 @@ namespace CarrierGame.Demo
                   $"the Scout paints the frigate ({scout?.GetComponent<ScoutTactics>()?.Doing}); the HUD: '{Designation.HudText(cc.transform).Replace("\n", " / ")}'");
             Shot("g2_painted");
 
+            // the Scout calls in the nearest other band of the Greys (the watcher at the Trojans,
+            // far off): it drops out of warp near the frigate, sprung
+            var watcherG = GameObject.Find("Greys watcher")?.GetComponent<EncounterGroup>();
+            var st = scout != null ? scout.GetComponent<ScoutTactics>() : null;
+            until = Time.time + 10f;
+            while (Time.time < until && (st == null || st.Calls == 0)) yield return null;
+            var called = watcherG != null && watcherG.pilots != null ? watcherG.pilots.FirstOrDefault(p => p != null) : null;
+            float calledOff = called != null ? Vector3.Distance(called.transform.position, cc.transform.position) : -1f;
+            Check(st != null && st.Calls > 0 && watcherG != null && watcherG.Active && calledOff >= 0f && calledOff < 15000f,
+                  $"the Scout calls in another band: the watcher from the Trojans, sprung and dropped out of warp {calledOff / 1000f:0.#} km from the frigate (calls {st?.Calls}, sprung {watcherG?.Active}, held off {watcherG?.holdOff}, its Scout {called?.name})");
+
             // the Shroud: jamming, and its EMP burst on the frigate close in
             var shroud = byRole.TryGetValue(GreysShip.Role.Shroud, out var sh) ? sh : null;
             if (shroud != null)

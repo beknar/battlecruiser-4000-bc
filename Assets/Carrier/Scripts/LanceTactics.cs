@@ -23,6 +23,8 @@ namespace CarrierGame
         /// <summary>Which flank it took (+1 right, -1 left), and what it went for, in words.</summary>
         public int Side { get; private set; } = 1;
         public string Why { get; private set; } = "";
+        /// <summary>Runs made, each from a flank (the tests).</summary>
+        public int Passes { get; private set; }
         Transform strike;
 
         protected override void Stood()
@@ -49,8 +51,10 @@ namespace CarrierGame
             Vector3 flank = FlankPoint(strike);
             if (Current != Phase.Run && (flank - transform.position).sqrMagnitude < 600f * 600f) Current = Phase.Run;
             else if (Current == Phase.None) { Current = Phase.Flank; Side = Random.value < 0.5f ? 1 : -1; }
-            // past the target and away: round again from a flank
-            if (Current == Phase.Run && Vector3.Distance(transform.position, strike.position) > flankOffset * 2.2f) { Current = Phase.Flank; Side = -Side; }
+            // past the target and going away (the pilot's run over: it extends): round again from
+            // the other flank
+            Vector3 toT = strike.position - transform.position;
+            if (Current == Phase.Run && toT.magnitude > 1200f && Vector3.Dot(transform.forward, toT) < 0f) { Current = Phase.Flank; Side = -Side; Passes++; }
             Doing = $"{(Current == Phase.Run ? "attack run" : "flanking")} on {strike.name} ({why})";
         }
 

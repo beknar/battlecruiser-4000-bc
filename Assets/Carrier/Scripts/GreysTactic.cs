@@ -51,11 +51,20 @@ namespace CarrierGame
         {
             if (pilot == null || Time.time < nextThink) return;
             nextThink = Time.time + 0.25f;
-            if (!Engaged) { if (Target != null) { Target = null; pilot.keepTarget = false; Stood(); } return; }
-            // the nearest player's ship it can see; else the last one, where it was last seen
-            var seen = NearestSeen();
+            if (!Engaged) { if (Target != null || pilot.keepTarget) { Target = null; pilot.keepTarget = false; Stood(); } return; }
+            // the player's ship it goes for (the nearest it can see, unless its role says otherwise);
+            // else the last one, where it was last seen
+            var seen = Pick(NearestSeen());
             if (seen != null) { Target = seen; LastSeen = seen.position; LastSeenAt = Time.time; }
-            else if (Target != null && Time.time - LastSeenAt > 30f) Target = null;   // (lost: searched long enough)
+            else if (Target != null && Time.time - LastSeenAt > 30f)
+            {
+                // lost: searched long enough; the pilot let go of it too (it chases nothing, fires at nothing)
+                Target = null;
+                pilot.keepTarget = false;
+                pilot.target = null;
+                if (weapons != null) weapons.SetTarget(null);
+                Stood();
+            }
             if (Target != null)
             {
                 pilot.keepTarget = true;
@@ -80,6 +89,12 @@ namespace CarrierGame
             }
             return best;
         }
+
+        /// <summary>Which seen ship it goes for (the nearest it can see, by default).</summary>
+        protected virtual Transform Pick(Transform nearestSeen) => nearestSeen;
+
+        /// <summary>Is the target seen by this ship's sensors now?</summary>
+        protected bool Sees(Transform t) => t != null && t.gameObject.activeInHierarchy && Sensors.CanSee(transform, t);
 
         /// <summary>Four times a second while it fights: `seeing` whether it sees its target now.</summary>
         protected abstract void Think(bool seeing);

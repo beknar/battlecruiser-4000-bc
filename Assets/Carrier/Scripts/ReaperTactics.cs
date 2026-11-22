@@ -33,6 +33,20 @@ namespace CarrierGame
             beam = GetComponent<TractorBeam>();
         }
 
+        /// <summary>The ship it holds, while it holds one (a rescuer coming close doesn't free it);
+        /// else a disabled ship it can see, before the nearest.</summary>
+        protected override Transform Pick(Transform nearestSeen)
+        {
+            if (beam != null && beam.Locked && beam.Holding != null) return beam.Holding;
+            foreach (var p in PlayerShips.All)
+            {
+                if (p == null || !p.gameObject.activeInHierarchy || !PlayerShips.Present(p) || !Sees(p)) continue;
+                if (p.TryGetComponent(out Health h) && h.Dead) continue;
+                if (Disabled(p)) return p;
+            }
+            return nearestSeen;
+        }
+
         protected override void Stood()
         {
             Current = Phase.None;
@@ -47,9 +61,11 @@ namespace CarrierGame
             bool disabled = Disabled(Target);
             if (beam != null && beam.Locked)
             {
+                // (judged by the ship it holds, not the nearest)
                 Current = Phase.Holding;
+                bool heldDisabled = Disabled(beam.Holding);
                 if (HullOf(transform) < breakBelow) beam.Release("its hull failing");
-                else if (!disabled && !towing) beam.Release("the ship has its engines back");
+                else if (!heldDisabled && !towing) beam.Release("the ship has its engines back");
             }
             else if (disabled)
             {

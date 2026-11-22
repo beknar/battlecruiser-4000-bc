@@ -49,6 +49,9 @@ namespace CarrierGame
         public const string Tractor = "tr";
         // boarders the host's pods have put aboard one player's ship, for that game to fight: {to, n}
         public const string Board = "board";
+        // an abduction from one player's ship by the host's Greys Reaper, for that game to apply:
+        // {to, n (crew), a (tonnes of ore), cp (a sample: the component + 1, or 0), fa (faction)}
+        public const string Abduct = "abduct";
         // a missile or boarding pod shot down by point defence, for the others to take theirs down:
         // {src (whose it was), x, y, z, rf}
         public const string ShotDown = "sd";

@@ -99,6 +99,8 @@ namespace CarrierGame.Demo
             }
             if (r.buildings > 0 || r.units > 0)
                 Notices.Post($"{(string.IsNullOrEmpty(o.place) ? o.body : o.place)} struck from orbit by the Vrask: {r.units} defences and {r.buildings} buildings destroyed, {r.casualties} killed");
+            else if (o.radius <= 0f && r.casualties > 0)
+                Notices.Post($"{o.place}: {r.casualties} people taken by {o.weapon}");
         }
     }
 }

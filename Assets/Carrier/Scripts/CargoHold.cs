@@ -248,6 +248,28 @@ namespace CarrierGame
             return v;
         }
 
+        /// <summary>Up to `t` tonnes of ore taken out of the hold (an abduction beam: the Greys),
+        /// the biggest load first; goods are left. Returns the tonnes taken.</summary>
+        public float Abduct(float t)
+        {
+            if (t <= 0f || Used <= 0f) return 0f;
+            float taken = 0f;
+            while (taken < t - 0.001f)
+            {
+                int best = -1;
+                for (int i = 0; i < tonnes.Length; i++) if (tonnes[i] > 0.001f && (best < 0 || tonnes[i] > tonnes[best])) best = i;
+                if (best < 0) break;
+                float k = Mathf.Min(tonnes[best], t - taken);
+                tonnes[best] -= k;
+                taken += k;
+            }
+            if (taken <= 0f) return 0f;
+            Used = Mathf.Max(0f, Used - taken);
+            TotalSeized += taken;
+            Changed?.Invoke();
+            return taken;
+        }
+
         /// <summary>Taken by boarders: the cargo seized (the hold emptied, as when the ship is
         /// destroyed), the credits kept.</summary>
         void Seize()

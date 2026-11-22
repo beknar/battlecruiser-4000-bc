@@ -31,11 +31,13 @@ namespace CarrierGame.Demo
             if (on)
             {
                 Boarders.SendAboard = SendBoard;
+                Abductor.SendAbduct = SendAbduct;
                 Boarders.RemoteCount = RemoteBoarders;
                 Missile.Downed += OnDowned;
                 return;
             }
             if (Boarders.SendAboard == (System.Func<Transform, int, string, bool>)SendBoard) Boarders.SendAboard = null;
+            if (Abductor.SendAbduct == (System.Func<Transform, int, float, int, bool>)SendAbduct) Abductor.SendAbduct = null;
             if (Boarders.RemoteCount == (System.Func<Transform, int>)RemoteBoarders) Boarders.RemoteCount = null;
             Missile.Downed -= OnDowned;
         }
@@ -51,6 +53,22 @@ namespace CarrierGame.Demo
                 BoardsSent++;
             }
             return true;
+        }
+
+        /// <summary>The host's Reaper abducting from another player's ship: done in that game
+        /// (the host tells it; true either way, so it isn't done here).</summary>
+        bool SendAbduct(Transform ship, int crew, float tonnes, int sample)
+        {
+            if (!On || ship == null || !remoteByRoot.TryGetValue(ship.root, out var rp) || rp == null) return false;
+            if (IsHost) Client.Send(new AbductMsg { to = rp.Id, n = crew, a = tonnes, cp = sample, fa = GreysShip.Faction });
+            return true;
+        }
+
+        /// <summary>The host's Reaper abducts from my ship: done here.</summary>
+        void TakeAbduct(CoopMsg m)
+        {
+            if (me == null || myHealth == null || myHealth.Dead) return;
+            Abductor.Apply(me.transform, m.n, m.a, m.cp, string.IsNullOrEmpty(m.fa) ? GreysShip.Faction : m.fa);
         }
 
         /// <summary>Boarders aboard another player's ship, as its game last said.</summary>

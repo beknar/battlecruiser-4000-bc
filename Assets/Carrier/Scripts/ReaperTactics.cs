@@ -88,7 +88,8 @@ namespace CarrierGame
                     {
                         Vector3 go = towTo - pos;
                         desired = go.sqrMagnitude > 1f ? go.normalized : desired;
-                        wantSpeed = pilot.cruiseSpeed * 0.6f;
+                        // (no faster than its beam can pull the ship after it, or the beam would break)
+                        wantSpeed = Mathf.Min(pilot.cruiseSpeed * 0.6f, TractorBeam.PullSpeed * 0.8f);
                     }
                     else { desired = to.normalized; wantSpeed = 0f; }
                     break;

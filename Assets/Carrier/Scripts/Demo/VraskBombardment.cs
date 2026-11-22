@@ -70,6 +70,10 @@ namespace CarrierGame.Demo
         /// <summary>Told of each strike a raid makes (co-op passes it to the other games).</summary>
         public static event System.Action<Order> Struck;
 
+        /// <summary>Tell co-op of a strike made by something else (a Greys raid on a place: an
+        /// order with no blast, only people taken).</summary>
+        public static void Tell(Order o) => Struck?.Invoke(o);
+
         public int Raids { get; private set; }
         public int NukesUsed { get; private set; }
         public OrbitalStrikes.Result LastShell { get; private set; }
@@ -229,7 +233,8 @@ namespace CarrierGame.Demo
         {
             var body = WarpPoint.All.Find(w => w != null && w.displayName == o.body);
             if (body == null || PlanetLanding.Instance == null) return default;
-            var r = OrbitalStrikes.Hit(body, o.u, o.v, o.radius, o.crater, o.weapon, seen, o.rebuildMinutes, o.perBuilding);
+            // (no blast: a raid that only takes people, the Greys')
+            var r = o.radius > 0f ? OrbitalStrikes.Hit(body, o.u, o.v, o.radius, o.crater, o.weapon, seen, o.rebuildMinutes, o.perBuilding) : default;
             if (o.population > 0f && !string.IsNullOrEmpty(o.place))
             {
                 float more = Mathf.Floor(IndustryLedger.Pool(o.place) * Mathf.Clamp01(o.population));

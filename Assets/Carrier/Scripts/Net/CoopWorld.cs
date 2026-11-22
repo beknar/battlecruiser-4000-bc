@@ -272,6 +272,10 @@ namespace CarrierGame.Demo
                     // the host's tractor beams on my ship
                     if (!IsHost) TakeTractor(m);
                     break;
+                case CoopWire.Abduct:
+                    // the host's Reaper abducts from my ship
+                    TakeAbduct(m);
+                    break;
                 case CoopWire.Board:
                     // the host's pods have got aboard my ship
                     TakeBoard(m);

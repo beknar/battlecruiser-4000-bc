@@ -198,6 +198,7 @@ namespace CarrierGame.Demo
                     ck = e.t.TryGetComponent(out Cloak cl) ? (cl.Up ? 2 : 1) : 0,
                     pt = PaintOf(e),
                     ec = e.t.TryGetComponent(out EcmEmitter ecm) ? (ecm.active ? 2 : 1) : 0,
+                    eb = e.t.TryGetComponent(out EmpBurst burst) ? (burst.Current == EmpBurst.State.Charging ? 2f + burst.Charge : 1f) : 0f,
                 });
             }
             LastSent = list.Count;
@@ -368,6 +369,7 @@ namespace CarrierGame.Demo
                 if (s.ck > 0 && e.t.TryGetComponent(out Cloak cloak)) cloak.NetSet(s.ck == 2);
                 if (s.pt > 0) ShowPaint(e, s.pt - 1);
                 if (s.ec > 0 && e.t.TryGetComponent(out EcmEmitter jammer)) jammer.NetSet(s.ec == 2);
+                if (s.eb > 0f && e.t.TryGetComponent(out EmpBurst emp)) emp.NetSet(s.eb >= 2f ? Mathf.Clamp01(s.eb - 2f) : -1f);
                 // the last two updates, to go between
                 e.ts0 = e.ts1; e.p0 = e.p1; e.q0 = e.q1; e.rf0 = e.rf1;
                 e.ts1 = m.ts; e.p1 = new Double3(s.x, s.y, s.z); e.rf1 = s.rf ?? ""; e.q1 = new Quaternion(s.qx, s.qy, s.qz, s.qw); e.v1 = new Vector3(s.vx, s.vy, s.vz);

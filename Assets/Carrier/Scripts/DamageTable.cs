@@ -48,6 +48,10 @@ namespace CarrierGame
             new Row(3f, 0.3f, 0f, 0.3f, 0.5f),    // Nullifier
             new Row(1f, 1f, 0.5f, 1.5f, 1f),      // Artillery
             new Row(1.5f, 1f, 0.5f, 2f, 1.5f),    // Nuclear
+            // an EMP: taken by a shield like any energy, a tenth to the hull, nothing to the
+            // armour or the components' condition: it knocks a component out for a time instead
+            // (ShipSystems.Hit), through a shield at EmpThroughShield
+            new Row(1f, 0.1f, 0f, 0f, 0f),        // Emp
         };
 
         /// <summary>The kinds there are.</summary>
@@ -78,6 +82,8 @@ namespace CarrierGame
                 case HitKind.Penetrator:
                 case HitKind.Artillery: return HitKind.Cannon;
                 case HitKind.Nuclear: return HitKind.Missile;
+                // (an older game reads an EMP as a beam's hit: the nearest of the four it knows)
+                case HitKind.Emp: return HitKind.Beam;
                 default: return kind;
             }
         }
@@ -107,6 +113,7 @@ namespace CarrierGame
                 case HitKind.Nullifier: return "shield nullifier";
                 case HitKind.Artillery: return "artillery";
                 case HitKind.Nuclear: return "nuclear";
+                case HitKind.Emp: return "EMP";
                 default: return kind.ToString().ToLowerInvariant();
             }
         }

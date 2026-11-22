@@ -38,6 +38,7 @@ namespace CarrierGame.Demo
         public int ck;            // its cloak: 0 none (or an older game), 1 down, 2 up
         public int pt;            // the player its targeting laser paints: 1 + their id (0: none, or an older game)
         public int ec;            // its jammer: 0 none (or an older game), 1 off, 2 on
+        public float eb;          // its EMP burst: 0 none (or an older game), 1 not charging, 2 + how far through its charge (0 to 1)
     }
 
     /// <summary>Anything that arrives.</summary>

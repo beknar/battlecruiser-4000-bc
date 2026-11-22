@@ -15,6 +15,24 @@ namespace CarrierGame.Demo
         public CarrierDemoInput demo;
         bool wasPainted;
 
+        /// <summary>The HUD's EMP lines for a ship: a burst charging in reach, and its components
+        /// an EMP has out ("" none).</summary>
+        public static string EmpText(CarrierController ship)
+        {
+            if (ship == null) return "";
+            var sb = new System.Text.StringBuilder(EmpBurst.HudText(ship.transform));
+            var sys = ship.GetComponent<ShipSystems>();
+            if (sys != null)
+                foreach (var c in ShipSystems.Components)
+                {
+                    float left = sys.KnockedFor(c);
+                    if (left <= 0f) continue;
+                    if (sb.Length > 0) sb.Append('\n');
+                    sb.Append($"EMP: {ShipSystems.Label(c)} back in {left:0} s");
+                }
+            return sb.ToString();
+        }
+
         TargetDisplay display;
         static Rect helpRect;
         bool showHelp = true;
@@ -323,30 +341,24 @@ namespace CarrierGame.Demo
                 GUI.Label(br, msg, big);
             }
 
-            // held by tractor beams: how many, and whether full thrust can break free
-            if (!carrier.Destroyed && carrier.Tractored)
+            // the warnings, stacked from the top, each below the last (none hides another):
+            // jamming, a targeting laser, an EMP, a tractor lock, boarders
+            float wy = Screen.height * 0.045f, gap = 4f * s;
+            Rect Warn(GUIStyle st, GUIContent gc, float atLeast, float extra)
             {
-                int n = carrier.TractorBeams;
-                var ws = Hud.Text(24, true, TextAnchor.MiddleCenter);
-                var wc = new GUIContent($"<color=#ff6050>Tractor lock: {n} beam{(n == 1 ? "" : "s")}</color>\n" +
-                                        $"<size={Mathf.RoundToInt(16 * s)}>{(carrier.TractorFirm ? "held fast: no warp, docking or landing" : "full thrust away to break free")}</size>");
-                Vector2 wsz = ws.CalcSize(wc);
-                var wr = new Rect((Screen.width - wsz.x) * 0.5f - pad2 * 2f, Screen.height * 0.16f, wsz.x + pad2 * 4f, wsz.y + pad2 * 2f);
-                Hud.Panel(wr);
-                GUI.Label(wr, wc, ws);
+                Vector2 sz = st.CalcSize(gc);
+                var r = new Rect((Screen.width - sz.x) * 0.5f - pad2 * 2f, Mathf.Max(wy, atLeast), sz.x + pad2 * 4f, sz.y + extra);
+                Hud.Panel(r);
+                GUI.Label(r, gc, st);
+                wy = r.yMax + gap;
+                return r;
             }
 
             // jammed: how much (ECCM already taken off)
             float jammed = carrier.Destroyed ? 0f : Jamming.On(carrier.transform);
             if (jammed > 0.05f)
-            {
-                var jst = Hud.Text(16, true, TextAnchor.MiddleCenter);
-                var jct = new GUIContent($"<color=#c080ff>JAMMED {jammed:P0}</color>  <size={Mathf.RoundToInt(13 * s)}>sensors, aim, missiles and comms degraded</size>");
-                Vector2 jsz = jst.CalcSize(jct);
-                var jrect = new Rect((Screen.width - jsz.x) * 0.5f - pad2 * 2f, Screen.height * 0.045f, jsz.x + pad2 * 4f, jsz.y + pad2);
-                Hud.Panel(jrect);
-                GUI.Label(jrect, jct, jst);
-            }
+                Warn(Hud.Text(16, true, TextAnchor.MiddleCenter),
+                     new GUIContent($"<color=#c080ff>JAMMED {jammed:P0}</color>  <size={Mathf.RoundToInt(13 * s)}>sensors, aim, missiles and comms degraded</size>"), 0f, pad2);
 
             // painted by a targeting laser: who, and from where (a tone as it starts)
             string painted = carrier.Destroyed ? "" : Designation.HudText(carrier.transform);
@@ -355,12 +367,24 @@ namespace CarrierGame.Demo
             if (painted.Length > 0)
             {
                 int cut = painted.IndexOf('\n');
-                var pst = Hud.Text(18, true, TextAnchor.MiddleCenter);
-                var pct = new GUIContent($"<color=#ffb040>{painted.Substring(0, cut)}</color>\n<size={Mathf.RoundToInt(14 * s)}>{painted.Substring(cut + 1)}</size>");
-                Vector2 psz = pst.CalcSize(pct);
-                var prect = new Rect((Screen.width - psz.x) * 0.5f - pad2 * 2f, Screen.height * 0.08f, psz.x + pad2 * 4f, psz.y + pad2 * 2f);
-                Hud.Panel(prect);
-                GUI.Label(prect, pct, pst);
+                Warn(Hud.Text(18, true, TextAnchor.MiddleCenter),
+                     new GUIContent($"<color=#ffb040>{painted.Substring(0, cut)}</color>\n<size={Mathf.RoundToInt(14 * s)}>{painted.Substring(cut + 1)}</size>"), 0f, pad2 * 2f);
+            }
+
+            // an EMP: a burst charging with this ship in reach (time to get out), and what an EMP
+            // has knocked out, with the seconds till it is back
+            string emp = carrier.Destroyed ? "" : EmpText(carrier);
+            if (emp.Length > 0)
+                Warn(Hud.Text(17, true, TextAnchor.MiddleCenter), new GUIContent($"<color=#80c0ff>{emp}</color>"), 0f, pad2);
+
+            // held by tractor beams: how many, and whether full thrust can break free
+            if (!carrier.Destroyed && carrier.Tractored)
+            {
+                int n = carrier.TractorBeams;
+                Warn(Hud.Text(24, true, TextAnchor.MiddleCenter),
+                     new GUIContent($"<color=#ff6050>Tractor lock: {n} beam{(n == 1 ? "" : "s")}</color>\n" +
+                                    $"<size={Mathf.RoundToInt(16 * s)}>{(carrier.TractorFirm ? "held fast: no warp, docking or landing" : "full thrust away to break free")}</size>"),
+                     Screen.height * 0.16f, pad2 * 2f);
             }
 
             // boarders aboard: how many, and the crew fighting them (below the tractor warning)
@@ -368,15 +392,11 @@ namespace CarrierGame.Demo
             if (boarded.Length > 0)
             {
                 int cut = boarded.IndexOf('\n');
-                var bst = Hud.Text(24, true, TextAnchor.MiddleCenter);
-                var bct = new GUIContent($"<color=#ff6050>{(cut > 0 ? boarded.Substring(0, cut) : boarded)}</color>" +
-                                         (cut > 0 ? $"\n<size={Mathf.RoundToInt(16 * s)}>{boarded.Substring(cut + 1)}" +
-                                                    $"{(carrier.Clamped ? "; a boarding ship clamped to the hull" : "")}</size>" : ""));
-                Vector2 bsz2 = bst.CalcSize(bct);
-                var brect = new Rect((Screen.width - bsz2.x) * 0.5f - pad2 * 2f, Screen.height * (carrier.Tractored ? 0.25f : 0.16f),
-                                     bsz2.x + pad2 * 4f, bsz2.y + pad2 * 2f);
-                Hud.Panel(brect);
-                GUI.Label(brect, bct, bst);
+                Warn(Hud.Text(24, true, TextAnchor.MiddleCenter),
+                     new GUIContent($"<color=#ff6050>{(cut > 0 ? boarded.Substring(0, cut) : boarded)}</color>" +
+                                    (cut > 0 ? $"\n<size={Mathf.RoundToInt(16 * s)}>{boarded.Substring(cut + 1)}" +
+                                               $"{(carrier.Clamped ? "; a boarding ship clamped to the hull" : "")}</size>" : "")),
+                     Screen.height * 0.16f, pad2 * 2f);
             }
 
             if (toast != null && Clock < toastUntil)

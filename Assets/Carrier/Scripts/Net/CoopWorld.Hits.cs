@@ -23,7 +23,7 @@ namespace CarrierGame.Demo
             // another player's ship: the host's enemies' hits go to that player (no friendly fire)
             if (remoteByRoot.TryGetValue(h.transform.root, out var rp))
             {
-                if (!fromPlayers && IsHost && !UnknownThere(rp, srcRoot))
+                if (!fromPlayers && IsHost && !UnknownThere(rp, srcRoot, kind))
                 {
                     var np = ToNet(point);
                     Double3 p = np.p;
@@ -61,9 +61,11 @@ namespace CarrierGame.Demo
 
         /// <summary>A hit from `src` on `rp`'s ship that its older game couldn't show (it hasn't
         /// got the ship that fired it): dropped, and the host told once.</summary>
-        bool UnknownThere(RemotePlayer rp, Transform src)
+        bool UnknownThere(RemotePlayer rp, Transform src, HitKind kind = HitKind.Projectile)
         {
-            if (rp == null || rp.ContentVersion >= CoopWire.Content || !NewerThan(src, rp.ContentVersion)) return false;
+            // (an EMP to a game that would read it as a beam's hit: ten times the hull damage)
+            bool emp = kind == HitKind.Emp && rp != null && rp.ContentVersion < CoopWire.ContentEmp;
+            if (rp == null || (!emp && (rp.ContentVersion >= CoopWire.Content || !NewerThan(src, rp.ContentVersion)))) return false;
             HitsDroppedForOlder++;
             if (toldOlder.Add(rp.Id))
                 Notices.Post($"{rp.Name}'s game is older: the Greys, the Empire and launched drones aren't in it, and can't hit them");
@@ -74,7 +76,8 @@ namespace CarrierGame.Demo
         /// play, or a ship of a faction newer than the Vrask.</summary>
         bool NewerThan(Transform src, int cv)
         {
-            if (cv >= CoopWire.Content || src == null) return false;
+            // (the factions and enemies made during play came with content 1)
+            if (cv >= 1 || src == null) return false;
             var e = EntOf(src);
             if (e != null && !string.IsNullOrEmpty(e.key)) return true;
             var f = FactionShip.Of(src);

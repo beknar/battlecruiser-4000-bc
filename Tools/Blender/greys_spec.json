@@ -1,0 +1,90 @@
+{
+    "note": "What convert_lizards.py needs to know about the four Greys frigates, ai models/greys-*-frigate.glb, in the layout of lizard_spec.json (read its note). The saucers have no long axis, so each is turned by a chosen angle (turn, degrees about Z, after levelling the disc with up = its smallest principal axis where the model came tilted) to put the chosen front at -X: the Scout's hatch bump, the Reaper's widest gap between legs, the Shroud's dish (facing forward over the bow); the Lance (a manta) has its pointed nose forward. The frame is then as for the Vrask: bow at -X, +Z up, keel on z = 0, 1 unit long (the saucers' diameter), centred in X and Y; boxes are [x0, x1, y0, y1, z0, z1], +Y starboard. No nozzles are modelled: the engines are put on the after rim (saucers) or the glowing pods under the tail (Lance). The hulls are one piece with nothing that reads as a turret, so there are fixed guns and role points only. Measured with align_grid.py (gridded views, --probe ray hits, --islands) and checked with its --marks renders.",
+    "ships": [
+        {
+            "id": "Scout",
+            "prefix": "Greys",
+            "faction": "greys",
+            "role": "scout / target designator",
+            "source": "greys-scout-frigate.glb",
+            "align": {"up": [0.1462, -0.1296, 0.9807], "turn": "45"},
+            "length": 110,
+            "notes": "Plain domed saucer with a glowing blue rim line, a small dome on top (the sensor), a matching hatch bump forward on the top and the underside (precision beam emitters) and a flat disc under the middle. The source is tilted ~11 deg; levelled by up.",
+            "engines": [
+                {"pos": [0.488, 0.10, 0.176], "r": 0.025},
+                {"pos": [0.488, -0.10, 0.176], "r": 0.025}
+            ],
+            "guns": [
+                {"name": "HatchBeamUpper", "pos": [-0.22, 0.0, 0.27], "facing": "-X", "muzzles": [[-0.285, 0.0, 0.262]]},
+                {"name": "HatchBeamLower", "pos": [-0.22, 0.0, 0.055], "facing": "-X", "muzzles": [[-0.287, 0.0, 0.065]]}
+            ],
+            "points": [
+                {"name": "Designator", "kind": "designator", "pos": [-0.497, 0.0, 0.176], "dir": "-X", "size": 0.02},
+                {"name": "Sensor", "kind": "sensor", "pos": [0.0, 0.0, 0.318], "dir": "+Z", "size": 0.04},
+                {"name": "DroneBayStbd", "kind": "drone_bay", "pos": [0.0, 0.13, 0.019], "dir": [0, 0.25, -0.968], "size": 0.03},
+                {"name": "DroneBayPort", "kind": "drone_bay", "pos": [0.0, -0.13, 0.021], "dir": [0, -0.25, -0.968], "size": 0.03}
+            ]
+        },
+        {
+            "id": "Shroud",
+            "prefix": "Greys",
+            "faction": "greys",
+            "role": "electronic warfare (ECM)",
+            "source": "greys-ecm-frigate.glb",
+            "align": {"turn": "-172"},
+            "length": 140,
+            "notes": "Rough saucer with a big bowl dish on a short mast (aft of the middle, tilted to face forward and up: the jammer), a flat dish forward to starboard (the sensor), a tall blade fin forward to port, a glowing eye in the middle of the top, a round gondola hanging under the middle (the EMP projector) and a swept tail spike aft to port.",
+            "engines": [
+                {"pos": [0.475, 0.12, 0.30], "r": 0.03},
+                {"pos": [0.44, -0.12, 0.30], "r": 0.03}
+            ],
+            "points": [
+                {"name": "Jammer", "kind": "ecm", "pos": [0.262, 0.145, 0.42], "dir": [-0.696, -0.032, 0.717], "size": 0.09},
+                {"name": "Emp", "kind": "emp", "pos": [-0.04, 0.10, 0.001], "dir": "-Z", "size": 0.05},
+                {"name": "Sensor", "kind": "sensor", "pos": [-0.25, 0.245, 0.356], "dir": "+Z", "size": 0.08}
+            ]
+        },
+        {
+            "id": "Lance",
+            "prefix": "Greys",
+            "faction": "greys",
+            "role": "strike",
+            "source": "greys-strike-frigate.glb",
+            "align": {"up": [-0.0099, -0.1532, 0.9881], "turn": "-90"},
+            "length": 125,
+            "notes": "Manta: a pointed nose with long glowing violet slots along its top and flanks (the energy guns, one fixed battery), broad swept wings, a domed canopy amidships, the underside open in violet-lit pockets, and two glowing pods under the tail (the drives). The source is pitched ~9 deg; levelled by up.",
+            "engines": [
+                {"pos": [0.44, 0.06, 0.11], "r": 0.025},
+                {"pos": [0.44, -0.06, 0.11], "r": 0.025}
+            ],
+            "guns": [
+                {"name": "ForwardSlots", "pos": [-0.30, 0.0, 0.13], "facing": "-X",
+                 "muzzles": [[-0.445, 0.009, 0.134], [-0.46, 0.036, 0.12], [-0.46, -0.036, 0.12], [-0.28, 0.113, 0.12], [-0.28, -0.113, 0.12]]}
+            ]
+        },
+        {
+            "id": "Reaper",
+            "prefix": "Greys",
+            "faction": "greys",
+            "role": "boarding / abduction",
+            "source": "greys-boarding-frigate.glb",
+            "align": {"turn": "61"},
+            "length": 160,
+            "notes": "Deep saucer with a domed top, a stepped underside ending in a round pod (the abduction bay) and seven jointed grappling legs around it; the widest gap between legs is put forward. Tractor emitters at the tips of the two forward legs and the two side legs; light guns on the forward rim.",
+            "engines": [
+                {"pos": [0.48, 0.10, 0.33], "r": 0.03},
+                {"pos": [0.48, -0.10, 0.33], "r": 0.03}
+            ],
+            "guns": [
+                {"name": "RimGuns", "pos": [-0.45, 0.0, 0.32], "facing": "-X", "muzzles": [[-0.494, 0.06, 0.336], [-0.494, -0.06, 0.336]]}
+            ],
+            "points": [
+                {"name": "TractorFwdStbd", "kind": "tractor", "pos": [-0.379, 0.291, 0.0], "dir": "-Z", "size": 0.02},
+                {"name": "TractorFwdPort", "kind": "tractor", "pos": [-0.323, -0.213, 0.107], "dir": "-Z", "size": 0.02},
+                {"name": "TractorStbd", "kind": "tractor", "pos": [0.049, 0.334, 0.106], "dir": "-Z", "size": 0.02},
+                {"name": "TractorPort", "kind": "tractor", "pos": [-0.038, -0.384, 0.104], "dir": "-Z", "size": 0.02},
+                {"name": "Abduct", "kind": "abduct", "pos": [0.0, 0.0, 0.004], "dir": "-Z", "size": 0.06}
+            ]
+        }
+    ]
+}

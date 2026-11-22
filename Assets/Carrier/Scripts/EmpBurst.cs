@@ -53,7 +53,7 @@ namespace CarrierGame
         /// <summary>Start charging (its tactics), if it is ready: true if it did.</summary>
         public bool Fire()
         {
-            if (Current != State.Ready || (health != null && health.Dead) || ShipSystems.WeaponsDownOn(this, ref systems)) return false;
+            if (Puppet || Current != State.Ready || (health != null && health.Dead) || ShipSystems.WeaponsDownOn(this, ref systems)) return false;
             Current = State.Charging;
             stateAt = Time.time;
             return true;
@@ -61,9 +61,28 @@ namespace CarrierGame
 
         ShipSystems systems;
 
+        /// <summary>Co-op: a puppet of the host's: it charges and bursts as the host's says (NetSet),
+        /// for the glow and the HUD's warning; the pulse's hits come from the host.</summary>
+        bool Puppet => TryGetComponent(out Demo.NetPuppet _);
+
+        /// <summary>Co-op: the host's says it is charging, this far through (0 to 1), or not (-1).</summary>
+        public void NetSet(float charge)
+        {
+            if (charge < 0f) { if (Current == State.Charging) { Current = State.Cooling; stateAt = Time.time; Show(0f); } return; }
+            if (Current != State.Charging) Current = State.Charging;
+            stateAt = Time.time - charge * chargeTime;
+        }
+
         void Update()
         {
             if (health != null && health.Dead) { Current = State.Ready; Show(0f); return; }
+            if (Puppet)
+            {
+                // (the host's: only its glow here, from what the host says)
+                Show(Charge);
+                if (Current == State.Cooling && Time.time - stateAt >= cooldown) Current = State.Ready;
+                return;
+            }
             switch (Current)
             {
                 case State.Ready:

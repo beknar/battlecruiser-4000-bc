@@ -117,6 +117,61 @@ namespace CarrierGame.Demo
             Sensors.Forget();
             Check(Sensors.Detected(dt) && Sensors.Identified(dt) && Listed(), "without a signature: seen and named at 4 km, as any ship");
 
+            // ---- a cloak (PR 5): a ship's signature, a tenth of it cloaked; this frigate's ECCM
+            // sees it from further (a Sentinel's 0.7: 30 x 0.1 x 1.7 = 5.1 km)
+            sig = drone.AddComponent<Signature>();
+            sig.lightUp = 2f;
+            var cloak = drone.AddComponent<Cloak>();
+            cloak.recloakTime = 1f;
+            yield return null;
+            float eccm = FrigateClass.EccmOf(cc);
+            float cloakedRange = Sensors.PlayerRange * cloak.hiddenScale * (1f + eccm);
+            Put(cloakedRange + 1500f);
+            yield return null;
+            Check(cloak.Up && !Sensors.Detected(dt), $"cloaked, {Vector3.Distance(dt.position, me.position) / 1000f:0.0} km out: unseen (ECCM {eccm:0.0}: seen inside {cloakedRange / 1000f:0.0} km)");
+            Put(cloakedRange - 800f);
+            yield return null;
+            Check(Sensors.Detected(dt), $"cloaked, {Vector3.Distance(dt.position, me.position) / 1000f:0.0} km out: inside what this frigate's ECCM sees");
+            Shot("s2_cloak");
+            Put(cloakedRange + 1500f);
+            sig.Fired();
+            yield return null;
+            Sensors.Forget();
+            Check(!cloak.Up && Sensors.Detected(dt), "it fires: the cloak drops, and it is seen");
+            yield return new WaitForSeconds(sig.lightUp + cloak.recloakTime + 0.5f);
+            Put(cloakedRange + 1500f);
+            Check(cloak.Up && !Sensors.Detected(dt), "quiet again: the cloak back, unseen");
+            Destroy(cloak);
+            Destroy(sig);
+            yield return null;
+
+            // ---- a targeting laser on this frigate: the HUD says who and from where
+            Put(8000f);
+            var laser = drone.AddComponent<Designator>();
+            laser.range = 15000f;
+            laser.target = me;
+            yield return null;
+            yield return null;
+            string paint = Designation.HudText(me);
+            Check(Designation.PainterOf(me) == dt && paint.StartsWith("Targeting laser: "), $"painted by a targeting laser: the HUD says '{paint.Replace("\n", " / ")}'");
+            Shot("s3_painted");
+            Destroy(laser);
+            yield return new WaitForSeconds(Designation.Hold + 0.3f);
+            Check(Designation.HudText(me).Length == 0, "the laser off: the warning goes");
+
+            // ---- a warp inhibitor's field (the drone out of the fight, lying in wait: so only its
+            // field can hold the warp, not "hostiles nearby")
+            if (pilot != null) pilot.NetLurk(true);
+            var field = drone.AddComponent<Interdictor>();
+            field.radius = 12000f;
+            yield return null;
+            warp = drive.CanWarp(out why);
+            Check(!warp && why.StartsWith("warp inhibited by"), $"inside an inhibitor's field: no warp ({warp} {why})");
+            Destroy(field);
+            yield return null;
+            warp = drive.CanWarp(out why);
+            Check(warp, $"the field gone: the warp free ({warp} {why})");
+
             cc.SetTarget(null);
             foreach (var c in ciws) c.enabled = true;
             Destroy(drone);

@@ -35,6 +35,8 @@ namespace CarrierGame.Demo
         public int tr;            // the player its tractor beam holds: 1 + their id (0: none, or from an older game)
         public float ar;          // its armour: 1 + how whole (0: none, or from an older game)
         public string k;          // made during play: its key in CoopSpawnables ("": in the level; older games leave it out)
+        public int ck;            // its cloak: 0 none (or an older game), 1 down, 2 up
+        public int pt;            // the player its targeting laser paints: 1 + their id (0: none, or an older game)
     }
 
     /// <summary>Anything that arrives.</summary>

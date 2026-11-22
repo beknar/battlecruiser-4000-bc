@@ -195,6 +195,8 @@ namespace CarrierGame.Demo
                     sd = e.shields != null && e.shields.Length > 0 && e.shields[0] != null && !e.shields[0].Up,
                     ar = e.t.TryGetComponent(out Armor arm) ? 1f + arm.Integrity : 0f,
                     k = e.key,
+                    ck = e.t.TryGetComponent(out Cloak cl) ? (cl.Up ? 2 : 1) : 0,
+                    pt = PaintOf(e),
                 });
             }
             LastSent = list.Count;
@@ -202,6 +204,24 @@ namespace CarrierGame.Demo
             EntityBytes += JsonUtility.ToJson(msg).Length;
             EntityUpdates++;
             Client.Send(msg);
+        }
+
+        /// <summary>The player an enemy's targeting laser paints: 1 + their id (0: none).</summary>
+        int PaintOf(Ent e)
+        {
+            if (!e.t.TryGetComponent(out Designator d) || d.Painting == null) return 0;
+            if (me != null && d.Painting.root == me.transform.root) return 1 + Client.MyId;
+            foreach (var r in remotes.Values) if (r != null && d.Painting.root == r.transform.root) return 1 + r.Id;
+            return 0;
+        }
+
+        /// <summary>The host's enemy paints a player: painted here too (for my HUD's warning, and
+        /// so the paint shows on the right ship).</summary>
+        void ShowPaint(Ent e, int playerId)
+        {
+            Transform target = playerId == Client.MyId ? (me != null ? me.transform : null)
+                             : remotes.TryGetValue(playerId, out var r) && r != null ? r.transform : null;
+            if (target != null) Designation.Mark(e.t, target, FactionShip.Of(e.t)?.FactionName ?? "");
         }
 
         /// <summary>Which enemies are far from every player here (and so sent once a second).</summary>
@@ -344,6 +364,8 @@ namespace CarrierGame.Demo
                 if (s.sf > 0f && e.shields != null && e.shields.Length > 0 && e.shields[0] != null) e.shields[0].NetSet(s.sf - 1f, !s.sd);
                 if (s.gone || s.dead) continue;
                 if (e.pilot != null) e.pilot.NetLurk(s.lurk);
+                if (s.ck > 0 && e.t.TryGetComponent(out Cloak cloak)) cloak.NetSet(s.ck == 2);
+                if (s.pt > 0) ShowPaint(e, s.pt - 1);
                 // the last two updates, to go between
                 e.ts0 = e.ts1; e.p0 = e.p1; e.q0 = e.q1; e.rf0 = e.rf1;
                 e.ts1 = m.ts; e.p1 = new Double3(s.x, s.y, s.z); e.rf1 = s.rf ?? ""; e.q1 = new Quaternion(s.qx, s.qy, s.qz, s.qw); e.v1 = new Vector3(s.vx, s.vy, s.vz);

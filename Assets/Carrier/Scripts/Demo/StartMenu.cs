@@ -137,6 +137,7 @@ namespace CarrierGame.Demo
                 best.shield = Mathf.Max(best.shield, s.shield);
                 best.gunDps = Mathf.Max(best.gunDps, s.gunDps);
                 best.ciws = Mathf.Max(best.ciws, s.ciws);
+                best.eccm = Mathf.Max(best.eccm, s.eccm);
                 best.beamDamage = Mathf.Max(best.beamDamage, s.beamDamage);
                 best.cargo = Mathf.Max(best.cargo, s.cargo);
                 best.slots = Mathf.Max(best.slots, s.slots);
@@ -476,6 +477,7 @@ namespace CarrierGame.Demo
             Bar("Shield", st.shield, best.shield, $"{st.shield:F0}");
             Bar("Guns", st.gunDps, best.gunDps, $"{st.turrets} turrets");
             Bar("Point defence", st.ciws, best.ciws, $"{st.ciws} CIWS");
+            Bar("ECCM", st.eccm, best.eccm, st.eccm >= 0.6f ? "strong" : st.eccm >= 0.3f ? "fair" : st.eccm > 0f ? "weak" : "none");
             Bar("Main gun", st.beamDamage, best.beamDamage, st.mainGuns > 0 ? $"{st.beamCharge:F0} s charge" : "none");
             Bar("Missiles", st.missiles, best.missiles, st.missiles > 0 ? $"{st.missiles}" : "none");
             Bar("Cargo", st.cargo, best.cargo, $"{st.cargo:F0} t");

@@ -23,6 +23,8 @@ namespace CarrierGame
         public float mining;
         /// <summary>Missiles in its magazine (0: none; -1: no limit), and the cells it fires them from.</summary>
         public int missiles, missileCells;
+        /// <summary>Its ECCM, 0 to 1 (FrigateClass).</summary>
+        public float eccm;
 
         public static FrigateStats Of(GameObject ship)
         {
@@ -48,6 +50,7 @@ namespace CarrierGame
             }
             var h = ship.GetComponent<Health>();
             if (h != null) s.hull = h.maxHealth;
+            s.eccm = FrigateClass.EccmOf(ship.transform);
             var sh = ship.GetComponentInChildren<Shield>(true);
             if (sh != null) { s.shield = sh.capacity; s.shieldRecharge = sh.rechargeRate; }
             var ciws = ship.GetComponent<CiwsDirector>();

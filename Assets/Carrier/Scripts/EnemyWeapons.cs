@@ -19,6 +19,20 @@ namespace CarrierGame
         public float shotSpacing = 0.15f;
         [Tooltip("Scatter in degrees.")]
         public float spread = 1.5f;
+
+        string myFaction;
+        /// <summary>Its target is painted for its faction (Designation): tighter fire, missiles
+        /// from further. Only a faction's ships (FactionShip) have paint to go by.</summary>
+        bool Painted
+        {
+            get
+            {
+                if (target == null) return false;
+                if (myFaction == null) myFaction = FactionShip.Of(transform)?.FactionName ?? "";
+                return myFaction.Length > 0 && Designation.PaintedFor(target, myFaction);
+            }
+        }
+        float PaintReach => Painted ? Designation.MissileReach : 1f;
         [Tooltip("What each shot does (0: the shell's own damage).")]
         public float gunDamage;
 
@@ -154,7 +168,7 @@ namespace CarrierGame
                 nextBurst = now + Slow(burstInterval);
                 StartCoroutine(Burst());
             }
-            if (missilePrefab != null && !missilesOnCue && now >= nextSalvo && dist < missileRange)
+            if (missilePrefab != null && !missilesOnCue && now >= nextSalvo && dist < missileRange * PaintReach)
             {
                 nextSalvo = now + Slow(salvoInterval);
                 StartCoroutine(Salvo());
@@ -205,7 +219,8 @@ namespace CarrierGame
                 Vector3 dir = (aim - transform.position).normalized;
                 // a fighter's guns point along its nose: a shot well off the nose is not taken
                 if (fireArc < 180f && Vector3.Angle(transform.forward, dir) > fireArc * 1.5f) yield break;
-                dir = Quaternion.Euler(Random.Range(-spread, spread), Random.Range(-spread, spread), 0f) * dir;
+                float sp = spread * (Painted ? Designation.SpreadShare : 1f);
+                dir = Quaternion.Euler(Random.Range(-sp, sp), Random.Range(-sp, sp), 0f) * dir;
                 var p = Pool.Take(gunPrefab, Muzzle(dir), Quaternion.LookRotation(dir));
                 p.owner = transform;
                 GunFx.Muzzle(gunPrefab, p.transform.position, p.transform.rotation);

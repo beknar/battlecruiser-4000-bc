@@ -2268,7 +2268,10 @@ Each part can also be run alone:
   frigate made hard to see (a twentieth of a ship's signature) is off the screen, the target
   list and the console's count 4 km out, and locks no warp; at 1.2 km it is an unknown contact,
   at 500 m it is named; firing gives it away at 4 km, and it fades again once quiet; without
-  a signature it is seen as any ship.
+  a signature it is seen as any ship. Then a cloak: unseen just beyond what the frigate's ECCM
+  sees (a Sentinel's: 5.1 km), seen inside it, the cloak dropping when it fires and coming back
+  once it is quiet; a targeting laser on the frigate, the HUD naming the painter and its bearing;
+  and a warp inhibitor's field refusing the warp.
   Add `-modestest` (or `?modestest` on the web) to test the modes of play: a game starts in
   combat mode; 1 to 5 change mode, each with its keys in the controls box; a mode's keys work
   in it and not in another (V scans in mining mode, not in combat); services away from a site

@@ -1,8 +1,8 @@
 {
-    "note": "The frigates a player can fly, first the starting one. The scene builder (CarrierBuilder.Frigates) makes a prefab of each and the start menu's roster from them. The starting frigate's guns are ball mounts on its gun pods (frigate_hardpoints.json); the others' are the turrets modelled on them, cut out by Tools/Blender/convert_frigates.py (frigate_<id>_hardpoints.json), which also gives where their CIWS mounts go. Every frigate has its turrets, at least one CIWS mount and one main gun (the bow beam). Speeds in m/s, turns in degrees a second; gunDamage is each shot's; beamDamage is a second's of the beam; cargo is the hold in tonnes (ore, refined materials and parts all count), slots how many ship parts (industry.json) it can have fitted, miningRate the mining laser's tonnes a second (8 if left out), and crew how many people work it (crew.json: short of 90% of them it works less well). The destroyers and the cruiser (category Destroyer or Cruiser, buildable) are built at a shipyard (industry.json ships) before they can be flown: they add ball-mounted guns at the hardpoints' mounts listed in mounts (by index), missiles (the magazine, fired from the hardpoints' launch cells and refilled when docked or landed at a site), and a destroyer has no main gun (noMainGun). A ship without a category is a Frigate. Rebuild (Tools > Carrier > Build Everything) after changing anything here.",
+    "note": "The frigates a player can fly, first the starting one. The scene builder (CarrierBuilder.Frigates) makes a prefab of each and the start menu's roster from them. The starting frigate's guns are ball mounts on its gun pods (frigate_hardpoints.json); the others' are the turrets modelled on them, cut out by Tools/Blender/convert_frigates.py (frigate_<id>_hardpoints.json), which also gives where their CIWS mounts go. Every frigate has its turrets, at least one CIWS mount and one main gun (the bow beam). Speeds in m/s, turns in degrees a second; gunDamage is each shot's; beamDamage is a second's of the beam; cargo is the hold in tonnes (ore, refined materials and parts all count), slots how many ship parts (industry.json) it can have fitted, miningRate the mining laser's tonnes a second (8 if left out), and crew how many people work it (crew.json: short of 90% of them it works less well). The destroyers and the cruiser (category Destroyer or Cruiser, buildable) are built at a shipyard (industry.json ships) before they can be flown: they add ball-mounted guns at the hardpoints' mounts listed in mounts (by index), missiles (the magazine, fired from the hardpoints' launch cells and refilled when docked or landed at a site), and a destroyer has no main gun (noMainGun). A ship without a category is a Frigate. Rebuild (Tools > Carrier > Build Everything) after changing anything here. eccm: electronic counter-countermeasures, 0 to 1: how far it sees a cloaked ship (up to twice as far), and how much enemy jamming and EMP it shrugs off.",
     "frigates": [
         {
-            "id": "Sentinel",
+            "id": "Sentinel", "eccm": 0.7,
             "displayName": "Sentinel",
             "role": "Gun frigate: all-rounder",
             "description": "The fleet's workhorse: steady and well protected, with four CIWS mounts, two ball-mounted guns that reach almost anywhere, and a heavy bow beam.",
@@ -17,7 +17,7 @@
             "shieldScale": [55, 55, 108]
         },
         {
-            "id": "Lancer",
+            "id": "Lancer", "eccm": 0.3,
             "displayName": "Lancer",
             "role": "Fast attack frigate",
             "description": "Quick and nimble, with twin-gun turrets on both flanks: it picks its fights and runs from the ones it can't win. A lighter hull and only two CIWS mounts.",
@@ -31,7 +31,7 @@
             "liftSpots": [{"x": -10, "z": 40}, {"x": 10, "z": 40}, {"x": -14, "z": -32}, {"x": 14, "z": -32}]
         },
         {
-            "id": "Warden",
+            "id": "Warden", "eccm": 0.7,
             "displayName": "Warden",
             "role": "Heavy escort frigate",
             "description": "Long, slow and very hard to kill: the thickest shield of the five, three twin turrets above, below and astern, four CIWS mounts and the biggest hold.",
@@ -44,7 +44,7 @@
             "beamCharge": 12, "beamDamage": 1400, "cargo": 800, "slots": 5, "crew": 220
         },
         {
-            "id": "Talon",
+            "id": "Talon", "eccm": 0.1,
             "displayName": "Talon",
             "role": "Strike frigate",
             "description": "Built round two heavy twin-gun turrets and the quickest-charging bow beam of the five, and one of the hardest-hitting. It leaves its defence to its guns: one CIWS mount.",
@@ -57,7 +57,7 @@
             "beamCharge": 7, "beamDamage": 1800, "cargo": 550, "slots": 4, "crew": 110
         },
         {
-            "id": "Vanguard",
+            "id": "Vanguard", "eccm": 0.4,
             "displayName": "Vanguard",
             "role": "Line frigate",
             "description": "A long, battleship-like line frigate: six turrets all bearing forward, the toughest hull of the five and the hardest-hitting bow beam, worked by the biggest crew. It is the slowest to get anywhere and turns like it, and carries little.",
@@ -70,7 +70,7 @@
             "beamCharge": 14, "beamDamage": 2400, "cargo": 500, "slots": 3, "crew": 300
         },
         {
-            "id": "Halberd",
+            "id": "Halberd", "eccm": 0.3,
             "displayName": "Halberd",
             "role": "Missile destroyer",
             "description": "A destroyer built round its missiles: twenty-four in the magazine, six cells to fire them from, and eight turrets, the quad mount forward the heaviest. Tougher than any frigate but slower, with no bow beam and only two CIWS mounts.",
@@ -85,7 +85,7 @@
             "cargo": 900, "slots": 5, "crew": 380
         },
         {
-            "id": "Rapier",
+            "id": "Rapier", "eccm": 0.2,
             "displayName": "Rapier",
             "role": "Fast destroyer",
             "description": "The quickest of the destroyers, long and slender, its seven turrets mostly forward. A light hull for its class, one CIWS mount and twelve missiles.",
@@ -100,7 +100,7 @@
             "cargo": 700, "slots": 5, "crew": 360
         },
         {
-            "id": "Claymore",
+            "id": "Claymore", "eccm": 0.4,
             "displayName": "Claymore",
             "role": "Gun destroyer",
             "description": "Three heavy single-gun turrets and five ball mounts: the hardest-hitting guns of the destroyers. Two CIWS mounts and twelve missiles.",
@@ -115,7 +115,7 @@
             "cargo": 850, "slots": 6, "crew": 420
         },
         {
-            "id": "Bulwark",
+            "id": "Bulwark", "eccm": 0.5,
             "displayName": "Bulwark",
             "role": "Heavy destroyer",
             "description": "The slowest and toughest destroyer: four twin turrets, four flank mounts, two CIWS mounts, sixteen missiles and the biggest hold of its class.",
@@ -130,7 +130,7 @@
             "cargo": 1100, "slots": 6, "crew": 460
         },
         {
-            "id": "Stiletto",
+            "id": "Stiletto", "eccm": 0.2,
             "displayName": "Stiletto",
             "role": "Strike destroyer",
             "description": "A sleek strike ship: one big dorsal turret, six ball mounts, eight missile cells and twenty missiles to fill them. One CIWS mount.",
@@ -145,7 +145,7 @@
             "cargo": 750, "slots": 5, "crew": 350
         },
         {
-            "id": "Sovereign",
+            "id": "Sovereign", "eccm": 0.6,
             "displayName": "Sovereign",
             "role": "Heavy cruiser",
             "description": "A heavy cruiser: twelve turrets, six CIWS mounts, a bow beam heavier than any frigate's, thirty-two missiles and eight cells, and the toughest hull and shield of all. Slow, and it needs a crew of eight hundred.",
@@ -160,7 +160,7 @@
             "cargo": 1600, "slots": 8, "crew": 800
         },
         {
-            "id": "Dominion",
+            "id": "Dominion", "eccm": 0.6,
             "displayName": "Dominion",
             "role": "Gun cruiser",
             "description": "A long battleship-styled cruiser built round its guns: three triple turrets forward, each firing over the one ahead, five twins, four ball mounts and the hardest-hitting, longest-ranged guns and bow beam of any ship. It pays with sixteen missiles from four cells, four CIWS mounts and a slightly lighter hull than the Sovereign's, and turns slowest of all.",

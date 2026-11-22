@@ -157,6 +157,27 @@ namespace CarrierGame.Demo
             foreach (var g in cc.mainTurrets) if (g) g.autoFire = false;
             cc.SetTarget(null);
 
+            // the host makes an enemy during play (a launched drone): it is made here too, from
+            // its key, a puppet where the host has it; then it goes, and goes here
+            {
+                const string rtId = "rt:99:1";
+                Vector3 at = cc.transform.position + cc.transform.forward * 900f + Vector3.up * 120f;
+                var np = world.ToNet(at);
+                Note($"spawn|id={rtId}|key=EnemyDrone|at={V(np)}|rf={np.rf}");
+                until = Time.realtimeSinceStartup + 8f;
+                while (world.EntityTransform(rtId) == null && Time.realtimeSinceStartup < until) yield return null;
+                yield return new WaitForSeconds(0.5f);
+                var made = world.EntityTransform(rtId);
+                float madeOff = made != null ? Vector3.Distance(made.position, at) : -1f;
+                bool puppet = made != null && made.GetComponent<NetPuppet>() != null && made.GetComponent<TargetInfo>() != null;
+                Note("despawn");
+                until = Time.realtimeSinceStartup + 8f;
+                while (made != null && Time.realtimeSinceStartup < until) yield return null;
+                Log($"  the host made an enemy during play: here {(madeOff >= 0f ? $"{madeOff:F0} m from where the host has it, a puppet {puppet}" : "never")}; gone when the host said: {made == null && world.EntityTransform(rtId) == null}");
+                results.Add(("an enemy the host makes during play is made here, a puppet where the host has it, and goes when it goes",
+                             madeOff >= 0f && madeOff < 150f && puppet && made == null && world.EntityTransform(rtId) == null));
+            }
+
             // ---- the host leaves: this game takes over
             Note("leave");
             until = Time.realtimeSinceStartup + 10f;
@@ -183,6 +204,47 @@ namespace CarrierGame.Demo
             Log($"  the bot back as a guest: it got {esN} enemies from this game; its hits applied {world.HitsAppliedForOthers - applied0} ('{target}' hull and shield {before:F0} -> {after:F0})");
             results.Add(("as host, the enemies go to the guests", esN == world.Entities));
             results.Add(("a guest's hits land on the real enemy", world.HitsAppliedForOthers - applied0 >= 3 && after < before));
+
+            // as host, an enemy made during play: the guest gets it with its key; the bot's game
+            // says nothing of what it has (an older game), so the drone's hits on it are dropped
+            {
+                var prefab = CoopSpawnables.Find("EnemyDrone");
+                GameObject drone = null;
+                int rtN = -1, goneN = -1, dropped0 = world.HitsDroppedForOlder, sentP0 = world.HitsSentToPlayers;
+                if (prefab != null)
+                {
+                    drone = Instantiate(prefab, cc.transform.position + cc.transform.right * -900f + Vector3.up * 150f, Quaternion.identity);
+                    drone.name = "Co-op test drone";
+                    foreach (var b in drone.GetComponentsInChildren<MonoBehaviour>()) if (b is CombatPilot || b is EnemyWeapons) b.enabled = false;
+                    CoopSpawn.Spawned(drone, "EnemyDrone");
+                    yield return new WaitForSeconds(1.5f);
+                    Note("rt?");
+                    string rt = null;
+                    yield return BotSays("rt=", 6f, v => rt = v);
+                    int.TryParse(rt ?? "-1", out rtN);
+                    // a hit from the drone on the bot's ship (the bot back as a guest: its ship now)
+                    var botNow = client.Players.Where(p => p.id != client.MyId).Select(p => world.RemoteOf(p.id)).FirstOrDefault(r => r != null);
+                    var botHealth = botNow != null ? botNow.GetComponent<Health>() : null;
+                    if (botHealth != null)
+                    {
+                        Health.Source = drone.transform;
+                        botHealth.Damage(50f, botHealth.transform.position, HitKind.Projectile);
+                        Health.Source = null;
+                    }
+                    CoopSpawn.Gone(drone);
+                    Destroy(drone);
+                    yield return new WaitForSeconds(1f);
+                    Note("rtgone?");
+                    string gone = null;
+                    yield return BotSays("rtgone=", 6f, v => gone = v);
+                    int.TryParse(gone ?? "-1", out goneN);
+                }
+                Log($"  an enemy made here during play: the guest got {rtN} with a key, and was told it's gone ({goneN}); " +
+                    $"its hit on the guest's older game dropped {world.HitsDroppedForOlder - dropped0}, sent {world.HitsSentToPlayers - sentP0}; enemies here {world.Entities} (made during play {world.RuntimeEntities})");
+                results.Add(("as host, an enemy made during play goes to the guests with its key, and its going too", prefab != null && rtN == 1 && goneN == 1 && world.RuntimeEntities == 0));
+                results.Add(("an older guest's game isn't hit by what it hasn't got", world.HitsDroppedForOlder - dropped0 == 1 && world.HitsSentToPlayers == sentP0));
+                Log($"  the enemies sent: {world.EntityUpdates} updates, {world.EntityBytes / Mathf.Max(1, world.EntityUpdates)} bytes each on average, {world.LastSent} in the last");
+            }
 
             // ---- at Corsair Haven the guns go for the guest's ship
             if (!quick)

@@ -46,6 +46,10 @@ namespace CarrierGame.Demo
             public Shield[] shields;
             public ShipSystems sys;
             public TractorBeam beam;
+            /// <summary>Made during play (not in the level): its key in CoopSpawnables.</summary>
+            public string key;
+            /// <summary>The host's far from every player: sent once a second, not ten times.</summary>
+            public bool far;
         }
 
         readonly Dictionary<string, Ent> ents = new Dictionary<string, Ent>();
@@ -115,6 +119,8 @@ namespace CarrierGame.Demo
             MainBeam.Began += OnBeam;
             HookBoarding(true);
             HookArtillery(true);
+            CoopSpawn.OnSpawned = OnEnemySpawned;
+            CoopSpawn.OnGone = OnEnemyGone;
             Health.Intercept = Intercept;
             PlayerShips.Available = t => !remoteByRoot.TryGetValue(t.root, out var rp) || !rp.Hidden;
         }
@@ -127,6 +133,8 @@ namespace CarrierGame.Demo
             MainBeam.Began -= OnBeam;
             HookBoarding(false);
             HookArtillery(false);
+            if (CoopSpawn.OnSpawned == (Action<GameObject, string>)OnEnemySpawned) CoopSpawn.OnSpawned = null;
+            if (CoopSpawn.OnGone == (Action<GameObject>)OnEnemyGone) CoopSpawn.OnGone = null;
             if (Health.Intercept == (Func<Health, float, Vector3, HitKind, bool>)Intercept) Health.Intercept = null;
             PlayerShips.Available = null;
             OrbitalSystem.ClockOverride = null;

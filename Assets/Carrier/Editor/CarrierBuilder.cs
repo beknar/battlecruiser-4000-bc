@@ -711,7 +711,26 @@ namespace Carrier.EditorTools
             MakeCapitalShips(p);
             MakeVrask(p);          // the Vrask, the alien faction (Data/vrask.json)
             AssetDatabase.SaveAssets();
+            MakeCoopSpawnables(p);
             return p;
+        }
+
+        /// <summary>What an enemy can be made from during play, by key, so another player's game
+        /// in co-op makes the same one (Resources/CoopSpawnables: CoopSpawn).</summary>
+        static void MakeCoopSpawnables(Prefabs p)
+        {
+            const string path = Root + "/Resources/" + CoopSpawnables.ResourcePath + ".asset";
+            var reg = AssetDatabase.LoadAssetAtPath<CoopSpawnables>(path);
+            bool fresh = reg == null;
+            if (fresh) reg = ScriptableObject.CreateInstance<CoopSpawnables>();
+            var list = new List<CoopSpawnables.Entry>();
+            void Add(GameObject prefab) { if (prefab != null) list.Add(new CoopSpawnables.Entry { key = prefab.name, prefab = prefab }); }
+            Add(p.enemyDrone);
+            reg.entries = list.ToArray();
+            if (fresh) AssetDatabase.CreateAsset(reg, path);
+            else EditorUtility.SetDirty(reg);
+            AssetDatabase.SaveAssets();
+            Log("co-op spawnables: " + string.Join(", ", reg.entries.Select(e => e.key)));
         }
 
         static GameObject MakeEnemy(string name, GameObject model, Vector3 rot, float scale, float health, Explosion death, float deathScale,

@@ -40,6 +40,7 @@ namespace CarrierGame.Demo
                 bd = Boarders.CountOn(me.transform),
                 cpt = me.Captured,
                 cby = me.Captured ? me.CapturedBy : null,
+                cv = CoopWire.Content,
                 pt = ShipPaint.PlayerCode,
             });
         }

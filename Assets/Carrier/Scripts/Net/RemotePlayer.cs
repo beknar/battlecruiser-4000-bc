@@ -24,6 +24,8 @@ namespace CarrierGame.Demo
         public bool Captured { get; private set; }
         /// <summary>The faction that took it (with Captured).</summary>
         public string CapturedBy { get; private set; }
+        /// <summary>What its game has in it (CoopWire.Content; 0: an older game).</summary>
+        public int ContentVersion { get; private set; }
         public int Warp { get; private set; }
         public string Surface { get; private set; } = "";
         /// <summary>Not in this space now (in warp, on a planet, destroyed, or not heard from).</summary>
@@ -80,7 +82,7 @@ namespace CarrierGame.Demo
             Updates++;
             bool wasDead = Dead;
             Shield = m.sh; Hull = m.hu; Dead = m.dead; Docked = m.dock;
-            BoardersAboard = m.bd; Captured = m.dead && m.cpt; CapturedBy = Captured ? Boarders.FactionOr(m.cby) : null;
+            ContentVersion = m.cv; BoardersAboard = m.bd; Captured = m.dead && m.cpt; CapturedBy = Captured ? Boarders.FactionOr(m.cby) : null;
             Warp = m.warp; Surface = m.surf ?? "";
             if (systems != null) systems.NetSet(m.sy);   // (its components, for the target panel)
             // its engines as its player's throttle (out, without thrust)

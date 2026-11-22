@@ -38,6 +38,10 @@ class Bot:
         self.pos = None
         self.rf = ""            # where my ship is (shared frame)
         self.es_told = False
+        self.spawned = None        # an enemy "made during play" I (as host) send: {id, key, at}
+        self.despawned = 0         # updates left saying it's gone
+        self.rt = set()            # ids of enemies made during play the game (as host) sent me
+        self.rt_gone = set()       # ... and those it said are gone
 
     def now(self):
         return self.clock0 + (time.monotonic() - self.local0)
@@ -73,8 +77,17 @@ class Bot:
                 await self.ship(ws)
                 if self.host == self.my_id and "target" in self.state and "front" in self.state:
                     fx, fy, fz = self.state["front"]
-                    await self.send(ws, {"t": "es", "ts": self.now(), "e": [{"id": self.state["target"], "rf": self.rf, "x": fx, "y": fy, "z": fz,
-                                                                          "qx": 0, "qy": 0, "qz": 0, "qw": 1, "hu": 0.6}]})
+                    ents = [{"id": self.state["target"], "rf": self.rf, "x": fx, "y": fy, "z": fz,
+                             "qx": 0, "qy": 0, "qz": 0, "qw": 1, "hu": 0.6}]
+                    # an enemy made during play (a drone launched), for the game to make too; then gone
+                    if self.spawned:
+                        sx, sy, sz = self.spawned["at"]
+                        ents.append({"id": self.spawned["id"], "k": self.spawned["key"], "rf": self.spawned["rf"], "x": sx, "y": sy, "z": sz,
+                                     "qx": 0, "qy": 0, "qz": 0, "qw": 1, "hu": 1})
+                    elif self.despawned > 0:
+                        self.despawned -= 1
+                        ents.append({"id": self.state.get("spawned_id", ""), "k": "EnemyDrone", "gone": True, "dead": True})
+                    await self.send(ws, {"t": "es", "ts": self.now(), "e": ents})
                     if tick % 10 == 0 and self.state.get("pf") and self.game_id:
                         # a shot from my ship toward the game's
                         bx, by, bz = self.pos
@@ -107,6 +120,9 @@ class Bot:
             self.dp += 1
         elif t == "es":
             self.es = len(m.get("e") or [])
+            for e in m.get("e") or []:
+                if e.get("k"):
+                    (self.rt_gone if e.get("gone") else self.rt).add(e.get("id"))
             # back as a guest: say how many enemies the game sent, the first time
             if not self.es_told and self.host != self.my_id:
                 self.es_told = True
@@ -140,6 +156,19 @@ class Bot:
                 self.rf = rest[3:]
         elif note == "dp?":
             await self.note(ws, f"dp={self.dp}")
+        elif note.startswith("spawn|"):
+            # as host: an enemy made during play, at a place, with a key
+            parts = dict(p.partition("=")[::2] for p in note.split("|")[1:])
+            self.spawned = {"id": parts["id"], "key": parts["key"], "rf": parts.get("rf", ""),
+                            "at": tuple(float(c) for c in parts["at"].split(","))}
+            self.state["spawned_id"] = parts["id"]
+        elif note == "despawn":
+            self.spawned = None
+            self.despawned = 5
+        elif note == "rt?":
+            await self.note(ws, f"rt={len(self.rt)}")
+        elif note == "rtgone?":
+            await self.note(ws, f"rtgone={len(self.rt_gone)}")
         elif note == "bye":
             self.done = True
 

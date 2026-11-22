@@ -34,6 +34,7 @@ namespace CarrierGame.Demo
         public bool sd;           // its shield down
         public int tr;            // the player its tractor beam holds: 1 + their id (0: none, or from an older game)
         public float ar;          // its armour: 1 + how whole (0: none, or from an older game)
+        public string k;          // made during play: its key in CoopSpawnables ("": in the level; older games leave it out)
     }
 
     /// <summary>Anything that arrives.</summary>
@@ -74,6 +75,8 @@ namespace CarrierGame.Demo
         // ... and by which faction (with cpt; "" or left out: the Vrask); a "board" message's
         // boarders' faction (the same)
         public string cby, fa;
+        // a player's ship: what its game has in it (CoopWire.Content; older games leave it out: 0)
+        public int cv;
         // a player's ship: its paint (PaintScheme.ToCode; "" or left out: unpainted)
         public string pt;
         // an artillery shell's aim (a fire message of kind "shell": from the reach arf)
@@ -119,6 +122,8 @@ namespace CarrierGame.Demo
         public bool cpt;
         /// <summary>The faction that took it (with cpt; older games leave it out: the Vrask).</summary>
         public string cby;
+        /// <summary>What this game has in it (CoopWire.Content; older games leave it out: 0).</summary>
+        public int cv = CoopWire.Content;
         /// <summary>Its paint (ShipPaint: PaintScheme.ToCode, "" unpainted; older games leave
         /// it out, and ignore it).</summary>
         public string pt = "";

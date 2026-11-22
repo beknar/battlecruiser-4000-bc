@@ -19,6 +19,11 @@ namespace CarrierGame
         // 2: positions are from the reach they are in (rf), the system at its real size
         public const int Protocol = 2;
 
+        /// <summary>What a game has in it beyond the protocol, sent with its ship (cv): 1, the
+        /// Greys and the Empire, and enemies made during play. 0 (left out): an older game, which
+        /// has neither, so the host sends it no hits from them.</summary>
+        public const int Content = 1;
+
         // the game to the server
         public const string Hello = "hello", Level = "level", Ping = "ping", Captain = "captain";
         // the server to the game

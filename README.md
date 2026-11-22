@@ -2278,6 +2278,12 @@ Each part can also be run alone:
   frigate's ECCM (the HUD counting it down), and the component back after. Last a drone bay: it
   launches drones at the frigate 6 km off, the frigate's CIWS goes for them, and called home
   they are stock again.
+  Add `-greystest` (or `?greystest` on the web) to test the Greys: their cell in the Outer Drift,
+  each of its four ships with its gear (quiet on the sensors, no armour; the Scout's cloak, laser
+  and drone bay, the Shroud's jammer and EMP, the Lance's salvo, the Reaper's tractor emitters);
+  the Scout, cloaked, unseen from where the frigate warps in; sprung, the Scout painting the
+  frigate, the Shroud jamming it and an EMP knocking a component out, the Lances going for it from
+  a flank, and with its engines out the Reaper locking its tractor on, the warp refused.
   Add `-modestest` (or `?modestest` on the web) to test the modes of play: a game starts in
   combat mode; 1 to 5 change mode, each with its keys in the controls box; a mode's keys work
   in it and not in another (V scans in mining mode, not in combat); services away from a site

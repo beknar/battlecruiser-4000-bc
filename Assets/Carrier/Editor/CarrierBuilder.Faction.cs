@@ -298,6 +298,134 @@ namespace Carrier.EditorTools
             pl.holdFacing = s.holdFacing;
         }
 
+        /// <summary>
+        /// What the factions after the Vrask carry, from a ship's numbers (FactionShipStats): its
+        /// signature and cloak (Signature, Cloak), a targeting laser at its "designator" point
+        /// (Designator), a jammer (EcmEmitter), an EMP burst with a glow at its "emp" point
+        /// (EmpBurst), a drone bay at its "drone_bay" points (DroneBay), a warp inhibitor
+        /// (Interdictor). None of it if its numbers say none.
+        /// </summary>
+        static void AddFactionGear(GameObject root, FactionShip ship, FactionTable t, FactionShipStats s)
+        {
+            var said = new List<string>();
+            if (s.signature > 0f)
+            {
+                root.AddComponent<Signature>().value = s.signature;
+                said.Add($"signature {s.signature:0.##}");
+            }
+            if (s.cloak > 0f)
+            {
+                if (root.GetComponent<Signature>() == null) root.AddComponent<Signature>();
+                root.AddComponent<Cloak>().hiddenScale = s.cloak;
+                said.Add($"cloak to {s.cloak:0.##}");
+            }
+            if (s.designatorRange > 0f)
+            {
+                var d = root.AddComponent<Designator>();
+                d.range = s.designatorRange;
+                d.emitter = ship.PointOf("designator");
+                var lr = Node("Laser", d.emitter != null ? d.emitter : root.transform).AddComponent<LineRenderer>();
+                lr.useWorldSpace = true;
+                lr.positionCount = 2;
+                lr.widthMultiplier = 1.2f;
+                lr.shadowCastingMode = ShadowCastingMode.Off;
+                lr.receiveShadows = false;
+                lr.sharedMaterial = Additive($"FX_{t.Prefix}Laser", t.BeamGlow * 0.6f);
+                lr.enabled = false;
+                d.line = lr;
+                said.Add($"targeting laser {s.designatorRange / 1000f:0.#} km");
+            }
+            if (s.ecm != null && s.ecm.radius > 0f)
+            {
+                var e = root.AddComponent<EcmEmitter>();
+                e.radius = s.ecm.radius;
+                e.strength = s.ecm.strength;
+                if (s.ecm.pdRadius > 0f) e.pdRadius = s.ecm.pdRadius;
+                e.ghosts = s.ecm.ghosts;
+                e.active = false;   // (its tactics turn it on)
+                said.Add($"jammer {s.ecm.radius / 1000f:0.#} km at {s.ecm.strength:P0}, {s.ecm.ghosts} ghosts");
+            }
+            if (s.emp != null && s.emp.radius > 0f)
+            {
+                var b = root.AddComponent<EmpBurst>();
+                b.radius = s.emp.radius;
+                b.strength = s.emp.strength;
+                if (s.emp.chargeTime > 0f) b.chargeTime = s.emp.chargeTime;
+                if (s.emp.cooldown > 0f) b.cooldown = s.emp.cooldown;
+                // its glow as it charges: a light at its emp point
+                var at = ship.PointOf("emp");
+                var lg = Node("EmpGlow", at != null ? at : root.transform).AddComponent<Light>();
+                lg.type = LightType.Point;
+                lg.range = Mathf.Max(200f, s.emp.radius * 0.15f);
+                Color glow = t.BeamGlow;
+                lg.color = glow.maxColorComponent > 0f ? glow / glow.maxColorComponent : Color.cyan;
+                lg.enabled = false;
+                b.glowLight = lg;
+                said.Add($"EMP burst {s.emp.radius / 1000f:0.#} km, {s.emp.strength:0}");
+            }
+            if (s.drones != null && s.drones.stock > 0)
+            {
+                var bay = root.AddComponent<DroneBay>();
+                bay.stock = s.drones.stock;
+                if (s.drones.maxOut > 0) bay.maxOut = s.drones.maxOut;
+                if (s.drones.perLaunch > 0) bay.perLaunch = s.drones.perLaunch;
+                if (s.drones.launchInterval > 0f) bay.launchInterval = s.drones.launchInterval;
+                if (s.drones.launchRange > 0f) bay.launchRange = s.drones.launchRange;
+                bay.bays = ship.PointsOf("drone_bay");
+                said.Add($"drone bay: {s.drones.stock} drones, {bay.bays.Length} bays");
+            }
+            if (s.interdict > 0f)
+            {
+                root.AddComponent<Interdictor>().radius = s.interdict;
+                said.Add($"warp inhibitor {s.interdict / 1000f:0.#} km");
+            }
+            if (said.Count > 0) Log($"{s.displayName}: {string.Join(", ", said)}");
+        }
+
+        /// <summary>
+        /// A faction's band lying in wait round a point (as the Vrask raiders: VraskRaiders,
+        /// NhVrask), its ships `slots` (ship id, name, angle round from the side away from the
+        /// star, distance, height), each made by `make` (the system's own enemy maker: prefab,
+        /// name, place, what it faces, its pilot's set-up, its respawn), and `fleet` given the band
+        /// and its pilots (its tactics as a group, if it has any).
+        /// </summary>
+        static EncounterGroup FactionBand(FactionTable t, Dictionary<string, GameObject> prefabs, Transform sys, Transform parent, string groupName,
+            Vector3 centre, float spotRange, IEnumerable<(string ship, string name, float angle, float dist, float height)> slots,
+            Func<GameObject, string, Vector3, Vector3, Action<CombatPilot>, float, GameObject> make, Action<EncounterGroup, List<CombatPilot>> fleet = null)
+        {
+            if (t == null || prefabs.Count == 0) { Log($"{groupName}: no {(t != null ? t.Name : "faction")} ships"); return null; }
+            Vector3 outward = Vector3.ProjectOnPlane(centre - sys.position, Vector3.up);
+            outward = outward.sqrMagnitude > 1f ? outward.normalized : Vector3.forward;
+            var pilots = new List<(CombatPilot pilot, FactionShipStats s)>();
+            foreach (var slot in slots)
+            {
+                var s = t.Find(slot.ship);
+                if (s == null || !prefabs.TryGetValue(s.id, out var prefab) || prefab == null) { Log($"{groupName}: no ship '{slot.ship}'"); continue; }
+                Vector3 pos = centre + Quaternion.AngleAxis(slot.angle, Vector3.up) * outward * slot.dist + Vector3.up * slot.height;
+                string name = string.IsNullOrEmpty(slot.name) ? s.displayName : $"{s.displayName} {slot.name}";
+                var go = make(prefab, name, pos, centre, pl => FactionPilot(pl, s), s.respawn);
+                pilots.Add((go.GetComponent<CombatPilot>(), s));
+            }
+            int side = 0;
+            foreach (var (pl, s) in pilots.Where(x => !string.IsNullOrEmpty(x.s.guard)))
+            {
+                var ward = pilots.FirstOrDefault(x => x.s.id == s.guard).pilot;
+                if (ward == null) continue;
+                pl.guard = ward.transform;
+                pl.guardLeash = s.guardLeash;
+                pl.circleSpeed = Mathf.Abs(pl.circleSpeed) * (side++ % 2 == 0 ? 1f : -1f);
+            }
+            var eg = new GameObject(groupName).AddComponent<EncounterGroup>();
+            if (parent != null) eg.transform.SetParent(parent, false);
+            eg.transform.position = centre;
+            eg.groupName = groupName;
+            eg.pilots = pilots.Select(x => x.pilot).ToArray();
+            eg.spotRange = spotRange;
+            fleet?.Invoke(eg, eg.pilots.ToList());
+            Log($"{groupName}: {pilots.Count} {t.Name} ({string.Join(", ", pilots.Select(x => x.pilot.name))}), spotting at {spotRange / 1000f:0.#} km");
+            return eg;
+        }
+
         /// <summary>A tractor beam (TractorBeam) from the ship's "tractor" point (its bow if it has
         /// none), drawn as a line in the faction's colour while it holds a ship.</summary>
         static TractorBeam AddTractorBeam(GameObject root, FactionShip ship, FactionTable t, float range)

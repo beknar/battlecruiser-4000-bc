@@ -141,7 +141,45 @@ namespace CarrierGame
         public float[] engineColor;
         public FactionWeapon[] guns;
 
+        // what the factions after the Vrask carry (0 or none: not this ship)
+        /// <summary>How much of a sensor's range it is seen at (Signature; 0: none, seen as any
+        /// ship), and kept to this share of it cloaked (Cloak; 0: no cloak).</summary>
+        public float signature, cloak;
+        /// <summary>A targeting laser's reach (m) from its "designator" point (Designator).</summary>
+        public float designatorRange;
+        /// <summary>A warp inhibitor's field (m) (Interdictor).</summary>
+        public float interdict;
+        /// <summary>A jammer (EcmEmitter), an EMP burst (EmpBurst), a drone bay (DroneBay).</summary>
+        public FactionEcm ecm;
+        public FactionEmp emp;
+        public FactionDrones drones;
+
         public Color EngineGlow => engineColor != null && engineColor.Length >= 3 ? new Color(engineColor[0], engineColor[1], engineColor[2]) : new Color(0.45f, 1f, 0.6f);
+    }
+
+    /// <summary>A jammer: its field (m), its strength at its heart (0 to 1), how near (m) it
+    /// scrambles the players' missiles and drones, and the ghost contacts it makes.</summary>
+    [Serializable]
+    public class FactionEcm
+    {
+        public float radius, strength, pdRadius;
+        public int ghosts;
+    }
+
+    /// <summary>An EMP burst: its reach (m), its pulse (hull points), its charge and cooldown (s).</summary>
+    [Serializable]
+    public class FactionEmp
+    {
+        public float radius, strength, chargeTime, cooldown;
+    }
+
+    /// <summary>A drone bay: its stock, the most out at once, how many a launch, how often (s),
+    /// and how near (m) a player's ship is when it launches.</summary>
+    [Serializable]
+    public class FactionDrones
+    {
+        public int stock, maxOut, perLaunch;
+        public float launchInterval, launchRange;
     }
 
     /// <summary>Artillery: where it fires from (a kind of point), how often (s), how far (m: at

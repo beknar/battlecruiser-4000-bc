@@ -477,7 +477,9 @@ namespace CarrierGame.Demo
             var sd = SpawnDirector.Instance;
             if (sd == null || sd.Sites.Count == 0) { Check(false, "spawns: no locations"); yield break; }
             Log($"  spawn locations: {string.Join(", ", sd.Sites.Select(x => $"{x.name} ({x.enemies.Count})"))}; every {sd.spawnEvery / 60f:0} min, quiet {sd.quietAfterCleared / 60f:0} min once cleared");
-            var site = sd.Sites.OrderBy(x => x.enemies.Count).First();
+            // (the smallest with two or more: the last check takes one of them down, and a site of one
+            // would be cleared by it, quiet for its ten minutes, as it should be)
+            var site = sd.Sites.Where(x => x.enemies.Count >= 2).OrderBy(x => x.enemies.Count).ThenBy(x => x.name).FirstOrDefault() ?? sd.Sites.First();
             int count = site.enemies.Count;
             // (a spawn leaves one only just destroyed, while it breaks up: no wait beyond that here)
             float minDead0 = sd.minDead;

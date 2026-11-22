@@ -1,0 +1,83 @@
+{
+    "note": "The Greys, a mystery faction of saucers and a manta that watch, blind, strike and take: their bolts, their four ships and their bands in the star systems. The scene builder (CarrierBuilder.Greys) reads this and bakes the numbers into the prefabs (Prefabs/GreysScout, GreysShroud, GreysLance, GreysReaper) and the levels: run Tools > Carrier > Build Everything after changing anything here. Models and hardpoints: Models/Greys_<Id>.fbx and Data/greys_<id>_hardpoints.json (Tools/Blender/build_greys.sh). Units as in vrask.json. What's new beside the Vrask's fields: signature (how much of a sensor's range a ship is seen at: Signature), cloak (the share of it kept cloaked: Cloak), designatorRange (a targeting laser: Designator), ecm (a jammer: radius, strength 0 to 1, pdRadius where it scrambles missiles and drones, ghosts: EcmEmitter), emp (an EMP burst: radius, strength in hull points, chargeTime, cooldown: EmpBurst), drones (a drone bay: stock, maxOut, perLaunch, launchInterval, launchRange: DroneBay). Their hulls carry no armour plating. A bolt of kind Emp knocks a component out (ShipSystems).",
+    "faction": "Greys",
+    "prefix": "Greys",
+    "shieldColor": [0.6, 0.45, 1.6, 1.0],
+    "beamColor": [0.7, 0.5, 1.6, 2.5],
+    "trailColor": [0.7, 0.55, 1.5, 3.0],
+    "bolts": [
+        { "name": "GreysBeam", "material": "FX_GreysBeam", "kind": "Beam", "damage": 28, "speed": 2800, "size": [0.5, 0.5, 14], "color": [0.65, 0.45, 1.6, 6] },
+        { "name": "GreysStrike", "material": "FX_GreysStrike", "kind": "Beam", "damage": 62, "speed": 2400, "size": [0.9, 0.9, 16], "color": [0.8, 0.4, 1.7, 8] },
+        { "name": "GreysEmpBolt", "material": "FX_GreysEmp", "kind": "Emp", "damage": 140, "speed": 1600, "size": [1.4, 1.4, 9], "color": [0.55, 0.85, 1.7, 7] }
+    ],
+    "ships": [
+        {
+            "id": "Scout", "prefab": "GreysScout", "model": "Greys_Scout", "texture": "Greys_Scout_BaseColor.png", "hardpoints": "greys_scout_hardpoints.json",
+            "displayName": "Grey Watcher", "shipClass": "Scout saucer", "threat": "Low", "weapons": "Precision beams, 2 drones, a targeting laser",
+            "role": "Deep reconnaissance: cloaked, it shadows a ship at the edge of its sensors, paints it for the rest and calls them in; slips away when anything closes; hit-and-run with its beams and drones when a shield is down",
+            "hull": 1400, "shield": 1000, "shieldRecharge": 100, "armor": 0, "plating": 0, "explosion": 1.4, "respawn": 90,
+            "style": "Capital", "cruiseSpeed": 200, "attackSpeed": 320, "turnRate": 45, "acceleration": 90,
+            "standoff": 3000, "circleSpeed": 5, "hideBelow": 0,
+            "sensorRange": 25000, "signature": 0.6, "cloak": 0.1, "designatorRange": 15000,
+            "drones": { "stock": 2, "maxOut": 2, "perLaunch": 2, "launchInterval": 30, "launchRange": 6000 },
+            "engineColor": [0.6, 0.5, 1.4],
+            "guns": [
+                { "label": "Precision beams", "on": "guns", "bolt": "GreysBeam", "interval": 2.2, "range": 3500, "cone": 25, "yawSpeed": 40 }
+            ]
+        },
+        {
+            "id": "Shroud", "prefab": "GreysShroud", "model": "Greys_Shroud", "texture": "Greys_Shroud_BaseColor.png", "hardpoints": "greys_shroud_hardpoints.json",
+            "displayName": "Grey Shroud", "shipClass": "ECM saucer", "threat": "High", "weapons": "Jammer and ghost projectors, an EMP burst, an EMP projector",
+            "role": "Electronic warfare: jams sensors, aim, missiles and comms over 6 km, puts ghost contacts on the sensors and hides its escorts; scrambles missiles and drones close in; an EMP burst and projector; escorts the Reaper",
+            "hull": 2400, "shield": 1800, "shieldRecharge": 120, "armor": 0, "plating": 0, "explosion": 1.8, "respawn": 90,
+            "style": "Capital", "cruiseSpeed": 110, "attackSpeed": 150, "turnRate": 20, "acceleration": 30,
+            "standoff": 4000, "circleSpeed": 2, "hideBelow": 0,
+            "sensorRange": 20000, "signature": 0.8,
+            "ecm": { "radius": 6000, "strength": 0.6, "pdRadius": 1500, "ghosts": 3 },
+            "emp": { "radius": 2500, "strength": 400, "chargeTime": 4, "cooldown": 30 },
+            "engineColor": [0.55, 0.75, 1.5],
+            "guns": [
+                { "label": "EMP projector", "on": "emp", "bolt": "GreysEmpBolt", "interval": 9, "range": 4000, "cone": 50, "yawSpeed": 25 }
+            ]
+        },
+        {
+            "id": "Lance", "prefab": "GreysLance", "model": "Greys_Lance", "texture": "Greys_Lance_BaseColor.png", "hardpoints": "greys_lance_hardpoints.json",
+            "displayName": "Grey Lance", "shipClass": "Strike manta", "threat": "High", "weapons": "Five-slot strike salvo",
+            "role": "Precision strike: fast runs from the flank and the rear, its salvo on engines and weapons, breaking off; runs down cripples; strikes facilities in its way and screens the Shroud and Reaper from craft",
+            "hull": 2000, "shield": 1200, "shieldRecharge": 90, "armor": 0, "plating": 0, "explosion": 1.6, "respawn": 75,
+            "style": "Fighter", "cruiseSpeed": 220, "attackSpeed": 380, "turnRate": 60, "acceleration": 120,
+            "breakOffDistance": 500, "extendDistance": 2200, "hideBelow": 0,
+            "sensorRange": 18000, "signature": 0.8,
+            "engineColor": [0.75, 0.45, 1.6],
+            "guns": [
+                { "label": "Strike salvo", "on": "guns", "bolt": "GreysStrike", "interval": 2.6, "range": 2200, "cone": 12, "yawSpeed": 30 }
+            ]
+        },
+        {
+            "id": "Reaper", "prefab": "GreysReaper", "model": "Greys_Reaper", "texture": "Greys_Reaper_BaseColor.png", "hardpoints": "greys_reaper_hardpoints.json",
+            "displayName": "Grey Reaper", "shipClass": "Abduction saucer", "threat": "High", "weapons": "Tractor emitters, an abduction beam, light rim guns",
+            "role": "Capture: holds back while the others work, then locks its tractor emitters on a disabled ship (no warp while held), abducts its crew, cargo and a sample, and can tow it off as the group withdraws",
+            "hull": 3200, "shield": 2000, "shieldRecharge": 100, "armor": 0, "plating": 0, "explosion": 2.2, "respawn": 120,
+            "style": "Capital", "cruiseSpeed": 90, "attackSpeed": 120, "turnRate": 15, "acceleration": 15,
+            "standoff": 2000, "circleSpeed": 1.5, "hideBelow": 0, "tractorRange": 2500,
+            "sensorRange": 20000, "signature": 0.8,
+            "engineColor": [0.6, 0.5, 1.4],
+            "guns": [
+                { "label": "Rim guns", "on": "guns", "bolt": "GreysBeam", "interval": 4, "range": 2500, "cone": 30, "yawSpeed": 25 }
+            ]
+        }
+    ],
+    "group": {
+        "name": "Greys cell",
+        "at": "Outer Drift",
+        "note": "Something watches from the cold rocks of the Outer Drift: ships that come out here go quiet on the comms.",
+        "spotRange": 9000,
+        "slots": [
+            { "ship": "Reaper", "name": "", "angle": 180, "distance": 3000, "height": 200 },
+            { "ship": "Shroud", "name": "", "angle": 160, "distance": 2200, "height": -150 },
+            { "ship": "Lance", "name": "A", "angle": 40, "distance": 2400, "height": 250 },
+            { "ship": "Lance", "name": "B", "angle": -40, "distance": 2400, "height": -250 },
+            { "ship": "Scout", "name": "", "angle": 0, "distance": 4500, "height": 400 }
+        ]
+    }
+}

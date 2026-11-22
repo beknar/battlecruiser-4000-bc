@@ -5,7 +5,8 @@ namespace CarrierGame
 {
     /// <summary>
     /// A warp inhibitor (the Imperial patrol and recon frigates'): within `radius` of it a ship
-    /// can't warp ("Warp inhibited by ..."), as the warp drive checks (WarpDrive.InCombat). Off
+    /// can't warp ("Warp inhibited by ..."), as the warp drive checks (WarpDrive.CanWarp: docking,
+    /// landing and cruise aren't stopped). Off
     /// while its ship is destroyed. Kept on in a co-op guest's game, so each player's drive sees
     /// the host's ships' inhibitors.
     /// </summary>

@@ -27,7 +27,9 @@ namespace CarrierGame
             public float until;
         }
 
-        static readonly Dictionary<Transform, Paint> paints = new Dictionary<Transform, Paint>();
+        // (a paint for each faction on a target: a Grey and an Imperial laser on one ship both count)
+        static readonly Dictionary<(Transform, string), Paint> paints = new Dictionary<(Transform, string), Paint>();
+        static readonly List<(Transform, string)> worn = new List<(Transform, string)>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void Reset() => paints.Clear();
@@ -36,25 +38,39 @@ namespace CarrierGame
         public static void Mark(Transform painter, Transform target, string faction)
         {
             if (painter == null || target == null) return;
-            paints[target.root] = new Paint { painter = painter, faction = faction ?? "", until = Time.time + Hold };
+            faction ??= "";
+            paints[(target.root, faction)] = new Paint { painter = painter, faction = faction, until = Time.time + Hold };
         }
 
-        /// <summary>The paint on a target (false: none, or it has worn off, or its painter is gone).</summary>
+        static bool Live(Paint p) => p.painter != null && Time.time <= p.until && !(p.painter.TryGetComponent(out Health h) && h.Dead);
+
+        /// <summary>A paint on a target, any faction's (false: none, or worn off, or its painter gone).</summary>
         public static bool On(Transform target, out Paint paint)
         {
             paint = default;
-            if (target == null || !paints.TryGetValue(target.root, out paint)) return false;
-            if (paint.painter == null || Time.time > paint.until || (paint.painter.TryGetComponent(out Health h) && h.Dead))
+            if (target == null || paints.Count == 0) return false;
+            var root = target.root;
+            bool found = false;
+            worn.Clear();
+            foreach (var kv in paints)
             {
-                paints.Remove(target.root);
-                return false;
+                if (kv.Key.Item1 != root) continue;
+                if (!Live(kv.Value)) { worn.Add(kv.Key); continue; }
+                if (!found || kv.Value.until > paint.until) { paint = kv.Value; found = true; }
             }
-            return true;
+            foreach (var k in worn) paints.Remove(k);
+            return found;
         }
 
         /// <summary>Is the target painted for `faction` (any faction, if null)?</summary>
-        public static bool PaintedFor(Transform target, string faction) =>
-            On(target, out var p) && (faction == null || p.faction == faction);
+        public static bool PaintedFor(Transform target, string faction)
+        {
+            if (faction == null) return On(target, out _);
+            if (target == null || !paints.TryGetValue((target.root, faction), out var p)) return false;
+            if (Live(p)) return true;
+            paints.Remove((target.root, faction));
+            return false;
+        }
 
         /// <summary>The ship painting a target, or null.</summary>
         public static Transform PainterOf(Transform target) => On(target, out var p) ? p.painter : null;
@@ -73,6 +89,12 @@ namespace CarrierGame
         }
 
         /// <summary>Take the paint off (the painter's laser broke off: lost sight, destroyed).</summary>
-        public static void Clear(Transform target) { if (target != null) paints.Remove(target.root); }
+        public static void Clear(Transform target)
+        {
+            if (target == null) return;
+            worn.Clear();
+            foreach (var k in paints.Keys) if (k.Item1 == target.root) worn.Add(k);
+            foreach (var k in worn) paints.Remove(k);
+        }
     }
 }

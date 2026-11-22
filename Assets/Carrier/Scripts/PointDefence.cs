@@ -136,6 +136,15 @@ namespace CarrierGame
         /// <summary>What a hostile ship's shot does to the players' missiles, as a share of its
         /// damage: its point defence's `missileScale`, or nothing (a hostile gun that isn't point
         /// defence doesn't shoot missiles down).</summary>
+        /// <summary>For a shot of `gun`'s: its point defence's `missileScale` if the gun is one of
+        /// its mounts, else nothing (-1: not a ship with point defence, decided as the shot flies).</summary>
+        public static float ScaleFor(CarrierTurret gun, PointDefence pd)
+        {
+            if (pd == null) return -1f;
+            if (!pd.isActiveAndEnabled || pd.mounts == null) return 0f;
+            return System.Array.IndexOf(pd.mounts, gun) >= 0 ? pd.missileScale : 0f;
+        }
+
         public static float MissileScale(Transform owner)
         {
             var pd = owner != null ? owner.GetComponentInParent<PointDefence>() : null;

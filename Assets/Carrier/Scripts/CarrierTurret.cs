@@ -292,6 +292,9 @@ namespace CarrierGame
 
         ShipSystems systems;
 
+        PointDefence pdOf;    // (its ship's point defence, looked for once: PointDefence.ScaleFor)
+        bool pdLooked;
+
         /// <summary>Fire one shot from every muzzle, wherever the gun points now (none while its
         /// ship's weapons are knocked out: ShipSystems).</summary>
         public void Fire()
@@ -313,6 +316,8 @@ namespace CarrierGame
                 var rot = jam > 0f ? Quaternion.Euler(Random.Range(-3f, 3f) * jam, Random.Range(-3f, 3f) * jam, 0f) * m.rotation : m.rotation;
                 var p = Pool.Take(projectilePrefab, m.position, rot);
                 p.owner = owner;
+                if (!pdLooked) { pdLooked = true; pdOf = owner != null ? owner.GetComponentInParent<PointDefence>() : null; }
+                if (pdOf != null) p.SetMissileScale(PointDefence.ScaleFor(this, pdOf));
                 GunFx.Muzzle(projectilePrefab, m.position, m.rotation, m);
                 if (damageScale != 1f) p.damage *= damageScale;
             }

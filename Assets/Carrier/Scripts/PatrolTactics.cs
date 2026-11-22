@@ -35,12 +35,12 @@ namespace CarrierGame
 
         void LateUpdate()
         {
-            // its logistics run whether or not it is in a fight
-            if (Time.time < nextSupply) return;
+            // its logistics run whether or not it is in a fight (not from a wreck)
+            if (Time.time < nextSupply || (pilot != null && !pilot.Alive)) return;
             nextSupply = Time.time + supplyInterval;
             var a = EmpireShip.Nearest(EmpireShip.Role.Assault, transform.position, supplyRange);
             var bay = a != null ? a.GetComponent<DroneBay>() : null;
-            if (bay != null && bay.Stock < bay.stock && bay.Restock(1)) Supplied++;
+            if (bay != null && bay.Restock(1)) Supplied++;
         }
 
         protected override void Think(bool seeing)

@@ -20,6 +20,7 @@ namespace CarrierGame
         {
             base.Awake();
             laser = GetComponent<Designator>();
+            if (laser != null) laser.driven = true;
         }
 
         protected override void Stood()

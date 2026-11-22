@@ -171,11 +171,11 @@ namespace CarrierGame
         }
 
         /// <summary>Drones put back in its stock (a Patrol frigate's logistics), up to its full
-        /// stock: true if any went in.</summary>
+        /// stock counting those out: true if any went in.</summary>
         public bool Restock(int n)
         {
             int before = Stock;
-            Stock = Mathf.Min(stock, Stock + Mathf.Max(0, n));
+            Stock = Mathf.Max(Stock, Mathf.Min(stock - Out.Count, Stock + Mathf.Max(0, n)));
             return Stock > before;
         }
 

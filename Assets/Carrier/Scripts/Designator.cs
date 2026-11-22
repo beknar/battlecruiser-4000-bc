@@ -18,6 +18,8 @@ namespace CarrierGame
         public LineRenderer line;
         [Tooltip("What it paints (its tactics set it; none: its pilot's target).")]
         public Transform target;
+        [Tooltip("Its tactics drive it (ScoutTactics, ReconTactics): it paints only what they give it, never its pilot's target.")]
+        public bool driven;
 
         /// <summary>What it is painting now (null: nothing).</summary>
         public Transform Painting { get; private set; }
@@ -39,8 +41,9 @@ namespace CarrierGame
 
         void Update()
         {
-            Transform t = target != null ? target : pilot != null ? pilot.target : null;
-            bool alive = health == null || !health.Dead;
+            Transform t = target != null ? target : !driven && pilot != null ? pilot.target : null;
+            // (nothing from hiding, or on its way back to it: that would give it away)
+            bool alive = (health == null || !health.Dead) && (pilot == null || pilot.Current != CombatPilot.State.Lurk);
             bool on = alive && t != null && t.gameObject.activeInHierarchy && (t.position - emitter.position).sqrMagnitude <= range * range
                       && !Cover.Blocked(emitter.position, t.position) && !ShipSystems.WeaponsDownOn(this, ref systems);
             Painting = on ? t : null;

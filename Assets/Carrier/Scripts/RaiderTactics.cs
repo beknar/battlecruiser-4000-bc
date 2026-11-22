@@ -16,13 +16,29 @@ namespace CarrierGame
         public string Why { get; private set; } = "";
         public Transform Prey { get; private set; }
 
+        protected override void Stood() => Prey = null;
+
+        protected override void OnDisable()
+        {
+            base.OnDisable();
+            Prey = null;
+        }
+
         protected override void Think(bool seeing)
         {
+            // 3. hurt: it breaks off for home and hides (back with the spawns, or repaired)
+            if (HullOf(transform) < breakBelow)
+            {
+                Prey = null;
+                Doing = "breaking off";
+                if (pilot.Current == CombatPilot.State.Engage) { pilot.target = null; pilot.Disengage(); }
+                return;
+            }
             Prey = Choose(out string why);
             Why = why;
             if (Prey == null) { Doing = "searching"; return; }
             if (Prey != pilot.target) { pilot.target = Prey; if (weapons != null) weapons.SetTarget(Prey); }
-            Doing = HullOf(transform) < breakBelow ? "breaking off" : $"raiding {Prey.name} ({why})";
+            Doing = $"raiding {Prey.name} ({why})";
         }
 
         Transform Choose(out string why)
@@ -54,9 +70,8 @@ namespace CarrierGame
 
         public override void Steer(Vector3 pos, ref Vector3 desired, ref float wantSpeed)
         {
-            if (Prey == null) return;
-            // hurt: out, fast, away from what it raided
-            if (HullOf(transform) < breakBelow) { desired = (pos - Prey.position).normalized; wantSpeed = pilot.attackSpeed; }
+            // (it makes the fighter pilot's runs on its prey; hurt, it has disengaged: CombatPilot
+            // flies it home)
         }
     }
 }

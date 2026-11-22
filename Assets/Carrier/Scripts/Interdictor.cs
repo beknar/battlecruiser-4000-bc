@@ -33,7 +33,7 @@ namespace CarrierGame
         {
             foreach (var i in all)
             {
-                if (i == null || (i.health != null && i.health.Dead)) continue;
+                if (i == null || (i.health != null && i.health.Dead) || CombatPilot.IsHidden(i.transform)) continue;
                 if ((i.transform.position - point).sqrMagnitude <= i.radius * i.radius) return i;
             }
             return null;

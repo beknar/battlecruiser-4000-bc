@@ -155,6 +155,10 @@ namespace CarrierGame
             return damage * pdScale;
         }
 
+        /// <summary>Its share of its damage on the players' missiles, set by the gun that fired it
+        /// (a point-defence mount's: PointDefence.ScaleFor).</summary>
+        public void SetMissileScale(float scale) => pdScale = scale;
+
         /// <summary>Co-op: a shot has been fired (announced to the other players' games).</summary>
         public static event System.Action<Projectile> Spawned;
 

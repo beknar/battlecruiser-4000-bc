@@ -29,6 +29,9 @@ namespace CarrierGame
         public string Why { get; private set; } = "";
         public readonly List<Phase> History = new List<Phase>();
         bool retreating;
+        readonly Dictionary<CombatPilot, float> retreatAt = new Dictionary<CombatPilot, float>();
+        [Tooltip("The line falls back fighting this long, then breaks off for home.")]
+        public float fightingRetreat = 20f;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void HostOnly() => Demo.CoopWorld.HostOnlyBehaviour(typeof(EmpireFleet));
@@ -44,8 +47,17 @@ namespace CarrierGame
         {
             if (group == null || ships.Length == 0) return;
             float share = (float)Alive() / ships.Length;
-            // its ships back: it can fight again
-            if (retreating && share >= 0.999f) { SetRetreat(false); group.holdOff = false; }
+            // its ships back, every one in hiding at home: it can fight again
+            if (retreating && share >= 0.999f && AllHome()) { SetRetreat(false); group.holdOff = false; }
+            // the line's fighting retreat over: home, into hiding
+            if (retreating && retreatAt.Count > 0)
+                foreach (var kv in new List<KeyValuePair<CombatPilot, float>>(retreatAt))
+                    if (kv.Key == null || Time.time - kv.Value >= fightingRetreat)
+                    {
+                        if (kv.Key != null && kv.Key.Current == CombatPilot.State.Engage) { kv.Key.target = null; kv.Key.Disengage(); }
+                        retreatAt.Remove(kv.Key);
+                    }
+            if (!retreating) retreatAt.Clear();
             Phase next = Decide(share, out string why);
             if (next != Current)
             {
@@ -75,6 +87,17 @@ namespace CarrierGame
             return Phase.Patrol;
         }
 
+        /// <summary>Every living ship of the band back in hiding at its place.</summary>
+        bool AllHome()
+        {
+            foreach (var s in ships)
+            {
+                if (s == null || !s.Alive || !s.TryGetComponent(out CombatPilot p)) continue;
+                if (p.Current != CombatPilot.State.Lurk || !p.AtHome) return false;
+            }
+            return true;
+        }
+
         void StartRetreat()
         {
             group.holdOff = true;
@@ -90,8 +113,14 @@ namespace CarrierGame
                 if (s == null || !s.Alive) continue;
                 if (s.TryGetComponent(out AssaultTactics a)) a.retreating = on;
                 if (s.TryGetComponent(out PatrolTactics p)) p.retreating = on;
-                // the Raiders and the Recon don't hold a line: they break off at once
-                if (on && (s.role == EmpireShip.Role.Raider || s.role == EmpireShip.Role.Recon) && s.TryGetComponent(out CombatPilot pl)) pl.Disengage();
+                // all of them home (CombatPilot flies them back to their places and into hiding);
+                // the Raiders and the Recon don't hold a line: they break off at once, the line
+                // falls back facing the target, the guns on it as it goes (AssaultTactics)
+                if (on && s.TryGetComponent(out CombatPilot pl))
+                {
+                    if (s.role == EmpireShip.Role.Raider || s.role == EmpireShip.Role.Recon) pl.Disengage();
+                    else retreatAt[pl] = Time.time;
+                }
             }
         }
     }

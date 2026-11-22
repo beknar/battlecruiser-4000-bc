@@ -15,6 +15,24 @@ namespace CarrierGame.Demo
         public CarrierDemoInput demo;
         bool wasPainted;
 
+        /// <summary>The HUD's EMP lines for a ship: a burst charging in reach, and its components
+        /// an EMP has out ("" none).</summary>
+        public static string EmpText(CarrierController ship)
+        {
+            if (ship == null) return "";
+            var sb = new System.Text.StringBuilder(EmpBurst.HudText(ship.transform));
+            var sys = ship.GetComponent<ShipSystems>();
+            if (sys != null)
+                foreach (var c in ShipSystems.Components)
+                {
+                    float left = sys.KnockedFor(c);
+                    if (left <= 0f) continue;
+                    if (sb.Length > 0) sb.Append('\n');
+                    sb.Append($"EMP: {ShipSystems.Label(c)} back in {left:0} s");
+                }
+            return sb.ToString();
+        }
+
         TargetDisplay display;
         static Rect helpRect;
         bool showHelp = true;
@@ -346,6 +364,19 @@ namespace CarrierGame.Demo
                 var jrect = new Rect((Screen.width - jsz.x) * 0.5f - pad2 * 2f, Screen.height * 0.045f, jsz.x + pad2 * 4f, jsz.y + pad2);
                 Hud.Panel(jrect);
                 GUI.Label(jrect, jct, jst);
+            }
+
+            // an EMP: a burst charging with this ship in reach (time to get out), and what an EMP
+            // has knocked out, with the seconds till it is back
+            string emp = carrier.Destroyed ? "" : EmpText(carrier);
+            if (emp.Length > 0)
+            {
+                var est = Hud.Text(17, true, TextAnchor.MiddleCenter);
+                var ect = new GUIContent($"<color=#80c0ff>{emp}</color>");
+                Vector2 esz = est.CalcSize(ect);
+                var erect = new Rect((Screen.width - esz.x) * 0.5f - pad2 * 2f, Screen.height * 0.115f, esz.x + pad2 * 4f, esz.y + pad2);
+                Hud.Panel(erect);
+                GUI.Label(erect, ect, est);
             }
 
             // painted by a targeting laser: who, and from where (a tone as it starts)

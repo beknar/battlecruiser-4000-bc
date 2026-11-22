@@ -39,6 +39,10 @@ namespace CarrierGame
         public const float DownBelow = 0.25f, BackAbove = 0.5f;
         public const float AimedShare = 0.7f, StrayShare = 0.25f, IonThroughShield = 0.4f;
         public const float EngineSpeed = 0.15f, EngineAcceleration = 0.3f;
+        /// <summary>An EMP (HitKind.Emp): the share of what a shield stops that still reaches the
+        /// components; how long (s) a component is out for a pulse as strong as its toughness, the
+        /// least and the most; the share of that ECCM 1 takes off.</summary>
+        public const float EmpThroughShield = 0.3f, EmpSecondsPerToughness = 30f, EmpLeast = 2f, EmpMost = 15f, EmpEccmCut = 0.6f;
 
         /// <summary>The components (every ShipSystem but Hull), in order.</summary>
         public static readonly ShipSystem[] Components = MakeComponents();
@@ -53,6 +57,10 @@ namespace CarrierGame
 
         readonly float[] condition = Whole();
         readonly bool[] down = new bool[Slots];
+        // an EMP's knock-out: out till then, whatever its condition (and back then, unless it is
+        // worn out too); kept apart from down, which the repair tick sets from the condition
+        readonly float[] knockedUntil = new float[Slots];
+        readonly bool[] knocked = new bool[Slots];
         Health health;
         CarrierController ship;
         float netUntil = -1f;
@@ -70,9 +78,15 @@ namespace CarrierGame
         public int KnockedOut { get; private set; }
 
         public float Condition(ShipSystem s) => s == ShipSystem.Hull ? 1f : condition[(int)s];
-        public bool IsDown(ShipSystem s) => s != ShipSystem.Hull && down[(int)s];
-        public bool WeaponsDown => down[(int)ShipSystem.Weapons];
-        public bool EnginesDown => down[(int)ShipSystem.Engines];
+        public bool IsDown(ShipSystem s) => s != ShipSystem.Hull && Off((int)s);
+        public bool WeaponsDown => Off((int)ShipSystem.Weapons);
+        public bool EnginesDown => Off((int)ShipSystem.Engines);
+
+        /// <summary>Out: worn out (its condition), or knocked out by an EMP for now.</summary>
+        bool Off(int i) => down[i] || knocked[i];
+
+        /// <summary>Knocked out by an EMP: for how much longer (s; 0: not).</summary>
+        public float KnockedFor(ShipSystem s) => s == ShipSystem.Hull || !knocked[(int)s] ? 0f : Mathf.Max(0f, knockedUntil[(int)s] - Time.time);
         /// <summary>Its top speed and acceleration, as shares of what they would be (the engines).</summary>
         public float SpeedScale => EnginesDown ? EngineSpeed : 1f;
         public float AccelerationScale => EnginesDown ? EngineAcceleration : 1f;
@@ -103,9 +117,39 @@ namespace CarrierGame
             LastHitTime = Time.time;
             float k = DamageTable.Component(kind);
             var aim = AimOf(source != null ? source.root : null);
+            if (kind == HitKind.Emp) { Pulse(through + stopped * EmpThroughShield, aim); return; }
             if (through > 0f) Take(through * k, aim, false);
             if (kind == HitKind.Ion && stopped > 0f) Take(stopped * k * IonThroughShield, aim, true);
         }
+
+        /// <summary>An EMP's pulse of `strength` (hull points): the component aimed at, or one at
+        /// random, knocked out for a time (as strong as the component's toughness: 30 s, between 2
+        /// and 15), less with the ship's ECCM.</summary>
+        void Pulse(float strength, ShipSystem aim)
+        {
+            if (strength <= 0f || (health != null && health.Dead)) return;
+            float full = Mathf.Max(1f, toughness * (health != null ? health.maxHealth : 1000f));
+            float seconds = Mathf.Clamp(strength / full * EmpSecondsPerToughness, EmpLeast, EmpMost) * (1f - EmpEccmCut * FrigateClass.EccmOf(this));
+            Knock(aim != ShipSystem.Hull ? aim : Components[Random.Range(0, Components.Length)], seconds);
+        }
+
+        /// <summary>Knock a component out for `seconds` (an EMP), longer if it is already.</summary>
+        public void Knock(ShipSystem s, float seconds)
+        {
+            if (s == ShipSystem.Hull || seconds <= 0f || (health != null && health.Dead)) return;
+            int i = (int)s;
+            bool was = Off(i);
+            knockedUntil[i] = Mathf.Max(knockedUntil[i], Time.time + seconds);
+            knocked[i] = true;
+            Knocks++;
+            if (was) return;
+            KnockedOut++;
+            Apply(s, false);
+            if (transform == PlayerShips.Primary) Notices.Post($"EMP! Our {Label(s)} {Are(s)} knocked out for {seconds:0} s");
+        }
+
+        /// <summary>EMP knock-outs taken here (the tests).</summary>
+        public int Knocks { get; private set; }
 
         /// <summary>Component damage from a hit, to the one aimed at or one at random (through a
         /// shield, only the engines or the shield generator).</summary>
@@ -142,19 +186,39 @@ namespace CarrierGame
             else if (was && condition[i] > BackAbove) down[i] = false;
             if (down[i] == was) return;
             if (down[i] && tell) KnockedOut++;
+            // (knocked out by an EMP as well: it stays out, nothing to tell)
+            if (knocked[i]) return;
             Apply(s, tell);
         }
 
         /// <summary>Every component whole and working (a repair, a respawn).</summary>
         public void RepairAll()
         {
-            foreach (var s in Components) Set(s, 1f, false);
+            foreach (var s in Components)
+            {
+                int i = (int)s;
+                bool wasKnocked = knocked[i];
+                knocked[i] = false;
+                knockedUntil[i] = 0f;
+                Set(s, 1f, false);
+                if (wasKnocked && !down[i]) Apply(s, false);
+            }
         }
 
         void Update()
         {
-            // (co-op's copy of another game's ship: that game repairs it)
+            // (co-op's copy of another game's ship: that game repairs it, and its knocks are its)
             if (Time.time < netUntil || (health != null && health.Dead)) return;
+            // an EMP's knock-out over: back, unless worn out too
+            foreach (var s in Components)
+            {
+                int i = (int)s;
+                if (!knocked[i] || Time.time < knockedUntil[i]) continue;
+                knocked[i] = false;
+                if (down[i]) continue;
+                Apply(s, false);
+                if (transform == PlayerShips.Primary) Notices.Post($"Our {Label(s)} {Are(s)} back from the EMP");
+            }
             float lastHit = Mathf.Max(LastHitTime, health != null ? health.LastHitTime : -100f);
             if (Time.time - lastHit < quietTime) return;
             float step = repairRate * Time.deltaTime;
@@ -164,7 +228,7 @@ namespace CarrierGame
         /// <summary>What a component knocked out (or working again) does to the ship.</summary>
         void Apply(ShipSystem s, bool tell)
         {
-            bool off = down[(int)s];
+            bool off = Off((int)s);
             switch (s)
             {
                 case ShipSystem.Engines:
@@ -265,7 +329,7 @@ namespace CarrierGame
             {
                 int i = (int)Components[n];
                 int worn = Mathf.Clamp(Mathf.RoundToInt((1f - condition[i]) * 31f), 0, 31);
-                v |= (worn | (down[i] ? 32 : 0)) << (n * Bits);
+                v |= (worn | (Off(i) ? 32 : 0)) << (n * Bits);
             }
             return v;
         }

@@ -46,7 +46,8 @@ namespace CarrierGame.Tests
         [Test]
         public void EveryKindHasARowAndOldKindsAreAsTheyWere()
         {
-            Assert.That(DamageTable.Count, Is.EqualTo(9));
+            Assert.That(DamageTable.Count, Is.EqualTo(10), "the nine, and the EMP (appended: the old kinds keep their numbers)");
+            Assert.That((int)HitKind.Emp, Is.EqualTo(9));
             foreach (HitKind k in System.Enum.GetValues(typeof(HitKind)))
                 Assert.That(DamageTable.Label(k), Is.Not.Empty);
             foreach (var k in new[] { HitKind.Projectile, HitKind.Cannon, HitKind.Missile, HitKind.Beam })

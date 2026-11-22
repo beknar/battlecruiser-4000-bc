@@ -214,6 +214,34 @@ namespace CarrierGame.Demo
             yield return null;
             Check(Jamming.On(me) == 0f, "the jammer gone: no jamming");
 
+            // ---- an EMP burst (PR 7): it charges with the frigate in reach, the HUD warning; the
+            // pulse knocks one of the frigate's components out, for less with its ECCM; back after
+            Put(2000f);
+            var sysF = cc.GetComponent<ShipSystems>();
+            var burst = drone.AddComponent<EmpBurst>();
+            burst.radius = 2500f;
+            burst.chargeTime = 2f;
+            burst.strength = 400f;
+            burst.cooldown = 600f;
+            yield return null;
+            yield return null;
+            string empWarn = ShipHud.EmpText(cc);
+            Check(burst.Current == EmpBurst.State.Charging && empWarn.StartsWith("EMP charging"), $"an EMP burst charging with the frigate in reach: '{empWarn}'");
+            int knocks0 = sysF != null ? sysF.Knocks : 0;
+            float until2 = Time.time + 4f;
+            while (burst.Bursts == 0 && Time.time < until2) yield return null;
+            yield return null;
+            float outFor = 0f;
+            ShipSystem hitSys = ShipSystem.Hull;
+            if (sysF != null) foreach (var c in ShipSystems.Components) if (sysF.KnockedFor(c) > outFor) { outFor = sysF.KnockedFor(c); hitSys = c; }
+            string empNow = ShipHud.EmpText(cc);
+            Check(sysF != null && sysF.Knocks > knocks0 && outFor > 0f && sysF.IsDown(hitSys) && empNow.Contains("back in"),
+                  $"the pulse knocks the {ShipSystems.Label(hitSys)} out for {outFor:0.0} s (ECCM {FrigateClass.EccmOf(cc):0.0}); the HUD: '{empNow}'");
+            Shot("s5_emp");
+            Destroy(burst);
+            yield return new WaitForSeconds(outFor + 0.5f);
+            Check(sysF != null && !sysF.IsDown(hitSys), $"the {ShipSystems.Label(hitSys)} back after the EMP's time");
+
             cc.SetTarget(null);
             foreach (var c in ciws) c.enabled = true;
             Destroy(drone);

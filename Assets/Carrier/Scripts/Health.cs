@@ -6,7 +6,7 @@ namespace CarrierGame
     /// <summary>What kind of weapon a hit came from: shields react to each, and each does its
     /// own share to a shield, armour, the hull and a ship's components (DamageTable). The
     /// numbers go over the co-op wire, so a kind is only ever added at the end.</summary>
-    public enum HitKind { Projectile, Cannon, Missile, Beam, Ion, Penetrator, Nullifier, Artillery, Nuclear }
+    public enum HitKind { Projectile, Cannon, Missile, Beam, Ion, Penetrator, Nullifier, Artillery, Nuclear, Emp }
 
     /// <summary>
     /// Hit points. Spawns an explosion and fires onDestroyed when they run out. Also keeps the

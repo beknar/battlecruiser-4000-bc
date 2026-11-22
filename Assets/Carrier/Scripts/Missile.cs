@@ -73,6 +73,7 @@ namespace CarrierGame
             if (age > boostTime)
             {
                 speed = Mathf.Min(maxSpeed, speed + acceleration * dt);
+                Jammed(dt);
                 if (target != null)
                 {
                     Vector3 to = target.position - transform.position;
@@ -166,6 +167,28 @@ namespace CarrierGame
 
         /// <summary>Shot down: a burst where it is, nothing to its target. `by`: the ship whose
         /// shot it was (null: told by another player's game, CoopWorld.Boarding).</summary>
+        Transform lostTarget;
+
+        /// <summary>A lock lost to jamming (the tests).</summary>
+        public bool LockLost => lostTarget != null && target == null;
+
+        /// <summary>A players' missile in jamming (EcmEmitter): each second a chance (half the
+        /// jamming) to lose its lock and fly straight on; out of it, it takes the lock again.</summary>
+        void Jammed(float dt)
+        {
+            if (Hostile || !Jamming.Any) { if (lostTarget != null && target == null) target = lostTarget; lostTarget = null; return; }
+            float j = Jamming.At(transform.position) * (1f - Jamming.EccmCut * FrigateClass.EccmOf(owner));
+            JamStep(j, Random.value, dt);
+        }
+
+        /// <summary>One step of the jamming on it: `roll` (0 to 1) against the chance of losing its
+        /// lock this step (public for the tests, which roll their own dice).</summary>
+        public void JamStep(float j, float roll, float dt)
+        {
+            if (target != null && j > 0.05f && roll < j * 0.5f * dt) { lostTarget = target; target = null; }
+            else if (target == null && lostTarget != null && j <= 0.05f) { target = lostTarget; lostTarget = null; }
+        }
+
         public void ShootDown(Transform by)
         {
             if (gone) return;

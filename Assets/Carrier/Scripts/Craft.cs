@@ -50,11 +50,26 @@ namespace CarrierGame
             orbitDir = Random.value < 0.5f ? 1f : -1f;
         }
 
+        float stunnedUntil = -1f;
+
+        /// <summary>Stunned by a jammer's emitters close in (EcmEmitter): drifting, its guns cold.</summary>
+        public bool Stunned => Time.time < stunnedUntil;
+
+        /// <summary>Stun it for a while: it drifts on as it was going, and doesn't fire.</summary>
+        public void Stun(float seconds) => stunnedUntil = Mathf.Max(stunnedUntil, Time.time + seconds);
+
         void Update()
         {
             float dt = Time.deltaTime;
             age += dt;
             cooldown -= dt;
+            if (Stunned)
+            {
+                // drifting on, slowing, nothing firing
+                speed = Mathf.MoveTowards(speed, 0f, 40f * dt);
+                transform.position += transform.forward * speed * dt;
+                return;
+            }
             Vector3 pos = transform.position;
             Vector3 desired = transform.forward;
             float wantSpeed = cruiseSpeed;

@@ -37,6 +37,7 @@ namespace CarrierGame.Demo
         public string k;          // made during play: its key in CoopSpawnables ("": in the level; older games leave it out)
         public int ck;            // its cloak: 0 none (or an older game), 1 down, 2 up
         public int pt;            // the player its targeting laser paints: 1 + their id (0: none, or an older game)
+        public int ec;            // its jammer: 0 none (or an older game), 1 off, 2 on
     }
 
     /// <summary>Anything that arrives.</summary>

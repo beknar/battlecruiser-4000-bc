@@ -137,6 +137,12 @@ namespace CarrierGame
             return true;
         }
 
+        static bool IsPlayers(Transform owner)
+        {
+            foreach (var s in PlayerShips.All) if (s != null && s.root == owner.root) return true;
+            return false;
+        }
+
         /// <summary>Where to point: the target, or (with leadTarget) where it will be when a shot arrives.</summary>
         Vector3 AimPoint()
         {
@@ -299,10 +305,13 @@ namespace CarrierGame
             if (target != null && Vector3.Angle(AimForward(), AimPoint() - AimOrigin()) > fireCone * 2f) OffTargetShots++;
             if (checkHullClearance && HullInTheWay(AimOrigin(), AimForward() * range)) HullShots++;
             var owner = Hull;
+            // a player's ship jammed: its aim thrown off (up to 3 degrees at full jamming)
+            float jam = owner != null && Jamming.Any && IsPlayers(owner) ? Jamming.On(owner) : 0f;
             foreach (var m in muzzles)
             {
                 if (m == null) continue;
-                var p = Pool.Take(projectilePrefab, m.position, m.rotation);
+                var rot = jam > 0f ? Quaternion.Euler(Random.Range(-3f, 3f) * jam, Random.Range(-3f, 3f) * jam, 0f) * m.rotation : m.rotation;
+                var p = Pool.Take(projectilePrefab, m.position, rot);
                 p.owner = owner;
                 GunFx.Muzzle(projectilePrefab, m.position, m.rotation, m);
                 if (damageScale != 1f) p.damage *= damageScale;

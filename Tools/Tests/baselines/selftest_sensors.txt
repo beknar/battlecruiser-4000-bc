@@ -9,7 +9,7 @@
    2.1s  ok: 500 m: named
    2.1s  ok: 4 km out, it fires: seen and named at once (was hidden True)
    5.6s  ok: 3 s quiet: gone from the sensors again (seen False, named False, in range False, hidden True (ambush False), 4040 m, signature 0.05)
-   5.7s  ok: without a signature: seen and named at 4 km, as any ship
+   5.6s  ok: without a signature: seen and named at 4 km, as any ship
    5.7s  ok: cloaked, 6.6 km out: unseen (ECCM 0.7: seen inside 5.1 km)
    5.7s  ok: cloaked, 4.3 km out: inside what this frigate's ECCM sees
    5.7s  ok: it fires: the cloak drops, and it is seen
@@ -18,5 +18,10 @@
   11.0s  ok: the laser off: the warning goes
   11.0s  ok: inside an inhibitor's field: no warp (False warp inhibited by Hostile Drone)
   11.0s  ok: the field gone: the warp free (True )
-  11.0s  PASS: sensors (16 of 16)
-  11.0s  done
+  11.0s  ok: 2 km from a jammer (80 %): jammed 36 % after this frigate's ECCM; a contact 25 km off seen before, not now
+  11.0s  ok: ghost contacts on the jammed sensors: 3
+  11.0s  ok: looked at closely, the ghosts are seen through (3) and gone
+  11.1s  ok: this frigate's missile into the jammer's 1.5 km is scrambled (1)
+  11.1s  ok: the jammer gone: no jamming
+  11.1s  PASS: sensors (21 of 21)
+  11.1s  done

@@ -236,6 +236,7 @@ namespace CarrierGame
         public void OrderWing(Craft.Order order)
         {
             if (order == Craft.Order.Attack && target == null) return;
+            if (Jamming.OrderLost(transform)) return;
             foreach (var c in wing)
                 if (c != null && c.kind != Craft.Kind.Dropship) c.Command(order, target);
         }

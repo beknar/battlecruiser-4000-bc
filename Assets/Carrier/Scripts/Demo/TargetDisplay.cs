@@ -193,7 +193,8 @@ namespace CarrierGame.Demo
         /// <summary>Corner brackets around the target, or an arrow at the screen edge if it's off screen.</summary>
         void Brackets(Camera cam, float s)
         {
-            Vector3 c = shown.TransformPoint(localCenter);
+            // (where the sensors show it: a masked escort's false place till named)
+            Vector3 c = shown.TransformPoint(localCenter) + (Sensors.ShownAt(shown) - shown.position);
             Vector3 sp = cam.WorldToScreenPoint(c);
             float km = Vector3.Distance(carrier.transform.position, c) / 1000f;
             string label = $"{ShownName}   {km:F1} km";

@@ -50,13 +50,23 @@ namespace CarrierGame
             orbitDir = Random.value < 0.5f ? 1f : -1f;
         }
 
-        float stunnedUntil = -1f;
+        float stunnedUntil = -1f, immuneUntil = -1f;
 
         /// <summary>Stunned by a jammer's emitters close in (EcmEmitter): drifting, its guns cold.</summary>
         public bool Stunned => Time.time < stunnedUntil;
 
-        /// <summary>Stun it for a while: it drifts on as it was going, and doesn't fire.</summary>
-        public void Stun(float seconds) => stunnedUntil = Mathf.Max(stunnedUntil, Time.time + seconds);
+        /// <summary>Can a jammer stun it now: a drone, out flying (not launching or coming home),
+        /// and not just over a stun (it gets ten seconds to fly clear).</summary>
+        public bool Stunnable => kind == Kind.Drone && order != Order.Launch && order != Order.Return && !Stunned && Time.time >= immuneUntil;
+
+        /// <summary>Stun it for a while: it drifts on as it was going, and doesn't fire; then ten
+        /// seconds before it can be stunned again.</summary>
+        public void Stun(float seconds)
+        {
+            if (!Stunnable) return;
+            stunnedUntil = Time.time + seconds;
+            immuneUntil = stunnedUntil + 10f;
+        }
 
         void Update()
         {

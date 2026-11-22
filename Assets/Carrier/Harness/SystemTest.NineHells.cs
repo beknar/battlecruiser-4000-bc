@@ -232,6 +232,24 @@ namespace CarrierGame.Demo
                 landing.TakeOff();
                 yield return WaitLanding(landing, PlanetLanding.State.InSpace, 30f);
             }
+            // ---- the Greys: a cell at Goliath's ruins, with its fleet; its raids on Nineveh's
+            // research station take people from it; a watcher at Ptolomea
+            {
+                var cell = GameObject.Find("Greys cell")?.GetComponent<EncounterGroup>();
+                var fleetG = cell != null ? cell.GetComponent<GreysFleet>() : null;
+                var raid = cell != null ? cell.GetComponent<GreysRaid>() : null;
+                var watcher = GameObject.Find("Greys watcher")?.GetComponent<EncounterGroup>();
+                int cellShips = cell != null && cell.pilots != null ? cell.pilots.Count(pl => pl != null && pl.GetComponent<GreysShip>() != null) : 0;
+                Check(cellShips == 5 && fleetG != null && fleetG.ships.Length == 5 && raid != null && raid.place == "Nineveh Observatory" && watcher != null,
+                      $"the Greys: a cell of {cellShips} at Goliath with its fleet, raiding {raid?.place}; a watcher at Ptolomea {watcher != null}");
+                if (raid != null)
+                {
+                    float before = IndustryLedger.Pool(raid.place);
+                    int taken = raid.RaidNow();
+                    float after = IndustryLedger.Pool(raid.place);
+                    Check(taken > 0 && after < before, $"a Greys raid on {raid.place}: {taken} people taken ({before:0} -> {after:0}); '{Notices.Last}'");
+                }
+            }
             Log($"{(passed == checks ? "PASS" : "FAIL")}: the Nine Hells ({passed} of {checks})");
         }
     }

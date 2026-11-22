@@ -2283,7 +2283,9 @@ Each part can also be run alone:
   and drone bay, the Shroud's jammer and EMP, the Lance's salvo, the Reaper's tractor emitters);
   the Scout, cloaked, unseen from where the frigate warps in; sprung, the Scout painting the
   frigate, the Shroud jamming it and an EMP knocking a component out, the Lances going for it from
-  a flank, and with its engines out the Reaper locking its tractor on, the warp refused.
+  a flank, the Scout calling in the watcher from the Trojans (it drops out of warp by the frigate),
+  and with its engines out the Reaper locking its tractor on, the warp refused; the Reaper abducting
+  crew (the Greys' prisoners) and a sample, and the band vanishing, the Reaper towing the frigate off.
   Add `-modestest` (or `?modestest` on the web) to test the modes of play: a game starts in
   combat mode; 1 to 5 change mode, each with its keys in the controls box; a mode's keys work
   in it and not in another (V scans in mining mode, not in combat); services away from a site

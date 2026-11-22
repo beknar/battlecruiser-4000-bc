@@ -80,7 +80,8 @@ namespace CarrierGame.Demo
         /// <summary>The host's siege struck a city: the same strike on this game's world.</summary>
         void TakeStrike(CoopMsg m)
         {
-            if (string.IsNullOrEmpty(m.body) || m.radius <= 0f) return;
+            // (a raid with no blast, the Greys' taking people, has a share of them and no radius)
+            if (string.IsNullOrEmpty(m.body) || (m.radius <= 0f && m.pop <= 0f)) return;
             var o = new VraskBombardment.Order
             {
                 body = m.body, place = m.place, weapon = string.IsNullOrEmpty(m.weapon) ? "Vrask artillery" : m.weapon, u = m.u, v = m.v,
@@ -94,11 +95,13 @@ namespace CarrierGame.Demo
             if (body != null && me != null && PlanetLanding.Instance != null && !PlanetLanding.Busy)
             {
                 Vector3 ground = OrbitalStrikes.GroundPoint(body, o.u, o.v);
-                if (Vector3.Distance(me.transform.position, ground) < 2500000f)
+                if (o.radius > 0f && Vector3.Distance(me.transform.position, ground) < 2500000f)
                     StrikeFx.Flash(ground, o.radius * (o.weapon.Contains("nuclear") ? 14f : 6f), new Color(0.8f, 1f, 0.6f), null);
             }
             if (r.buildings > 0 || r.units > 0)
                 Notices.Post($"{(string.IsNullOrEmpty(o.place) ? o.body : o.place)} struck from orbit by the Vrask: {r.units} defences and {r.buildings} buildings destroyed, {r.casualties} killed");
+            else if (o.radius <= 0f && r.casualties > 0)
+                Notices.Post($"{o.place}: {r.casualties} people taken by {o.weapon}");
         }
     }
 }

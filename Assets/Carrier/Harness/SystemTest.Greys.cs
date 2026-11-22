@@ -157,6 +157,35 @@ namespace CarrierGame.Demo
                 bool noWarp = !drive.CanWarp(out string why);
                 Check(held && noWarp, $"the frigate disabled, the Reaper locks its tractor on ({rt?.Doing}); no warp ({why})");
                 Shot("g4_held");
+
+                // the abduction: crew taken alive a few at a time, the Greys' prisoners; then a
+                // sample, the prize; the band vanishes, the Reaper towing the frigate off
+                var ab = reaper.GetComponent<Abductor>();
+                var crewF = cc.GetComponent<Crew>();
+                var fleetG = group.GetComponent<GreysFleet>();
+                if (ab != null)
+                {
+                    ab.interval = 0.6f;
+                    int prisoners0 = WorldState.PrisonersOf(GreysShip.Faction);
+                    float aboard0 = crewF != null ? crewF.Current : 0f;
+                    until = Time.time + 30f;
+                    while (Time.time < until && !ab.Done) yield return null;
+                    int prisoners = WorldState.PrisonersOf(GreysShip.Faction) - prisoners0;
+                    Check(ab.Done && ab.CrewTaken > 0 && prisoners > 0 && crewF != null && crewF.Current < aboard0 && ab.Samples == 1,
+                          $"the Reaper abducts: {ab.CrewTaken} of the crew taken ({aboard0:0} -> {crewF?.Current:0} aboard), the Greys' prisoners now {prisoners}, a sample taken");
+                    Shot("g5_abducted");
+                    until = Time.time + 5f;
+                    while (Time.time < until && (fleetG == null || fleetG.Current != GreysFleet.Phase.Vanish)) yield return null;
+                    Vector3 held0 = cc.transform.position, reaper0 = reaper.transform.position;
+                    // (the beam pulls once the gap is past its hold distance: a while after the Reaper sets off)
+                    until = Time.time + 40f;
+                    while (Time.time < until && Vector3.Distance(cc.transform.position, held0) < 100f && TractorBeam.BeamsOn(cc.transform) > 0) yield return null;
+                    float towed = Vector3.Distance(cc.transform.position, held0);
+                    Log($"  towing: the Reaper moved {Vector3.Distance(reaper.transform.position, reaper0):F0} m, held {TractorBeam.BeamsOn(cc.transform)}, " +
+                        $"its pilot {reaper.GetComponent<CombatPilot>()?.Current}, the frigate's speed {cc.Velocity.magnitude:F1}, gap {Vector3.Distance(reaper.transform.position, cc.transform.position):F0} m");
+                    Check(fleetG != null && fleetG.Current == GreysFleet.Phase.Vanish && group.holdOff && rt != null && rt.towing && towed >= 100f,
+                          $"the prize taken, the band vanishes ({fleetG?.Why}; phases {string.Join(" > ", fleetG?.History ?? new List<GreysFleet.Phase>())}), the Reaper towing the frigate off ({towed:F0} m)");
+                }
             }
             if (hull != null) hull.cannotDie = false;
             Log(passed == checks ? $"PASS: the Greys ({passed} of {checks})" : $"FAIL: the Greys ({passed} of {checks} passed)");

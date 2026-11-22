@@ -98,6 +98,26 @@ namespace CarrierGame
             ApplyToWeapons();
         }
 
+        /// <summary>Crew taken alive (abducted: the Greys), not killed: up to `n`, never below the
+        /// survivors; they are prisoners of `faction` (WorldState). Returns how many were taken.</summary>
+        public int Take(int n, string faction)
+        {
+            if (complement <= 0 || n <= 0) return 0;
+            float before = Current;
+            float after = Mathf.Max(Floor, before - n);
+            int taken = Mathf.FloorToInt(before - after + 0.001f);
+            if (taken <= 0) return 0;
+            current = before - taken;
+            TotalTaken += taken;
+            WorldState.TakePrisoners(taken, faction);
+            Changed?.Invoke();
+            ApplyToWeapons();
+            return taken;
+        }
+
+        /// <summary>Crew taken alive from this ship so far (Take).</summary>
+        public int TotalTaken { get; private set; }
+
         /// <summary>Take on up to `n` crew: returns how many there was room for.</summary>
         public int Add(int n)
         {

@@ -49,6 +49,7 @@ namespace Carrier.EditorTools
                     var gs = (GreysShip)ship;
                     AddFactionGear(root, ship, greys, s);
                     if (s.tractorRange > 0f) AddTractorBeam(root, ship, greys, s.tractorRange);
+                    if (gs.role == GreysShip.Role.Reaper) AddAbductor(root, ship);
                     switch (gs.role)
                     {
                         case GreysShip.Role.Scout: root.AddComponent<ScoutTactics>(); break;
@@ -57,6 +58,30 @@ namespace Carrier.EditorTools
                         case GreysShip.Role.Reaper: root.AddComponent<ReaperTactics>(); break;
                     }
                 });
+
+        /// <summary>The Reaper's abduction beam, from its "abduct" point, drawn as a pale shaft.</summary>
+        static void AddAbductor(GameObject root, FactionShip ship)
+        {
+            var ab = root.AddComponent<Abductor>();
+            ab.point = ship.PointOf("abduct");
+            var lr = Node("AbductionShaft", ab.point != null ? ab.point : root.transform).AddComponent<LineRenderer>();
+            lr.useWorldSpace = true;
+            lr.positionCount = 2;
+            lr.widthMultiplier = 18f;
+            lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            lr.receiveShadows = false;
+            lr.sharedMaterial = Additive("FX_GreysAbduction", new Color(0.75f, 0.8f, 1.3f) * 1.2f);
+            lr.enabled = false;
+            ab.shaft = lr;
+        }
+
+        /// <summary>How a band of the Greys fights together (GreysFleet).</summary>
+        static void AddGreysFleet(EncounterGroup g, List<CombatPilot> pilots)
+        {
+            var f = g.gameObject.AddComponent<GreysFleet>();
+            f.group = g;
+            f.ships = pilots.Where(p => p != null).Select(p => p.GetComponent<GreysShip>()).Where(s => s != null).ToArray();
+        }
 
         /// <summary>The Greys' bands in the Testing System: the cell in the Outer Drift (the
         /// file's group) and a lone watcher at the Jovara Trojans.</summary>
@@ -78,7 +103,7 @@ namespace Carrier.EditorTools
             if (cellAt != null)
             {
                 FactionBand(greys, p.greys, sys, null, g.name, cellAt.transform.position, g.spotRange,
-                            g.slots.Select(sl => (sl.ship, sl.name, sl.angle, sl.distance, sl.height)), Make);
+                            g.slots.Select(sl => (sl.ship, sl.name, sl.angle, sl.distance, sl.height)), Make, AddGreysFleet);
                 Warn(cellAt, g.note, "Harder", g.name);
             }
             else Log($"greys: no place '{g.at}'");
@@ -86,7 +111,7 @@ namespace Carrier.EditorTools
             if (watchAt != null)
             {
                 FactionBand(greys, p.greys, sys, null, "Greys watcher", watchAt.transform.position, 12000f,
-                            new[] { ("Scout", "Trojans", 90f, 6000f, 600f) }, Make);
+                            new[] { ("Scout", "Trojans", 90f, 6000f, 600f) }, Make, AddGreysFleet);
                 Warn(watchAt, "", "Easy", "Greys watcher");
             }
         }

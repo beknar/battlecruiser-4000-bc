@@ -166,6 +166,10 @@ namespace CarrierGame.Demo
     [Serializable]
     class BoardMsg { public string t = CoopWire.Board; public int to, n; public string fa; }
 
+    /// <summary>An abduction from one player's ship (the host's Greys Reaper): crew, tonnes, a sample.</summary>
+    [Serializable]
+    class AbductMsg { public string t = CoopWire.Abduct; public int to, n, cp; public float a; public string fa; }
+
     /// <summary>A missile or pod shot down: whose it was (src), and where.</summary>
     [Serializable]
     class ShotDownMsg { public string t = CoopWire.ShotDown; public string src, rf = ""; public double x, y, z; }

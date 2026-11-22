@@ -89,14 +89,25 @@ namespace Carrier.EditorTools
                 return NhPirates(R, name, c, round.Position, 7000f, ships);
             }
             // a band of the Greys lying in wait by a place (CarrierBuilder.Greys)
-            void LyingGreys(string name, string tier, WarpPoint at, float frac, float turn, (string, string, float, float, float)[] slots, float spot)
+            void LyingGreys(string name, string tier, WarpPoint at, float frac, float turn, (string, string, float, float, float)[] slots, float spot, string raids = null, string raidBody = null)
             {
                 if (at == null) { Log($"nine hells: no place for {name}"); return; }
                 GameObject Make(GameObject prefab, string n, Vector3 pos, Vector3 face, Action<CombatPilot> setup, float respawn) =>
                     NhEnemy(R, prefab, n, pos, face, setup, 180f, respawn);
-                var g = FactionBand(greys, R.prefabs.greys, R.sys, R.sys, name, By(at, frac, turn), spot, slots, Make);
+                var g = FactionBand(greys, R.prefabs.greys, R.sys, R.sys, name, By(at, frac, turn), spot, slots, Make, AddGreysFleet);
                 if (g == null) return;
                 Warn(at, "", tier, name);
+                if (!string.IsNullOrEmpty(raids))
+                {
+                    // its raids on a place for people (GreysRaid), told of in the place's description
+                    var raid = g.gameObject.AddComponent<GreysRaid>();
+                    raid.place = raids;
+                    raid.body = raidBody;
+                    raid.group = g;
+                    var target = W(raids);
+                    if (target != null && (target.description == null || !target.description.Contains("the Greys")))
+                        target.description = (target.description + " The Greys raid it for people now and then: some of its staff have gone missing.").Trim();
+                }
                 made++;
             }
             EncounterGroup VraskPatrolOf(string name, WarpPoint round, float times, float phase, (string, string, float, float, float)[] slots)
@@ -154,7 +165,7 @@ namespace Carrier.EditorTools
             {
                 ("Reaper", "", 180f, 3000f, 200f), ("Shroud", "", 160f, 2200f, -150f), ("Lance", "A", 40f, 2400f, 250f),
                 ("Lance", "B", -40f, 2400f, -250f), ("Scout", "", 0f, 4500f, 400f),
-            }, 9000f);
+            }, 9000f, "Nineveh Observatory", "Nineveh");
             LyingGreys("Greys watcher", "Easy", W("Ptolomea"), 0.6f, 220f, new[] { ("Scout", "Ptolomea", 0f, 0f, 0f) }, 12000f);
             Log($"nine hells: {made} encounters");
         }

@@ -48,6 +48,7 @@ namespace CarrierGame
             base.Awake();
             cloak = GetComponent<Cloak>();
             laser = GetComponent<Designator>();
+            if (laser != null) laser.driven = true;
             bay = GetComponent<DroneBay>();
         }
 

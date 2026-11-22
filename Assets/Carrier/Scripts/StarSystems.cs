@@ -21,12 +21,12 @@ namespace CarrierGame
             new Info
             {
                 id = "testing", name = "Testing System", scene = "StarSystem",
-                about = "The Kestrel system: six worlds and their moons, three asteroid fields, two comets, the corsairs and the Vrask. Start over Thalassa.",
+                about = "The Kestrel system: six worlds and their moons, three asteroid fields, two comets, the corsairs, the Vrask, the Greys out in the drift and an Imperial task force at Brontes. Start over Thalassa.",
             },
             new Info
             {
                 id = "ninehells", name = "Nine Hells", scene = "NineHells",
-                about = "Nine worlds round a hard white star, pirates on Judecca and Gilgal, the Vrask out on Sheol. Start at Heaven, the shielded capital of K'rzyn.",
+                about = "Nine worlds round a hard white star, pirates on Judecca and Gilgal, the Vrask out on Sheol, the Greys in Goliath's ruins and the Empire at Emim. Start at Heaven, the shielded capital of K'rzyn.",
             },
         };
 

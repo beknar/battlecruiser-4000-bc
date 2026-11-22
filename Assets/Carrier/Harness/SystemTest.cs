@@ -86,6 +86,8 @@ namespace CarrierGame.Demo
             t.sensorOnly = LaunchArgs.Switch("sensortest");
             // -greystest (or ?greystest): only the Greys (their cell in the Outer Drift)
             t.greysOnly = LaunchArgs.Switch("greystest");
+            // -empiretest (or ?empiretest): only the Empire (their task force holding Brontes)
+            t.empireOnly = LaunchArgs.Switch("empiretest");
             // -ninehellstest (with -system ninehells): only the Nine Hells, the second star system
             t.nineHellsOnly = LaunchArgs.Switch("ninehellstest");
             // -cooptest (or ?cooptest), with -connect address:port (?server=...&connect): co-op with
@@ -192,6 +194,13 @@ namespace CarrierGame.Demo
             if (nineHellsOnly)
             {
                 yield return NineHellsTest(kb);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
+            if (empireOnly)
+            {
+                yield return EmpireTest(kb);
                 Log("done");
                 if (!web) Application.Quit();
                 yield break;

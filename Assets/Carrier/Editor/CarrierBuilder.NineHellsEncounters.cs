@@ -110,6 +110,13 @@ namespace Carrier.EditorTools
                 }
                 made++;
             }
+            // an Imperial band by a place, or on patrol round a world (CarrierBuilder.Empire)
+            EncounterGroup EmpireAt(string name, Vector3 centre, (string, string, float, float, float)[] slots, float spot)
+            {
+                GameObject Make(GameObject prefab, string n, Vector3 pos, Vector3 face, Action<CombatPilot> setup, float respawn) =>
+                    NhEnemy(R, prefab, n, pos, face, setup, 180f, respawn);
+                return FactionBand(empire, R.prefabs.empire, R.sys, R.sys, name, centre, spot, slots, Make, AddEmpireFleet);
+            }
             EncounterGroup VraskPatrolOf(string name, WarpPoint round, float times, float phase, (string, string, float, float, float)[] slots)
             {
                 if (round == null) return null;
@@ -167,6 +174,31 @@ namespace Carrier.EditorTools
                 ("Lance", "B", -40f, 2400f, -250f), ("Scout", "", 0f, 4500f, 400f),
             }, 9000f, "Nineveh Observatory", "Nineveh");
             LyingGreys("Greys watcher", "Easy", W("Ptolomea"), 0.6f, 220f, new[] { ("Scout", "Ptolomea", 0f, 0f, 0f) }, 12000f);
+
+            // ---- the Empire: a forward base's picket holding Emim (Rephaim's moon), and a battle group
+            // on patrol round Rephaim, out towards Paradise
+            var emim = W("Emim");
+            if (emim != null && EmpireAt("Imperial forward base", By(emim, 0.5f, 30f), new[]
+                {
+                    ("Assault", "Emim", 0f, 0f, 0f), ("Assault", "Emim Two", 30f, 2500f, 200f), ("Patrol", "Emim", -30f, 2200f, -150f),
+                    ("Patrol", "Emim Two", 60f, 2600f, 150f), ("Raider", "Emim", -70f, 4000f, 300f), ("Recon", "Emim", 0f, 9000f, 500f),
+                }, 14000f) != null)
+            {
+                WarnEmpire(emim, "An Imperial forward base holds Emim, its picket in a disciplined line.", "Boss", "Imperial forward base");
+                made++;
+            }
+            var rephaim = W("Rephaim");
+            if (rephaim != null)
+            {
+                Vector3 axis0 = Vector3.Cross(Vector3.up, Vector3.right).normalized;
+                Vector3 c = rephaim.Position + Quaternion.AngleAxis(120f, Vector3.up) * axis0 * rephaim.arrivalDistance * 1.7f;
+                Wander(EmpireAt("Imperial battle group", c, new[]
+                       {
+                           ("Assault", "Battle", 0f, 0f, 0f), ("Patrol", "Battle", 40f, 2000f, 150f), ("Patrol", "Battle Two", -40f, 2000f, -150f),
+                           ("Raider", "Battle", 90f, 3500f, 200f), ("Raider", "Battle Two", -90f, 3500f, -200f), ("Recon", "Battle", 0f, 8500f, 500f),
+                       }, 12000f),
+                       "Imperial battle group", "Harder", rephaim, 1.7f, 5f, 120f, "An Imperial battle group on patrol round Rephaim and out towards Paradise: an Assault frigate in a line with its escorts, Raiders and a Recon frigate.");
+            }
             Log($"nine hells: {made} encounters");
         }
     }

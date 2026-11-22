@@ -162,6 +162,7 @@ namespace Carrier.EditorTools
             foreach (var path in SettlementModelPaths()) yield return path;
             foreach (var path in VraskModelPaths()) yield return path;
             foreach (var path in GreysModelPaths()) yield return path;
+            foreach (var path in EmpireModelPaths()) yield return path;
         }
 
         static void ConfigureModels()
@@ -591,6 +592,8 @@ namespace Carrier.EditorTools
             public readonly Dictionary<string, GameObject> vrask = new Dictionary<string, GameObject>();
             /// <summary>The Greys' ships by id: Scout, Shroud, Lance, Reaper (CarrierBuilder.Greys).</summary>
             public readonly Dictionary<string, GameObject> greys = new Dictionary<string, GameObject>();
+            /// <summary>The Empire's ships by id: Assault, Patrol, Raider, Recon (CarrierBuilder.Empire).</summary>
+            public readonly Dictionary<string, GameObject> empire = new Dictionary<string, GameObject>();
         }
 
         static Projectile MakeBolt(string name, string mat, Vector3 size, float speed, float damage, Explosion hit)
@@ -718,6 +721,7 @@ namespace Carrier.EditorTools
             MakeCapitalShips(p);
             MakeVrask(p);          // the Vrask, the alien faction (Data/vrask.json)
             MakeGreys(p);          // the Greys, the mystery faction (Data/greys.json)
+            MakeEmpire(p);         // the Empire, the military power (Data/empire.json)
             AssetDatabase.SaveAssets();
             MakeCoopSpawnables(p);
             return p;

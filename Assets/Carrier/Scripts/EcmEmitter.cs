@@ -18,7 +18,9 @@ namespace CarrierGame
     /// stun their drones and fighters.
     ///
     /// Kept on in a co-op guest's game, its on/off as the host says (CoopEntity.ec), so each game
-    /// works out the jamming on its own player and makes the same ghosts (from the ship's name).
+    /// works out the jamming on its own player and makes the same ghosts (from the ship's place in
+    /// the level, on the orbits' clock, which is the room's). Each game scrambles only its own
+    /// player's missiles and craft.
     /// </summary>
     public class EcmEmitter : MonoBehaviour
     {
@@ -51,11 +53,21 @@ namespace CarrierGame
         /// <summary>Jamming now: on, and its ship alive.</summary>
         public bool On => active && isActiveAndEnabled && (health == null || !health.Dead);
 
-        void Awake()
+        void Awake() => health = GetComponent<Health>();
+
+        bool seeded;
+        /// <summary>Its ghosts' and masks' seed: the same on every machine, and another jammer's
+        /// not (from its place in the level), worked out once.</summary>
+        int Seed
         {
-            health = GetComponent<Health>();
-            // (the same on every machine: from the ship's name, not its instance)
-            seed = Stable(name);
+            get
+            {
+                if (seeded) return seed;
+                seeded = true;
+                var parts = new System.Text.StringBuilder();
+                for (var x = transform; x != null; x = x.parent) parts.Insert(0, "/" + x.name + "#" + x.GetSiblingIndex());
+                return seed = Stable(parts.ToString());
+            }
         }
 
         void OnEnable() { if (!All.Contains(this)) All.Add(this); }
@@ -70,10 +82,12 @@ namespace CarrierGame
             float pd2 = pdRadius * pdRadius;
             Vector3 at = transform.position;
             // the players' missiles close in: scrambled (they go off short)
+            // (only this game's own: another player's shown missile is that game's to scramble,
+            // and to say so)
             for (int i = Missile.Active.Count - 1; i >= 0; i--)
             {
                 var m = Missile.Active[i];
-                if (m == null || m.Hostile || (m.transform.position - at).sqrMagnitude > pd2) continue;
+                if (m == null || m.Hostile || m.Spent || Jamming.Remote(m.owner) || (m.transform.position - at).sqrMagnitude > pd2) continue;
                 m.ShootDown(transform);
                 Scrambled++;
             }
@@ -82,9 +96,10 @@ namespace CarrierGame
             {
                 var cc = s != null ? s.GetComponent<CarrierController>() : null;
                 if (cc == null) continue;
+                if (Jamming.Remote(s)) continue;
                 foreach (var c in cc.Wing)
                 {
-                    if (c == null || !c.isActiveAndEnabled || c.Stunned || (c.transform.position - at).sqrMagnitude > pd2) continue;
+                    if (c == null || !c.isActiveAndEnabled || !c.Stunnable || (c.transform.position - at).sqrMagnitude > pd2) continue;
                     c.Stun(stunTime);
                     Stunned++;
                 }
@@ -104,21 +119,23 @@ namespace CarrierGame
         public void GhostPlaces(List<(int id, Vector3 at)> into)
         {
             if (!On) return;
-            var rng = new System.Random(seed);
+            var rng = new System.Random(Seed);
             for (int i = 0; i < ghosts; i++)
             {
                 float r = Mathf.Lerp(ghostRange.x, ghostRange.y, (float)rng.NextDouble());
                 float a0 = (float)rng.NextDouble() * 360f, h = ((float)rng.NextDouble() - 0.5f) * 1200f;
                 float speed = 2f + (float)rng.NextDouble() * 3f;      // degrees a second
-                float a = (a0 + Time.time * speed * (i % 2 == 0 ? 1f : -1f)) * Mathf.Deg2Rad;
-                into.Add((seed * 31 + i, transform.position + new Vector3(Mathf.Cos(a) * r, h, Mathf.Sin(a) * r)));
+                // (on the orbits' clock: in co-op the room's, so every game has them in the same place)
+                float clock = OrbitalSystem.Instance != null ? (float)(OrbitalSystem.Instance.Time % 36000.0) : Time.time;
+                float a = (a0 + clock * speed * (i % 2 == 0 ? 1f : -1f)) * Mathf.Deg2Rad;
+                into.Add((Seed * 31 + i, transform.position + new Vector3(Mathf.Cos(a) * r, h, Mathf.Sin(a) * r)));
             }
         }
 
         /// <summary>Where an escort of its (within its field) is shown till identified: a false place near the true one.</summary>
         public Vector3 Masked(Transform t)
         {
-            int h = Stable(t.name) ^ seed;
+            int h = Stable(t.name) ^ Seed;
             var rng = new System.Random(h);
             var dir = new Vector3((float)rng.NextDouble() - 0.5f, ((float)rng.NextDouble() - 0.5f) * 0.4f, (float)rng.NextDouble() - 0.5f);
             return t.position + (dir.sqrMagnitude > 1e-4f ? dir.normalized : Vector3.right) * maskOffset;
@@ -144,6 +161,10 @@ namespace CarrierGame
         /// <summary>A share of the jamming that ECCM 1 cancels.</summary>
         public const float EccmCut = 0.7f;
         public const float Most = 0.9f;
+
+        /// <summary>Another player's ship (or a missile or craft of theirs) shown in co-op: its
+        /// own game does the jamming on it.</summary>
+        public static bool Remote(Transform t) => t != null && t.GetComponentInParent<Demo.RemotePlayer>() != null;
 
         /// <summary>Any jammer on (a quick test before the work).</summary>
         public static bool Any
@@ -207,7 +228,12 @@ namespace CarrierGame
             var rng = new System.Random(seed);
             var chars = text.ToCharArray();
             for (int i = 0; i < chars.Length; i++)
-                if (char.IsLetterOrDigit(chars[i]) && rng.NextDouble() < j * 0.6) chars[i] = rng.NextDouble() < 0.5 ? '#' : '~';
+            {
+                // (both drawn for every character, so a little more jamming loses more letters
+                // without the rest changing: the line doesn't flicker as the ship moves)
+                double lose = rng.NextDouble(), which = rng.NextDouble();
+                if (char.IsLetterOrDigit(chars[i]) && lose < j * 0.6) chars[i] = which < 0.5 ? '#' : '~';
+            }
             return new string(chars);
         }
     }

@@ -28,6 +28,8 @@ namespace Carrier.EditorTools
         class FrigateSpec
         {
             public string id, displayName, role, description, prefab, model, texture, hardpoints, shipName, shipClass;
+            /// <summary>Electronic counter-countermeasures, 0 to 1 (FrigateClass.eccm).</summary>
+            public float eccm;
             /// <summary>A tangent-space normal map for the hull (in Models/, beside the texture), or
             /// left out for none: the Dominion's, of its baked panel lines.</summary>
             public string normalMap;

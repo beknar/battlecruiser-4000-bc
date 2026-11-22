@@ -912,7 +912,9 @@ namespace Carrier.EditorTools
             }
 
             AddFrigateSystems(root, cc, hull, p);
-            root.AddComponent<FrigateClass>().id = fs.id;
+            var fcls = root.AddComponent<FrigateClass>();
+            fcls.id = fs.id;
+            fcls.eccm = fs.eccm;
 
             var saved = SavePrefab(root, fs.prefab);
             Log($"{fs.displayName} prefab saved: " + FrigateSummary(saved));

@@ -167,7 +167,7 @@ namespace CarrierGame
             if (t == null || CombatPilot.IsHidden(t)) return false;
             var s = Of(t);
             if (s != null && observer == null) observer = PlayerShips.Primary;
-            float range = s == null ? PlayerRange : RangeFrom(observer) * s.Current;
+            float range = s == null ? PlayerRange : RangeFrom(observer) * Against(s, observer);
             return (t.position - from).sqrMagnitude <= range * range;
         }
 
@@ -182,13 +182,12 @@ namespace CarrierGame
             c = new Seen { at = now };
             if (!CombatPilot.IsHidden(t))
             {
-                float sig = s.Current;
                 foreach (var p in PlayerShips.All)
                 {
                     // (a ship that has warped off, landed, or is destroyed and waiting sees nothing)
                     if (p == null || !p.gameObject.activeInHierarchy || !PlayerShips.Present(p)) continue;
                     if (p.TryGetComponent(out Health ph) && ph.Dead) continue;
-                    float range = RangeFrom(p) * sig;
+                    float range = RangeFrom(p) * Against(s, p);
                     float d2 = (t.position - p.position).sqrMagnitude;
                     if (d2 > range * range) continue;
                     c.detected = true;
@@ -201,6 +200,15 @@ namespace CarrierGame
             if (cache.Count > 512) Prune();
             cache[t] = c;
             return c;
+        }
+
+        /// <summary>The signature a contact shows an observer: its own, and if it is hidden (a
+        /// cloak) and quiet, up to twice that against a ship with good ECCM.</summary>
+        static float Against(Signature s, Transform observer)
+        {
+            float sig = s.Current;
+            if (s.hiddenScale < 1f && !s.Lit && observer != null) sig *= 1f + FrigateClass.EccmOf(observer);
+            return sig;
         }
 
         /// <summary>Can an enemy `observer` see the player's ship `target`: within its sensor

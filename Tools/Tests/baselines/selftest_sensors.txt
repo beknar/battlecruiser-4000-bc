@@ -9,6 +9,14 @@
    2.1s  ok: 500 m: named
    2.1s  ok: 4 km out, it fires: seen and named at once (was hidden True)
    5.6s  ok: 3 s quiet: gone from the sensors again (seen False, named False, in range False, hidden True (ambush False), 4040 m, signature 0.05)
-   5.6s  ok: without a signature: seen and named at 4 km, as any ship
-   5.6s  PASS: sensors (8 of 8)
-   5.6s  done
+   5.7s  ok: without a signature: seen and named at 4 km, as any ship
+   5.7s  ok: cloaked, 6.6 km out: unseen (ECCM 0.7: seen inside 5.1 km)
+   5.7s  ok: cloaked, 4.3 km out: inside what this frigate's ECCM sees
+   5.7s  ok: it fires: the cloak drops, and it is seen
+   9.2s  ok: quiet again: the cloak back, unseen
+   9.2s  ok: painted by a targeting laser: the HUD says 'Targeting laser: Hostile Drone / bearing 270, 8 km'
+  11.0s  ok: the laser off: the warning goes
+  11.0s  ok: inside an inhibitor's field: no warp (False warp inhibited by Hostile Drone)
+  11.0s  ok: the field gone: the warp free (True )
+  11.0s  PASS: sensors (16 of 16)
+  11.0s  done

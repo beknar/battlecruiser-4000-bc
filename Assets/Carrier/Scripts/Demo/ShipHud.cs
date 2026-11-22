@@ -13,6 +13,7 @@ namespace CarrierGame.Demo
     public partial class ShipHud : MonoBehaviour
     {
         public CarrierDemoInput demo;
+        bool wasPainted;
 
         TargetDisplay display;
         static Rect helpRect;
@@ -333,6 +334,21 @@ namespace CarrierGame.Demo
                 var wr = new Rect((Screen.width - wsz.x) * 0.5f - pad2 * 2f, Screen.height * 0.16f, wsz.x + pad2 * 4f, wsz.y + pad2 * 2f);
                 Hud.Panel(wr);
                 GUI.Label(wr, wc, ws);
+            }
+
+            // painted by a targeting laser: who, and from where (a tone as it starts)
+            string painted = carrier.Destroyed ? "" : Designation.HudText(carrier.transform);
+            if (painted.Length > 0 && !wasPainted) SoundFX.Ui(Sfx.UiAlert);
+            wasPainted = painted.Length > 0;
+            if (painted.Length > 0)
+            {
+                int cut = painted.IndexOf('\n');
+                var pst = Hud.Text(18, true, TextAnchor.MiddleCenter);
+                var pct = new GUIContent($"<color=#ffb040>{painted.Substring(0, cut)}</color>\n<size={Mathf.RoundToInt(14 * s)}>{painted.Substring(cut + 1)}</size>");
+                Vector2 psz = pst.CalcSize(pct);
+                var prect = new Rect((Screen.width - psz.x) * 0.5f - pad2 * 2f, Screen.height * 0.08f, psz.x + pad2 * 4f, psz.y + pad2 * 2f);
+                Hud.Panel(prect);
+                GUI.Label(prect, pct, pst);
             }
 
             // boarders aboard: how many, and the crew fighting them (below the tractor warning)

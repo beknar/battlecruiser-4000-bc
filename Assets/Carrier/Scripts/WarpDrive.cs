@@ -178,7 +178,11 @@ namespace CarrierGame
             if (ship != null && ship.Destroyed) { why = "the frigate is destroyed"; return false; }
             if (Current != State.Ready) { why = "already in warp"; return false; }
             if (!string.IsNullOrEmpty(lockedBecause)) { why = lockedBecause; return false; }
-            return !InCombat(out why);
+            if (InCombat(out why)) return false;
+            // (a warp inhibitor's field stops the warp alone: docking, landing and cruise go on)
+            var inhibitor = Interdictor.At(transform.position);
+            if (inhibitor != null) { why = $"warp inhibited by {inhibitor.Name}"; return false; }
+            return true;
         }
 
         /// <summary>Start a jump to a destination. Returns false (and says why) if it can't go.</summary>

@@ -88,6 +88,17 @@ namespace Carrier.EditorTools
                 Vector3 c = round.Position + Quaternion.AngleAxis(phase, n) * axis0 * round.arrivalDistance * times;
                 return NhPirates(R, name, c, round.Position, 7000f, ships);
             }
+            // a band of the Greys lying in wait by a place (CarrierBuilder.Greys)
+            void LyingGreys(string name, string tier, WarpPoint at, float frac, float turn, (string, string, float, float, float)[] slots, float spot)
+            {
+                if (at == null) { Log($"nine hells: no place for {name}"); return; }
+                GameObject Make(GameObject prefab, string n, Vector3 pos, Vector3 face, Action<CombatPilot> setup, float respawn) =>
+                    NhEnemy(R, prefab, n, pos, face, setup, 180f, respawn);
+                var g = FactionBand(greys, R.prefabs.greys, R.sys, R.sys, name, By(at, frac, turn), spot, slots, Make);
+                if (g == null) return;
+                Warn(at, "", tier, name);
+                made++;
+            }
             EncounterGroup VraskPatrolOf(string name, WarpPoint round, float times, float phase, (string, string, float, float, float)[] slots)
             {
                 if (round == null) return null;
@@ -138,6 +149,13 @@ namespace Carrier.EditorTools
                        ("Fang", "War Two", -90f, 1800f, 200f), ("Skink", "War", 20f, 1100f, 100f), ("Skink", "War Two", -20f, 1100f, -100f), ("Skink", "War Three", 200f, 1300f, 0f),
                    }),
                    "Vrask war fleet", "Boss", W("Paradise"), 1.9f, 4.5f, 0f, "Eight Vrask ships of all four kinds on the prowl round Paradise, the nearest the Vrask come to Heaven.");
+            // ---- the Greys: a cell picking over the dead race's ruins on Goliath, a watcher at Ptolomea
+            LyingGreys("Greys cell", "Harder", W("Goliath"), 0.5f, 140f, new[]
+            {
+                ("Reaper", "", 180f, 3000f, 200f), ("Shroud", "", 160f, 2200f, -150f), ("Lance", "A", 40f, 2400f, 250f),
+                ("Lance", "B", -40f, 2400f, -250f), ("Scout", "", 0f, 4500f, 400f),
+            }, 9000f);
+            LyingGreys("Greys watcher", "Easy", W("Ptolomea"), 0.6f, 220f, new[] { ("Scout", "Ptolomea", 0f, 0f, 0f) }, 12000f);
             Log($"nine hells: {made} encounters");
         }
     }

@@ -520,6 +520,8 @@ namespace Carrier.EditorTools
 
             // the Vrask raiders, lying in wait round the comet far out (Data/vrask.json)
             VraskRaiders(p, sys, Enemy);
+            // the Greys: a cell in the Outer Drift, a watcher at the Jovara Trojans (Data/greys.json)
+            GreysBands(p, sys, Enemy);
 
             // stations, bases, the orbital battery, the Lagrange point installations
             var refs = new SystemRefs

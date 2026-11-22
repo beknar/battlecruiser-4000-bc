@@ -62,6 +62,13 @@ namespace CarrierGame.Demo
         void LateUpdate()
         {
             if (carrier == null || viewCam == null) return;
+            // a contact the sensors have lost (a ship hard to see, gone quiet or out of reach): the
+            // lock goes with it, and its guns stop giving it away to their target
+            if (carrier.target != null && Sensors.Unseen(carrier.target))
+            {
+                Notices.Post("Contact lost");
+                carrier.SetTarget(null);
+            }
             var t = carrier.target;
             if (t != shown) Retarget(t);
             viewCam.enabled = t != null;
@@ -263,7 +270,10 @@ namespace CarrierGame.Demo
 
             // live view of the target
             var vr = new Rect(x + pad, cy, inner, viewH);
-            if (view != null) GUI.DrawTexture(vr, view, ScaleMode.ScaleAndCrop, false);
+            // (an unknown contact: no picture of it, nor its hull, till it is identified)
+            bool known = shown == null || Sensors.Identified(shown);
+            if (view != null && known) GUI.DrawTexture(vr, view, ScaleMode.ScaleAndCrop, false);
+            else if (!known) GUI.Label(vr, "UNKNOWN CONTACT", Hud.Text(20, true, TextAnchor.MiddleCenter));
             if (dead)
             {
                 Hud.Fill(vr, new Color(0f, 0f, 0f, 0.6f));
@@ -287,7 +297,8 @@ namespace CarrierGame.Demo
                                      : Color.Lerp(Red, Amber, frac * 2f);
             Hud.Fill(new Rect(bar.x, bar.y, bar.width * frac, bar.height), fill * new Color(1f, 1f, 1f, 0.85f));
             Hud.Outline(bar, Mathf.Max(1f, s), new Color(1f, 1f, 1f, 0.25f));
-            string hull = health != null ? $"HULL  {health.Current:N0} / {health.maxHealth:N0}   ({frac:P0})" : "HULL  unknown";
+            if (!known) frac = 0f;
+            string hull = health != null && known ? $"HULL  {health.Current:N0} / {health.maxHealth:N0}   ({frac:P0})" : "HULL  unknown";
             GUI.Label(bar, $"<color=#ffffff>{hull}</color>", Hud.Text(14, true, TextAnchor.MiddleCenter));
             cy += barH + gap;
 

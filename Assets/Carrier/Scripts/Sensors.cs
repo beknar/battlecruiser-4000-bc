@@ -77,40 +77,63 @@ namespace CarrierGame
         /// <summary>How long (s) what is seen of a contact is kept before it is worked out again.</summary>
         public const float Refresh = 0.1f;
 
-        static readonly Dictionary<Transform, Signature> byRoot = new Dictionary<Transform, Signature>();
+        // (by the transform the Signature is on: a contact is that or a child of it)
+        static readonly Dictionary<Transform, Signature> byShip = new Dictionary<Transform, Signature>();
         static readonly Dictionary<Transform, Seen> cache = new Dictionary<Transform, Seen>();
-        static bool hooked;
 
         struct Seen { public float at; public bool detected, identified; }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void Reset() { byRoot.Clear(); cache.Clear(); hooked = false; RangeOf = null; }
+        static void Reset()
+        {
+            byShip.Clear();
+            cache.Clear();
+            RangeOf = null;
+            // (once each: off first, as the statics outlive a play session in the editor)
+            Projectile.Spawned -= OnShot;
+            Missile.Spawned -= OnMissile;
+            MainBeam.Began -= OnBeam;
+            ArtilleryShell.Spawned -= OnShell;
+            Projectile.Spawned += OnShot;
+            Missile.Spawned += OnMissile;
+            MainBeam.Began += OnBeam;
+            ArtilleryShell.Spawned += OnShell;
+        }
+
+        static void OnShot(Projectile p) => FiredBy(p != null ? p.owner : null);
+        static void OnMissile(Missile m) => FiredBy(m != null ? m.owner : null);
+        static void OnBeam(MainBeam b) => FiredBy(b != null ? b.transform : null);
+        static void OnShell(ArtilleryShell a) => FiredBy(a != null ? a.owner : null);
 
         internal static void Add(Signature s)
         {
             if (s == null) return;
-            byRoot[s.transform.root] = s;
-            if (!hooked)
-            {
-                hooked = true;
-                Projectile.Spawned += p => FiredBy(p != null ? p.owner : null);
-                Missile.Spawned += m => FiredBy(m != null ? m.owner : null);
-                MainBeam.Began += b => FiredBy(b != null ? b.transform : null);
-            }
+            byShip[s.transform] = s;
+            cache.Clear();
         }
 
         internal static void Remove(Signature s)
         {
-            if (s != null && byRoot.TryGetValue(s.transform.root, out var had) && had == s) byRoot.Remove(s.transform.root);
+            if (s == null) return;
+            if (byShip.TryGetValue(s.transform, out var had) && had == s) byShip.Remove(s.transform);
+            cache.Clear();
         }
 
         static void FiredBy(Transform owner)
         {
-            if (owner != null && byRoot.TryGetValue(owner.root, out var s) && s != null) s.Fired();
+            var s = Of(owner);
+            if (s != null) s.Fired();
         }
 
-        /// <summary>The signature of a ship (null: none, seen as it always was).</summary>
-        public static Signature Of(Transform t) => t != null && byRoot.TryGetValue(t.root, out var s) && s != null ? s : null;
+        /// <summary>The signature of a ship, or of the ship a part belongs to (null: none, seen
+        /// as it always was).</summary>
+        public static Signature Of(Transform t)
+        {
+            if (byShip.Count == 0) return null;
+            for (var x = t; x != null; x = x.parent)
+                if (byShip.TryGetValue(x, out var s) && s != null) return s;
+            return null;
+        }
 
         /// <summary>A player's sensor range (m), for a seen signature of 1: the frigate's (later:
         /// its ECCM), else PlayerRange. Set by what changes it.</summary>
@@ -143,6 +166,7 @@ namespace CarrierGame
         {
             if (t == null || CombatPilot.IsHidden(t)) return false;
             var s = Of(t);
+            if (s != null && observer == null) observer = PlayerShips.Primary;
             float range = s == null ? PlayerRange : RangeFrom(observer) * s.Current;
             return (t.position - from).sqrMagnitude <= range * range;
         }
@@ -161,7 +185,9 @@ namespace CarrierGame
                 float sig = s.Current;
                 foreach (var p in PlayerShips.All)
                 {
-                    if (p == null || !p.gameObject.activeInHierarchy) continue;
+                    // (a ship that has warped off, landed, or is destroyed and waiting sees nothing)
+                    if (p == null || !p.gameObject.activeInHierarchy || !PlayerShips.Present(p)) continue;
+                    if (p.TryGetComponent(out Health ph) && ph.Dead) continue;
                     float range = RangeFrom(p) * sig;
                     float d2 = (t.position - p.position).sqrMagnitude;
                     if (d2 > range * range) continue;
@@ -172,6 +198,7 @@ namespace CarrierGame
                 // (lit up, firing or hit: named at once, as its guns give it away)
                 if (c.detected && s.Lit) c.identified = true;
             }
+            if (cache.Count > 512) Prune();
             cache[t] = c;
             return c;
         }
@@ -193,6 +220,15 @@ namespace CarrierGame
         public static string NameOf(Transform t, string name) => Identified(t) ? name : UnknownContact;
 
         public const string UnknownContact = "Unknown contact";
+
+        static readonly List<Transform> gone = new List<Transform>();
+        static void Prune()
+        {
+            gone.Clear();
+            foreach (var k in cache.Keys) if (k == null) gone.Add(k);
+            foreach (var k in gone) cache.Remove(k);
+            if (cache.Count > 512) cache.Clear();
+        }
 
         /// <summary>Forget what was seen (the tests: worked out again at once).</summary>
         public static void Forget() => cache.Clear();

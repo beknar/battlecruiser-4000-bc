@@ -70,7 +70,8 @@ namespace CarrierGame
         {
             done++;
             var crew = ship.GetComponent<Crew>();
-            bool last = done >= takes || (crew != null && crew.AtFloor);
+            // (people are taken whole: within one of its survivors is as low as it goes)
+            bool last = done >= takes || (crew != null && crew.Current - crew.Floor < 1f);
             ShipSystem sample = ShipSystem.Hull;
             if (last) sample = ShipSystems.Components[Random.Range(0, ShipSystems.Components.Length)];
             Took = ship;

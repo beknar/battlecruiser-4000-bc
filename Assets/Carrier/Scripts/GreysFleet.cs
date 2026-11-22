@@ -52,8 +52,8 @@ namespace CarrierGame
             if (group == null) return;
             var reaper = Of(GreysShip.Role.Reaper);
             var abductor = reaper != null ? reaper.GetComponent<Abductor>() : null;
-            // the band back whole after withdrawing: it can fight again
-            if (gone && !Lost(GreysShip.Role.Reaper) && !Lost(GreysShip.Role.Shroud) && (abductor == null || !abductor.Done) && vanishAt < 0f)
+            // the band back whole after withdrawing, every ship in hiding at home: it can fight again
+            if (gone && vanishAt < 0f && !Lost(GreysShip.Role.Reaper) && !Lost(GreysShip.Role.Shroud) && AllHome())
             {
                 gone = false;
                 group.holdOff = false;
@@ -72,6 +72,8 @@ namespace CarrierGame
                 vanishAt = -1f;
                 if (reaper != null && reaper.TryGetComponent(out TractorBeam b) && b.Locked) b.Release("away with its prize");
                 if (reaper != null && reaper.TryGetComponent(out ReaperTactics rt)) rt.towing = false;
+                // (and home, like the rest: not round again for the ship it let go)
+                if (reaper != null && reaper.TryGetComponent(out CombatPilot rp)) { rp.target = null; rp.Disengage(); }
             }
         }
 
@@ -90,6 +92,17 @@ namespace CarrierGame
             if (scout != null && scout.TryGetComponent(out Designator d) && d.Painting != null) { why = $"the Scout painting {d.Painting.name}"; return Phase.Paint; }
             why = "watching";
             return Phase.Watch;
+        }
+
+        /// <summary>Every living ship of the band back in hiding at its place.</summary>
+        bool AllHome()
+        {
+            foreach (var s in ships)
+            {
+                if (s == null || !s.Alive || !s.TryGetComponent(out CombatPilot p)) continue;
+                if (p.Current != CombatPilot.State.Lurk || !p.AtHome) return false;
+            }
+            return true;
         }
 
         void StartVanish(GreysShip reaper)

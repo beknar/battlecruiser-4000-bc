@@ -13,8 +13,12 @@ namespace CarrierGame.Demo
     {
         // ------------------------------------------------------------------ capture
 
+        /// <summary>No frames saved (-reelnoframes, or no graphics: a dry run of a reel's events).</summary>
+        static bool NoFrames => LaunchArgs.Has("-reelnoframes") || SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null;
+
         void SaveFrame()
         {
+            if (NoFrames) return;
             var tex = ScreenCapture.CaptureScreenshotAsTexture();
             try { File.WriteAllBytes(Path.Combine(dir, $"f{recorded:D5}.jpg"), tex.EncodeToJPG(92)); }
             catch (Exception e) { Log("frame " + recorded + ": " + e.Message); }

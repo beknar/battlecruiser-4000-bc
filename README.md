@@ -173,6 +173,27 @@ The hidden player ship's HUD is left off the screen, and each frigate's moves go
 log (`cic blue` lines), so radio calls can be timed to them. The two-frigate reel was recorded
 with `-cic -cicfleet Vanguard,Talon -cicmix 2,3,2,3 -cicsection`.
 
+**The three-way battle** (`-cic -cic3`). Two frigates of the Mandate of Heaven (the Vanguard and
+the Talon, as a section, beams and guns), ten ships of the Empire and ten of the Greys, all at war
+with each other, over Goliath. It is a staged battle, not one the game plays by itself:
+- **All at war.** Every ship sees every other. The Empire and the Greys hunt each other's ships
+  as they hunt the players'. A faction's shot spares only its own side.
+- **Remade for combat.** The Empire is 4 Assaults, 3 Patrols, 2 Raiders and 1 Recon
+  (`-cic3empire 4,3,2,1`); the Greys are 1 Scout, 2 Shrouds and 7 Lances (`-cic3greys 1,2,7,0`).
+  Neither side breaks off, falls back or vanishes, and no ship is leashed to its escort.
+- **Refitted.** The Empire's weapons do twice their damage (`-cic3refit 2`), the Greys' three
+  times (`-cic3refitgreys 3`). The opening card says so.
+- **Close.** The three sides start at the corners of a triangle 3 km a side (`-cic3side 3000`),
+  all in gun range, and the factions fight within 2.5 km of the middle.
+- **Fighting on.** A faction's ship goes for the most worn-down enemy nearby and answers fire
+  from whoever has just hit it. It lets a ship go for a minute after 45 s on it with no headway.
+  The frigates likewise drop a target they can't catch or can't wear down.
+
+It ends when one side is left, when no ship is lost for four minutes (after the first five), or
+at 15 minutes; a side that is ahead on strength wins. The results card and the analysis have a
+column for each side. `-reelnoframes` runs any reel without saving frames, so a headless
+(`-batchmode -nographics`) run on a sim host checks the battle's log in about a third of the time.
+
 **Flying as a section.** A pair of frigates that fight the Vrask's way of fighting (disable,
 hold, board):
 - **Cover each other.** If one frigate is held in a tractor beam or has a Fang clamped to her,

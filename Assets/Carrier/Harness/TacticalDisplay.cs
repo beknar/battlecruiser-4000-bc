@@ -37,7 +37,9 @@ namespace CarrierGame.Demo
             public int index;
             public string id, name, cls;
             public char glyph;
-            public bool friendly;
+            /// <summary>0 blue (the frigates), 1 red, 2 the third side (a three-way battle).</summary>
+            public int side;
+            public bool friendly => side == 0;
             public Transform t;
             public Health health;
             public Shield shield;
@@ -85,7 +87,7 @@ namespace CarrierGame.Demo
             public byte[] state;          // 0 alive, 1 destroyed, 2 captured
             public float[] hull;
             public int[] fire;            // attacker | target << 8 | kind << 16
-            public float blue, red;       // each side's strength: its hull left, as a share of what it began with
+            public float blue, red, third; // each side's strength: its hull left, as a share of what it began with
         }
 
         struct Line { public float t; public string text; public Color c; }
@@ -131,12 +133,24 @@ namespace CarrierGame.Demo
         public float Duration => began ? (running ? Time.time : tEnd) - t0 : 0f;
         public float SinceLastHit => Time.time - lastHitAt;
         public string ClockText => Clk(Clock);
-        public int BlueLeft => Tracks.Count(k => k.friendly && !k.dead);
-        public int RedLeft => Tracks.Count(k => !k.friendly && !k.dead);
-        public int BlueCount => Tracks.Count(k => k.friendly);
-        public int RedCount => Tracks.Count(k => !k.friendly);
-        public float BlueDealt => Tracks.Where(k => k.friendly).Sum(k => k.dealt);
-        public float RedDealt => Tracks.Where(k => !k.friendly).Sum(k => k.dealt);
+        public int BlueLeft => SideLeft(0);
+        public int RedLeft => SideLeft(1);
+        public int BlueCount => SideCount(0);
+        public int RedCount => SideCount(1);
+        public float BlueDealt => SideDealt(0);
+        public float RedDealt => SideDealt(1);
+        public int SideLeft(int side) => Tracks.Count(k => k.side == side && !k.dead);
+        public int SideCount(int side) => Tracks.Count(k => k.side == side);
+        public float SideDealt(int side) => Tracks.Where(k => k.side == side).Sum(k => k.dealt);
+        /// <summary>A third side (the three-way CIC reel: two factions and the frigates, all at war).</summary>
+        public bool ThreeWay { get; private set; }
+        /// <summary>Each side's name: BLUE, RED (or the factions' own, in a three-way battle).</summary>
+        public readonly string[] SideNames = { "BLUE", "RED", "" };
+        public int Sides => ThreeWay ? 3 : 2;
+        /// <summary>The damage each side dealt each other side: [by, to].</summary>
+        public readonly float[,] SideDamage = new float[3, 3];
+        /// <summary>The fleets' phases in words (a three-way battle: the reel says them), for the status strip.</summary>
+        public Func<string> PhaseText;
 
         /// <summary>Replay: game seconds into the battle shown.</summary>
         [NonSerialized] public float replayT;
@@ -164,8 +178,13 @@ namespace CarrierGame.Demo
         /// <summary>Start following a battle: the frigates (blue) against the Vrask (red), the
         /// positions taken from `frameOf` (the place both sides are carried along with), drawn on
         /// the plane square to `planeUp` with `planeNorth` at the top (000).</summary>
-        public void Begin(Transform frameOf, Vector3 planeUp, Vector3 planeNorth, IList<SimPilot> blue, IList<FactionShip> red, VraskFleet vraskFleet, EncounterGroup band, string where)
+        public void Begin(Transform frameOf, Vector3 planeUp, Vector3 planeNorth, IList<SimPilot> blue, IList<FactionShip> red, VraskFleet vraskFleet, EncounterGroup band, string where,
+                          IList<FactionShip> third = null, string redName = null, string thirdName = null)
         {
+            ThreeWay = third != null && third.Count > 0;
+            SideNames[1] = ThreeWay && !string.IsNullOrEmpty(redName) ? redName.ToUpperInvariant() : "RED";
+            SideNames[2] = ThreeWay ? (string.IsNullOrEmpty(thirdName) ? "GREEN" : thirdName.ToUpperInvariant()) : "";
+            Array.Clear(SideDamage, 0, SideDamage.Length);
             frame = frameOf;
             up = planeUp.sqrMagnitude > 1e-6f ? planeUp.normalized : Vector3.up;
             north = Vector3.ProjectOnPlane(planeNorth, up);
@@ -182,20 +201,23 @@ namespace CarrierGame.Demo
                 var p = blue[i];
                 if (p == null) continue;
                 string n = p.ship != null && !string.IsNullOrEmpty(p.ship.shipName) ? p.ship.shipName : p.name;
-                var k = NewTrack(p.transform, true, $"T{Tracks.Count(x => x.friendly) + 1:00}", n.ToUpperInvariant(), string.IsNullOrEmpty(n) ? 'F' : char.ToUpperInvariant(n[0]), "FRIGATE");
+                var k = NewTrack(p.transform, 0, $"T{Tracks.Count(x => x.friendly) + 1:00}", n.ToUpperInvariant(), string.IsNullOrEmpty(n) ? 'F' : char.ToUpperInvariant(n[0]), "FRIGATE");
                 k.pilot = p;
                 k.ship = p.ship;
                 k.ciws = p.GetComponent<CiwsDirector>();
                 k.beam = p.GetComponentInChildren<MainBeam>(true);
             }
             var counts = new Dictionary<string, int>();
-            foreach (var v in red)
+            var hostiles = red.Where(v => v != null).Select(v => (v, 1)).ToList();
+            if (ThreeWay) hostiles.AddRange(third.Where(v => v != null).Select(v => (v, 2)));
+            foreach (var (v, sd) in hostiles)
             {
-                if (v == null) continue;
-                counts.TryGetValue(v.RoleName, out int c);
-                counts[v.RoleName] = c + 1;
+                string key = sd + v.RoleName;
+                counts.TryGetValue(key, out int c);
+                counts[key] = c + 1;
                 string role = v.RoleName.ToUpperInvariant();
-                var k = NewTrack(v.transform, false, $"H{Tracks.Count(x => !x.friendly) + 1:00}", $"{role} {(char)('A' + c)}", v.RoleLetter, role);
+                char prefix = ThreeWay ? SideNames[sd][0] : 'H';
+                var k = NewTrack(v.transform, sd, $"{prefix}{Tracks.Count(x => x.side == sd) + 1:00}", $"{role} {(char)('A' + c)}", v.RoleLetter, role);
                 k.faction = v;
                 k.vrask = v as VraskShip;
                 k.snare = v.GetComponent<SnareTactics>();
@@ -214,14 +236,15 @@ namespace CarrierGame.Demo
             nextSample = Time.time + 1f;
             Hook(true);
             string them = string.Join(" AND ", red.Where(v => v != null).Select(v => v.FactionName.ToUpperInvariant()).Distinct());
-            Log($"{place} ACTION: BLUE {BlueCount} FRIGATES, RED {RedCount} {(them.Length > 0 ? them : "VRASK")}", Cyan);
+            if (ThreeWay) Log($"{place} ACTION, THREE SIDES: BLUE {BlueCount} FRIGATES, {SideNames[1]} {RedCount}, {SideNames[2]} {SideCount(2)}: ALL AT WAR", Cyan);
+            else Log($"{place} ACTION: BLUE {BlueCount} FRIGATES, RED {RedCount} {(them.Length > 0 ? them : "VRASK")}", Cyan);
             Poll();
             Sample1();
         }
 
-        Track NewTrack(Transform t, bool friendly, string id, string name, char glyph, string cls)
+        Track NewTrack(Transform t, int side, string id, string name, char glyph, string cls)
         {
-            var k = new Track { index = Tracks.Count, t = t, friendly = friendly, id = id, name = name, glyph = glyph, cls = cls };
+            var k = new Track { index = Tracks.Count, t = t, side = side, id = id, name = name, glyph = glyph, cls = cls };
             k.health = t.GetComponent<Health>();
             k.shield = t.GetComponentInChildren<Shield>(true);
             k.hull0 = k.health != null ? k.health.TotalDamage : 0f;
@@ -323,7 +346,17 @@ namespace CarrierGame.Demo
 
         void Moment(string title, string text) => Moments.Add(new KeyEvent { t = Time.time, title = title, text = text });
 
-        Color SideColor(Track k) => k == null ? Grey : k.friendly ? Blue : Red;
+        Color SideColor(Track k) => k == null ? Grey : ColorOf(k.side);
+        static Color ColorOf(int side) => side == 0 ? Blue : side == 1 ? Red : Magenta;
+        /// <summary>A side's gunfire: pale blue, orange, or pale violet.</summary>
+        static Color ShotColor(Track o) => o == null ? Grey : o.side == 0 ? new Color(0.75f, 0.95f, 1f) : o.side == 1 ? new Color(1f, 0.55f, 0.3f) : new Color(0.95f, 0.7f, 1f);
+        /// <summary>Ships left on each side, in words ("blue 2 of 2, red 8 of 10").</summary>
+        string LeftText()
+        {
+            var parts = new List<string>();
+            for (int i = 0; i < Sides; i++) parts.Add($"{SideNames[i].ToLowerInvariant()} {SideLeft(i)} of {SideCount(i)}");
+            return string.Join(", ", parts) + " left";
+        }
 
         // ---------------------------------------------------------------- the hooks
 
@@ -342,8 +375,9 @@ namespace CarrierGame.Demo
         void Hit(Track victim, Track by, float amount, HitKind kind, Vector3 point)
         {
             if (victim == null || victim.dead) return;
-            if (by != null && by.friendly == victim.friendly) return;
+            if (by != null && by.side == victim.side) return;
             victim.taken += amount;
+            if (by != null) SideDamage[by.side, victim.side] += amount;
             lastHitAt = Time.time;
             if (by == null) return;
             by.dealt += amount;
@@ -387,10 +421,10 @@ namespace CarrierGame.Demo
             var by = v.lastBy != null && Time.time - v.lastByAt < 45f ? v.lastBy : null;
             if (by != null) by.kills++;
             string how = captured ? "CAPTURED BY BOARDERS" : "DESTROYED";
-            Log($"{v.Label} {how}{(by != null ? $"  ({by.id} {by.name})" : "")}", captured ? Amber : v.friendly ? Blue : Red);
+            Log($"{v.Label} {how}{(by != null ? $"  ({by.id} {by.name})" : "")}", captured ? Amber : SideColor(v));
             string title = $"{v.id} {v.name} {how}";
-            string text = by != null ? $"{(captured ? "Taken" : "Killed")} by {by.Label}; blue {BlueLeft} of {BlueCount}, red {RedLeft} of {RedCount} left"
-                                     : $"Blue {BlueLeft} of {BlueCount}, red {RedLeft} of {RedCount} left";
+            string left = LeftText();
+            string text = by != null ? $"{(captured ? "Taken" : "Killed")} by {by.Label}; {left}" : char.ToUpperInvariant(left[0]) + left.Substring(1);
             if (!Keys.Any(k => k.kind == "kill")) Key("kill", "FIRST KILL: " + title, text, v.pos);
             else Moment(title, text);
         }
@@ -436,7 +470,7 @@ namespace CarrierGame.Demo
             if (pairLogged.TryGetValue(key, out float at) && Time.time - at < 2.5f) return;
             pairLogged[key] = Time.time;
             string what = m is BoardingPod ? "POD" : m is NukeMissile ? "NUKE" : "MISSILE";
-            Log($"{k.Label}  {(k.friendly ? "CIWS" : "PD")} KILL {what}", k.friendly ? Cyan : Red);
+            Log($"{k.Label}  {(k.friendly ? "CIWS" : "PD")} KILL {what}", k.friendly ? Cyan : SideColor(k));
         }
 
         void OnShell(ArtilleryShell s)
@@ -448,7 +482,7 @@ namespace CarrierGame.Demo
             o.weapon = "ARTILLERY";
             o.weaponAt = Time.time;
             Vector3 aim = Rel(s.Aim);
-            var tgt = Tracks.Where(k => k.friendly != o.friendly && !k.dead).OrderBy(k => (k.pos - aim).sqrMagnitude).FirstOrDefault();
+            var tgt = Tracks.Where(k => k.side != o.side && !k.dead).OrderBy(k => (k.pos - aim).sqrMagnitude).FirstOrDefault();
             Log($"{o.Label} > {(tgt != null ? tgt.id : "")}  ARTILLERY SHELL ({Weapon(s.kind)})", Amber);
         }
 
@@ -642,21 +676,22 @@ namespace CarrierGame.Demo
                 fire = fireNow.ToArray(),
             };
             fireNow.Clear();
-            float b = 0f, r = 0f;
-            int nb = 0, nr = 0;
+            float b = 0f, r = 0f, g = 0f;
+            int nb = 0, nr = 0, ng = 0;
             for (int i = 0; i < Tracks.Count; i++)
             {
                 var k = Tracks[i];
                 s.pos[i] = k.pos;
                 s.state[i] = (byte)(k.dead ? (k.captured ? 2 : 1) : 0);
                 s.hull[i] = k.dead ? 0f : k.hull;
-                if (k.friendly) { b += s.hull[i]; nb++; } else { r += s.hull[i]; nr++; }
+                if (k.side == 0) { b += s.hull[i]; nb++; } else if (k.side == 1) { r += s.hull[i]; nr++; } else { g += s.hull[i]; ng++; }
             }
             s.blue = nb > 0 ? b / nb : 0f;
             s.red = nr > 0 ? r / nr : 0f;
+            s.third = ng > 0 ? g / ng : 0f;
             samples.Add(s);
             foreach (var m in Missile.Active)
-                if (m != null) dots.Add((s.t, Rel(m.transform.position), (byte)(m is BoardingPod ? 2 : m is NukeMissile ? 3 : (Of(m.owner)?.friendly ?? false) ? 0 : 1)));
+                if (m != null) dots.Add((s.t, Rel(m.transform.position), (byte)(m is BoardingPod ? 2 : m is NukeMissile ? 3 : (Of(m.owner)?.side ?? 1) == 0 ? 0 : Of(m.owner)?.side == 2 ? 5 : 1)));
             foreach (var sh in ArtilleryShell.Active)
                 if (sh != null) dots.Add((s.t, Rel(sh.transform.position), (byte)4));
         }
@@ -687,6 +722,13 @@ namespace CarrierGame.Demo
             if (fang != null && variant % 3 != 2) { other = Of(fang.fang.Target); why = "boarding"; return fang; }
             var beamer = alive.FirstOrDefault(k => k.friendly && k.beam != null && k.beam.Current != MainBeam.State.Idle && k.pilot != null && k.pilot.Target != null);
             if (beamer != null && variant % 2 == 1) { other = Of(beamer.pilot.Target); why = "beam"; return beamer; }
+            // (three-way: now and then the two factions at each other)
+            if (ThreeWay && variant % 3 == 2)
+            {
+                var hit = alive.Where(k => k.side != 0 && k.lastBy != null && !k.lastBy.dead && k.lastBy.t != null && k.lastBy.side != 0 && k.lastBy.side != k.side && Time.time - k.lastByAt < 6f)
+                               .OrderByDescending(k => k.lastByAt).FirstOrDefault();
+                if (hit != null) { other = hit; why = "rivals"; return hit.lastBy; }
+            }
             var tgt = CommonTarget();
             var blue = alive.Where(k => k.friendly).ToList();
             if (tgt != null && blue.Count > 0)
@@ -698,7 +740,7 @@ namespace CarrierGame.Demo
                 other = shooter; why = "target"; return tgt;
             }
             var a = alive[variant % alive.Count];
-            other = alive.Where(k => k.friendly != a.friendly).OrderBy(k => (k.pos - a.pos).sqrMagnitude).FirstOrDefault();
+            other = alive.Where(k => k.side != a.side).OrderBy(k => (k.pos - a.pos).sqrMagnitude).FirstOrDefault();
             why = "any";
             return a;
         }
@@ -710,6 +752,7 @@ namespace CarrierGame.Demo
         void Analyse()
         {
             Analysis.Clear();
+            if (ThreeWay) { AnalyseThree(); return; }
             bool blueWon = Winner == "BLUE";
             bool redWon = Winner == "RED";
             // the turning point: the last time the winner's lead in strength came about (else the
@@ -762,6 +805,43 @@ namespace CarrierGame.Demo
             if (TurningPoint != null) Analysis.Add($"TURNING PT   {Clk(TurningPoint.t)}  {TurningPoint.text.ToUpperInvariant()}");
         }
 
+        /// <summary>The three-way battle's analysis: each side's losses and fire, who fired on
+        /// whom, the best ship of each, when each side broke (under half its strength).</summary>
+        void AnalyseThree()
+        {
+            float StrengthAt(Sample x, int side) => side == 0 ? x.blue : side == 1 ? x.red : x.third;
+            // the turning point: a side broken (under half), the first
+            for (int side = 0; side < 3; side++)
+            {
+                var broke = samples.FirstOrDefault(x => StrengthAt(x, side) < 0.5f);
+                if (broke == null || broke.t < 1f) continue;
+                var alive = Enumerable.Range(0, Tracks.Count).Where(i => broke.state[i] == 0 && Tracks[i].side == side).ToList();
+                Vector3 c = alive.Count > 0 ? alive.Aggregate(Vector3.zero, (a, i) => a + broke.pos[i]) / alive.Count : Vector3.zero;
+                Keys.Add(new KeyEvent { t = broke.t, kind = "broken" + side, title = $"{SideNames[side]} BROKEN", pos = c,
+                                        text = $"{SideNames[side].ToLowerInvariant()} down to {StrengthAt(broke, side):P0} of its strength: {Enumerable.Range(0, 3).Select(x => $"{SideNames[x].ToLowerInvariant()} {StrengthAt(broke, x):P0}").Aggregate((a, b2) => a + ", " + b2)}" });
+            }
+            TurningPoint = Keys.Where(k => k.kind.StartsWith("broken")).OrderBy(k => k.t).FirstOrDefault();
+            Keys.Add(new KeyEvent { t = Duration, kind = "end", title = "ENGAGEMENT ENDS", text = Outcome, pos = Tracks.Any(k => !k.dead) ? Tracks.Where(k => !k.dead).Aggregate(Vector3.zero, (a, k) => a + k.pos) / Tracks.Count(k => !k.dead) : Vector3.zero });
+            Keys.Sort((a, b) => a.t.CompareTo(b.t));
+
+            string N(int side) => SideNames[side];
+            Analysis.Add($"RESULT       {Outcome}");
+            Analysis.Add($"DURATION     {Clk(Duration)}");
+            Analysis.Add($"LOSSES       {string.Join("  :  ", Enumerable.Range(0, 3).Select(x => $"{N(x)} {Tracks.Count(k => k.side == x && k.dead)} OF {SideCount(x)}"))}");
+            Analysis.Add($"FIREPOWER    {string.Join("  :  ", Enumerable.Range(0, 3).Select(x => $"{N(x)} {K(SideDealt(x))}"))}");
+            Analysis.Add($"RIVALS       {N(1)} ON {N(2)} {K(SideDamage[1, 2])}  :  {N(2)} ON {N(1)} {K(SideDamage[2, 1])}");
+            Analysis.Add($"ON BLUE      {N(1)} {K(SideDamage[1, 0])}  :  {N(2)} {K(SideDamage[2, 0])}");
+            Analysis.Add($"BLUE FIRE    ON {N(1)} {K(SideDamage[0, 1])}  :  ON {N(2)} {K(SideDamage[0, 2])}");
+            for (int side = 0; side < 3; side++)
+            {
+                var best = Tracks.Where(k => k.side == side).OrderByDescending(k => k.kills).ThenByDescending(k => k.dealt).FirstOrDefault();
+                if (best != null) Analysis.Add($"TOP {N(side),-8} {best.Label}: {best.kills} KILLS, {K(best.dealt)} DEALT");
+            }
+            var firstKills = Tracks.Where(k => k.dead).OrderBy(k => k.diedAt).Take(3).Select(k => $"{k.id} {k.cls}").ToList();
+            if (firstKills.Count > 0) Analysis.Add($"FIRST DOWN   {string.Join(", ", firstKills)}");
+            if (TurningPoint != null) Analysis.Add($"TURNING PT   {Clk(TurningPoint.t)}  {TurningPoint.title}");
+        }
+
         static string K(float v) => v >= 10000f ? $"{v / 1000f:F0}K" : v >= 1000f ? $"{v / 1000f:F1}K" : $"{v:F0}";
 
         // ================================================================ drawing
@@ -777,6 +857,7 @@ namespace CarrierGame.Demo
         static readonly Color Red = new Color(1f, 0.33f, 0.28f, 1f);
         static readonly Color Amber = new Color(1f, 0.76f, 0.28f, 1f);
         static readonly Color Violet = new Color(0.78f, 0.52f, 1f, 1f);
+        static readonly Color Magenta = new Color(0.95f, 0.45f, 1f, 1f);
         static readonly Color Grey = new Color(0.48f, 0.53f, 0.58f, 1f);
         static readonly Color Yellow = new Color(1f, 0.95f, 0.45f, 1f);
 
@@ -1031,7 +1112,8 @@ namespace CarrierGame.Demo
             Hud.Outline(r, Mathf.Max(1f, s), Frame);
             float x = r.x, w = r.width;
             float[] share = { 0.15f, 0.43f, 0.18f, 0.24f };
-            string[] head = { replay ? $"REPLAY  x{replaySpeed:F0}" : "BATTLE CLOCK", "VRASK FLEET PHASE", "SHIPS REMAINING", "DAMAGE DEALT" };
+            string[] head = { replay ? $"REPLAY  x{replaySpeed:F0}" : "BATTLE CLOCK", PhaseText != null ? "FLEET PHASES" : "VRASK FLEET PHASE", "SHIPS REMAINING", "DAMAGE DEALT" };
+            if (ThreeWay) share = new[] { 0.13f, 0.33f, 0.24f, 0.30f };
             for (int i = 0; i < 4; i++)
             {
                 float cw = w * share[i];
@@ -1043,6 +1125,9 @@ namespace CarrierGame.Demo
                     case 0:
                         Tx(val, replay ? $"T+{Clk(replayT)} / {Clk(Duration)}" : $"T+{ClockText}{(running ? "" : "  END")}", 22, Green, true);
                         break;
+                    case 1 when PhaseText != null:
+                        Tx(val, (PhaseText() ?? "").ToUpperInvariant(), 17, Amber);
+                        break;
                     case 1:
                         string ph = fleet != null ? VraskFleet.Name(fleet.Current).ToUpperInvariant() : "NO FLEET";
                         string why = fleet != null ? fleet.Why : "";
@@ -1050,10 +1135,10 @@ namespace CarrierGame.Demo
                         Tx(val, $"<b>{ph}</b>  <color=#{Hex(Dim)}>{(why ?? "").ToUpperInvariant()}</color>", 17, Red);
                         break;
                     case 2:
-                        Tx(val, $"<color=#{Hex(Blue)}>BLUE {BlueLeft}/{BlueCount}</color>   <color=#{Hex(Red)}>RED {RedLeft}/{RedCount}</color>", 20, Cyan, true);
+                        Tx(val, string.Join("  ", Enumerable.Range(0, Sides).Select(x => $"<color=#{Hex(ColorOf(x))}>{SideNames[x]} {SideLeft(x)}/{SideCount(x)}</color>")), ThreeWay ? 17 : 20, Cyan, true);
                         break;
                     case 3:
-                        Tx(val, $"<color=#{Hex(Blue)}>BLUE {K(BlueDealt)}</color>   <color=#{Hex(Red)}>RED {K(RedDealt)}</color>", 20, Cyan, true);
+                        Tx(val, string.Join("  ", Enumerable.Range(0, Sides).Select(x => $"<color=#{Hex(ColorOf(x))}>{SideNames[x]} {K(SideDealt(x))}</color>")), ThreeWay ? 17 : 20, Cyan, true);
                         break;
                 }
                 x += cw;
@@ -1125,7 +1210,7 @@ namespace CarrierGame.Demo
             }
             float ring = Nice(rad / 3f);
             string title = replay ? $"POST-ACTION REPLAY  //  {place}" : $"TACTICAL PLOT  //  {place}";
-            var inner = Panel(r, title, inset ? $"T+{ClockText}  B{BlueLeft} R{RedLeft}" : $"RINGS {ring / 1000f:0.##} KM   000 = THREAT AXIS   CTR FLEET CENTROID");
+            var inner = Panel(r, title, inset ? $"T+{ClockText}  {string.Join(" ", Enumerable.Range(0, Sides).Select(x => $"{SideNames[x][0]}{SideLeft(x)}"))}" : $"RINGS {ring / 1000f:0.##} KM   000 = THREAT AXIS   CTR FLEET CENTROID");
             clip = inner;
             Vector2 cp = inner.center;
             float scopeR = Mathf.Min(inner.width, inner.height) * 0.5f - 22f * s;
@@ -1172,7 +1257,7 @@ namespace CarrierGame.Demo
 
         void Icon(Vector2 p, Track k, bool dead, bool captured, float hull, List<(Rect r, string t, Color c, int px)> labels, int fs, bool target, Vector3 vel, Func<Vector3, Vector2> P)
         {
-            Color col = dead ? (captured ? A(Amber, 0.7f) : A(Grey, 0.6f)) : k.friendly ? Blue : Red;
+            Color col = dead ? (captured ? A(Amber, 0.7f) : A(Grey, 0.6f)) : SideColor(k);
             float r = 10f * s;
             float w = 1.6f * s;
             if (k.friendly)
@@ -1239,7 +1324,7 @@ namespace CarrierGame.Demo
             // the ships' tracks, fading with age
             foreach (var k in Tracks)
             {
-                Color col = k.dead ? Grey : k.friendly ? Blue : Red;
+                Color col = k.dead ? Grey : SideColor(k);
                 int n = k.trail.Count;
                 for (int i = 1; i < n; i++)
                     Seg1(P(k.trail[i - 1]), P(k.trail[i]), A(col, 0.05f + 0.45f * i / n), 1.2f * s);
@@ -1263,7 +1348,7 @@ namespace CarrierGame.Demo
             {
                 if (p == null || !p.gameObject.activeInHierarchy) continue;
                 var o = Of(p.owner);
-                Color col = p.kind == HitKind.Ion ? Violet : o == null ? Grey : o.friendly ? new Color(0.75f, 0.95f, 1f) : new Color(1f, 0.55f, 0.3f);
+                Color col = p.kind == HitKind.Ion ? Violet : ShotColor(o);
                 Vector3 head = Rel(p.transform.position);
                 Vector3 tail = Rel(p.transform.position - p.transform.forward * Mathf.Min(p.speed * 0.25f, 600f));
                 Seg1(P(tail), P(head), A(col, 0.85f), 1.3f * s);
@@ -1274,7 +1359,7 @@ namespace CarrierGame.Demo
                 var m = kv.Key;
                 if (m == null || !m.isActiveAndEnabled) continue;
                 var o = Of(m.owner);
-                Color col = m is BoardingPod ? new Color(1f, 0.4f, 0.85f) : m is NukeMissile ? Yellow : o != null && o.friendly ? Cyan : Red;
+                Color col = m is BoardingPod ? new Color(1f, 0.4f, 0.85f) : m is NukeMissile ? Yellow : o != null && o.friendly ? Cyan : o != null && o.side == 2 ? Magenta : Red;
                 var l = kv.Value;
                 for (int i = 1; i < l.Count; i += 2) Seg1(P(l[i - 1]), P(l[i]), A(col, 0.6f), 1.2f * s);
                 Vector3 head = Rel(m.transform.position);
@@ -1322,7 +1407,7 @@ namespace CarrierGame.Demo
                     if (!inset) labels.Add((new Rect((a.x + b.x) * 0.5f + 4f * s, (a.y + b.y) * 0.5f + 2f * s, 80f * s, 15f * s), "TRACTOR", Green, fs - 2));
                 }
                 if (k.pd != null && k.pd.EngagedTarget != null)
-                    Dashed(P(k.pos), P(Rel(k.pd.EngagedTarget.position)), A(Red, 0.7f), 1f, 2f * s, 3f * s);
+                    Dashed(P(k.pos), P(Rel(k.pd.EngagedTarget.position)), A(SideColor(k), 0.7f), 1f, 2f * s, 3f * s);
                 if (k.fang != null && k.fang.IsClamped && k.fang.Target != null)
                     Seg1(P(k.pos), P(Rel(k.fang.Target.position)), A(new Color(1f, 0.4f, 0.85f), 0.9f), 4f * s);
             }
@@ -1339,7 +1424,7 @@ namespace CarrierGame.Demo
             for (int i = 0; i < Tracks.Count; i++)
             {
                 var k = Tracks[i];
-                Color col = k.friendly ? Blue : Red;
+                Color col = SideColor(k);
                 for (int j = 1; j <= upto; j++)
                 {
                     if (samples[j - 1].state[i] != 0) break;
@@ -1353,7 +1438,7 @@ namespace CarrierGame.Demo
                 if (d.t > replayT) break;
                 float age = replayT - d.t;
                 if (age > 40f) continue;
-                Color col = d.k == 0 ? Cyan : d.k == 1 ? Red : d.k == 2 ? new Color(1f, 0.4f, 0.85f) : d.k == 3 ? Yellow : Amber;
+                Color col = d.k == 5 ? Magenta : d.k == 0 ? Cyan : d.k == 1 ? Red : d.k == 2 ? new Color(1f, 0.4f, 0.85f) : d.k == 3 ? Yellow : Amber;
                 Vector2 q = P(d.p);
                 Seg1(q - new Vector2(1.5f, 0f) * s, q + new Vector2(1.5f, 0f) * s, A(col, Mathf.Lerp(0.9f, 0.15f, age / 40f)), 3f * s);
             }
@@ -1364,7 +1449,7 @@ namespace CarrierGame.Demo
                     int a = code & 0xff, b = (code >> 8) & 0xff, kind = code >> 16;
                     if (a >= Tracks.Count || b >= Tracks.Count) continue;
                     Color col = (HitKind)kind == HitKind.Ion ? Violet : (HitKind)kind == HitKind.Artillery || (HitKind)kind == HitKind.Nullifier || (HitKind)kind == HitKind.Penetrator ? Amber
-                              : Tracks[a].friendly ? new Color(0.75f, 0.95f, 1f) : new Color(1f, 0.55f, 0.3f);
+                              : ShotColor(Tracks[a]);
                     Vector3 pa = Vector3.Lerp(cur.pos[a], next.pos[a], f), pb = Vector3.Lerp(cur.pos[b], next.pos[b], f);
                     Dashed(P(pa), P(pb), A(col, 0.45f), 1f, 4f * s, 4f * s);
                 }
@@ -1412,7 +1497,8 @@ namespace CarrierGame.Demo
         {
             float x = inner.x + 10f * s, y = inner.yMax - 92f * s;
             Hud.Fill(new Rect(x - 4f * s, y - 4f * s, 300f * s, 88f * s), new Color(0f, 0.02f, 0.04f, 0.75f));
-            Tx(x, y, $"<color=#{Hex(Blue)}>CIRCLE</color> FRIGATE   <color=#{Hex(Red)}>DIAMOND</color> VRASK", 12, Dim);
+            Tx(x, y, ThreeWay ? $"<color=#{Hex(Blue)}>CIRCLE</color> FRIGATE  <color=#{Hex(Red)}>DIAMOND</color> {SideNames[1]}  <color=#{Hex(Magenta)}>DIAMOND</color> {SideNames[2]}"
+                              : $"<color=#{Hex(Blue)}>CIRCLE</color> FRIGATE   <color=#{Hex(Red)}>DIAMOND</color> VRASK", 12, Dim);
             Tx(x, y + 16f * s, $"<color=#{Hex(new Color(0.75f, 0.95f, 1f))}>TRACER</color> GUNS  <color=#{Hex(Violet)}>ION</color>  <color=#{Hex(Amber)}>ARTILLERY</color>", 12, Dim);
             Tx(x, y + 32f * s, $"<color=#{Hex(Red)}>CHEVRON</color> MISSILE  <color=#ff66d9>POD</color>  <color=#{Hex(Yellow)}>NUKE</color>", 12, Dim);
             Tx(x, y + 48f * s, $"<color=#{Hex(Cyan)}>MAIN BEAM</color>  <color=#{Hex(Green)}>TRACTOR</color>  <color=#{Hex(Red)}>PD</color>", 12, Dim);
@@ -1482,7 +1568,7 @@ namespace CarrierGame.Demo
 
         void Table(Rect r)
         {
-            var inner = Panel(r, "TRACK TABLE", $"BLUE {BlueLeft}/{BlueCount}   RED {RedLeft}/{RedCount}");
+            var inner = Panel(r, "TRACK TABLE", string.Join("   ", Enumerable.Range(0, Sides).Select(x => $"{SideNames[x]} {SideLeft(x)}/{SideCount(x)}")));
             float x = inner.x + 8f * s, y = inner.y + 6f * s, rh = Mathf.Min(26f * s, (inner.height - 34f * s) / Mathf.Max(1, Tracks.Count + 1));
             float[] cw = { 50f, 150f, 82f, 62f, 62f, 66f, 250f, 140f };
             string[] head = { "TRK", "NAME", "CLASS", "HULL", "SHLD", "RNG KM", "TACTIC / DOING", "WEAPON" };
@@ -1498,7 +1584,7 @@ namespace CarrierGame.Demo
             foreach (var k in Tracks)
             {
                 if (k == tgt) Hud.Fill(new Rect(inner.x + 4f * s, y - 1f * s, inner.width - 8f * s, rh), new Color(1f, 0.95f, 0.45f, 0.08f));
-                Color col = k.dead ? Grey : k.friendly ? Blue : Red;
+                Color col = k.dead ? Grey : SideColor(k);
                 Color hc = k.dead ? Grey : k.hull > 0.6f ? Green : k.hull > 0.3f ? Amber : Red;
                 string weapon = k.dead ? "" : Time.time - k.weaponAt < 4f ? k.weapon : "-";
                 string[] cells =
@@ -1538,18 +1624,19 @@ namespace CarrierGame.Demo
         {
             var inner = Panel(r, $"ENGAGEMENT SUMMARY  //  {place}", $"DURATION {Clk(Duration)}");
             float x = inner.x + 30f * s, y = inner.y + 20f * s;
-            Color wc = Winner == "BLUE" ? Blue : Winner == "RED" ? Red : Amber;
-            string head = Winner == "BLUE" ? "BLUE FORCE VICTORY" : Winner == "RED" ? "VRASK VICTORY" : "NO DECISION";
+            int ws = Array.IndexOf(SideNames, Winner);
+            Color wc = ws >= 0 ? ColorOf(ws) : Amber;
+            string head = Winner == "BLUE" ? "BLUE FORCE VICTORY" : ThreeWay && ws > 0 ? $"{Winner} VICTORY" : Winner == "RED" ? "VRASK VICTORY" : "NO DECISION";
             Tx(new Rect(x, y, inner.width - 60f * s, 50f * s), head, 40, wc, true);
             Tx(new Rect(x, y + 50f * s, inner.width - 60f * s, 26f * s), Outcome, 20, Cyan);
             y += 96f * s;
-            float colW = (inner.width - 60f * s) / 2f;
-            void Side(float sx, bool blue)
+            float colW = (inner.width - 60f * s) / Sides;
+            void Side(float sx, int side)
             {
-                var all = Tracks.Where(k => k.friendly == blue).ToList();
-                Color c = blue ? Blue : Red;
+                var all = Tracks.Where(k => k.side == side).ToList();
+                Color c = ColorOf(side);
                 float yy = y;
-                Tx(new Rect(sx, yy, colW, 26f * s), blue ? $"BLUE FORCE  //  {all.Count} FRIGATES" : $"RED FORCE  //  {all.Count} VRASK", 20, c, true);
+                Tx(new Rect(sx, yy, colW, 26f * s), side == 0 ? $"BLUE FORCE  //  {all.Count} FRIGATES" : ThreeWay ? $"{SideNames[side]}  //  {all.Count} SHIPS" : $"RED FORCE  //  {all.Count} VRASK", 20, c, true);
                 yy += 32f * s;
                 string[] rows =
                 {
@@ -1563,25 +1650,25 @@ namespace CarrierGame.Demo
                 };
                 foreach (var row in rows) { Tx(new Rect(sx, yy, colW, 24f * s), row, 17, Cyan); yy += 24f * s; }
             }
-            Side(x, true);
-            Side(x + colW, false);
+            for (int side = 0; side < Sides; side++) Side(x + side * colW, side);
             y += 32f * s + 7 * 24f * s + 20f * s;
             Hud.Fill(new Rect(inner.x + 20f * s, y - 8f * s, inner.width - 40f * s, Mathf.Max(1f, s)), Frame);
             Tx(new Rect(x, y, 600f * s, 24f * s), "KILLS BY SHIP", 17, Cyan, true);
             y += 28f * s;
             float[] cw = { 60f, 170f, 100f, 150f, 80f, 130f, 130f, 80f };
             string[] hd = { "TRK", "NAME", "CLASS", "STATUS", "KILLS", "DEALT", "TAKEN", "HULL" };
-            float rowH = Mathf.Min(24f * s, (inner.yMax - y - 10f * s) / Mathf.Max(1, (Tracks.Count + 1) / 2 + 1));
-            float half = (inner.width - 60f * s) / 2f;
+            int most = Enumerable.Range(0, Sides).Max(x => SideCount(x));
+            float rowH = Mathf.Min(24f * s, (inner.yMax - y - 10f * s) / Mathf.Max(1, most + 1));
+            float half = (inner.width - 60f * s) / Sides;
             float k1 = half / (cw.Sum() * s);
-            for (int side = 0; side < 2; side++)
+            for (int side = 0; side < Sides; side++)
             {
                 float sx = x + side * half, yy = y, cx = sx;
                 for (int i = 0; i < hd.Length; i++) { Tx(new Rect(cx, yy, cw[i] * s * k1, rowH), hd[i], 13, Dim, true); cx += cw[i] * s * k1; }
                 yy += rowH;
-                foreach (var k in Tracks.Where(t => t.friendly == (side == 0)))
+                foreach (var k in Tracks.Where(t => t.side == side))
                 {
-                    Color col = k.dead ? Grey : k.friendly ? Blue : Red;
+                    Color col = k.dead ? Grey : SideColor(k);
                     string[] cells = { k.id, k.name, k.cls, k.dead ? (k.captured ? "CAPTURED" : $"LOST {Clk(k.diedAt)}") : "SURVIVED", $"{k.kills}", K(k.dealt), K(k.taken), k.dead ? "--" : $"{k.hull * 100f:F0}%" };
                     cx = sx;
                     for (int i = 0; i < cells.Length; i++) { Tx(new Rect(cx, yy, cw[i] * s * k1 - 4f * s, rowH), cells[i], 14, i == 4 && k.kills > 0 ? Yellow : col, i == 0); cx += cw[i] * s * k1; }
@@ -1645,7 +1732,8 @@ namespace CarrierGame.Demo
             Flush();
             Tx(new Rect(0f, c.y - 90f * s, r.width, 60f * s), "BATTLECRUISER 4000 BC", 52, Cyan, true, TextAnchor.MiddleCenter);
             Tx(new Rect(0f, c.y - 24f * s, r.width, 30f * s), $"CIC RECORD  //  ACTION AT {place}  //  {Clk(Duration)}", 20, Dim, false, TextAnchor.MiddleCenter);
-            Tx(new Rect(0f, c.y + 14f * s, r.width, 30f * s), Outcome, 20, Winner == "BLUE" ? Blue : Winner == "RED" ? Red : Amber, true, TextAnchor.MiddleCenter);
+            int we = Array.IndexOf(SideNames, Winner);
+            Tx(new Rect(0f, c.y + 14f * s, r.width, 30f * s), Outcome, 20, we >= 0 ? ColorOf(we) : Amber, true, TextAnchor.MiddleCenter);
             if (Mathf.Repeat(Time.time, 1.2f) < 0.8f)
                 Tx(new Rect(0f, c.y + 70f * s, r.width, 30f * s), "END OF RECORD", 18, Green, true, TextAnchor.MiddleCenter);
         }

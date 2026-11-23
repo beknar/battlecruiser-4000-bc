@@ -104,9 +104,9 @@ namespace CarrierGame
         {
             closer = null;
             float best = r * r;
-            foreach (var p in PlayerShips.All)
+            foreach (var p in Rivalry.TargetsFor(transform))
             {
-                if (p == null || !p.gameObject.activeInHierarchy || !PlayerShips.Present(p)) continue;
+                if (p == null) continue;
                 float d = (p.position - transform.position).sqrMagnitude;
                 if (d < best) { best = d; closer = p; }
             }

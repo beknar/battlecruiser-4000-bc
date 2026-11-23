@@ -69,7 +69,7 @@ namespace CarrierGame
                 if (HullOf(transform) < breakBelow) beam.Release("its hull failing");
                 else if (!heldDisabled && !towing) beam.Release("the ship has its engines back");
             }
-            else if (disabled)
+            else if (disabled && Rivalry.IsPlayer(Target))
             {
                 Current = Phase.Close;
                 if (beam != null && d < Mathf.Min(lockRange, beam.range) && beam.Lock(Target, out _)) Locks++;

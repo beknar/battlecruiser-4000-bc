@@ -30,7 +30,7 @@ namespace CarrierGame
         /// <summary>A, P, R (the Raider), C (the reCon).</summary>
         public override char RoleLetter => role == Role.Recon ? 'C' : RoleName[0];
         /// <summary>Ablative plates on the armoured ones (the Assault frigate's the most).</summary>
-        public override int PlateCount => role == Role.Assault ? 16 : role == Role.Patrol ? 10 : role == Role.Raider ? 6 : 6;
+        public override int PlateCount => role == Role.Assault ? 16 : role == Role.Patrol ? 10 : 6;
 
         public override float SectionWeight(float distance)
         {

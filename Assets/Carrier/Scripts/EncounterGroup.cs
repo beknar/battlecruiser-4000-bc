@@ -24,6 +24,13 @@ namespace CarrierGame
 
         void Start() => player = PlayerShips.Primary;
 
+        /// <summary>Back to lying in wait, as before any fight (the battle simulator's, between battles).</summary>
+        public void ResetBand()
+        {
+            Active = false;
+            holdOff = false;
+        }
+
         /// <summary>They break cover and attack now.</summary>
         public void Spring()
         {
@@ -37,16 +44,25 @@ namespace CarrierGame
 
         void Update()
         {
-            if (player == null || pilots == null) return;
+            if (pilots == null) return;
+            // with more than one player ship about (co-op): the one nearest the group (and another
+            // at once if the one it had is gone: a player who left, a ship destroyed)
+            if (player == null && PlayerShips.Count == 0)
+            {
+                // (no player ship about: looked for once a second, not every frame)
+                if (Time.time < nextLook) return;
+                nextLook = Time.time + 1f;
+                player = PlayerShips.Primary;
+            }
+            else if (pilots.Length > 0 && pilots[0] != null)
+                player = PlayerShips.Retarget(player, pilots[0].transform.position, ref nextLook, 0f);
+            if (player == null) return;
             bool anyEngaged = false, anyLurking = false;
             foreach (var p in pilots)
             {
                 if (p == null || !p.Alive) continue;    // the dead wait to respawn, they aren't fighting
                 if (p.Current == CombatPilot.State.Lurk) anyLurking = true; else anyEngaged = true;
             }
-            // with more than one player ship about (co-op): the one nearest the group
-            if (pilots.Length > 0 && pilots[0] != null)
-                player = PlayerShips.Retarget(player, pilots[0].transform.position, ref nextLook, 0f);
             if (!Active && !holdOff)
             {
                 Vector3 pp = player.position;

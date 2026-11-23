@@ -51,6 +51,15 @@ namespace CarrierGame
 
         void OnDisable() { if (shaft != null) shaft.enabled = false; }
 
+        /// <summary>Its work forgotten, as before any (the battle simulator's, between battles: a
+        /// ship it worked on may have been destroyed under it, which `held != working` can't see).</summary>
+        public void ResetWork()
+        {
+            working = null;
+            done = 0;
+            Done = false;
+        }
+
         void Update()
         {
             var held = beam != null && beam.Locked && (health == null || !health.Dead) ? beam.Holding : null;

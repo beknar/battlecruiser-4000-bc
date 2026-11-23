@@ -43,14 +43,21 @@ namespace CarrierGame
 
         Transform Choose(out string why)
         {
-            // the players' craft
+            // the players' craft (their drones and fighters, the nearest it sees)
+            Transform craft = null;
+            float near = float.MaxValue;
             foreach (var s in PlayerShips.All)
             {
                 var cc = s != null ? s.GetComponent<CarrierController>() : null;
                 if (cc == null) continue;
                 foreach (var c in cc.Wing)
-                    if (c != null && c.isActiveAndEnabled && Sees(c.transform)) { why = "a drone or fighter"; return c.transform; }
+                {
+                    if (c == null || !c.isActiveAndEnabled || c.kind == Craft.Kind.Dropship || !Sees(c.transform)) continue;
+                    float d = (c.transform.position - transform.position).sqrMagnitude;
+                    if (d < near) { near = d; craft = c.transform; }
+                }
             }
+            if (craft != null) { why = "a drone or fighter"; return craft; }
             // a wingman or a ship of their fleet (the light escorts), then the lightest player's ship
             Transform best = null;
             float bestHull = float.MaxValue;

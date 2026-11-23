@@ -17,6 +17,10 @@ namespace CarrierGame
         public float flankOffset = 1800f;
         public float screenRange = 3000f;
         public float facilityRange = 4000f;
+        [Tooltip("Flanking at most this long (s), then in from wherever it is: a target that turns with it is never flanked.")]
+        public float flankTime = 6f;
+        float flankSince;
+        bool closedIn;   // (this run has come in close: its pass can be over)
 
         public enum Phase { None, Flank, Run }
         public Phase Current { get; private set; }
@@ -49,28 +53,46 @@ namespace CarrierGame
             ShipSystems.SetAim(transform.root, sys != null && sys.EnginesDown ? ShipSystem.Weapons : ShipSystem.Engines);
             // out to the flank till it is there, then the run
             Vector3 flank = FlankPoint(strike);
-            if (Current != Phase.Run && (flank - transform.position).sqrMagnitude < 600f * 600f) Current = Phase.Run;
-            else if (Current == Phase.None) { Current = Phase.Flank; Side = Random.value < 0.5f ? 1 : -1; }
+            if (Current != Phase.Run && ((flank - transform.position).sqrMagnitude < 600f * 600f || (Current == Phase.Flank && Time.time - flankSince > flankTime))) { Current = Phase.Run; closedIn = false; }
+            else if (Current == Phase.None) { Current = Phase.Flank; flankSince = Time.time; Side = Random.value < 0.5f ? 1 : -1; }
             // past the target and going away (the pilot's run over: it extends): round again from
             // the other flank
             Vector3 toT = strike.position - transform.position;
-            if (Current == Phase.Run && toT.magnitude > 1200f && Vector3.Dot(transform.forward, toT) < 0f) { Current = Phase.Flank; Side = -Side; Passes++; }
+            // (only once the run has closed in: one started from the flank on a target behind it
+            // turns in first, and isn't a pass yet)
+            if (Current == Phase.Run && toT.magnitude < 900f) closedIn = true;
+            if (Current == Phase.Run && closedIn && toT.magnitude > 1200f && Vector3.Dot(transform.forward, toT) < 0f) { Current = Phase.Flank; flankSince = Time.time; Side = -Side; Passes++; }
             Doing = $"{(Current == Phase.Run ? "attack run" : "flanking")} on {strike.name} ({why})";
         }
 
         /// <summary>What it strikes: a player's craft at its Shroud or Reaper, else a facility in
         /// its way with no player's ship near, else the seen player's ship with the least hull.</summary>
+        EncounterGroup band;
+        bool bandLooked;
+
+        /// <summary>Is `g` of this ship's own band (none known: any)?</summary>
+        bool OfMyBand(GreysShip g)
+        {
+            if (!bandLooked)
+            {
+                bandLooked = true;
+                foreach (var eg in FindObjectsByType<EncounterGroup>(FindObjectsSortMode.None))
+                    if (eg.pilots != null && System.Array.IndexOf(eg.pilots, pilot) >= 0) { band = eg; break; }
+            }
+            return band == null || (g.TryGetComponent(out CombatPilot gp) && band.pilots != null && System.Array.IndexOf(band.pilots, gp) >= 0);
+        }
+
         Transform Choose(out string why)
         {
             foreach (var g in GreysShip.All)
             {
-                if (g == null || !g.Alive || (g.role != GreysShip.Role.Shroud && g.role != GreysShip.Role.Reaper)) continue;
+                if (g == null || !g.Alive || (g.role != GreysShip.Role.Shroud && g.role != GreysShip.Role.Reaper) || !OfMyBand(g)) continue;
                 foreach (var s in PlayerShips.All)
                 {
                     var cc = s != null ? s.GetComponent<CarrierController>() : null;
                     if (cc == null) continue;
                     foreach (var c in cc.Wing)
-                        if (c != null && c.isActiveAndEnabled && (c.transform.position - g.transform.position).sqrMagnitude < screenRange * screenRange)
+                        if (c != null && c.isActiveAndEnabled && (c.transform.position - g.transform.position).sqrMagnitude < screenRange * screenRange && Sees(c.transform))
                         { why = $"screening the {g.role}"; return c.transform; }
                 }
             }

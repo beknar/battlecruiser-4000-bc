@@ -98,6 +98,15 @@ namespace CarrierGame
             return true;
         }
 
+        /// <summary>The band as it was before any fight (the battle simulator's, between battles).</summary>
+        public void ResetBand()
+        {
+            SetRetreat(false);
+            retreatAt.Clear();
+            Current = Phase.Patrol;
+            Why = "on patrol";
+        }
+
         void StartRetreat()
         {
             group.holdOff = true;

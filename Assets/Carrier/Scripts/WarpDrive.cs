@@ -238,6 +238,8 @@ namespace CarrierGame
                     if (LastHitTime > chargeHitTime) { Cancel("warp interrupted: under fire"); break; }
                     if (ship.Tractored) { Cancel("warp interrupted: held by a tractor beam"); break; }
                     if (ship.Clamped) { Cancel("warp interrupted: a Vrask ship is clamped on"); break; }
+                    var field = Interdictor.At(transform.position);
+                    if (field != null) { Cancel($"warp interrupted: inhibited by {field.Name}"); break; }
                     if (Boarders.CountOn(ship.transform) > 0) { Cancel("warp interrupted: boarders aboard"); break; }
                     if (k >= 1f) Jump();
                     break;

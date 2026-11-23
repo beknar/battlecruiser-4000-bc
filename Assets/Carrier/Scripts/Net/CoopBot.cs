@@ -170,6 +170,7 @@ namespace CarrierGame.Demo
                 CoopChat.Say($"{Me}: engaging {(info != null && !string.IsNullOrEmpty(info.Name) ? info.Name : Pilot.Target.name)}.");
             }
             wasFighting = fighting;
+            NextInChain();
             while (requests.TryDequeue(out var r)) Serve(r.ctx, r.body);
             CoopGifts.Tick();
             for (int i = waiting.Count - 1; i >= 0; i--)
@@ -431,8 +432,25 @@ namespace CarrierGame.Demo
             return null;
         }
 
-        /// <summary>Carry out an order in words; the answer to give (null: talk, not an order).</summary>
+        /// <summary>Carry out an order in words; the answer to give (null: talk, not an order).
+        /// Several orders in one message ("mine, then sell", "warp to Heaven and dock") are carried
+        /// out one after another (Chain).</summary>
         public string Command(string words, int fromId)
+        {
+            var chain = Clauses(words);
+            if (chain != null) return Chain(chain, fromId);
+            var p = ParseOrder(words);
+            if (p == null) return null;
+            // (a new order: whatever was still to come of the last message's is called off)
+            pending.Clear();
+            stepDone = null;
+            return Run(p.Value, fromId);
+        }
+
+        /// <summary>An order in words, parsed (none: talk): its kind ("chat", "follow", "regroup",
+        /// "cargo", "give", "hold", "attack", "goto", "dock", "mine", "sell", "status", "help") and
+        /// what it is to (a name, a place, an amount).</summary>
+        public static (string kind, string arg)? ParseOrder(string words)
         {
             string w = (words ?? "").Trim().TrimEnd('?', '!', '.').TrimEnd();
             string lw = w.ToLowerInvariant();
@@ -442,26 +460,154 @@ namespace CarrierGame.Demo
                     if (lw == v || lw.StartsWith(v + " ")) return w.Substring(v.Length).Trim().TrimEnd('.', '!');
                 return null;
             }
+            string NoThe(string x) => x.StartsWith("the ", StringComparison.OrdinalIgnoreCase) ? x.Substring(4) : x;
             string a;
-            if ((a = ChatOrderArg(w)) != null) return ChatOrder(a, fromId);
-            if ((a = Arg("follow", "escort", "form up on", "form on")) != null) return Order("follow", a.Length == 0 || a.ToLowerInvariant() == "me" ? "" : a, fromId);
-            if (Arg("regroup", "form up", "come here", "return", "rtb") != null) return Order("follow", "", fromId);
+            if ((a = ChatOrderArg(w)) != null) return ("chat", a);
+            if ((a = Arg("follow", "escort", "form up on", "form on")) != null) return ("follow", a.Length == 0 || a.ToLowerInvariant() == "me" ? "" : a);
+            if (Arg("regroup", "form up", "come here", "return", "rtb") != null) return ("regroup", "");
             // (before "hold": "hold report", "what's in your hold")
             if (Arg("cargo", "manifest", "inventory", "hold report", "report hold", "hold status", "what's in your hold", "whats in your hold",
-                    "what is in your hold", "what's in the hold", "what is in the hold", "how full is your hold", "how full is the hold",
+                    "what is in your hold", "what's in the hold", "whats in the hold", "what is in the hold", "how full is your hold", "how full is the hold",
                     "what are you carrying", "check your hold", "check the hold") != null)
-                return Order("cargo", "", fromId);
-            if ((a = GiveArgs(w.TrimEnd('?', '.', '!'))) != null) return Order("give", a, fromId);
-            if (Arg("hold", "stop", "wait", "stay") != null) return Order("hold", "", fromId);
-            if ((a = Arg("attack", "engage", "fire on", "kill")) != null) return Order("attack", a.StartsWith("the ", StringComparison.OrdinalIgnoreCase) ? a.Substring(4) : a, fromId);
-            if ((a = Arg("warp to", "go to", "goto", "jump to", "warp")) != null) return Order("goto", a, fromId);
-            if (Arg("dock") != null) return Order("dock", "", fromId);
-            if ((a = Arg("start mining", "go mining", "mine asteroids", "mine at", "mine in", "mine")) != null)
-                return Order("mine", a.StartsWith("the ", StringComparison.OrdinalIgnoreCase) ? a.Substring(4) : a, fromId);
-            if (Arg("sell the ore", "sell ore", "sell") != null) return Order("sell", "", fromId);
-            if (Arg("status", "report", "sitrep") != null) return Report();
-            if (Arg("help", "orders") != null) return "orders: follow me / follow <name>, hold, attack [target], warp to <place>, dock, regroup, mine [at <field>], sell, cargo, give [N] credits [to <name>], status; chat on|off|pause|resume.";
+                return ("cargo", "");
+            if ((a = GiveArgs(w.TrimEnd('?', '.', '!'))) != null) return ("give", a);
+            if (Arg("hold", "stop", "wait", "stay") != null) return ("hold", "");
+            if ((a = Arg("attack", "engage", "fire on", "kill")) != null) return ("attack", NoThe(a));
+            if ((a = Arg("warp to", "go to", "goto", "jump to", "warp")) != null) return ("goto", a);
+            if (Arg("dock") != null) return ("dock", "");
+            if ((a = Arg("start mining", "go mining", "mine asteroids", "mine at", "mine in", "mine")) != null) return ("mine", NoThe(a));
+            // ("sell at the nearest station", "sell it": wherever the nearest market is)
+            if (Arg("sell the ore", "sell ore", "sell") != null) return ("sell", "");
+            if (Arg("status", "report", "sitrep") != null) return ("status", "");
+            if (Arg("help", "orders") != null) return ("help", "");
             return null;
+        }
+
+        string Run((string kind, string arg) p, int fromId)
+        {
+            switch (p.kind)
+            {
+                case "chat": return ChatOrder(p.arg, fromId);
+                case "regroup": return Order("follow", "", fromId);
+                case "status": return Report();
+                case "help": return "orders: follow me / follow <name>, hold, attack [target], warp to <place>, dock, regroup, mine [at <field>], sell, cargo, give [N] credits [to <name>], status; chat on|off|pause|resume. Several at once: \"warp to Heaven, then dock\".";
+                default: return Order(p.kind, p.arg, fromId);
+            }
+        }
+
+        // ---------------------------------------------------------------- several orders at once
+
+        static readonly Regex ThenRx = new Regex(@"\s*(?:,\s*and\s+then\b|,\s*then\b|\band\s+then\b|\bthen\b|;|,\s*and\b|\band\b|,(?!\d))\s*", RxOpt);
+
+        /// <summary>A message of several orders ("mine and then sell", "warp to Heaven, dock"),
+        /// each parsed; null if it is one order, or isn't all orders (talk, or a name with "and" in
+        /// it: taken whole).</summary>
+        public static List<(string kind, string arg)> Clauses(string words)
+        {
+            string w = (words ?? "").Trim().TrimEnd('?', '!', '.').TrimEnd();
+            var parts = ThenRx.Split(w).Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
+            if (parts.Count < 2) return null;
+            var list = new List<(string kind, string arg)>();
+            foreach (var part in parts)
+            {
+                var p = ParseOrder(part);
+                if (p == null) return null;
+                list.Add(p.Value);
+            }
+            return list;
+        }
+
+        /// <summary>Orders that are over at once (said, or handed over), and those that are never
+        /// over till another order comes (nothing can come after them).</summary>
+        static bool Instant(string kind) => kind == "chat" || kind == "cargo" || kind == "give" || kind == "status" || kind == "help";
+        static bool Standing(string kind) => kind == "follow" || kind == "regroup" || kind == "hold";
+
+        // the orders still to come of a message's chain, and whether the one being carried out is over
+        readonly List<(string kind, string arg, int from)> pending = new List<(string, string, int)>();
+        Func<bool> stepDone;
+
+        /// <summary>The orders still to come (the tests).</summary>
+        public int Pending => pending.Count;
+
+        string Chain(List<(string kind, string arg)> orders, int fromId)
+        {
+            // (mining sells when the hold is full: "mine and sell" is mining)
+            for (int i = orders.Count - 1; i > 0; i--)
+                if (orders[i].kind == "sell" && orders[i - 1].kind == "mine") orders.RemoveAt(i);
+            // (one that goes on till told otherwise can only have what is over at once after it)
+            for (int i = 0; i < orders.Count - 1; i++)
+                if (Standing(orders[i].kind) && orders.Skip(i + 1).Any(x => !Instant(x.kind)))
+                    return $"{Words(orders[i])} goes on till you say otherwise, so nothing can come after it: give it last.";
+            if (Pilot == null || Pilot.demo == null || Pilot.demo.carrier == null) return "not ready yet";
+            pending.Clear();
+            stepDone = null;
+            if (orders.Count == 1) return Run(orders[0], fromId);
+            string first = Start(orders[0], fromId, out bool ok);
+            if (!ok) return Sentence(first) + " The rest called off.";
+            var said = new List<string> { first };
+            int k = 1;
+            // (what is over at once is done at once)
+            while (k < orders.Count && stepDone == null)
+            {
+                said.Add(Start(orders[k], fromId, out ok));
+                k++;
+                if (!ok) return string.Join(" ", said.Select(Sentence)) + (k < orders.Count ? " The rest called off." : "");
+            }
+            for (; k < orders.Count; k++) pending.Add((orders[k].kind, orders[k].arg, fromId));
+            string then = pending.Count > 0 ? $" Then: {string.Join(", then ", pending.Select(x => Words((x.kind, x.arg))))}." : "";
+            return string.Join(" ", said.Select(Sentence)) + then;
+        }
+
+        /// <summary>Carry out one order of a chain: its answer, whether it was taken, and (in
+        /// `stepDone`) how to tell it is over; none for one over at once.</summary>
+        string Start((string kind, string arg) o, int fromId, out bool ok)
+        {
+            int before = Orders;
+            int sales0 = Pilot != null ? Pilot.Sales : 0;
+            string answer = Run(o, fromId);
+            stepDone = null;
+            ok = true;
+            if (Instant(o.kind) || Standing(o.kind) || Pilot == null) return answer;
+            // (an order refused: "don't know a place called ...", "no ore aboard")
+            ok = Orders > before;
+            if (!ok) return answer;
+            var pilot = Pilot;
+            switch (o.kind)
+            {
+                case "goto": stepDone = () => pilot.Current != Wingman.Order.Goto; break;
+                case "dock": stepDone = () => pilot.Current != Wingman.Order.Dock; break;
+                case "attack": stepDone = () => pilot.Current != Wingman.Order.Attack; break;
+                // (mining: over with its first load sold; selling: with the sale, or back to what it was doing)
+                case "mine": stepDone = () => pilot.Sales > 0 || pilot.Current != Wingman.Order.Mine; break;
+                case "sell": stepDone = () => pilot.Sales > sales0 || pilot.Current != Wingman.Order.Mine; break;
+            }
+            return answer;
+        }
+
+        /// <summary>The next order of a chain, once the one before it is over (Update).</summary>
+        void NextInChain()
+        {
+            if (pending.Count == 0 || Pilot == null || (stepDone != null && !stepDone())) return;
+            var n = pending[0];
+            pending.RemoveAt(0);
+            string answer = Start((n.kind, n.arg), n.from, out bool ok);
+            if (!ok && pending.Count > 0) { pending.Clear(); answer = Sentence(answer) + " The rest called off."; }
+            if (CoopClient.Active && !string.IsNullOrEmpty(answer)) CoopChat.Say($"{Me}: {answer}");
+        }
+
+        static string Sentence(string s) => string.IsNullOrEmpty(s) ? "" : char.ToUpperInvariant(s[0]) + s.Substring(1) + (".!?".IndexOf(s[s.Length - 1]) >= 0 ? "" : ".");
+
+        static string Words((string kind, string arg) o)
+        {
+            switch (o.kind)
+            {
+                case "goto": return $"warp to {o.arg}";
+                case "attack": return o.arg.Length > 0 ? $"attack {o.arg}" : "attack";
+                case "mine": return o.arg.Length > 0 ? $"mine at {o.arg}" : "mine";
+                case "follow": return o.arg.Length > 0 ? $"follow {o.arg}" : "follow";
+                case "give": return "give credits";
+                default: return o.kind;
+            }
         }
 
         const RegexOptions RxOpt = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant;
@@ -519,11 +665,19 @@ namespace CarrierGame.Demo
         {
             if (hold == null) return "no cargo hold.";
             var table = IndustryTable.Get();
-            var items = hold.Contents().Where(e => e.amount > 0.005f).ToList();
+            // (the most first: by weight, parts after the rest)
+            var items = hold.Contents().Where(e => e.amount > 0.005f)
+                            .OrderBy(e => table.Kind(e.id) == ItemKind.Part ? 1 : 0).ThenByDescending(e => e.amount).ToList();
+            string T(float t) => t >= 9.95f ? t.ToString("F0", CultureInfo.InvariantCulture) : Mathf.Max(0.1f, t).ToString("0.#", CultureInfo.InvariantCulture);
             var parts = new List<string>();
             foreach (var e in items.Take(most))
-                parts.Add(table.Kind(e.id) == ItemKind.Part ? $"{e.amount:F0} x {table.Name(e.id)}" : $"{e.amount:F0} t {table.Name(e.id)}");
-            if (items.Count > most) parts.Add($"{items.Count - most} more");
+                parts.Add(table.Kind(e.id) == ItemKind.Part ? $"{e.amount:F0} x {table.Name(e.id)}" : $"{T(e.amount)} t {table.Name(e.id)}");
+            if (items.Count > most)
+            {
+                var rest = items.Skip(most).ToList();
+                float restT = rest.Where(e => table.Kind(e.id) != ItemKind.Part).Sum(e => e.amount);
+                parts.Add(restT > 0.05f ? $"{rest.Count} more ({T(restT)} t)" : $"{rest.Count} more");
+            }
             string what = parts.Count > 0 ? ": " + string.Join(", ", parts) : ", empty";
             return $"hold {hold.Used:F0} of {hold.capacity:F0} t ({hold.Fraction:P0} full){what}; {hold.Credits:N0} cr aboard.";
         }
@@ -817,6 +971,8 @@ namespace CarrierGame.Demo
                     case "/order" when post:
                     {
                         var b = Parse<OrderBody>(body);
+                        pending.Clear();
+                        stepDone = null;
                         int before = Orders;
                         string answer = Order(b?.order, b?.target);
                         bool ok = Orders > before;

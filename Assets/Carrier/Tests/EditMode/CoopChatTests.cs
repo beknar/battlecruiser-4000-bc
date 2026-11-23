@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using CarrierGame.Demo;
 using NUnit.Framework;
 using UnityEngine;
@@ -135,6 +136,35 @@ namespace CarrierGame.Tests
             Assert.That(bot.Command("what's in your hold?", 0), Is.EqualTo("not ready yet"), "a cargo report, not 'hold'");
             Assert.That(bot.Command("give me 500 credits", 2), Is.EqualTo("not ready yet"));
             Assert.That(bot.Command("give me a hand", 2), Is.Null, "giving, but not credits: talk");
+            Assert.That(bot.Command("mine and then sell at the nearest station", 2), Is.EqualTo("not ready yet"), "mining (it sells when full), not a field's name");
+            Assert.That(bot.Command("warp to Heaven, then dock", 2), Is.EqualTo("not ready yet"));
+            Assert.That(bot.Pending, Is.Zero);
+            Assert.That(bot.Orders, Is.Zero);
+        }
+
+        [Test]
+        public void SeveralOrdersInOneMessageAreSplitIntoThem()
+        {
+            string Kinds(string said) => string.Join(" | ", CoopBot.Clauses(said).Select(c => c.arg.Length > 0 ? $"{c.kind} {c.arg}" : c.kind));
+            Assert.That(Kinds("mine and then sell at nearest station"), Is.EqualTo("mine | sell"));
+            Assert.That(Kinds("warp to Heaven, then dock"), Is.EqualTo("goto Heaven | dock"));
+            Assert.That(Kinds("mine at the Inner Belt; status"), Is.EqualTo("mine Inner Belt | status"));
+            Assert.That(Kinds("attack the Scavenger and then follow me"), Is.EqualTo("attack Scavenger | follow"));
+            Assert.That(Kinds("dock, sell, cargo"), Is.EqualTo("dock | sell | cargo"));
+            // one order, or not all orders: taken whole
+            Assert.That(CoopBot.Clauses("mine"), Is.Null);
+            Assert.That(CoopBot.Clauses("give me 1,000 credits"), Is.Null, "a comma in a number isn't a break");
+            Assert.That(CoopBot.Clauses("hold on, that was close"), Is.Null, "talk");
+            Assert.That(CoopBot.Clauses("warp to Heaven and say hello"), Is.Null);
+        }
+
+        [Test]
+        public void AStandingOrderCanOnlyComeLast()
+        {
+            var bot = new GameObject("bot").AddComponent<CoopBot>();
+            made.Add(bot.gameObject);
+            Assert.That(bot.Command("follow me and then dock", 2), Does.Contain("give it last"));
+            Assert.That(bot.Command("form up, then status", 2), Is.EqualTo("not ready yet"), "a report after it is fine");
             Assert.That(bot.Orders, Is.Zero);
         }
 
@@ -186,6 +216,17 @@ namespace CarrierGame.Tests
             Assert.That(line, Does.Contain("120 t "));
             Assert.That(line, Does.Contain("918 cr aboard"));
             Assert.That(CoopBot.CargoLine(null), Is.EqualTo("no cargo hold."));
+            // the most first, whatever order it came aboard in; under ten tonnes to a tenth
+            hold.Add(Mineral.Gold, 0.3f);
+            hold.Add(Mineral.Nickel, 14f);
+            hold.Add(Mineral.Silicates, 166f);
+            hold.Add(Mineral.Titanium, 6.4f);
+            hold.Add(Mineral.Magnesium, 27f);
+            hold.Add(Mineral.Aluminium, 12f);
+            hold.Add(Mineral.Copper, 2f);
+            line = CoopBot.CargoLine(hold);
+            Assert.That(line, Does.Contain(": 166 t Silicates, 120 t Iron, 27 t Magnesium, 14 t Nickel, 12 t Aluminium, 3 more (8.7 t)"), line);
+            Assert.That(CoopBot.CargoLine(hold, 8), Does.Contain("6.4 t Titanium, 2 t Copper, 0.3 t Gold"));
         }
 
         [Test]

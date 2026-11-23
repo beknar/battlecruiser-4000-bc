@@ -289,10 +289,13 @@ async def main():
 
             # mining and selling: it mines the nearest field, and takes the ore to a market
             n = len(me.heard)
-            await me.say(f"{BOT}, mine asteroids")
+            # (two orders in one: mining sells when the hold is full, so this is mining, not a field
+            # called "and then sell at the nearest station")
+            await me.say(f"{BOT}, mine and then sell at the nearest station")
             r = await me.hear("mining", 15, n)
             s = await wait_status(lambda s: s.get("order", {}).get("order") == "mine", 10)
-            check(r is not None and s.get("order", {}).get("order") == "mine", "'mine asteroids' is carried out and answered", r or "no answer")
+            check(r is not None and "don't know" not in r and s.get("order", {}).get("order") == "mine",
+                  "'mine and then sell at the nearest station' is carried out and answered", r or "no answer")
             t0 = time.monotonic()
             s = await wait_status(lambda s: s.get("ship", {}).get("ore_t", 0) >= 40, 420)
             ore = s.get("ship", {}).get("ore_t", 0)
@@ -321,6 +324,17 @@ async def main():
             cargo = await api("/cargo")
             check(r is not None and "hold" in r and cargo.get("capacity_t", 0) > 0 and "items" in cargo,
                   "'what's in your hold?' is answered with the cargo, and /cargo has it", f"{r}; {json.dumps(cargo)[:160]}")
+            raw = [i for i in cargo.get("items", []) if i.get("kind") != "part" and i.get("amount", 0) > 0.005]
+            if raw and r is not None:
+                biggest = max(raw, key=lambda i: i["amount"])["name"]
+                listed = r.split(": ", 1)[1] if ": " in r else ""
+                check(listed.split(", ")[0].endswith(biggest), "the cargo report lists the most aboard first", f"{biggest} first? {r}")
+            # several orders in one message: a standing order, then a report
+            n = len(me.heard)
+            await me.say(f"{BOT}, hold, then cargo")
+            r = await me.hear("cr aboard", 10, n)
+            s = await api("/status")
+            check(r is not None and s.get("order", {}).get("order") == "hold", "'hold, then cargo' holds and reports the hold", r or "no answer")
             s = await api("/status")
             have = s.get("ship", {}).get("credits", 0)
             n = len(me.heard)

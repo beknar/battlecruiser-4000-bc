@@ -19,16 +19,18 @@ they had.
 ## Downloads and demo reels
 
 The Windows build is 64-bit and uses DirectX 11. Unzip it and run `StarSystem/StarSystem.exe`.
-The builds and the co-op server are on the [14 Nov release](https://github.com/beknar/battlecruiser-4000-bc/releases/tag/star-system-2026-11-14), and
+The Linux build is 64-bit: `tar -xzf` it and run `StarSystemLinux/StarSystem.x86_64`.
+The builds and the co-op server are on the [22 Nov release](https://github.com/beknar/battlecruiser-4000-bc/releases/tag/star-system-2026-11-22), and
 the demo reels on the [3 Nov release](https://github.com/beknar/battlecruiser-4000-bc/releases/tag/demo-reel-2026-11-03) (recorded before the
 real-size system).
 
 | Game | Download | Demo reel |
 |---|---|---|
-| Star System | [battlecruiser-4000-bc-star-system-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/star-system-2026-11-14/battlecruiser-4000-bc-star-system-windows.zip) (357 MB) | [214 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4) (290 MB) |
+| Star System | [battlecruiser-4000-bc-star-system-windows.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/star-system-2026-11-22/battlecruiser-4000-bc-star-system-windows.zip) (562 MB) | [214 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-reel.mp4) (290 MB) |
 | Star System: mining, combat, landing and mini-warps | The Star System downloads above | [5 min 10 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-features-reel.mp4) (382 MB) |
 | Star System: orbits, stations and launch systems | The Star System downloads above | [3 min 29 s, 1080p](https://github.com/beknar/battlecruiser-4000-bc/releases/download/demo-reel-2026-11-03/battlecruiser-4000-bc-star-system-orbits-reel.mp4) (157 MB) |
-| Star System, web version | [battlecruiser-4000-bc-star-system-web.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/star-system-2026-11-14/battlecruiser-4000-bc-star-system-web.zip) (315 MB) | See [The web version](#the-web-version) |
+| Star System, Linux | [battlecruiser-4000-bc-star-system-linux.tar.gz](https://github.com/beknar/battlecruiser-4000-bc/releases/download/star-system-2026-11-22/battlecruiser-4000-bc-star-system-linux.tar.gz) (565 MB) | The Star System reels above |
+| Star System, web version | [battlecruiser-4000-bc-star-system-web.zip](https://github.com/beknar/battlecruiser-4000-bc/releases/download/star-system-2026-11-22/battlecruiser-4000-bc-star-system-web.zip) (480 MB) | See [The web version](#the-web-version) |
 
 Carrier Demo and Asteroid Ambush are deprecated. Their last downloads stay on the release page,
 but they are no longer built or updated:
@@ -1916,8 +1918,7 @@ WebGL 2 elsewhere. The badge in the corner of the page shows which one is in use
 - **Setting it up on a web server**, step by step:
   1. Unzip `battlecruiser-4000-bc-star-system-web.zip` (the release's) or build it
      (**Tools > Carrier > Build Star System (Web)**, into `../Builds/StarSystemWeb/`). Co-op
-     with API keys (step 5) needs a build from after 14 Nov 2026: the next release, or one built
-     from source.
+     with API keys (step 5) needs the 22 Nov 2026 release or later, or a build from source.
   2. Copy what is in its folder (`index.html`, `xbox360.js`, `Build/`) to the web server's
      folder for the game, keeping the layout.
   3. Serve it over **https** (WebGPU needs a secure page; plain http falls back to WebGL 2, and
@@ -2001,9 +2002,9 @@ kept.
 ### Running the server
 
 Ready-built servers for Windows and Linux are on the
-[14 Nov release](https://github.com/beknar/battlecruiser-4000-bc/releases/tag/star-system-2026-11-14): `battlecruiser-4000-bc-coop-server-windows.zip`
-and `battlecruiser-4000-bc-coop-server-linux.tar.gz`. The 3 Nov release's servers speak co-op
-protocol 1 and can't host the current game.
+[22 Nov release](https://github.com/beknar/battlecruiser-4000-bc/releases/tag/star-system-2026-11-22): `battlecruiser-4000-bc-coop-server-windows.zip`
+and `battlecruiser-4000-bc-coop-server-linux.tar.gz`. The 14 Nov release's servers have no API
+keys, and the 3 Nov release's speak co-op protocol 1 and can't host the current game.
 
 The server is in `Server/CoopServer` (.NET 8). It runs on Windows and Linux and needs nothing
 else installed when built as below.
@@ -2062,8 +2063,8 @@ CoopServer --revoke-key <name|key>      revoke a key, then exit
 
 #### Setting up a standalone server on Windows
 
-The API keys these steps use came after the 14 Nov 2026 release: use the next release's server,
-or one built from source (see [Building the server](#building-the-server)).
+The API keys these steps use need the 22 Nov 2026 release's server or later, or one built from
+source (see [Building the server](#building-the-server)).
 
 1. Unzip `battlecruiser-4000-bc-coop-server-windows.zip` somewhere it can stay, say
    `C:\CoopServer`. Nothing else needs installing.
@@ -2091,7 +2092,7 @@ or one built from source (see [Building the server](#building-the-server)).
 
 #### Setting up a standalone server on Linux
 
-As on Windows, the API keys need the next release's server, or one built from source.
+As on Windows, the API keys need the 22 Nov 2026 release's server or later, or one built from source.
 
 1. Unpack it: `sudo tar xzf battlecruiser-4000-bc-coop-server-linux.tar.gz -C /opt` (it makes
    `/opt/CoopServer`), and `sudo chmod +x /opt/CoopServer/CoopServer` if needed. It is a single

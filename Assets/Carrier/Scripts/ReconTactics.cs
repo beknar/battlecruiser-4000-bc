@@ -5,7 +5,7 @@ namespace CarrierGame
     /// <summary>
     /// The Imperial Recon frigate's way of fighting: scout and designator. It holds well out
     /// (`holdRange`), seeing furthest of the fleet, its targeting laser (Designator) on the target
-    /// so the fleet's guns fire tighter and its missiles from further out (Designation), its warp
+    /// so the fleet's turrets hit it harder and its missiles reach further (Designation), its warp
     /// inhibitor (Interdictor) keeping the target from running; light guns its only defence. It
     /// keeps its distance from anything that closes (`keepClear`).
     /// </summary>

@@ -105,6 +105,17 @@ namespace CarrierGame
             return true;
         }
 
+        /// <summary>The band as it was before any fight (the battle simulator's, between battles).</summary>
+        public void ResetBand()
+        {
+            gone = false;
+            vanishAt = -1f;
+            Current = Phase.Watch;
+            Why = "watching";
+            foreach (var s in ships)
+                if (s != null && s.TryGetComponent(out ReaperTactics rt)) rt.towing = false;
+        }
+
         void StartVanish(GreysShip reaper)
         {
             gone = true;

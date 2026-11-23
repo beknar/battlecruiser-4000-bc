@@ -177,7 +177,7 @@ Destroyed ships come back after their respawn time, at their post: the field shi
 | Cruise / attack speed | 230 / **320** | 190 / 250 | 75 / 90 | 110 / 140 | 45 / 55 |
 | Turn rate | 90 | **110** | 12 | 18 | 6 |
 | Guns | blaster cannons: 4-shot bursts every 0.9 s, 6 a shot, 1.5 km, only within 18° of the nose | blasters: 3-shot bursts every 1.2 s, 6 a shot, 1.8 km, within 35° of the nose | cannons: 3-shell bursts every 4 s, 30 a shell, 3.5 km | 2 triple turrets: every 3.2 s, 30 a shell, 4.2 km | 8 triple turrets: every 6.5 s, 30 a shell, 5.5 km |
-| Missiles (250 each) | none | none | 3 every 20 s, 4.5 km | 2 every 18 s, 5 km | 4 every 16 s, 6 km |
+| Missiles (150 each) | none | none | 3 every 20 s, 4.5 km | 2 every 18 s, 5 km | 4 every 16 s, 6 km |
 | Beam | none | none | 260/s for 1.6 s after a 4 s charge, every 16 s, 4.5 km | none | 320/s for 2 s after a 5 s charge, every 18 s, 6 km |
 | Tactics | attack runs: in fast, break off at 420 m, extend 1.4 km, come round again; hides in rock when hurt | shorter, tighter passes; hides in rock when hurt | stands off about 1.8 km and circles; hides when below half hull (the Corsair cruiser: 1.9 km, never hides) | stands off 2.3 km and circles | stands off 3.3 km and circles slowly |
 | Respawn | 40 s | 40 s | 40 s in the Outer Drift, 75 s with the Corsair patrol | 60 s | 120 s |
@@ -325,6 +325,241 @@ so it stays in the bombardment.
   With more players every Vrask ship's hull and shield are tougher (×1.6 with two players, ×2.2
   with three) and its guns, shells and missiles hit harder (×1.12, ×1.24), as every enemy's are.
   A Skink that shoots down a player's missile in the host's game takes it down in that player's.
+
+## The Greys
+
+A mystery faction of saucers and a manta that watch, blind, strike and take. They are hostile
+like the pirates and the Vrask (the target display says "Hostile: Greys"). They are the first
+enemies that are **hard to see**: each has a signature under 1, so the players' sensors find it
+only closer in than an ordinary ship, and name it closer still (see Sensors, stealth and
+electronic warfare in the README). They are shielded but carry **no armour** plating. Their beams
+are plain energy, as hard on a shield as on a hull; the Shroud's EMP bolts do a tenth of their
+damage to a hull and knock a component out for a time instead. They hunt by their sensors: unlike
+the pirates and the Vrask, they go only for a ship they can see. Numbers:
+`Assets/Carrier/Data/greys.json`.
+
+| | Scout | Shroud | Lance | Reaper |
+| --- | ---: | ---: | ---: | ---: |
+| Shown as | Grey Watcher | Grey Shroud | Grey Lance A, B | Grey Reaper |
+| Class | Scout saucer | ECM saucer | Strike manta | Abduction saucer |
+| Threat (as targeted) | Low | High | High | High |
+| Length (m) | 110 | 140 | 125 | 160 |
+| Hull | 1,400 | 3,400 | 2,400 | **4,600** |
+| Shield (recharge /s) | 1,000 (100) | **4,200** (**180**) | 1,200 (90) | 3,000 (100) |
+| Armour | none | none | none | none |
+| Cruise / attack speed | 200 / 320 | 110 / 150 | 220 / **380** | 90 / 120 |
+| Turn rate | 45 | 20 | **60** | 15 |
+| Acceleration | 90 | 30 | **120** | 15 |
+| Signature (seen at, named within) | 0.6 (18 km, 9 km); cloaked **0.06** (1.8 km, 0.9 km) | 0.8 (24 km, 12 km) | 0.8 (24 km, 12 km) | 0.8 (24 km, 12 km); cloaked while it holds back **0.28** (8.4 km, 4.2 km) |
+| Sees (your ships) | **25 km** | 20 km | 18 km | 20 km |
+| Guns | 2 hatch beams: 28 a bolt, every 2.2 s, 3.5 km, within 25° of the bow | EMP projector: an EMP bolt of 140 every 9 s, 4 km, within 50° | strike salvo, 5 slots firing together: 62 a bolt, every 2.6 s, 2.2 km, within 12° of the nose | 2 rim guns: 28 a bolt, every 4 s, 2.5 km, within 30° |
+| Electronic warfare | targeting laser, 15 km; a cloak | jammer: a 6 km field, 60 % at its heart, 3 ghost contacts, missiles scrambled and drones stunned within 1.5 km; EMP burst: a 4 s charge, then 400 to every one of your ships within 2.5 km, ready again 30 s after | none | none |
+| Drones | 2: both out at once in one launch, every 30 s, within 6 km | none | none | none |
+| Tractor beam | none | none | none | 2.5 km: locks on within 1.8 km of a disabled ship and holds it 1.5 km off; no warp while held; lets go at 3.25 km |
+| Abduction | none | none | none | while it holds a ship, every 3 s: 4 of its crew (never below the survivors) and 6 t of its cargo; after 8 takes, a sample (a component's condition halved) |
+| Tactics | shadows a ship it sees 7 km back and 2.1 km to one side, cloaked, guns cold; paints it; calls in another band; slips away at full speed from any of your ships within 3 km; with your shield down, a hit-and-run (at most every 45 s): in at full speed, uncloaked, drones out, 8 s of fire in range (25 s at most), then cloaked again | keeps 1.2 km from the Reaper, between it and you (4 km off you with no Reaper within 20 km); jams once you are within 9 km of it; its burst once it sees you within 2.1 km | goes for your craft near the Shroud or Reaper, then the ship of yours it sees with the least hull left; swings out to your flank (1.8 km to the side, 1.1 km behind) and runs in from there, its salvo on your engines (your weapons once they are out); breaks off at 500 m, extends 2.2 km, round again from the other flank | holds 6 km off while the others work; closes on a ship once it is disabled and locks on; lets go if the ship is no longer disabled or its own hull is under 35 %; tows the ship off as the band vanishes |
+| Respawn | 90 s | 90 s | 75 s | 120 s |
+
+### Where they are
+
+| Group | Ships | Where |
+| --- | --- | --- |
+| Greys cell | 1 Reaper, 1 Shroud, 2 Lances, 1 Scout | The Testing System: hidden in the Outer Drift round its middle (the Reaper 3 km back from it, the Scout 4.5 km out on the side away from the star), spotting you at 9 km. On the map: danger near, "Harder" |
+| Greys watcher | 1 Scout (Grey Watcher Trojans) | The Testing System: 6 km from the Jovara Trojans, spotting you at 12 km. "Easy" |
+| Greys cell | as the Outer Drift's | The Nine Hells: picking over the dead race's ruins on Goliath, half-way out from the planet to where a warp drops you, spotting you at 9 km. It raids Nineveh Observatory for people (below). "Harder" |
+| Greys watcher | 1 Scout (Grey Watcher Ptolomea) | The Nine Hells: by Ptolomea, spotting you at 12 km. "Easy" |
+
+A band springs when one of its ships, still in hiding, has a ship of yours within its spotting
+range and in sight, or when one of them is shot. Each ship comes back at its hiding place its
+respawn time after it is destroyed (straight into the fight if its band is fighting); the Scout's
+drone stock fills again when it does.
+
+### Roles
+
+- **Scout, watcher and spotter.** The ship you are least likely to see. Cloaked, its signature is
+  0.06: your sensors find it within 1.8 km and name it within 0.9 km (further with good ECCM: a
+  Sentinel's or a Warden's, 0.7, see it from 3.1 km). It shadows the ship it sees 7 km back and
+  off to one side, guns cold so the cloak holds, with its targeting laser on it (the HUD warns
+  you, and says from where). The first time it sees you it calls in the nearest other Greys band
+  lying in wait, wherever it is in the system: a band more than 15 km off drops out of warp
+  together 7 km beyond you, on the far side from the Scout ("Unidentified ships drop out of warp
+  nearby"). Close within 3 km and it runs, at 320 m/s. With your shield down it makes a
+  hit-and-run, at most once in 45 s: straight in, its cloak off and its two drones out, 8 s of
+  fire once its beams reach (25 s at most), then away and cloaked again, its drones out 20 s more.
+  Firing or a hit lights it up: seen at 30 km and named for 8 s after, and its cloak takes 4 s
+  more to come back.
+- **Shroud, electronic warfare.** The band's jammer (see the README for what jamming does). It
+  keeps by the Reaper, 1.2 km out from it towards you, with its field over both, and jams once you
+  are within 9 km of it, quiet otherwise. In its field your sensors see less far and name less,
+  your turrets' aim is thrown off, your missiles lose their lock, your orders may not get through,
+  ghost contacts move on your sensors and the ships near it are shown at a false place till named.
+  Within 1.5 km of it your missiles are scrambled (they go off short) and your drones stunned. It
+  has no guns, but an EMP projector (140 every 9 s, out to 4 km) and an EMP burst: once it sees
+  you within 2.1 km it charges for 4 s, the HUD counting it down, then knocks a component of every
+  one of your ships within 2.5 km out for a time. Get out of reach while it charges, or knock its
+  weapons out (the pulse fizzles).
+- **Lance, precision strike.** The fastest of them, and the hardest hitter: five 62-point bolts
+  at once, though only within 12° of its nose and 2.2 km. It doesn't come head on: it swings out to
+  your flank or rear (for 6 s at most: a ship that turns with it is run at from wherever it is) and runs in from there, its salvo aimed at your engines (once they are out,
+  your weapons), breaks off at 500 m, extends 2.2 km and comes round from the other side. Of the
+  ships of yours it sees, it goes for the one with the least hull left. It screens the Shroud and
+  the Reaper first: a fighter or drone of yours within 3 km of either is its target before any
+  ship. With no ship of yours in sight it strikes a friendly facility (yours or an ally's) within
+  4 km of it.
+- **Reaper, capture by abduction.** The toughest of them, slow, with two light rim guns. It holds
+  6 km back while the others work. Once a ship of yours it sees is disabled (its engines out, or
+  its shield down and its hull under half), it closes to 1.8 km and locks its tractor on (one beam:
+  the Vrask's rules, so with your engines working full thrust can break it, and with them out you
+  are held fast). Held, you can't warp, dock or land. Its abduction beam then takes 4 of your crew
+  alive and 6 t of your cargo (the biggest load first) every 3 s, never bringing the crew below its
+  survivors; after 8 takes (or with the crew at its survivors) it takes a sample, halving one of
+  your components at random till it is repaired, and its work is done. The crew it takes are
+  prisoners of the Greys. It lets go if you are no longer disabled (your engines back, or your
+  shield), or its own hull falls under 35 %, or its weapons are knocked out.
+
+### How they fight together
+
+A band's phase (`GreysFleet`) is the furthest along of what its ships are doing. Unlike the
+Vrask's, it holds no ship back: from the moment the band springs each fights by its own tactics,
+and the fleet decides only when the band leaves.
+
+| Phase | When | What it means |
+| --- | --- | --- |
+| Watch | not sprung, or none of the others below | lying in wait, or hunting where you were last seen |
+| Paint | the Scout's laser is on one of your ships | it has called the nearest other band in |
+| Blind | the Shroud is jamming | your sensors, aim, missiles and comms are degraded |
+| Strike | a Lance has a target | the Lances are on their runs |
+| Take | the Reaper's tractor holds a ship | it abducts from it |
+| Vanish | the Reaper has its prize, or the Shroud and the Reaper are both destroyed | every ship breaks off back into hiding (the Scout cloaked), the Reaper towing what it holds |
+
+- **Hunting by sensors.** Each ship goes for a ship of yours within its sensors (18 to 25 km;
+  your ships have no signature to hide them). Lost from sight, it searches where it saw you last,
+  and after 30 s gives you up.
+- **Their targets.** The Scout and the Shroud take the nearest ship of yours they see; the Lances
+  and the Reaper choose as above.
+- **Vanishing.** The band says so ("Greys cell vanishing") and goes. The Reaper tows the ship it
+  holds away from it at 24 m/s (no faster than its beam can pull) for 60 s, then lets go and goes
+  home. The band doesn't spring again till the Shroud and the Reaper are back and every ship is in
+  hiding at its place.
+- **Raids.** The Nine Hells cell raids Nineveh Observatory every three hours of the game's clock
+  (saved, whether anyone is near or not), while it isn't fighting and its Reaper is alive: 3 % of
+  the people there (at least one) are taken, and a notice says so.
+- **Co-op.** The host's game runs the bands and their tactics, and the others show them. Each game
+  works out the jamming on its own player, and makes the same ghosts; the host says when the
+  Scout's cloak is up and what it paints, and abduction from another player's ship is done in that
+  player's game. With more players every Greys ship's hull and shield are tougher (×1.6 with two
+  players, ×2.2 with three) and its hits harder (×1.12, ×1.24), as every enemy's are.
+
+## The Empire
+
+An aggressive military power of long grey warships that fights as a disciplined line where the
+Greys ambush. They are hostile like the pirates and the Vrask (the target display says "Hostile:
+Empire"). They are shielded, and armoured as the Vrask are: ablative plating that stops a share of
+each hit that gets through the shield until it is worn through, plates blowing off the hull as it
+wears (16 on an Assault frigate, 10 on a Patrol frigate, 6 on a Raider or a Recon frigate). They
+are the first enemies with **CIWS** of their own, **combat drones** launched in the fight,
+**warp inhibitors** and **marines**. They carry no signature, so the players' sensors see them as
+any ship; but like the Greys they hunt by their sensors, going only for a ship they can see.
+Numbers: `Assets/Carrier/Data/empire.json`.
+
+| | Assault | Patrol | Raider | Recon |
+| --- | ---: | ---: | ---: | ---: |
+| Shown as | Imperial Assault Frigate A, B | Imperial Patrol Frigate A, B | Imperial Raider A, B | Imperial Recon Frigate |
+| Class | Line frigate | Escort frigate | Fast attack frigate | Recon frigate |
+| Threat (as targeted) | High | Medium | Medium | Medium |
+| Length (m) | **260** | 220 | 180 | 190 |
+| Hull | **4,200** | 2,600 | 1,800 | 1,600 |
+| Shield (recharge /s) | **1,500** (60) | 1,300 (70) | 900 (**80**) | 1,000 (**80**) |
+| Armour (share stopped, plating) | **45 %**, 2,200 | 25 %, 800 | 20 %, 500 | 15 %, 300 |
+| Cruise / attack speed | 80 / 110 | 200 / 280 | 260 / **420** | 230 / 320 |
+| Turn rate | 12 | 30 | **70** | 40 |
+| Acceleration | 14 | 45 | **150** | 60 |
+| Sees (your ships) | 25 km | 30 km | 20 km | **40 km** |
+| Guns | 6 turrets: 75 a shell, every 3.2 s, 5 km; 4 CIWS: 5 a round, every 0.12 s, 1.8 km, swinging 150° | 2 turrets: 75 a shell, every 3 s, 4.5 km; 2 CIWS, as the Assault's | 2 autocannon turrets: 14 a round, every 0.6 s, 2.5 km; chin guns (2 barrels): 14 a round, every 0.45 s, 2.2 km, within 35° of the bow | 2 light turrets: 14 a round, every 1 s, 3.5 km |
+| Point defence | its CIWS, 2.7 times as hard on a missile: two rounds bring one down | its CIWS, likewise | its chin guns, 2.5 times as hard on a missile: one round brings one down | none |
+| Missiles | 4 every 26 s, 8 km (12 km at a painted target), 150 each | none | none | none |
+| Drones | a bay of 6: 2 a launch every 15 s, at most 3 out, within 9 km | none (it restocks the Assault's) | none | none |
+| Marines | none | 3 boarding pods every 25 s, 3 km, at a disabled ship; 8 to 12 aboard each pod that gets through | none | none |
+| Warp inhibitor | none | 12 km | none | **15 km** |
+| Targeting laser | none | none | none | **20 km** |
+| Tactics | closes bow on to 3.2 km and holds there (full speed beyond 3.5 km, stopped inside 2.6 km), its armour taking what comes; drones out on their own; missiles at a painted target from further out | keeps 1.5 km from the nearest Assault frigate, between it and you (3 km off you with none within 20 km), its CIWS over both; marines at a disabled ship within 3 km; a drone back in the bay of an Assault frigate within 2.5 km every 20 s | goes for the lightest it sees: your fighters and drones, then a wingman or fleet ship, then your lightest ship; attack runs (breaks off at 400 m, extends 2 km); under 30 % hull, runs from its prey at full speed | holds 9 km off you and 2.25 km to one side, its laser on you while it sees you; runs at full speed from you inside 4 km |
+| Respawn | 120 s | 90 s | 75 s | 90 s |
+
+### Where they are
+
+| Group | Ships | Where |
+| --- | --- | --- |
+| Imperial task force | 2 Assault, 2 Patrol, 2 Raiders, 1 Recon | The Testing System: holding Brontes, Jovara's moon, 60 % of the way out from its surface to where a warp drops you, on the side away from the star; the Assault and Patrol frigates 3.2 to 4.6 km from the middle, the Raiders 6 km, the Recon 11 km; spotting you at 14 km. On the map: danger near, "Boss" |
+| Imperial patrol | 1 Patrol, 1 Raider, 1 Recon (each "Arges") | The Testing System: by Arges, Jovara's other moon, likewise; spotting you at 12 km. "Harder" |
+| Imperial forward base | 2 Assault, 2 Patrol, 1 Raider, 1 Recon (each "Emim", "Emim Two") | The Nine Hells: holding Emim, Rephaim's moon, half-way out from it to where a warp drops you, the Recon 9 km out from the line; spotting you at 14 km. "Boss" |
+| Imperial battle group | 1 Assault, 2 Patrol, 2 Raiders, 1 Recon (each "Battle", "Battle Two") | The Nine Hells: on patrol round Rephaim, 1.7 times its arrival distance out, once round in 5 hours, seen moving on the system map as a hostile patrol; spotting you at 12 km. "Harder" |
+
+A band springs when one of its ships, still in hiding, has a ship of yours within its spotting
+range and in sight, or when one of them is shot. Each ship comes back at its place its respawn
+time after it is destroyed (straight into the fight if its band is fighting); the Assault
+frigate's drone stock fills again when it does. Their warp inhibitors work whether the band is
+fighting or still in hiding.
+
+### Roles
+
+- **Assault frigate, the line.** The heaviest ship of either new faction: 4,200 hull, a 1,500
+  shield and armour that stops 45 % of what gets through it, worn away slowly (2,200 of plating).
+  It closes bow on to 3.2 km and holds there, six turrets on you. Its four CIWS take your missiles
+  aimed at any Imperial ship within 1.8 km, and your fighters and drones, before they go back to
+  its target. Its missiles go four at a time from 8 km, or from 12 km at a ship the Recon paints.
+  In a fight its bay launches combat drones (the pirates' drone, flown as a fighter: 300 hull, its
+  blasters), two at a time, three out at most, while a ship of yours is within 9 km; those that get
+  back are stock again, and those destroyed are gone till a Patrol frigate restocks the bay or the
+  Assault frigate respawns. It is slow and turns slowly, so a fast ship can choose its fight.
+- **Patrol frigate, escort and screen.** It keeps 1.5 km out from the nearest Assault frigate
+  towards you, its two CIWS over both. Its warp inhibitor stops your warp within 12 km of it
+  ("Warp inhibited by ..."); docking, landing and cruise still work. Once your ship is disabled
+  (its engines out, or its shield down and its hull under half) and within 3 km, it launches its
+  marines: three boarding pods every 25 s. A pod that reaches you with your shield down or under
+  a quarter puts 8 to 12 marines aboard, and boarders who bring your crew down to its survivors
+  take the ship, its crew prisoners of the Empire. Every 20 s, fighting or not, it puts a drone
+  back in the bay of an Assault frigate within 2.5 km of it.
+- **Raider, fast attack.** The fastest ship of either new faction (420 m/s, turning 70). It goes
+  for the lightest thing of yours it can see: your fighters and drones first, then a wingman or a
+  ship of your fleet (the one with the least hull, as built), then the player's ship with the least
+  hull. It makes fighter's attack runs on it, breaking off at 400 m and extending 2 km, its
+  autocannon turrets firing as it goes. Its chin guns are point defence too: a missile of yours on
+  its way to any Imperial ship, within 2.2 km and 35° of its bow, is brought down by a single
+  round. Under 30 % hull it runs from what it was raiding at full speed.
+- **Recon frigate, scout and designator.** It sees furthest of any enemy (40 km), and holds 9 km off
+  you and a little to one side, its targeting laser on you while it sees you (the HUD warns you,
+  and says from where). Painted, you are in reach of the Assault frigates' missiles from 12 km
+  rather than 8. Its warp inhibitor reaches 15 km, so from where it holds you can't warp away. It
+  has only light guns and no CIWS, and runs at full speed from you inside 4 km. Kill it first, or
+  knock out its weapons (its laser goes off with them).
+
+### How they fight together
+
+A band's phase (`EmpireFleet`) is the furthest along of what its ships are doing. Like the Greys'
+it holds no ship back: from the moment the band springs each fights by its own tactics, and the
+fleet decides only when the band falls back.
+
+| Phase | When | What it means |
+| --- | --- | --- |
+| Patrol | not sprung, or none of the others below | lying in wait, or hunting where you were last seen |
+| Contact | the Recon's laser is on one of your ships | the Assault frigates' missiles reach half as far again |
+| Line | an Assault frigate has a target | the line of battle: the Assault frigates bow on at 3.2 km, drones out, the Patrol frigates screening |
+| Raid | a Raider has prey | the Raiders on their runs at your light craft and ships |
+| Board | a Patrol frigate's target is disabled | the marines' pods on their way |
+| Retreat | the band fighting with under half its ships left | it falls back in order (below) |
+
+- **Hunting by sensors.** Each ship goes for a ship of yours within its sensors (20 to 40 km).
+  Lost from sight, it searches where it saw you last, and after 30 s gives you up. The Assault,
+  Patrol and Recon frigates take the nearest ship of yours they see; the Raiders choose as above.
+- **Falling back in order.** Under half its ships left (3 of the task force's 7, 2 of the forward
+  base's or the battle group's 6, 1 of the patrol's 3), the band says so ("Imperial task force
+  falling back in order"). The Raiders and the Recon break off at once, back into hiding. The
+  Assault frigates fly away from you at cruising speed, guns still on you, and the Patrol frigates
+  keep screening them. The band doesn't spring again till every one of its ships is back.
+- **Co-op.** The host's game runs the bands and their tactics, and the others show them; each
+  game's warp drive sees the host's ships' inhibitors, and the drones are made in every game. With
+  more players every Imperial ship's hull and shield are tougher (×1.6 with two players, ×2.2 with
+  three) and its hits harder (×1.12, ×1.24), as every enemy's are.
 
 ## Not ships, but they fight
 

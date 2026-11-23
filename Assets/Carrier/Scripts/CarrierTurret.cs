@@ -294,6 +294,7 @@ namespace CarrierGame
 
         PointDefence pdOf;    // (its ship's point defence, looked for once: PointDefence.ScaleFor)
         bool pdLooked;
+        string factionOf;     // (its ship's faction, looked for once: a painted target, Designation)
 
         /// <summary>Fire one shot from every muzzle, wherever the gun points now (none while its
         /// ship's weapons are knocked out: ShipSystems).</summary>
@@ -308,6 +309,9 @@ namespace CarrierGame
             if (target != null && Vector3.Angle(AimForward(), AimPoint() - AimOrigin()) > fireCone * 2f) OffTargetShots++;
             if (checkHullClearance && HullInTheWay(AimOrigin(), AimForward() * range)) HullShots++;
             var owner = Hull;
+            // a faction's gun at a target its faction paints: its fire laid by the laser
+            if (factionOf == null) factionOf = owner != null ? FactionShip.Of(owner)?.FactionName ?? "" : "";
+            float laid = factionOf.Length > 0 && target != null && Designation.PaintedFor(target, factionOf) ? Designation.TurretShare : 1f;
             // a player's ship jammed: its aim thrown off (up to 3 degrees at full jamming)
             float jam = owner != null && Jamming.Any && IsPlayers(owner) ? Jamming.On(owner) : 0f;
             foreach (var m in muzzles)
@@ -319,7 +323,7 @@ namespace CarrierGame
                 if (!pdLooked) { pdLooked = true; pdOf = owner != null ? owner.GetComponentInParent<PointDefence>() : null; }
                 if (pdOf != null) p.SetMissileScale(PointDefence.ScaleFor(this, pdOf));
                 GunFx.Muzzle(projectilePrefab, m.position, m.rotation, m);
-                if (damageScale != 1f) p.damage *= damageScale;
+                if (damageScale * laid != 1f) p.damage *= damageScale * laid;
             }
         }
     }

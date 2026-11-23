@@ -24,7 +24,7 @@ namespace CarrierGame.Demo
     ///
     /// Or -simduo: pairs of frigates (two different classes, with their main guns) against one
     /// band (-simenc, the Sheol picket by default), made over to a mix (-simmix 2,3,2,3: Maws,
-    /// Snares, Fangs, Skinks; VraskMix), each pair flown both ways (the simulator's own pilot, and
+    /// Snares, Fangs, Skinks; for the Greys' or the Empire's band their own roles' counts: VraskMix), each pair flown both ways (the simulator's own pilot, and
     /// as a section: SimPilot.section), -simreps times each (default 2), to duo.csv.
     /// The player's own ship is kept out of it: hidden near the fight, no target for anyone.
     /// </summary>
@@ -336,6 +336,18 @@ namespace CarrierGame.Demo
                     nextNote = Time.time + 20f;
                     var f0 = fleet[0];
                     Log($"  {Time.time - t0:F0} s: {f0.name} {Vector3.Distance(f0.transform.position, enc.Centre) / 1000f:F1} km from the centre, speed {f0.ship.Speed:F0}, target {(f0.Target != null ? f0.Target.name : "none")}, ghost {Vector3.Distance(ghost.transform.position, enc.Centre) / 1000f:F1} km");
+                    if (enc.group != null)
+                        Log($"    band: active {enc.group.Active}, hold off {enc.group.holdOff}, sprung {enc.group.TimesSprung}" +
+                            $"{(enc.group.TryGetComponent(out GreysFleet gfl) ? $", Greys {gfl.Current} ({gfl.Why})" : "")}{(enc.group.TryGetComponent(out EmpireFleet efl) ? $", Empire {efl.Current} ({efl.Why})" : "")}");
+                    foreach (var h in enc.enemies)
+                    {
+                        if (h == null) continue;
+                        var cp = h.GetComponent<CombatPilot>();
+                        var st = h.GetComponent<SensorTactic>();
+                        Log($"    {h.name}: {(h.Dead ? "dead" : $"hull {h.Current / Mathf.Max(1f, h.maxHealth):P0}")}, {cp?.Current}{(cp != null && !cp.AtHome ? " (away)" : "")}, target {(cp != null && cp.target != null ? cp.target.name : "none")}, " +
+                            $"{(st != null ? st.Doing : "")}, {Vector3.Distance(h.transform.position, f0.transform.position) / 1000f:F1} km from {f0.name}, unseen {Sensors.Unseen(h.transform)}, " +
+                            $"shots {h.GetComponentsInChildren<CarrierTurret>(true).Sum(t => t.ShotsFired)} turret / {(h.TryGetComponent(out EnemyWeapons ew) ? ew.ShotsFired : 0)} guns");
+                    }
                 }
             }
             float secs = Time.time - t0;
@@ -416,7 +428,13 @@ namespace CarrierGame.Demo
                 foreach (var s in h.GetComponentsInChildren<Shield>(true)) s.NetSet(1f, true);
                 if (h.TryGetComponent(out CombatPilot p)) p.ResetHome();
             }
-            if (enc.group != null) enc.group.holdOff = false;
+            if (enc.group != null)
+            {
+                enc.group.ResetBand();
+                // (its fleet's own state too: not still vanishing or falling back from the last battle)
+                if (enc.group.TryGetComponent(out GreysFleet gf)) gf.ResetBand();
+                if (enc.group.TryGetComponent(out EmpireFleet ef)) ef.ResetBand();
+            }
             // a few moments for them to settle (the band's own state goes back to lying in wait)
             for (int i = 0; i < 30; i++) yield return null;
         }
@@ -686,7 +704,8 @@ namespace CarrierGame.Demo
             float bestD = float.MaxValue, anyD = float.MaxValue;
             foreach (var h in encounter.enemies)
             {
-                if (h == null || !Fit(h.transform)) continue;
+                // (only what its sensors show: a cloaked or jammed-out ship isn't there to shoot)
+                if (h == null || !Fit(h.transform) || Sensors.Unseen(h.transform)) continue;
                 float dd = (h.transform.position - transform.position).sqrMagnitude;
                 if (dd < anyD) { anyD = dd; any = h.transform; }
                 if (dd < 12000f * 12000f && Cover.Visible(transform.position, h.transform.position) && dd < bestD) { bestD = dd; best = h.transform; }

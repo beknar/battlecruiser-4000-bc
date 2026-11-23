@@ -15,21 +15,34 @@ namespace CarrierGame.Demo
     /// frames, or between the simulator's battles. For a band that keeps its post (the Sheol
     /// picket): one that patrols or moves on (EncounterPatrol, PostedOnApproach) keeps its ships'
     /// places by their order, which this changes.
+    ///
+    /// Any faction's band too: its counts in its roles' order (the Greys: Scout, Shroud, Lance,
+    /// Reaper; the Empire: Assault, Patrol, Raider, Recon), "1,2,1,1".
     /// </summary>
     public static class VraskMix
     {
         static readonly VraskShip.Role[] Order = { VraskShip.Role.Maw, VraskShip.Role.Snare, VraskShip.Role.Fang, VraskShip.Role.Skink };
         static readonly string[] Words = { "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten" };
 
-        /// <summary>"2,3,2,3" as counts in the order Maw, Snare, Fang, Skink (null if it isn't one).</summary>
+        /// <summary>"2,3,2,3" as counts in a faction's roles' order (the Vrask's: Maw, Snare, Fang,
+        /// Skink): null if it isn't one.</summary>
         public static int[] Parse(string mix)
         {
             if (string.IsNullOrEmpty(mix)) return null;
             var parts = mix.Split(',', '+', '/');
-            if (parts.Length != 4) return null;
-            var n = new int[4];
-            for (int i = 0; i < 4; i++) if (!int.TryParse(parts[i].Trim(), out n[i]) || n[i] < 0 || n[i] > 10) return null;
-            return n[0] + n[1] + n[2] + n[3] > 0 ? n : null;
+            if (parts.Length < 1 || parts.Length > 6) return null;
+            var n = new int[parts.Length];
+            for (int i = 0; i < n.Length; i++) if (!int.TryParse(parts[i].Trim(), out n[i]) || n[i] < 0 || n[i] > 10) return null;
+            return n.Sum() > 0 ? n : null;
+        }
+
+        /// <summary>A faction's roles, in a mix's order (the band's first ship's faction).</summary>
+        public static string[] RolesOf(FactionShip ship)
+        {
+            if (ship is VraskShip) return Order.Select(r => r.ToString()).ToArray();
+            if (ship is GreysShip) return Enum.GetNames(typeof(GreysShip.Role));
+            if (ship is EmpireShip) return Enum.GetNames(typeof(EmpireShip.Role));
+            return new string[0];
         }
 
         /// <summary>The counts in words ("2 Maws, 3 Snares, 2 Fangs, 3 Skinks").</summary>
@@ -37,23 +50,26 @@ namespace CarrierGame.Demo
         {
             // (the Vrask's roles in their order, then any other faction's as they come)
             var list = ships.Where(v => v != null).ToList();
-            var roles = Order.Select(r => r.ToString()).Concat(list.Select(v => v.RoleName)).Distinct();
+            var roles = RolesOf(list.FirstOrDefault()).Concat(list.Select(v => v.RoleName)).Distinct();
             return string.Join(", ", roles.Select(r => (r, n: list.Count(v => v.RoleName == r))).Where(x => x.n > 0)
                                           .Select(x => $"{x.n} {x.r}{(x.n > 1 ? "s" : "")}"));
         }
 
-        /// <summary>Make the band `g` over to `counts` (Maw, Snare, Fang, Skink). What it did, for a log.</summary>
+        /// <summary>Make the band `g` over to `counts` (its faction's roles: the Vrask's Maw, Snare,
+        /// Fang, Skink). What it did, for a log.</summary>
         public static string Apply(EncounterGroup g, int[] counts)
         {
-            if (g == null || g.pilots == null || counts == null || counts.Length != 4) return "no band or no mix";
-            var fleet = g.GetComponent<VraskFleet>();
+            if (g == null || g.pilots == null || counts == null) return "no band or no mix";
             var pilots = g.pilots.Where(p => p != null).ToList();
+            var roleNames = RolesOf(pilots.Select(p => p.GetComponent<FactionShip>()).FirstOrDefault(f => f != null));
+            if (roleNames.Length == 0) return "not a faction's band";
+            if (counts.Length != roleNames.Length) return $"a mix of {roleNames.Length} ({string.Join(", ", roleNames)}), not {counts.Length}";
             Vector3 centre = pilots.Count > 0 ? pilots.Aggregate(Vector3.zero, (a, p) => a + p.transform.position) / pilots.Count : g.transform.position;
             var said = new List<string>();
-            for (int r = 0; r < 4; r++)
+            for (int r = 0; r < roleNames.Length; r++)
             {
-                var role = Order[r];
-                var mine = pilots.Where(p => p.TryGetComponent(out VraskShip v) && v.role == role).OrderBy(p => Ordinal(p.name)).ToList();
+                var role = roleNames[r];
+                var mine = pilots.Where(p => p.TryGetComponent(out FactionShip v) && v.RoleName == role).OrderBy(p => Ordinal(p.name)).ToList();
                 // too many: the last named go
                 for (int k = mine.Count - 1; k >= counts[r]; k--)
                 {
@@ -86,14 +102,22 @@ namespace CarrierGame.Demo
                 }
             }
             g.pilots = pilots.ToArray();
-            if (fleet != null)
+            T[] Ships<T>() where T : FactionShip => pilots.Select(p => p.GetComponent<T>()).Where(v => v != null).ToArray();
+            void Remake(Behaviour fleet, Action set)
             {
+                if (fleet == null) return;
                 bool was = fleet.enabled;
                 fleet.enabled = false;
-                fleet.ships = pilots.Select(p => p.GetComponent<VraskShip>()).Where(v => v != null).ToArray();
+                set();
                 fleet.enabled = was;
             }
-            return $"{Describe(pilots.Select(p => p.GetComponent<VraskShip>()))} ({(said.Count > 0 ? string.Join(" ", said) : "as it was")})";
+            var vf = g.GetComponent<VraskFleet>();
+            Remake(vf, () => vf.ships = Ships<VraskShip>());
+            var gf = g.GetComponent<GreysFleet>();
+            Remake(gf, () => gf.ships = Ships<GreysShip>());
+            var ef = g.GetComponent<EmpireFleet>();
+            Remake(ef, () => ef.ships = Ships<EmpireShip>());
+            return $"{Describe(pilots.Select(p => p.GetComponent<FactionShip>()))} ({(said.Count > 0 ? string.Join(" ", said) : "as it was")})";
         }
 
         static string BaseName(string name)

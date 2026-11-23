@@ -97,11 +97,20 @@ namespace CarrierGame
             Doing = run ? "hit-and-run" : Current == Phase.Evade ? "slipping away" : seeing ? "shadowing, painting" : "searching where it was seen";
         }
 
+        /// <summary>The nearest players' ship within `r` (what it slips away from), or none.</summary>
+        Transform closer;
+
         bool NearestPlayerWithin(float r)
         {
+            closer = null;
+            float best = r * r;
             foreach (var p in PlayerShips.All)
-                if (p != null && p.gameObject.activeInHierarchy && PlayerShips.Present(p) && (p.position - transform.position).sqrMagnitude < r * r) return true;
-            return false;
+            {
+                if (p == null || !p.gameObject.activeInHierarchy || !PlayerShips.Present(p)) continue;
+                float d = (p.position - transform.position).sqrMagnitude;
+                if (d < best) { best = d; closer = p; }
+            }
+            return closer != null;
         }
 
         /// <summary>The nearest other band of the Greys within reach, lying in wait: sprung, its
@@ -171,8 +180,8 @@ namespace CarrierGame
             switch (Current)
             {
                 case Phase.Evade:
-                    // away from the nearest, fast
-                    desired = (-to).normalized;
+                    // away from the nearest that closes on it, fast
+                    desired = closer != null && (pos - closer.position).sqrMagnitude > 1f ? (pos - closer.position).normalized : (-to).normalized;
                     wantSpeed = pilot.attackSpeed;
                     break;
                 case Phase.Run:

@@ -19,6 +19,9 @@ namespace CarrierGame
         public const float SpreadShare = 1f / 3f;
         /// <summary>A painted target: the painting faction's missiles reach this many times as far.</summary>
         public const float MissileReach = 1.5f;
+        /// <summary>A painted target: the painting faction's turrets' shots, laid by the laser, hit
+        /// this many times as hard (more of them on its vitals).</summary>
+        public const float TurretShare = 1.25f;
 
         public struct Paint
         {

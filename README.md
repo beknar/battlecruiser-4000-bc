@@ -1432,6 +1432,309 @@ There are no new keys for the Vrask. The HUD warns of a tractor lock and of boar
 Tests: `-vrasktest` (the `vrask` stage), and `VraskDataTests`, `TractorBeamTests`,
 `BoardingTests`, `ArtilleryTests` and `VraskFleetTests`.
 
+### The Greys
+
+The Greys are the game's mystery: saucers and a manta that watch a ship unseen, blind it, strike it
+and take its people. They are hard to see on the sensors, shielded but without armour, and they
+hunt by their sensors, going only for a ship they can see. They have four ships, each with its own
+job. Their numbers are in `Assets/Carrier/Data/greys.json`, and every ship's statistics in
+`docs/allships.md`.
+
+| Ship | Its job | What it brings |
+|---|---|---|
+| Scout (scout saucer, shown as Grey Watcher) | Watch, paint, call in | A cloak (seen only within 1.8 km), a targeting laser to 15 km, two drones; calls in another band; hit-and-run with precision beams when your shield is down |
+| Shroud (ECM saucer) | Blind | A jammer over 6 km (sensors, aim, missiles, comms), ghost contacts and false places on your sensors; scrambles missiles and stuns drones within 1.5 km; an EMP burst and an EMP projector |
+| Lance (strike manta) | Strike | The heaviest salvo of them (five bolts at once), fast runs from your flank or rear at your engines and weapons; runs down cripples; screens the Shroud and Reaper from your craft |
+| Reaper (abduction saucer) | Take | A tractor beam on a disabled ship (no warp, docking or landing while held), an abduction beam for its crew, cargo and a sample; tows it off as the band leaves |
+
+Signatures, cloaks, painting, jamming, EMP and drones are under Sensors, stealth and electronic
+warfare (below); the tractor beam and boarders under Defence and damage.
+
+**How they fight together.** A band's phase (`GreysFleet`) is the furthest along of what its
+ships are doing; each fights by its own tactics from the moment the band springs, so the phases
+can run together:
+
+1. **Watch.** The band lies in wait. The Scout, cloaked and with its guns cold, shadows a ship it
+   sees 7 km back and off to one side; it sees 25 km, and you see it only within 1.8 km.
+2. **Paint.** The Scout's laser is on you (the HUD says so, and from where). The first time it
+   sees you it calls in the nearest other Greys band lying in wait, anywhere in the system; one
+   far off drops out of warp 7 km beyond you.
+3. **Blind.** The Shroud, keeping by the Reaper, jams once you are within 9 km of it: ghost
+   contacts appear, your missiles lose their lock, your orders may not get through.
+4. **Strike.** The Lances swing out to your flank or rear and run in, their salvos on your
+   engines, then your weapons. Close in, the Shroud's EMP knocks a component out for a time.
+5. **Take.** Once you are disabled (engines out, or shield down and hull under half), the Reaper
+   closes and locks its tractor on. Every 3 s it takes 4 of your crew alive (never below its
+   survivors) and 6 t of your cargo; after 8 takes it takes a sample, halving one of your
+   components.
+6. **Vanish.** With its prize taken, or the Shroud and the Reaper both destroyed, the band breaks
+   off back into hiding, the Scout cloaked, the Reaper towing the ship it holds for a minute before
+   letting go. It doesn't spring again till the Shroud and the Reaper are back.
+
+Lost from sight, a Grey searches where it last saw you, and gives you up after 30 s. The Scout and
+the Shroud go for the nearest ship of yours they see; the Lances for your craft near the Shroud or
+the Reaper first, then the ship they see with the least hull left; the Reaper for a disabled ship.
+
+**Where they are.** In the Testing System a cell (a Reaper, a Shroud, two Lances and a Scout) lies
+in the Outer Drift and springs at 9 km, and a lone watcher (a Scout) waits by the Jovara Trojans,
+springing at 12 km; each calls the other in. In the Nine Hells a cell picks over the dead race's
+ruins on Goliath and a watcher waits by Ptolomea. The Goliath cell raids Nineveh Observatory every
+three hours of the game's clock while it isn't fighting and its Reaper is alive, taking 3 % of
+the people there.
+
+**Fighting them.**
+
+- Keep your shield up. The Scout's hit-and-run comes only with it down, and the Reaper locks on
+  only once you are disabled; with your engines working, full thrust breaks its one beam.
+- Get within 3 km of the Scout and it runs. Fire at it, or hit it, and it is lit up and named for
+  8 s, and takes 4 s more to cloak again. Good ECCM sees it further out (a Sentinel or a Warden
+  from 3.1 km).
+- Kill the Shroud, or get out of its field: the jamming falls off towards its 6 km edge, and good
+  ECCM cuts it. Fire missiles from outside the field, and never within 1.5 km of the Shroud.
+- When the HUD warns of an EMP charging, get beyond 2.5 km in the 4 s, or knock the Shroud's
+  weapons out (J, Back + L3 on the pad, aims your fire at them) and the pulse fizzles.
+- Watch your flanks and stern for the Lances. They hit hardest but only within 12° of their nose.
+- Kill the Reaper, or knock its weapons out, and its beam lets go.
+- Fly out of their sensors (18 to 25 km) for 30 s and they give you up.
+
+**In co-op** the host's game runs the Greys, their bands and their tactics, and the others' games
+show them. Each game works out the jamming on its own player; the host says when the Scout is
+cloaked and what it paints, and abduction from another player's ship happens in that player's
+game. With more players they are tougher and hit a little harder, as every enemy does
+(`CoopScaling`): hull and shields ×1.6 with two players and ×2.2 with three, damage ×1.12 and
+×1.24.
+
+There are no new keys for the Greys. The HUD warns of jamming, a targeting laser, an EMP charging
+and what it has knocked out, and a tractor lock. Tests: `-greystest` (the `greys` stage), and
+`GreysDataTests`, `AbductionTests`, `StealthTests`, `JammingTests`, `EmpTests` and `DroneBayTests`.
+
+### The Empire
+
+The Empire is an aggressive military power: long grey warships, shielded and armoured, that fight
+as a disciplined battle line where the Greys ambush. They have their own CIWS, combat drones,
+warp inhibitors and marines. They are seen on the sensors as any ship, but they hunt by their
+sensors, going only for a ship they can see. They have four ships, each with its own job. Their
+numbers are in `Assets/Carrier/Data/empire.json`, and every ship's statistics in
+`docs/allships.md`.
+
+| Ship | Its job | What it brings |
+|---|---|---|
+| Assault (line frigate) | Hold the line | 4,200 hull and the heaviest armour of them; six turrets, a four-missile battery (from 12 km at a painted target), four CIWS, a bay of six combat drones |
+| Patrol (escort frigate) | Screen, hold, board | Two CIWS over the Assault frigates; a warp inhibitor (12 km); marines in boarding pods at a disabled ship; restocks the Assault frigates' drones |
+| Raider (fast attack frigate) | Pick off the light | The fastest of them; goes for your fighters and drones, then your wingman or fleet, then your lightest ship; its chin guns shoot your missiles down |
+| Recon (recon frigate) | Scout and paint | Sees 40 km; a targeting laser to 20 km; a warp inhibitor (15 km); light guns only |
+
+Armour, CIWS, boarding and capture are under Defence and damage; painting, warp inhibitors and
+the enemy drones under Sensors, stealth and electronic warfare (below).
+
+**How they fight together.** A band's phase (`EmpireFleet`) is the furthest along of what its
+ships are doing; each fights by its own tactics from the moment the band springs, so the phases
+can run together:
+
+1. **Patrol.** The band holds its place, lying in wait.
+2. **Contact.** The Recon, holding 9 km off you, paints you with its laser (the HUD says so, and
+   from where). Its inhibitor, 15 km round it, keeps you from warping away.
+3. **Line.** The Assault frigates close bow on to 3.2 km and hold, their drones out, the Patrol
+   frigates 1.5 km out from them towards you with their CIWS over both. The Assault frigates'
+   missiles go from 12 km at you painted, 8 km otherwise.
+4. **Raid.** The Raiders make fast runs at the lightest things of yours they see: your fighters
+   and drones, then a wingman or a ship of your fleet, then your lightest ship.
+5. **Board.** Once you are disabled (engines out, or shield down and hull under half) and within
+   3 km of a Patrol frigate, its marines come: three pods every 25 s, 8 to 12 aboard each that
+   gets through a shield down or under a quarter.
+6. **Retreat.** With under half its ships left the band falls back in order: the Raiders and the
+   Recon break off at once, the Assault frigates draw off with their guns still on you, the Patrol
+   frigates covering them. It doesn't spring again till all its ships are back.
+
+Lost from sight, an Imperial ship searches where it last saw you, and gives you up after 30 s.
+The Assault, Patrol and Recon frigates go for the nearest ship of yours they see.
+
+**Where they are.** In the Testing System a task force (two Assault, two Patrol, two Raiders and a
+Recon) holds Brontes and springs at 14 km, and a patrol (a Patrol frigate, a Raider and a Recon)
+waits by Arges, springing at 12 km. In the Nine Hells a forward base's picket (two Assault, two
+Patrol, a Raider and a Recon) holds Emim, Rephaim's moon, and a battle group (an Assault, two
+Patrol, two Raiders and a Recon) patrols round Rephaim, once round in five hours, seen on the
+system map. Their warp inhibitors work while they lie in wait, too.
+
+**Fighting them.**
+
+- Kill the Recon first, or knock out its weapons (J, Back + L3 on the pad, aims your fire at a
+  target's weapons): the paint ends, and with it the Assault frigates' longer missile reach. It
+  has no CIWS and runs from you inside 4 km.
+- To warp away, get beyond the inhibitors: 12 km from every Patrol frigate and 15 km from the
+  Recon, or destroy them. Docking, landing and cruise still work inside a field.
+- Fire missiles at a Recon, or from where the Assault and Patrol frigates' CIWS (1.8 km) and the
+  Raiders' chin guns (2.2 km, ahead of them) can't reach the missile. Two CIWS rounds bring a
+  missile down, and so does one round of a Raider's chin guns.
+- Your CIWS takes their drones. Destroyed drones are gone until a Patrol frigate restocks the bay,
+  so kill the Patrol frigates and the Assault frigates' drones run out.
+- Keep your shield up and your engines whole, and a big crew aboard: marines need you disabled,
+  and boarders who bring the crew down to its survivors take the ship.
+- The Assault frigate is slow (110 m/s) and turns slowly: a fast ship can choose its fight.
+- Take out half the band and the rest fall back.
+
+**In co-op** the host's game runs the Empire, their bands and their tactics, and the others' games
+show them; each game's warp drive sees the host's ships' inhibitors, and the drones are made in
+every game. With more players they are tougher and hit a little harder, as every enemy does
+(`CoopScaling`): hull and shields ×1.6 with two players and ×2.2 with three, damage ×1.12 and
+×1.24.
+
+There are no new keys for the Empire. The HUD warns of a targeting laser and of boarders aboard,
+and the warp drive says what inhibits it. Tests: `-empiretest` (the `empire` stage), and
+`EmpireDataTests`, `StealthTests` and `DroneBayTests`.
+
+### Sensors, stealth and electronic warfare
+
+The Greys and the Empire bring sensors into the fight: ships that are hard to see, cloaks,
+targeting lasers, jammers, warp inhibitors, EMP, and drones and CIWS of their own. The pirates
+and the Vrask are seen as they always were and still know where you are; the new factions go
+only for what their sensors show them.
+
+**Detection and identification.** Your ship's sensors see an ordinary ship 30 km out. A ship
+with a **signature** under 1 (the Greys) is seen only within 30 km times its signature, and
+**identified** (named, its class and hull known) only within half that. In between it is an
+**unknown contact**: a marker and its range and speed, but no name, picture or hull. An unseen
+ship gives nothing away: it has no marker, isn't in the target list, the console's count or the
+mouse pick, and doesn't lock your warp drive ("hostiles nearby") or start the combat music.
+Firing (a shot, a missile, a beam) or taking a hit **lights a ship up** for 8 s: it is seen at
+least as far as any ship, and named at once.
+
+| Ship | Signature | Seen within | Named within |
+|---|---:|---:|---:|
+| Pirates, Vrask, the Empire, installations | none | 30 km | at any range (unless you are jammed) |
+| Grey Shroud, Lance, Reaper | 0.8 | 24 km | 12 km |
+| Grey Scout (shown as Grey Watcher) | 0.6 | 18 km | 9 km |
+| Grey Scout, cloaked | 0.06 | 1.8 km | 0.9 km |
+| Grey Reaper, cloaked (holding back) | 0.28 | 8.4 km | 4.2 km |
+| Any of them, lit up | at least 1 | 30 km | at once |
+
+What they see of you is the other way round: your ships have no signature, so a Grey or an
+Imperial ship sees you within its own sensors' reach (18 km for a Lance, 40 km for a Recon). Lost
+from sight, it searches where it last saw you, and after 30 s gives you up.
+
+**Cloaking.** The Grey Scout's cloak keeps its signature to a tenth of its own, the Reaper's to about a third. Unseen, a cloaked
+ship isn't drawn at all; seen, it shimmers. Firing or a hit drops the cloak, and it comes back 4 s
+after the ship is no longer lit up (12 s after its last shot or hit). The Scout keeps it up except
+on its hit-and-run runs, and recloaks as it vanishes.
+
+**ECCM.** Every ship of yours has an ECCM rating, 0 to 1 (`frigates.json`; the start menu shows it
+as strong, fair or weak). It doesn't lengthen your sensors' reach, but:
+
+- a cloaked ship that is quiet is seen up to twice as far (1 + the ECCM: a Sentinel's 0.7 sees the
+  cloaked Scout from 3.1 km);
+- jamming on your ship is cut by 70 % of the ECCM (a Sentinel keeps 51 % of what a ship with none
+  would take), on your missiles too;
+- an EMP knocks a component out for less: 60 % of the ECCM off its time.
+
+| ECCM | Ships |
+|---|---|
+| 0.7 | Sentinel, Warden |
+| 0.6 | Sovereign, Dominion |
+| 0.5 | Bulwark |
+| 0.4 | Vanguard, Claymore |
+| 0.3 | Lancer, Halberd |
+| 0.2 | Rapier, Stiletto |
+| 0.1 | Talon |
+
+**Designation (painting).** A targeting laser (the Grey Scout's, 15 km; the Imperial Recon
+frigate's, 20 km) paints the ship it is on while it is in range and in sight (not behind an
+asteroid or a wreck) and the painter's weapons work. The paint lasts 1.5 s after the laser
+leaves. A painted ship is in reach of the Imperial Assault frigates' missiles from 12 km rather
+than 8 (half as far again), and the painting faction's turrets lay their fire on it: their shots hit it
+a quarter harder. For the Greys the paint is also a sign: the Scout has you, and has called
+another band in. The HUD warns you with a tone and says
+who paints you (named only once your sensors have named it), its bearing and how far it is.
+
+**ECM jamming.** The Grey Shroud's jammer puts a field 6 km round it, 60 % at its heart and
+falling off to nothing at its edge (45 % at 3 km, 33 % at 4 km, 18 % at 5 km), less your ECCM, and
+never over 90 %. The HUD shows how much you take ("JAMMED"). Inside it:
+
+- **Sensors.** They see that much less far (60 % jamming: 12 km for an ordinary ship), and name
+  any contact only within half of that, so even pirates and Vrask can show as unknown contacts.
+  Your markers jitter.
+- **Ghosts.** Three ghost contacts go slowly round the jammer, 2.5 to 5.5 km out, shown only on a
+  jammed ship's sensors as unknown contacts. Fly within 1.5 km of one and it is seen through ("a
+  false return") and gone for 90 s.
+- **Masking.** A ship in the jammer's field that your sensors haven't named is shown 900 m from
+  where it really is, till it is named.
+- **Aim.** Your turrets' shots are thrown off, up to 3° at full jamming.
+- **Missiles.** Each second in the jamming a missile of yours has a chance (half the jamming at
+  its place, less your ECCM) of losing its lock and flying straight on; out of it, it takes the
+  lock again.
+- **Comms.** An order to your fighters, drones or fleet may not get through (a chance of half the
+  jamming: "Comms jammed: the order didn't get through"), and the AI wingman's radio comes through
+  with letters lost to static. What players type to each other is left alone.
+- **Close in.** Within 1.5 km of the jammer your missiles are scrambled (they go off short) and
+  your drones stunned: they drift for 8 s with their guns cold, then have 10 s before it can
+  happen again.
+
+**Warp interdiction.** The Imperial Patrol frigate (12 km) and Recon frigate (15 km) carry warp
+inhibitors. Inside a field your warp drive won't start a jump ("Can't warp: warp inhibited by
+..."), and a jump already charging is cut short as a field comes over you; docking, landing and
+cruise still work. A field is off while its ship is destroyed or still lying in wait (a band in
+hiding gives nothing away). (A tractor beam, the Grey Reaper's or the
+Vrask Snare's, holds you from warping, docking and landing too.)
+
+**EMP.** The Grey Shroud's EMP projector (140) and EMP burst (400 to every ship of yours within
+2.5 km, after a 4 s charge the HUD counts down) knock one of your components out for a time: the
+weapons (no guns, missiles or beam), the engines (15 % of top speed, 30 % of acceleration) or the
+shield generator (the shield drops and doesn't recharge). The Shroud aims at none in particular,
+so it is one at random. A shield takes an EMP as any energy, and 30 % of what it stops still
+reaches the components; the hull takes a tenth of what gets through. The time is 30 s for a pulse
+as strong as the component's toughness (12 % of your ship's full hull), between 2 and 15 s, less
+with your ECCM; another EMP while it is out makes it longer, and repairs don't end it early. A
+burst at a Sentinel (6,000 hull, ECCM 0.7) knocks a component out for about 3 s through its
+shield, or 9 s with its shield down; at a Talon (ECCM 0.1) for 5 s or 14 s.
+
+**Enemy drones and CIWS.** The Imperial Assault frigate (six drones) and the Grey Scout (two)
+launch combat drones in a fight: the pirates' drone flown as a fighter (300 hull, its blasters),
+named after its ship ("Imperial Assault Frigate A drone"). Your CIWS goes for them as for any
+fighter. They come out of a stock: called home when their ship is out of the fight, or no ship of
+yours is within 18 km, each one back aboard is stock again; one destroyed is lost till a Patrol
+frigate restocks the bay (one every 20 s) or its ship respawns, and they go down with their ship.
+The Empire's CIWS (four on an Assault frigate, two on a Patrol frigate, 1.8 km) and the Raider's
+chin guns (2.2 km, within 35° of its bow) are point defence, as the Vrask Skink's guns are: they
+take your missiles on their way to any Imperial ship first (two CIWS rounds, or one chin-gun round,
+bring one down), then your fighters and drones, and with neither, the ship's own target.
+
+**What the HUD shows.**
+
+| Cue | What it means |
+|---|---|
+| "Unknown contact" by a marker; "UNKNOWN CONTACT" and "HULL unknown" in the target panel | Seen, not yet named: get closer, or wait for it to fire |
+| A ship that shimmers | A cloaked ship your sensors see |
+| "JAMMED 45%", "sensors, aim, missiles and comms degraded" (violet); jittering markers | In a jammer's field, after your ECCM |
+| "Ghost contact: a false return, gone" | You came within 1.5 km of a ghost |
+| "Comms jammed: the order didn't get through" | An order lost to jamming: give it again |
+| "Targeting laser: ...", "bearing 040, 12.5 km" (amber, with a tone) | You are painted, and from where |
+| "EMP charging: ..., 1.8 km—get beyond 2.5 km in 3.0 s" (blue) | An EMP burst about to go off with you in reach |
+| "EMP: engines back in 6 s"; "EMP! Our engines are knocked out for 9 s" | A component an EMP has out |
+| "Can't warp: warp inhibited by ..." | You are inside a warp inhibitor's field |
+| "Unidentified ships drop out of warp nearby" | A Grey Scout has called a band in |
+| "The Greys are taking us: 4 of the crew gone, 6 t from the hold" | The Reaper's abduction beam is on you |
+| "... vanishing", "... falling back in order" | A Greys band leaving, an Imperial band retreating |
+
+**Countering them.**
+
+- **Signatures.** Close in to name a Grey, or make it fire. A Grey you can't see can't lock your
+  warp drive. Get beyond their sensors (18 to 40 km) for 30 s and they give you up.
+- **Cloaks.** Fly a ship with good ECCM (a Sentinel or a Warden), and close in: within 3 km the
+  Scout runs. Hit it and it is lit up for 8 s, and 4 s more before it cloaks again.
+- **Painting.** Kill the painter or knock out its weapons (J, Back + L3 on the pad, aims your fire
+  at a target's weapons), put an asteroid or a wreck between you, or get out of its laser's reach.
+- **Jamming.** Kill the Shroud, or fly out of its field: it falls off fast towards its edge. Fire
+  missiles from outside it and never within 1.5 km of the Shroud. Fly within 1.5 km of a ghost to
+  see it through. Give an order again if it doesn't get through.
+- **Interdiction.** Destroy the Patrol and Recon frigates, or fly 12 to 15 km clear of them before
+  you warp.
+- **EMP.** Keep your shield up (it takes most of a pulse), and get beyond 2.5 km in the 4 s the
+  HUD gives you. Knock the Shroud's weapons out while it charges and the pulse fizzles.
+- **Drones and CIWS.** Keep your CIWS working against their drones, and kill the Patrol frigates
+  to stop the restocking. Send missiles at the Recon (it has no CIWS), or in salvos.
+
+Tests: `-sensortest` (the `sensors` stage), and `SensorsTests`, `StealthTests`, `JammingTests`,
+`EmpTests`, `DroneBayTests` and `FactionTests`.
+
 ## Controls
 
 There are too many things to do for a key each, so the game has **modes of play**: combat,
@@ -2049,10 +2352,15 @@ captured, hull and shield left, hits taken), so a run can be stopped and started
 
 `-simduo` runs pairs of frigates instead. Every pair of two different classes, with their main
 guns, fights one band (`-simenc`, the Sheol picket by default; run it with `-system ninehells`).
-The band can be remade to a mix with `-simmix 2,3,2,3`. Each pair fights flown both ways, by the
+The band can be remade to a mix with `-simmix 2,3,2,3` (a Vrask band's Maws, Snares, Fangs and
+Skinks; a Greys band's Scouts, Shrouds, Lances and Reapers; an Imperial band's Assault, Patrol,
+Raider and Recon frigates). The Greys and the Empire's bands fight it too (`-simenc "Greys cell"`,
+`"Imperial battle group"`, ...). The frigates fight by what their sensors show: a cloaked or
+jammed-out ship isn't there to shoot until it is seen. Each pair fights flown both ways, by the
 simulator's own pilot and as a section, `-simreps` times each (2 by default; `-simpairs
 "Talon+Vanguard"` runs only the pairs named). Results go to `<dir>/duo.csv`, with the tactic and
-the mix added. `docs/frigates-section.md` is the report on a run.
+the mix added. `docs/frigates-section.md` is the report on a run; `docs/frigates-performance.md`
+has the runs against the Greys and the Empire.
 
 ## Tests
 
@@ -2114,7 +2422,7 @@ The games run one at a time, in a 1280x720 window.
 | `build` | the builds (with `--build`) |
 | `serverproc` | the server program, end to end |
 | `autotest` | the deprecated Carrier Demo and Asteroid Ambush autotests: run only when named (`--only autotest --build`) |
-| `hud`, `modes`, `nav`, `services`, `fleet`, `ships`, `water`, `industry`, `crew`, `strike`, `vrask`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
+| `hud`, `modes`, `nav`, `services`, `fleet`, `ships`, `water`, `industry`, `crew`, `strike`, `vrask`, `sensors`, `greys`, `empire`, `coop`, `system`, `land`, `orbit`, `station` | the Star System self-tests |
 | `web` | the web build's co-op test |
 
 `--quick` runs `tools`, `server`, `unity`, `serverproc`, `autotest`, `hud` and `coop`.

@@ -8,8 +8,8 @@ using UnityEngine;
 namespace Carrier.EditorTools
 {
     /// <summary>
-    /// The rest of the Nine Hells' fighting, for a frigate or two: 18 bands of pirates and Vrask,
-    /// six easy, four harder, four hard and four bosses. Some lie in wait round a body, a belt, a
+    /// The rest of the Nine Hells' fighting, for a frigate or two: 18 bands of pirates and Vrask
+    /// (six easy, four harder, four hard and four bosses), and the Greys' and the Empire's four. Some lie in wait round a body, a belt, a
     /// comet or a station; others wander on a circuit round a world (EncounterPatrol), a hostile
     /// place of their own seen moving on the system map.
     /// </summary>

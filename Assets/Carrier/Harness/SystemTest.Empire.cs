@@ -104,14 +104,17 @@ namespace CarrierGame.Demo
             Shot("e2_line");
 
             // ---- their CIWS shoots a missile of the frigate's down: salvos of the frigate's own
-            // missiles at an Assault frigate from 4 km off it (as the Vrask test does)
+            // missiles at an Assault frigate from 4 km off it (as the Vrask test does); its own CIWS
+            // or a Patrol frigate's screening it, whichever gets there first
             var assault = First(EmpireShip.Role.Assault);
             var apd = assault != null ? assault.GetComponent<PointDefence>() : null;
             var mslPrefab = cc.missiles != null && cc.missiles.missilePrefab != null ? cc.missiles.missilePrefab : assault?.GetComponent<EnemyWeapons>()?.missilePrefab;
             if (assault != null && apd != null && mslPrefab != null)
             {
-                int down0 = apd.ShotDown, fired = 0;
-                for (int salvo = 0; salvo < 4 && apd.ShotDown == down0; salvo++)
+                var fleetPd = ships.Select(e => e.GetComponent<PointDefence>()).Where(x => x != null).ToList();
+                int Down() => fleetPd.Sum(x => x != null ? x.ShotDown : 0);
+                int down0 = Down(), mine0 = apd.ShotDown, fired = 0;
+                for (int salvo = 0; salvo < 4 && Down() == down0; salvo++)
                 {
                     Vector3 toA = (assault.transform.position - cc.transform.position).normalized;
                     Vector3 launch = assault.transform.position - toA * 4000f;
@@ -124,10 +127,10 @@ namespace CarrierGame.Demo
                         fired++;
                     }
                     until = Time.time + 12f;
-                    while (Time.time < until && apd.ShotDown == down0) yield return null;
+                    while (Time.time < until && Down() == down0) yield return null;
                 }
-                Check(apd.ShotDown > down0, $"the Assault frigate's CIWS shoots the frigate's missiles down ({apd.ShotDown - down0} of {fired}; engagements {apd.Engagements}, " +
-                      $"{apd.mounts.Sum(t => t != null ? t.ShotsFired : 0)} shots)");
+                Check(Down() > down0, $"their CIWS shoots the frigate's missiles down ({Down() - down0} of {fired}, {apd.ShotDown - mine0} by the Assault frigate's own; " +
+                      $"its engagements {apd.Engagements}, {apd.mounts.Sum(t => t != null ? t.ShotsFired : 0)} shots)");
             }
             else Check(false, "the Assault frigate's CIWS (no frigate missile to fire at it)");
 

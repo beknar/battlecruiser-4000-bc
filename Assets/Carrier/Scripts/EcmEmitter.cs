@@ -15,7 +15,7 @@ namespace CarrierGame
     ///   ships, that vanish when looked at closely) and shows the jammer's escorts at a false place
     ///   till they are identified (masking).
     /// Close in (`pdRadius`), its emitters scramble the players' missiles (they go off short) and
-    /// stun their drones and fighters.
+    /// stun their drones.
     ///
     /// Kept on in a co-op guest's game, its on/off as the host says (CoopEntity.ec), so each game
     /// works out the jamming on its own player and makes the same ghosts (from the ship's place in
@@ -91,7 +91,7 @@ namespace CarrierGame
                 m.ShootDown(transform);
                 Scrambled++;
             }
-            // their drones and fighters close in: stunned
+            // their drones close in: stunned (Craft.Stunnable: drones only)
             foreach (var s in PlayerShips.All)
             {
                 var cc = s != null ? s.GetComponent<CarrierController>() : null;

@@ -69,6 +69,9 @@ namespace CarrierGame.Demo
         static int StepOf(float size) => Mathf.Clamp(Mathf.RoundToInt((size - 1f) / 0.15f), MinStep, MaxStep);
         static float SizeAt(int step) => 1f + 0.15f * step;
 
+        /// <summary>The smallest size there is (55%).</summary>
+        public static float Smallest => SizeAt(MinStep);
+
         /// <summary>A step bigger (+1) or smaller (-1): the +/- keys and the pause menu. (On
         /// the steps either side of 100%, so it can always be got back to.)</summary>
         public static void ChangeSize(int dir)

@@ -32,13 +32,13 @@ namespace CarrierGame.Demo
         readonly List<FactionShip> cicEmpire = new List<FactionShip>();
         readonly List<FactionShip> cicGreys = new List<FactionShip>();
         static readonly string[] Cic3Fleet = { "Vanguard", "Talon" };
-        // the triangle's side (m): -cic3side; close, all three in gun range from the start
-        static float Cic3Side => float.TryParse(LaunchArgs.ValueOf("-cic3side"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v) && v > 500f ? v : 3000f;
-        // the factions' weapons refitted for the battle: their damage times this (-cic3refit for
-        // the Empire, -cic3refitgreys for the Greys, whose lighter ships hit harder for it)
+        // the triangle's side (m): -cic3side
+        static float Cic3Side => float.TryParse(LaunchArgs.ValueOf("-cic3side"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v) && v > 500f ? v : 8000f;
+        // the factions' weapons refitted for the battle, if asked: their damage times this
+        // (-cic3refit for the Empire, -cic3refitgreys for the Greys; 1, as in the game, by default)
         static float Cic3Arg(string name, float dflt) => float.TryParse(LaunchArgs.ValueOf(name), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v) && v > 0f ? v : dflt;
-        static float Cic3RefitEmpire => Cic3Arg("-cic3refit", 2f);
-        static float Cic3RefitGreys => Cic3Arg("-cic3refitgreys", 3f);
+        static float Cic3RefitEmpire => Cic3Arg("-cic3refit", 1f);
+        static float Cic3RefitGreys => Cic3Arg("-cic3refitgreys", 1f);
         const float Cic3Lull = 240f;             // no ship lost this long (after 5 min): the battle is called (game s)
         const float Cic3Limit = 900f;            // the three-way battle's longest (game seconds)
         static float Cic3Arena => Mathf.Max(2500f, Cic3Side * 0.6f);   // how far from the middle their ships fight (m)
@@ -123,6 +123,14 @@ namespace CarrierGame.Demo
             Place(BattleSim.Clear(c + blueDir * 22000f, blueDir), c);
             yield return Wait(1.5f);
             BattleSim.Hide(cc, true);
+            // (moving the player's ship brings the world's origin to it: the battle's middle,
+            // and which way is which, again where they are now, or the whole fight is laid out
+            // where it was, millions of kilometres off, and drawn only as well as a float holds there)
+            greysEnc = BattleSim.Encounter.FromGroup(cicGreysGroup);
+            c = greysEnc.Centre;
+            up = CicUp(c);
+            blueDir = CicStarDir(c);
+            Note($"cic3: the battle's middle {c.magnitude / 1000f:F0} km from the world's origin");
 
             // the three corners: blue on the star's side, the Empire and the Greys a third of the way round each way
             float R = Cic3Side / Mathf.Sqrt(3f);
@@ -194,7 +202,11 @@ namespace CarrierGame.Demo
             cicGreysGroup.Spring();
 
             Transform frameOf = cicBlue[0] != null && cicBlue[0].TryGetComponent(out OrbitHome oh) ? oh.home : frame;
+            // the HUD at its smallest (the pause menu's last step down): the captions, and the CIC
+            // inset over the action, take as little of the picture as they can
+            Hud.UserScale = HudSettings.Smallest;
             tac = gameObject.AddComponent<TacticalDisplay>();
+            tac.insetScale = HudSettings.Smallest;
             tac.Logged += line => Note("cic  " + line);
             tac.Begin(frameOf, up, -blueDir, cicBlue, cicEmpire, null, cicEmpireGroup, "GOLIATH", cicGreys, "EMPIRE", "GREYS");
             tac.PhaseText = () => $"EMPIRE {(cicEmpireFleet != null ? cicEmpireFleet.Current.ToString() : "-")}   GREYS {(cicGreysFleet != null ? cicGreysFleet.Current.ToString() : "-")}";
@@ -272,6 +284,7 @@ namespace CarrierGame.Demo
 
         /// <summary>The opening captions' words.</summary>
         string Cic3Title => $"The Mandate of Heaven, the Empire and the Greys over Goliath, in the Nine Hells: {CicWord(cicBlue.Count).ToLowerInvariant()} frigates, ten and ten, all at war";
-        string Cic3Roster => $"Blue: {cicLine}, a section. Red, the Empire: {VraskMix.Describe(cicEmpire)}. Magenta, the Greys: {VraskMix.Describe(cicGreys)}. Both fleets refitted for battle: the Empire's weapons x{Cic3RefitEmpire:0.#}, the Greys' x{Cic3RefitGreys:0.#}";
+        string Cic3Roster => $"Blue: {cicLine}, a section. Red, the Empire: {VraskMix.Describe(cicEmpire)}. Magenta, the Greys: {VraskMix.Describe(cicGreys)}{Cic3RefitText}";
+        static string Cic3RefitText => Cic3RefitEmpire == 1f && Cic3RefitGreys == 1f ? "" : $". Refitted for battle: the Empire's weapons x{Cic3RefitEmpire:0.#}, the Greys' x{Cic3RefitGreys:0.#}";
     }
 }

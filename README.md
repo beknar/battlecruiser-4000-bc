@@ -175,16 +175,18 @@ with `-cic -cicfleet Vanguard,Talon -cicmix 2,3,2,3 -cicsection`.
 
 **The three-way battle** (`-cic -cic3`). Two frigates of the Mandate of Heaven (the Vanguard and
 the Talon, as a section, beams and guns), ten ships of the Empire and ten of the Greys, all at war
-with each other, over Goliath. It is a staged battle, not one the game plays by itself:
+with each other, over Goliath. It is a set-up battle, not one the game plays by itself:
 - **All at war.** Every ship sees every other. The Empire and the Greys hunt each other's ships
   as they hunt the players'. A faction's shot spares only its own side.
 - **Remade for combat.** The Empire is 4 Assaults, 3 Patrols, 2 Raiders and 1 Recon
   (`-cic3empire 4,3,2,1`); the Greys are 1 Scout, 2 Shrouds and 7 Lances (`-cic3greys 1,2,7,0`).
   Neither side breaks off, falls back or vanishes, and no ship is leashed to its escort.
-- **Refitted.** The Empire's weapons do twice their damage (`-cic3refit 2`), the Greys' three
-  times (`-cic3refitgreys 3`). The opening card says so.
-- **Close.** The three sides start at the corners of a triangle 3 km a side (`-cic3side 3000`),
-  all in gun range, and the factions fight within 2.5 km of the middle.
+- **Placed.** The three sides start at the corners of a triangle 8 km a side (`-cic3side 8000`),
+  and the factions fight within 4.8 km of the middle (0.6 of the side).
+- **Refit, if asked.** `-cic3refit 2` multiplies the Empire's damage, `-cic3refitgreys 3` the
+  Greys'. It is off by default (the weapons as in the game); when set, the opening card says so.
+- **Small overlays.** The captions and the CIC inset over the action are drawn at the smallest
+  HUD size (55%, as on the pause menu), so the ships fill the picture. It isn't saved.
 - **Fighting on.** A faction's ship goes for the most worn-down enemy nearby and answers fire
   from whoever has just hit it. It lets a ship go for a minute after 45 s on it with no headway.
   The frigates likewise drop a target they can't catch or can't wear down.

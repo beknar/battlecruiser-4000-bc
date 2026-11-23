@@ -33,8 +33,11 @@ namespace CarrierGame
         /// <summary>How many have been kindled (for the self-test).</summary>
         public static int Kindled;
 
+        /// <summary>No fires kindled at all while set (a reel that shows none).</summary>
+        public static bool Off;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { Kindled = 0; Burning = 0; }
+        static void ResetStatics() { Kindled = 0; Burning = 0; Off = false; }
 
         /// <summary>What burns on in its place once it has burnt out (its smoke), if anything.</summary>
         [System.NonSerialized] public FireFx then;
@@ -58,7 +61,7 @@ namespace CarrierGame
         /// prefab, under the water, where fires aren't supported, or with too many burning.</summary>
         public static FireFx Kindle(FireFx prefab, Transform parent, Vector3 position, float scale, float seconds = float.PositiveInfinity)
         {
-            if (prefab == null || !Supported || Burning >= MaxFires || Sea.Depth(position) > 0.5f) return null;
+            if (prefab == null || Off || !Supported || Burning >= MaxFires || Sea.Depth(position) > 0.5f) return null;
             var f = Instantiate(prefab, position, Quaternion.identity, parent);
             Vector3 s = parent != null ? parent.lossyScale : Vector3.one;
             f.transform.localScale = new Vector3(scale / Mathf.Max(1e-4f, s.x), scale / Mathf.Max(1e-4f, s.y), scale / Mathf.Max(1e-4f, s.z));

@@ -173,16 +173,21 @@ The hidden player ship's HUD is left off the screen, and each frigate's moves go
 log (`cic blue` lines), so radio calls can be timed to them. The two-frigate reel was recorded
 with `-cic -cicfleet Vanguard,Talon -cicmix 2,3,2,3 -cicsection`.
 
-**The three-way battle** (`-cic -cic3`). Two frigates of the Mandate of Heaven (the Vanguard and
-the Talon, as a section, beams and guns), ten ships of the Empire and ten of the Greys, all at war
-with each other, over Goliath. It is a set-up battle, not one the game plays by itself:
+**The three-way battle** (`-cic -cic3`). Five frigates of the Mandate of Heaven (the Vanguard,
+Talon, Sentinel, Lancer and Warden, line abreast, with their standard guns and bow beams; `-cicfleet`
+picks others), ten ships of the Empire and ten of the Greys, all at war with each other, over
+Goliath. It is a set-up battle, not one the game plays by itself:
 - **All at war.** Every ship sees every other. The Empire and the Greys hunt each other's ships
   as they hunt the players'. A faction's shot spares only its own side.
 - **Remade for combat.** The Empire is 4 Assaults, 3 Patrols, 2 Raiders and 1 Recon
   (`-cic3empire 4,3,2,1`); the Greys are 1 Scout, 2 Shrouds and 7 Lances (`-cic3greys 1,2,7,0`).
   Neither side breaks off, falls back or vanishes, and no ship is leashed to its escort.
-- **Placed.** The three sides start at the corners of a triangle 8 km a side (`-cic3side 8000`),
-  and the factions fight within 4.8 km of the middle (0.6 of the side).
+- **Placed.** The three sides start at the corners of a triangle 3 km a side (`-cic3side 3000`),
+  and the factions fight within 2.5 km of the middle (0.6 of the side, at least 2.5 km).
+- **Seen from the Mandate's side.** The camera stays with the frigates: behind one, looking where
+  she fires; on her target as her fire goes in; or on her as she is hit, from her attacker's side.
+  Once they are all gone, it follows the hottest exchange (`-cic3overview` does that throughout).
+  Wrecks don't burn in this reel.
 - **Refit, if asked.** `-cic3refit 2` multiplies the Empire's damage, `-cic3refitgreys 3` the
   Greys'. It is off by default (the weapons as in the game); when set, the opening card says so.
 - **Small overlays.** The captions and the CIC inset over the action are drawn at the smallest

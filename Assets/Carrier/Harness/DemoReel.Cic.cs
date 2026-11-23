@@ -124,7 +124,7 @@ namespace CarrierGame.Demo
                 yield return Safe("cic: the end", CicEndCard(), 30f);
                 Note($"the end: {cicOutcome}");
             }
-            finally { finished = true; }
+            finally { finished = true; if (Cic3) FireFx.Off = false; }
         }
 
         // ------------------------------------------------------------------ setting up
@@ -326,7 +326,9 @@ namespace CarrierGame.Demo
             while (Time.time < until && !CicOver())
             {
                 CicCaptions();
-                bool gone = cicSubject == null || cicSubject.t == null || (cicSubject.dead && tac.Clock - cicSubject.diedAt > 3.5f);
+                bool gone = cicSubject == null || cicSubject.t == null || (cicSubject.dead && tac.Clock - cicSubject.diedAt > 3.5f)
+                            || (cic3PovFoe != null && cic3PovFoe.dead && tac.Clock - cic3PovFoe.diedAt > 3.5f)
+                            || (cic3PovShip != null && cic3PovShip.dead && tac.Clock - cic3PovShip.diedAt > 3.5f);
                 if (Time.time > recut) { recut = float.MaxValue; CicFrame(n + 5); }
                 else if (gone && Time.time < until - 3f) CicFrame(n + 3);
                 yield return null;
@@ -338,6 +340,8 @@ namespace CarrierGame.Demo
         /// both; it eases round to keep them so.</summary>
         void CicFrame(int variant)
         {
+            cic3PovFoe = cic3PovShip = null;
+            if (Cic3 && Cic3Pov && Cic3PovFrame(variant)) return;
             var a = tac.Hottest(variant, out var b, out string why);
             cicSubject = a;
             if (a == null || a.t == null) { perFrame = null; return; }

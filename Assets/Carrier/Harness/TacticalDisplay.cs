@@ -865,6 +865,8 @@ namespace CarrierGame.Demo
         static string Hex(Color c) => ColorUtility.ToHtmlStringRGB(c);
 
         float s = 1f;                // layout scale: 1 at 1080 px tall
+        /// <summary>The inset over the action, as a share of its own size (its lines and words with it).</summary>
+        public float insetScale = 1f;
         Rect clip;
         readonly List<Seg> segs = new List<Seg>(8192);
         static Material lineMat;
@@ -884,7 +886,8 @@ namespace CarrierGame.Demo
             {
                 if (mode == Mode.Inset)
                 {
-                    float iw = Mathf.Round(W * 0.34f), ih = Mathf.Round(iw * 0.68f);
+                    s *= insetScale;
+                    float iw = Mathf.Round(W * 0.34f * insetScale), ih = Mathf.Round(iw * 0.68f);
                     var r = new Rect(W - iw - 24f * s, 24f * s, iw, ih);
                     Hud.Fill(new Rect(r.x - 3f * s, r.y - 3f * s, r.width + 6f * s, r.height + 6f * s), new Color(0f, 0f, 0f, 0.6f));
                     Plot(r, false, true);

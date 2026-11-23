@@ -47,10 +47,15 @@ namespace CarrierGame
             if (pilots == null) return;
             // with more than one player ship about (co-op): the one nearest the group (and another
             // at once if the one it had is gone: a player who left, a ship destroyed)
-            if (pilots.Length > 0 && pilots[0] != null)
-                player = PlayerShips.Retarget(player, pilots[0].transform.position, ref nextLook, 0f);
-            else if (player == null)
+            if (player == null && PlayerShips.Count == 0)
+            {
+                // (no player ship about: looked for once a second, not every frame)
+                if (Time.time < nextLook) return;
+                nextLook = Time.time + 1f;
                 player = PlayerShips.Primary;
+            }
+            else if (pilots.Length > 0 && pilots[0] != null)
+                player = PlayerShips.Retarget(player, pilots[0].transform.position, ref nextLook, 0f);
             if (player == null) return;
             bool anyEngaged = false, anyLurking = false;
             foreach (var p in pilots)

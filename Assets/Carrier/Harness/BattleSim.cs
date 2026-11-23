@@ -103,6 +103,8 @@ namespace CarrierGame.Demo
             // nothing else comes back or happens on its own while the battles run
             if (SpawnDirector.Instance != null) SpawnDirector.Instance.enabled = false;
             foreach (var b in FindObjectsByType<VraskBombardment>(FindObjectsSortMode.None)) b.enabled = false;
+            // (and a Greys Scout calls in no other band: the encounter fought is the one counted)
+            ScoutTactics.CallInOff = true;
             Ghost(true);
 
             var roster = FrigateRoster.Get();
@@ -330,7 +332,12 @@ namespace CarrierGame.Demo
                 if (enemiesLeft == 0) { outcome = "win"; break; }
                 if (shipsLeft == 0) { outcome = "loss"; break; }
                 // (a Vrask band that has given up the fight and gone back into hiding: won)
-                if (enc.group != null && enc.group.holdOff) { withdrew = true; outcome = "win"; break; }
+                // (but a Greys band that vanishes with its prize has won: "taken")
+                if (enc.group != null && enc.group.holdOff)
+                {
+                    if (enc.group.TryGetComponent(out GreysFleet gw) && gw.TookPrize) { outcome = "taken"; break; }
+                    withdrew = true; outcome = "win"; break;
+                }
                 if (LaunchArgs.Has("-simverbose") && Time.time >= nextNote && fleet.Count > 0 && fleet[0] != null)
                 {
                     nextNote = Time.time + 20f;
@@ -710,8 +717,9 @@ namespace CarrierGame.Demo
                 if (dd < anyD) { anyD = dd; any = h.transform; }
                 if (dd < 12000f * 12000f && Cover.Visible(transform.position, h.transform.position) && dd < bestD) { bestD = dd; best = h.transform; }
             }
-            // (none in sight: hunt the nearest, however far it has gone or wherever it hides; a fight
-            // isn't over till the last of them is)
+            // (none in sight: hunt the nearest its sensors show, however far it has gone or wherever
+            // it hides; one they don't show, it can't: a band's last ship cloaked out of reach is a
+            // timeout)
             return best != null ? best : any;
         }
 

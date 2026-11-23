@@ -152,21 +152,21 @@ Over 4610 pairs: the gun won a fight that was otherwise not won **839** times; w
 
 ## Two frigates against the Greys and the Empire
 
-From the battle simulator's duo runs (`-simduo -simenc <band> -simreps 4`): every pair of the five frigate classes (two of a kind left out: 10 pairs), each fought flown both ways, by the simulator's own pilot and as a section, 4 times each: **80 battles a band**, against the bands as built (default mixes), the frigates with their main guns. The frigates fight by what their sensors show (a cloaked or jammed-out ship isn't there to shoot until it is seen). A band that breaks off and withdraws (the Greys vanishing, the Empire retreating) counts as a win, as a Vrask band's does.
+From the battle simulator's duo runs (`-simduo -simenc <band> -simreps 4`): every pair of the five frigate classes (two of a kind left out: 10 pairs), each fought flown both ways, by the simulator's own pilot and as a section, 4 times each: **80 battles a band**, against the bands as built (default mixes), the frigates with their main guns. The frigates fight by what their sensors show (a cloaked or jammed-out ship isn't there to shoot until it is seen). A band that breaks off and withdraws (the Greys vanishing, the Empire retreating) counts as a win, as a Vrask band's does; a Greys band that vanishes with its prize (a frigate's crew taken) has won, and counts as lost.
 
 | Band | System | Battles | Won | Lost | Timed out | Withdrew | Wins took (median) | Frigates lost a battle | Hull / shield left |
 |---|---|---|---|---|---|---|---|---|---|
 | Sheol picket | Nine Hells | 80 | 80 (100%) | 0 | 0 | 41 | 87 s | 0.03 | 98% / 96% |
-| Greys cell | Testing System | 80 | 76 (95%) | 0 | 4 | 75 | 61 s | 0.00 | 99% / 78% |
-| Greys cell | Nine Hells | 80 | 76 (95%) | 0 | 4 | 74 | 72 s | 0.00 | 100% / 99% |
+| Greys cell | Testing System | 80 | 77 (96%) | 0 | 3 | 77 | 66 s | 0.00 | 100% / 92% |
+| Greys cell | Nine Hells | 80 | 76 (95%) | 0 | 4 | 75 | 70 s | 0.00 | 100% / 98% |
 | Imperial patrol | Testing System | 80 | 80 (100%) | 0 | 0 | 1 | 68 s | 0.00 | 100% / 100% |
 | Imperial task force | Testing System | 80 | 79 (99%) | 1 | 0 | 0 | 142 s | 0.07 | 99% / 100% |
 | Imperial battle group | Nine Hells | 80 | 80 (100%) | 0 | 0 | 1 | 116 s | 0.00 | 100% / 99% |
 | Imperial forward base | Nine Hells | 80 | 79 (99%) | 1 | 0 | 0 | 106 s | 0.03 | 100% / 100% |
 
 - **Sheol picket, Nine Hells** (the Vrask picket at Sheol, for comparison; 10 ships: 2 Maws 3 Snares 2 Fangs 3 Skinks): won 40 of 40 in 92 s flown by the simulator's pilot, 40 of 40 in 81 s as a section; 8.5 of its ships destroyed a battle on average. The hardest pair: Sentinel and Warden, won 8 of 8, in 112 s on average.
-- **Greys cell, Testing System** (a Greys cell; 5 ships: 1 Scout 1 Shroud 2 Lances 1 Reaper): won 36 of 40 in 66 s flown by the simulator's pilot, 40 of 40 in 61 s as a section; 3.4 of its ships destroyed a battle on average. The hardest pair: Warden and Vanguard, won 4 of 8, in 336 s on average.
-- **Greys cell, Nine Hells** (a Greys cell; 5 ships: 1 Scout 1 Shroud 2 Lances 1 Reaper): won 36 of 40 in 72 s flown by the simulator's pilot, 40 of 40 in 72 s as a section; 3.5 of its ships destroyed a battle on average. The hardest pair: Warden and Vanguard, won 4 of 8, in 337 s on average.
+- **Greys cell, Testing System** (a Greys cell; 5 ships: 1 Scout 1 Shroud 2 Lances 1 Reaper): won 37 of 40 in 67 s flown by the simulator's pilot, 40 of 40 in 64 s as a section; 3.5 of its ships destroyed a battle on average. The hardest pair: Warden and Vanguard, won 5 of 8, in 282 s on average.
+- **Greys cell, Nine Hells** (a Greys cell; 5 ships: 1 Scout 1 Shroud 2 Lances 1 Reaper): won 36 of 40 in 70 s flown by the simulator's pilot, 40 of 40 in 68 s as a section; 3.4 of its ships destroyed a battle on average. The hardest pair: Warden and Vanguard, won 4 of 8, in 337 s on average.
 - **Imperial patrol, Testing System** (an Imperial patrol; 3 ships: 1 Patrol 1 Raider 1 Recon): won 40 of 40 in 74 s flown by the simulator's pilot, 40 of 40 in 56 s as a section; 3.0 of its ships destroyed a battle on average. The hardest pair: Warden and Talon, won 8 of 8, in 87 s on average.
 - **Imperial task force, Testing System** (an Imperial task force; 7 ships: 2 Assaults 2 Patrols 2 Raiders 1 Recon): won 39 of 40 in 146 s flown by the simulator's pilot, 40 of 40 in 142 s as a section; 6.9 of its ships destroyed a battle on average. The hardest pair: Sentinel and Lancer, won 7 of 8, in 125 s on average.
 - **Imperial battle group, Nine Hells** (the Imperial battle group; 6 ships: 1 Assault 2 Patrols 2 Raiders 1 Recon): won 40 of 40 in 130 s flown by the simulator's pilot, 40 of 40 in 102 s as a section; 6.0 of its ships destroyed a battle on average. The hardest pair: Warden and Vanguard, won 8 of 8, in 155 s on average.

@@ -115,8 +115,12 @@ namespace CarrierGame
 
         /// <summary>The nearest other band of the Greys within reach, lying in wait: sprung, its
         /// pilots sent after what this one paints.</summary>
+        /// <summary>No band is called in (the battle simulator's: only the encounter it fights counts).</summary>
+        public static bool CallInOff;
+
         void CallIn()
         {
+            if (CallInOff) return;
             EncounterGroup best = null;
             float bd = callRange * callRange;
             Vector3 from = Target != null ? Target.position : transform.position;

@@ -24,6 +24,7 @@ namespace CarrierGame
         public enum Phase { None, HoldBack, Close, Holding }
         public Phase Current { get; private set; }
         TractorBeam beam;
+        Cloak cloak;
         /// <summary>Ships it has locked on to (the tests).</summary>
         public int Locks { get; private set; }
 
@@ -31,6 +32,7 @@ namespace CarrierGame
         {
             base.Awake();
             beam = GetComponent<TractorBeam>();
+            cloak = GetComponent<Cloak>();
         }
 
         /// <summary>The ship it holds, while it holds one (a rescuer coming close doesn't free it);
@@ -73,6 +75,8 @@ namespace CarrierGame
                 if (beam != null && d < Mathf.Min(lockRange, beam.range) && beam.Lock(Target, out _)) Locks++;
             }
             else Current = Phase.HoldBack;
+            // cloaked while it holds back; seen as it closes in and while it holds its catch
+            if (cloak != null) cloak.Engage(Current == Phase.HoldBack);
             Doing = Current == Phase.Holding ? (towing ? "towing its catch away" : "holding its catch") : Current == Phase.Close ? "closing on a disabled ship" : "holding back";
         }
 

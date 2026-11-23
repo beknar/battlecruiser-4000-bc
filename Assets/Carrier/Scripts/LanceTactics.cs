@@ -20,6 +20,7 @@ namespace CarrierGame
         [Tooltip("Flanking at most this long (s), then in from wherever it is: a target that turns with it is never flanked.")]
         public float flankTime = 6f;
         float flankSince;
+        bool closedIn;   // (this run has come in close: its pass can be over)
 
         public enum Phase { None, Flank, Run }
         public Phase Current { get; private set; }
@@ -52,12 +53,15 @@ namespace CarrierGame
             ShipSystems.SetAim(transform.root, sys != null && sys.EnginesDown ? ShipSystem.Weapons : ShipSystem.Engines);
             // out to the flank till it is there, then the run
             Vector3 flank = FlankPoint(strike);
-            if (Current != Phase.Run && ((flank - transform.position).sqrMagnitude < 600f * 600f || (Current == Phase.Flank && Time.time - flankSince > flankTime))) Current = Phase.Run;
+            if (Current != Phase.Run && ((flank - transform.position).sqrMagnitude < 600f * 600f || (Current == Phase.Flank && Time.time - flankSince > flankTime))) { Current = Phase.Run; closedIn = false; }
             else if (Current == Phase.None) { Current = Phase.Flank; flankSince = Time.time; Side = Random.value < 0.5f ? 1 : -1; }
             // past the target and going away (the pilot's run over: it extends): round again from
             // the other flank
             Vector3 toT = strike.position - transform.position;
-            if (Current == Phase.Run && toT.magnitude > 1200f && Vector3.Dot(transform.forward, toT) < 0f) { Current = Phase.Flank; flankSince = Time.time; Side = -Side; Passes++; }
+            // (only once the run has closed in: one started from the flank on a target behind it
+            // turns in first, and isn't a pass yet)
+            if (Current == Phase.Run && toT.magnitude < 900f) closedIn = true;
+            if (Current == Phase.Run && closedIn && toT.magnitude > 1200f && Vector3.Dot(transform.forward, toT) < 0f) { Current = Phase.Flank; flankSince = Time.time; Side = -Side; Passes++; }
             Doing = $"{(Current == Phase.Run ? "attack run" : "flanking")} on {strike.name} ({why})";
         }
 

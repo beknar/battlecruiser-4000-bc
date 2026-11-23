@@ -30,6 +30,8 @@ namespace CarrierGame
         public readonly List<Phase> History = new List<Phase>();
         float vanishAt = -1f;
         bool gone;
+        /// <summary>It vanished with its prize (the Greys' win, not a withdrawal: the battle simulator).</summary>
+        public bool TookPrize { get; private set; }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void HostOnly() => Demo.CoopWorld.HostOnlyBehaviour(typeof(GreysFleet));
@@ -61,7 +63,7 @@ namespace CarrierGame
             Phase next = Decide(reaper, abductor, out string why);
             if (next != Current)
             {
-                if (next == Phase.Vanish) StartVanish(reaper);
+                if (next == Phase.Vanish) { TookPrize = abductor != null && abductor.Done; StartVanish(reaper); }
                 Current = next;
                 Why = why;
                 History.Add(next);
@@ -110,10 +112,16 @@ namespace CarrierGame
         {
             gone = false;
             vanishAt = -1f;
+            TookPrize = false;
             Current = Phase.Watch;
             Why = "watching";
             foreach (var s in ships)
-                if (s != null && s.TryGetComponent(out ReaperTactics rt)) rt.towing = false;
+            {
+                if (s == null) continue;
+                if (s.TryGetComponent(out ReaperTactics rt)) rt.towing = false;
+                if (s.TryGetComponent(out TractorBeam b) && b.Locked) b.Release("reset");
+                if (s.TryGetComponent(out Abductor ab)) ab.ResetWork();
+            }
         }
 
         void StartVanish(GreysShip reaper)

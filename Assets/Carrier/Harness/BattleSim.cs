@@ -508,6 +508,39 @@ namespace CarrierGame.Demo
         Shield shield;
         MainBeam beam;
         Transform target;
+        // pressing a target: since when, and from how far; ones that ran (till when they're let be)
+        Transform pressOn;
+        float pressFrom, pressD0;
+        readonly Dictionary<Transform, float> outOfReach = new Dictionary<Transform, float>();
+        bool OutOfReach(Transform t) => t != null && outOfReach.TryGetValue(t, out float until) && Time.time < until;
+        // her target's strength (hull and shield) when she took it on, and since when: one she
+        // makes no headway on (a shield that comes back as fast as it is hit) is let go a minute
+        Transform workOn;
+        float workFrom, workStrength0;
+
+        static float StrengthOf(Transform t)
+        {
+            if (t == null || !t.TryGetComponent(out Health h)) return 0f;
+            var sh = t.GetComponentInChildren<Shield>();
+            return h.Current + (sh != null && sh.Up ? sh.Fraction * sh.capacity : 0f);
+        }
+
+        void Headway()
+        {
+            if (target == null) { workOn = null; return; }
+            float st = StrengthOf(target);
+            if (target != workOn) { workOn = target; workFrom = Time.time; workStrength0 = st; return; }
+            if (Time.time - workFrom < 30f) return;
+            if (st > workStrength0 * 0.95f && Vector3.Distance(transform.position, target.position) < 6000f)
+            {
+                outOfReach[target] = Time.time + 60f;
+                workOn = null;
+                nextLook = 0f;
+                return;
+            }
+            workFrom = Time.time;
+            workStrength0 = st;
+        }
         float nextLook;
         bool recharging;
         float rechargeUntil, rechargeAgain;
@@ -541,6 +574,7 @@ namespace CarrierGame.Demo
             {
                 nextLook = Time.time + 1f;
                 target = Choose();
+                if (section && Rivalry.On) Headway();
                 ship.SetTarget(target);
                 foreach (var t in ship.mainTurrets) if (t != null) t.autoFire = target != null;
             }
@@ -566,13 +600,21 @@ namespace CarrierGame.Demo
                 Doing = beam.Current == MainBeam.State.Firing ? "BEAM FIRE" : beam.Current == MainBeam.State.Charging ? "BEAM CHARGE" : "BOW-ON BEAM";
                 return;
             }
-            // a section out of gun range: straight in at full speed
+            // a section out of gun range: straight in at full speed (but not after one that keeps
+            // running, with the factions at war: 25 s on it without closing, and it is let go for a minute)
             if (section && d > 4500f)
             {
+                if (Rivalry.On && target != pressOn) { pressOn = target; pressFrom = Time.time; pressD0 = d; }
+                else if (Rivalry.On && Time.time - pressFrom > 25f)
+                {
+                    if (d > pressD0 - 500f) { outOfReach[target] = Time.time + 60f; pressOn = null; nextLook = 0f; }
+                    else { pressFrom = Time.time; pressD0 = d; }
+                }
                 Steer(tp, 1f);
                 Doing = "PRESSING";
                 return;
             }
+            pressOn = null;
             // broadside on at gun range, the turrets firing (a section both the same way round)
             ship.rudder = ShipAutopilot.Broadside(ship, tp, section || slot % 2 == 0 ? 1 : -1, 1500f);
             ship.pitchInput = Mathf.Clamp(-ship.Pitch / 8f, -1f, 1f);
@@ -675,9 +717,16 @@ namespace CarrierGame.Demo
                 if (h == null || !Fit(h.transform) || Sensors.Unseen(h.transform)) continue;
                 float d = Vector3.Distance(h.transform.position, transform.position);
                 if (d < anyD) { anyD = d; any = h.transform; }
-                if (d > 12000f || !Cover.Visible(transform.position, h.transform.position)) continue;
+                if (d > 12000f || (Rivalry.On && OutOfReach(h.transform)) || !Cover.Visible(transform.position, h.transform.position)) continue;
                 float hull = h.maxHealth > 0f ? h.Current / h.maxHealth : 1f;
                 float sc = RoleWeight(h.transform, d) * (1.6f - 0.6f * hull) / (1f + d / 2500f);
+                // (the factions at war: what she can finish first, its hull and shield together;
+                // a shield that comes back as fast as it is hit is no use to her)
+                if (Rivalry.On)
+                {
+                    float left = Rivalry.StrengthLeft(h.transform, out float whole);
+                    sc = RoleWeight(h.transform, d) * (1.6f - 0.6f * left) / (1f + d / 2500f) / (1f + whole / 4000f);
+                }
                 // (she keeps on the one she has, unless another is much better)
                 if (h.transform == target) sc *= 1.3f;
                 if (sc > bestS) { bestS = sc; best = h.transform; }

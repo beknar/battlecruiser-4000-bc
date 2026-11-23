@@ -103,7 +103,7 @@ namespace CarrierGame
 
         /// <summary>Is the contact `t` seen by any of the players' ships (or, with `from`, by a
         /// ship there)?</summary>
-        public static bool Detected(Transform t) => Look(t).detected;
+        public static bool Detected(Transform t) => Rivalry.RevealAll || Look(t).detected;
 
         /// <summary>Is it named and its class known (seen, and close enough), or only an unknown contact?</summary>
         public static bool Identified(Transform t) => Look(t).identified;
@@ -251,6 +251,7 @@ namespace CarrierGame
         public static bool CanSee(Transform observer, Transform target)
         {
             if (observer == null || target == null) return false;
+            if (Rivalry.RevealAll) return (target.position - observer.position).sqrMagnitude <= Rivalry.RevealRange * Rivalry.RevealRange;
             var f = FactionShip.Of(observer);
             float range = f != null && f.sensorRange > 0f ? f.sensorRange : EnemyRange;
             var s = Of(target);

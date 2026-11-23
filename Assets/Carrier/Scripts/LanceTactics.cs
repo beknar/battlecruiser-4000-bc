@@ -97,12 +97,13 @@ namespace CarrierGame
                 }
             }
             Transform cripple = null;
-            float least = 2f;
-            foreach (var p in PlayerShips.All)
+            float least = 10f;
+            foreach (var p in Rivalry.TargetsFor(transform))
             {
-                if (p == null || !p.gameObject.activeInHierarchy || !PlayerShips.Present(p) || !Sensors.CanSee(transform, p)) continue;
+                if (p == null || !Sensors.CanSee(transform, p)) continue;
                 if (p.TryGetComponent(out Health h) && h.Dead) continue;
-                float hull = HullOf(p);
+                // (the factions at war, the many whole ships told apart by how near: the nearest)
+                float hull = HullOf(p) + (Rivalry.On ? Vector3.Distance(transform.position, p.position) / 40000f : 0f);
                 if (hull < least) { least = hull; cripple = p; }
             }
             if (cripple == null)

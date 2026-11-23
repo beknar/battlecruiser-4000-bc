@@ -48,7 +48,7 @@ namespace CarrierGame
             Ward = EmpireShip.Nearest(EmpireShip.Role.Assault, transform.position, 20000f);
             if (Target == null) { Doing = "patrolling"; return; }
             float d = Vector3.Distance(transform.position, Target.position);
-            if (pods != null && Disabled(Target) && d < pods.range && pods.Ready) pods.LaunchWave(Target);
+            if (pods != null && Disabled(Target) && Rivalry.IsPlayer(Target) && d < pods.range && pods.Ready) pods.LaunchWave(Target);
             Doing = $"{(retreating ? "covering the retreat" : Ward != null ? $"screening {Ward.name}" : "standing off")}{(Disabled(Target) ? ", marines ready" : "")}";
         }
 

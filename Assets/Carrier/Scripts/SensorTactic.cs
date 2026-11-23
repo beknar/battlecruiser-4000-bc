@@ -75,17 +75,27 @@ namespace CarrierGame
             Think(seen != null);
         }
 
-        /// <summary>The nearest player's ship it can see (its sensors, the target's signature).</summary>
+        /// <summary>The nearest player's ship it can see (its sensors, the target's signature); with
+        /// Rivalry on, the nearest ship of any other side.</summary>
         protected Transform NearestSeen()
         {
             Transform best = null;
             float bd = float.MaxValue;
-            foreach (var p in PlayerShips.All)
+            foreach (var p in Rivalry.TargetsFor(transform))
             {
-                if (p == null || !p.gameObject.activeInHierarchy || !PlayerShips.Present(p)) continue;
+                if (p == null) continue;
                 if (p.TryGetComponent(out Health h) && h.Dead) continue;
                 if (!Sensors.CanSee(transform, p)) continue;
                 float d = (p.position - transform.position).sqrMagnitude;
+                // (the factions at war: the one worn down most, nearer first, so their fire
+                // gathers on a ship and finishes it rather than spreading over a shield's recharge)
+                // (and one that has just hit it first: it answers fire)
+                if (Rivalry.On)
+                {
+                    float k = 0.35f + 0.65f * Rivalry.StrengthLeft(p, out _);
+                    d *= k * k;
+                    if (Rivalry.StruckBy(transform, p, 15f)) d *= 0.04f;
+                }
                 if (d < bd) { bd = d; best = p; }
             }
             return best;

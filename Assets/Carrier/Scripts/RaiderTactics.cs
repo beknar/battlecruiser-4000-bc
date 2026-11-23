@@ -62,9 +62,9 @@ namespace CarrierGame
             Transform best = null;
             float bestHull = float.MaxValue;
             bool escort = false;
-            foreach (var p in PlayerShips.All)
+            foreach (var p in Rivalry.TargetsFor(transform))
             {
-                if (p == null || !p.gameObject.activeInHierarchy || !PlayerShips.Present(p) || !Sees(p)) continue;
+                if (p == null || !Sees(p)) continue;
                 if (!p.TryGetComponent(out Health h) || h.Dead) continue;
                 bool isEscort = p.GetComponent<Demo.FleetPilot>() != null || p.GetComponent<Demo.Wingman>() != null;
                 if (escort && !isEscort) continue;

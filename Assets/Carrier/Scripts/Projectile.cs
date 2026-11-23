@@ -119,7 +119,8 @@ namespace CarrierGame
         }
 
         /// <summary>A hostile ship's shot doesn't hurt the other hostiles (a battle group firing
-        /// past its own flagship). The player's side is unchanged.</summary>
+        /// past its own flagship), or with Rivalry on, the others of its own faction. The player's
+        /// side is unchanged.</summary>
         bool Friendly(Transform hit)
         {
             if (owner == null) return false;
@@ -130,7 +131,9 @@ namespace CarrierGame
             }
             if (ownerSide == 0) return false;
             var hi = hit.GetComponentInParent<TargetInfo>();
-            return hi != null && hi.Hostile;
+            if (hi == null || !hi.Hostile) return false;
+            // (the factions at war: only its own side is spared)
+            return !Rivalry.On || !Rivalry.Enemies(owner, hit);
         }
 
         /// <summary>Fired by a hostile ship.</summary>

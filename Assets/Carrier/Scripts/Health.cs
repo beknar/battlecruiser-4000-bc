@@ -88,6 +88,8 @@ namespace CarrierGame
         public void Damage(float amount, Vector3 point, HitKind kind, bool toComponents = true)
         {
             if (Dead || amount <= 0f) return;
+            amount *= Rivalry.RefitOf(Source);
+            Rivalry.Struck(transform, Source);
             if (Intercept != null && Intercept(this, amount, point, kind)) return;
             if (!shieldLooked) { shield = GetComponentInChildren<Shield>(true); armor = GetComponent<Armor>(); systems = GetComponent<ShipSystems>(); shieldLooked = true; }
             var row = DamageTable.Of(kind);

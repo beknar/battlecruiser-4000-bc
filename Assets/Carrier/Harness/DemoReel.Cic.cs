@@ -77,6 +77,7 @@ namespace CarrierGame.Demo
         void CicUpdate()
         {
             if (cicReelStart < 0f) cicReelStart = Time.time;
+            Cic3Dump();
             if (!finished && Time.time - cicReelStart > 1700f) { Note("cic: the reel's time cap"); finished = true; }
             // each frigate's move, as it changes (for the voice-over's radio calls)
             foreach (var p in cicBlue)
@@ -111,15 +112,15 @@ namespace CarrierGame.Demo
                 SideGuns(false);
                 Note($"the CIC reel, in {StarSystems.Current.name} (scene {SceneManager.GetActiveScene().name})");
                 bool ok = false;
-                yield return Safe("cic: setting up", CicSetup(r => ok = r), 120f);
+                yield return Safe("cic: setting up", Cic3 ? Cic3Setup(r => ok = r) : CicSetup(r => ok = r), 120f);
                 if (ok && tac != null)
                 {
-                    yield return Safe("cic: the battle", CicBattle(), CicLimit + 300f);
+                    yield return Safe("cic: the battle", CicBattle(), (Cic3 ? Cic3Limit : CicLimit) + 300f);
                     CicFinish();
                     yield return Safe("cic: results", CicResults(), 40f);
                     yield return Safe("cic: analysis", CicAnalysis(), 160f);
                 }
-                else Note("cic: no Vrask picket or no frigates: the battle is left out");
+                else Note(Cic3 ? "cic3: no bands or no frigates: the battle is left out" : "cic: no Vrask picket or no frigates: the battle is left out");
                 yield return Safe("cic: the end", CicEndCard(), 30f);
                 Note($"the end: {cicOutcome}");
             }
@@ -238,12 +239,13 @@ namespace CarrierGame.Demo
             }
             yield return Wait(0.5f);
             yield return FadeIn(1f);
-            Caption("BATTLECRUISER 4000 BC", $"{CicWord(cicBlue.Count)} frigate{(cicBlue.Count == 1 ? "" : "s")} against {CicWord(cicRed.Count).ToLowerInvariant()} Vrask over Sheol, in the Nine Hells", 6f);
+            Caption("BATTLECRUISER 4000 BC", Cic3 ? Cic3Title : $"{CicWord(cicBlue.Count)} frigate{(cicBlue.Count == 1 ? "" : "s")} against {CicWord(cicRed.Count).ToLowerInvariant()} Vrask over Sheol, in the Nine Hells", 6f);
             cicCapAt = Time.time;
             yield return CicHold(6.5f, false);
             tac.mode = TacticalDisplay.Mode.Full; CicMode();
             string roles = VraskMix.Describe(cicRed);
-            Caption("COMBAT INFORMATION CENTRE", $"Blue: {cicLine}, {(cicBlue.Count == 2 ? (cicBlue[0].section ? "a section, " + cicLine.Split(',')[0] + " leading" : "a pair") : "line abreast")}. Red: {roles}", 7f);
+            if (Cic3) Caption("COMBAT INFORMATION CENTRE", Cic3Roster, 7f);
+            else Caption("COMBAT INFORMATION CENTRE", $"Blue: {cicLine}, {(cicBlue.Count == 2 ? (cicBlue[0].section ? "a section, " + cicLine.Split(',')[0] + " leading" : "a pair") : "line abreast")}. Red: {roles}", 7f);
             cicCapAt = Time.time;
             yield return CicHold(8f, true);
             tac.mode = TacticalDisplay.Mode.Off; CicMode();
@@ -271,6 +273,7 @@ namespace CarrierGame.Demo
         /// limit): the outcome and the winner set once.</summary>
         bool CicOver()
         {
+            if (Cic3) return Cic3Over();
             if (cicDone) return true;
             if (tac == null) { cicOutcome = "NO BATTLE"; return cicDone = true; }
             int blue = tac.BlueLeft, red = tac.RedLeft;
@@ -294,6 +297,7 @@ namespace CarrierGame.Demo
 
         void CicTimeUp()
         {
+            if (Cic3) { Cic3TimeUp(); return; }
             float StrengthOf(bool blue)
             {
                 var all = tac.Tracks.Where(k => k.friendly == blue).ToList();
@@ -400,9 +404,13 @@ namespace CarrierGame.Demo
         {
             Note($"cic: the battle is over at T+{tac.ClockText}: {cicOutcome}");
             perFrame = null;
-            var last = tac.Tracks.Where(k => !k.dead && k.t != null).OrderByDescending(k => k.friendly == (cicWinner != "RED")).FirstOrDefault();
+            int winSide = Array.IndexOf(tac.SideNames, cicWinner);
+            var last = Cic3 ? tac.Tracks.Where(k => !k.dead && k.t != null).OrderByDescending(k => k.side == winSide).FirstOrDefault()
+                            : tac.Tracks.Where(k => !k.dead && k.t != null).OrderByDescending(k => k.friendly == (cicWinner != "RED")).FirstOrDefault();
             tac.mode = TacticalDisplay.Mode.Off; CicMode();
-            string title = cicWinner == "BLUE" ? "BLUE FORCE VICTORY" : cicWinner == "RED" ? "THE VRASK PREVAIL" : "NO DECISION";
+            string title = cicWinner == "BLUE" ? (Cic3 ? "THE MANDATE OF HEAVEN PREVAILS" : "BLUE FORCE VICTORY")
+                         : Cic3 && winSide == 1 ? "THE EMPIRE PREVAILS" : Cic3 && winSide == 2 ? "THE GREYS PREVAIL"
+                         : cicWinner == "RED" ? "THE VRASK PREVAIL" : "NO DECISION";
             if (last != null)
             {
                 Shot(1300, last.t, Vector3.zero, SizeOf(last.t) * 4f, last.t.eulerAngles.y + 150f, 12f, 3f);

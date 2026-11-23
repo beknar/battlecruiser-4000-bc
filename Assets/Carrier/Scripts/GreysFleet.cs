@@ -23,6 +23,8 @@ namespace CarrierGame
         public EncounterGroup group;
         public GreysShip[] ships = new GreysShip[0];
         public float towTime = 60f;
+        [Tooltip("It fights on to the last ship: no vanishing (the three-way CIC reel).")]
+        public bool fightToTheEnd;
 
         public Phase Current { get; private set; }
         public string Why { get; private set; } = "";
@@ -81,8 +83,9 @@ namespace CarrierGame
 
         Phase Decide(GreysShip reaper, Abductor abductor, out string why)
         {
-            if (gone || (abductor != null && abductor.Done)) { why = abductor != null && abductor.Done ? "the prize taken: vanishing" : "breaking off"; return Phase.Vanish; }
-            if (Lost(GreysShip.Role.Reaper) && Lost(GreysShip.Role.Shroud)) { why = "the Shroud and the Reaper lost: vanishing"; return Phase.Vanish; }
+            if (fightToTheEnd) { gone = false; }
+            else if (gone || (abductor != null && abductor.Done)) { why = abductor != null && abductor.Done ? "the prize taken: vanishing" : "breaking off"; return Phase.Vanish; }
+            if (!fightToTheEnd && Lost(GreysShip.Role.Reaper) && Lost(GreysShip.Role.Shroud)) { why = "the Shroud and the Reaper lost: vanishing"; return Phase.Vanish; }
             if (!group.Active) { why = "watching"; return Phase.Watch; }
             if (reaper != null && reaper.TryGetComponent(out TractorBeam beam) && beam.Locked) { why = $"the Reaper holds {beam.Holding.name}"; return Phase.Take; }
             foreach (var s in ships)

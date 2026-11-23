@@ -1625,7 +1625,7 @@ namespace CarrierGame.Demo
             var inner = Panel(r, $"ENGAGEMENT SUMMARY  //  {place}", $"DURATION {Clk(Duration)}");
             float x = inner.x + 30f * s, y = inner.y + 20f * s;
             int ws = Array.IndexOf(SideNames, Winner);
-            Color wc = ws >= 0 ? ColorOf(ws) : Amber;
+            Color wc = ws >= 0 && ws < Sides ? ColorOf(ws) : Amber;
             string head = Winner == "BLUE" ? "BLUE FORCE VICTORY" : ThreeWay && ws > 0 ? $"{Winner} VICTORY" : Winner == "RED" ? "VRASK VICTORY" : "NO DECISION";
             Tx(new Rect(x, y, inner.width - 60f * s, 50f * s), head, 40, wc, true);
             Tx(new Rect(x, y + 50f * s, inner.width - 60f * s, 26f * s), Outcome, 20, Cyan);
@@ -1733,7 +1733,7 @@ namespace CarrierGame.Demo
             Tx(new Rect(0f, c.y - 90f * s, r.width, 60f * s), "BATTLECRUISER 4000 BC", 52, Cyan, true, TextAnchor.MiddleCenter);
             Tx(new Rect(0f, c.y - 24f * s, r.width, 30f * s), $"CIC RECORD  //  ACTION AT {place}  //  {Clk(Duration)}", 20, Dim, false, TextAnchor.MiddleCenter);
             int we = Array.IndexOf(SideNames, Winner);
-            Tx(new Rect(0f, c.y + 14f * s, r.width, 30f * s), Outcome, 20, we >= 0 ? ColorOf(we) : Amber, true, TextAnchor.MiddleCenter);
+            Tx(new Rect(0f, c.y + 14f * s, r.width, 30f * s), Outcome, 20, we >= 0 && we < Sides ? ColorOf(we) : Amber, true, TextAnchor.MiddleCenter);
             if (Mathf.Repeat(Time.time, 1.2f) < 0.8f)
                 Tx(new Rect(0f, c.y + 70f * s, r.width, 30f * s), "END OF RECORD", 18, Green, true, TextAnchor.MiddleCenter);
         }

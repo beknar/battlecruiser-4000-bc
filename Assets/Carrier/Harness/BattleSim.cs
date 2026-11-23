@@ -574,7 +574,7 @@ namespace CarrierGame.Demo
             {
                 nextLook = Time.time + 1f;
                 target = Choose();
-                if (section) Headway();
+                if (section && Rivalry.On) Headway();
                 ship.SetTarget(target);
                 foreach (var t in ship.mainTurrets) if (t != null) t.autoFire = target != null;
             }
@@ -601,11 +601,11 @@ namespace CarrierGame.Demo
                 return;
             }
             // a section out of gun range: straight in at full speed (but not after one that keeps
-            // running: 25 s on it without closing, and it is let go for a minute)
+            // running, with the factions at war: 25 s on it without closing, and it is let go for a minute)
             if (section && d > 4500f)
             {
-                if (target != pressOn) { pressOn = target; pressFrom = Time.time; pressD0 = d; }
-                else if (Time.time - pressFrom > 25f)
+                if (Rivalry.On && target != pressOn) { pressOn = target; pressFrom = Time.time; pressD0 = d; }
+                else if (Rivalry.On && Time.time - pressFrom > 25f)
                 {
                     if (d > pressD0 - 500f) { outOfReach[target] = Time.time + 60f; pressOn = null; nextLook = 0f; }
                     else { pressFrom = Time.time; pressD0 = d; }
@@ -717,7 +717,7 @@ namespace CarrierGame.Demo
                 if (h == null || !Fit(h.transform) || Sensors.Unseen(h.transform)) continue;
                 float d = Vector3.Distance(h.transform.position, transform.position);
                 if (d < anyD) { anyD = d; any = h.transform; }
-                if (d > 12000f || OutOfReach(h.transform) || !Cover.Visible(transform.position, h.transform.position)) continue;
+                if (d > 12000f || (Rivalry.On && OutOfReach(h.transform)) || !Cover.Visible(transform.position, h.transform.position)) continue;
                 float hull = h.maxHealth > 0f ? h.Current / h.maxHealth : 1f;
                 float sc = RoleWeight(h.transform, d) * (1.6f - 0.6f * hull) / (1f + d / 2500f);
                 // (the factions at war: what she can finish first, its hull and shield together;

@@ -65,7 +65,7 @@ namespace CarrierGame
         }
 
         /// <summary>The plates laid out again round the hull as it is now (a whole ship: one set up for
-        /// a battle). Torn-off ones and the armour's state are as they were.</summary>
+        /// a battle). As many go on as the armour is whole; the rest stay off, without flying off again.</summary>
         public void Relay()
         {
             if (!enabled || armor == null) return;
@@ -77,7 +77,7 @@ namespace CarrierGame
 
         /// <summary>How long (s) the plates wait for the hull to be whole before they go on anyway.</summary>
         const float LayOutWait = 30f;
-        float layOutBy;
+        float layOutBy, nextLayOut;
 
         void OnDestroy()
         {
@@ -112,11 +112,12 @@ namespace CarrierGame
             // plain meshes: they go, and they aren't the hull, or this ship's own plates stand off
             // round a hull that seems to reach out to them, and the copies stay on for good)
             foreach (var old in GetComponentsInChildren<Transform>(true))
-                if (old != transform && old.name.StartsWith(PlateName)) { old.gameObject.SetActive(false); Destroy(old.gameObject); }
+                if (old != transform && old.name.StartsWith(PlateName) && old.GetComponentInParent<AblativePlates>(true) == this) { old.gameObject.SetActive(false); Destroy(old.gameObject); }
             // the hull's bounds in its own frame (not the shield bubble, nor any plume)
             var toLocal = transform.worldToLocalMatrix;
             bool any = false;
             float widest = 0f;
+            MeshFilter widestMf = null;
             var b = new Bounds();
             foreach (var mf in GetComponentsInChildren<MeshFilter>(true))
             {
@@ -130,7 +131,7 @@ namespace CarrierGame
                     if (!any) { b = new Bounds(p, Vector3.zero); any = true; }
                     else b.Encapsulate(p);
                     float reach = new Vector2(p.x, p.y).magnitude;
-                    if (reach > widest) { widest = reach; Widest = $"{mf.name} ({reach:F0} m, {(mf.gameObject.activeInHierarchy ? "shown" : "hidden")}, at {Time.time:F1} s, {(TryGetComponent(out ShipBreakup sb) ? sb.State.ToString() : "-")}{(health != null && health.Dead ? ", dead" : "")})"; }
+                    if (reach > widest) { widest = reach; widestMf = mf; }
                 }
             }
             HullExtents = b.extents;
@@ -139,8 +140,9 @@ namespace CarrierGame
             // (the hull's parts not round the keel, as when they are still flying apart or not yet
             // back in place: the plates would be laid out where they are and left there, so they
             // wait for the hull to be whole: tried again each frame, for a while)
-            if (new Vector2(b.center.x, b.center.y).magnitude > Mathf.Max(ext.x, ext.y) && Time.time < layOutBy) return;
+            if (new Vector2(b.center.x, b.center.y).magnitude > Mathf.Max(ext.x, ext.y) && Time.time < layOutBy) { nextLayOut = Time.time + 0.25f; return; }
             layOutBy = -1f;
+            Widest = widestMf != null ? $"{widestMf.name} ({widest:F0} m, at {Time.time:F1} s)" : "";
             float size = Mathf.Max(2f, Mathf.Min(ext.x, ext.y, ext.z) * 0.9f + ext.magnitude * 0.1f);
             var rng = new System.Random(name.GetHashCode());
             plates = new Transform[count];
@@ -175,11 +177,19 @@ namespace CarrierGame
                 on[i] = true;
             }
             Attached = count;
+            // (as many on as the armour is whole: the rest off already, not torn off now)
+            int want = Mathf.Clamp(Mathf.CeilToInt(armor.Integrity * count - 0.001f), 0, count);
+            for (int i = count - 1; i >= want; i--) { on[i] = false; plates[i].gameObject.SetActive(false); Attached--; }
         }
 
         void Update()
         {
-            if (plates == null) { if (layOutBy > 0f) Build(); return; }
+            if (plates == null)
+            {
+                // (waiting for the hull to be whole: tried again now and then; the armour still mends)
+                if (layOutBy > 0f && Time.time >= nextLayOut) Build();
+                if (plates == null) { if (health != null && !health.Dead) Mend(Time.deltaTime); return; }
+            }
             // the ones flying: outwards, tumbling, cooling from orange heat, gone after 3 s
             float now = Time.time, dt = Time.deltaTime;
             for (int i = 0; i < plates.Length; i++)

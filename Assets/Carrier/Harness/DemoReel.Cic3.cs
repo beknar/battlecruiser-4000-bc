@@ -252,7 +252,7 @@ namespace CarrierGame.Demo
         }
 
         int cic3PovTurn;
-        TacticalDisplay.Track cic3PovFoe;
+        TacticalDisplay.Track cic3PovFoe, cic3PovShip;
 
         /// <summary>The camera with one of the Mandate of Heaven's ships: behind her, looking where
         /// she fires; on her target as her fire goes in, seen from her side; or on her as she is
@@ -270,9 +270,9 @@ namespace CarrierGame.Demo
             var by = Live(m.lastBy) && m.lastBy.side != 0 && Time.time - m.lastByAt < 6f ? m.lastBy : null;
             var foe = tgt ?? by ?? tac.Tracks.Where(k => Live(k) && k.side != 0).OrderBy(k => (k.t.position - m.t.position).sqrMagnitude).FirstOrDefault();
             if (foe == null) return false;
-            float range = Vector3.Distance(m.t.position, foe.t.position);
             // (under fire: on her, from where it comes; else behind her, or on what she fires at)
-            int kind = m == hit && by != null && variant % 2 == 1 ? 2 : (variant / 2) % 2 == 1 ? 1 : 0;
+            // ("her target" only when she has one)
+            int kind = m == hit && by != null && variant % 2 == 1 ? 2 : (variant / 2) % 2 == 1 && tgt != null ? 1 : 0;
             var from = kind == 2 ? by : foe;
             float sign = variant % 2 == 0 ? 1f : -1f;
             Transform on;
@@ -283,12 +283,13 @@ namespace CarrierGame.Demo
                 case 1: on = foe.t; yawOff = 22f * sign; dist = Mathf.Max(220f, SizeOf(foe.t) * 3f); pitch = 8f; cicSubject = foe; break;
                 default: on = m.t; yawOff = 35f * sign; dist = SizeOf(m.t) * 2.6f; pitch = 9f; cicSubject = m; break;
             }
-            cic3PovFoe = foe;
+            cic3PovFoe = from;
+            cic3PovShip = m;
             Transform mt = m.t, ft = from.t;
             Vector3 P1() => kind == 2 ? ft.position : mt.position;
             Vector3 P2() => kind == 2 ? mt.position : ft.position;
             Shot(1250 + variant, on, Vector3.zero, dist, Bearing(P1(), P2()) + yawOff, pitch, 0f);
-            Note($"cic camera ({(kind == 0 ? "behind" : kind == 1 ? "her target" : "she is hit")}): {m.Label} and {foe.Label}{(kind == 2 ? " firing on her" : "")}, {range / 1000f:F1} km");
+            Note($"cic camera ({(kind == 0 ? "behind" : kind == 1 ? "her target" : "she is hit")}): {m.Label} and {from.Label}{(kind == 2 ? " firing on her" : "")}, {Vector3.Distance(m.t.position, from.t.position) / 1000f:F1} km");
             perFrame = () =>
             {
                 if (mt == null || ft == null || cam == null) return;
@@ -364,7 +365,7 @@ namespace CarrierGame.Demo
 
         /// <summary>The opening captions' words.</summary>
         string Cic3Title => $"The Mandate of Heaven, the Empire and the Greys over Goliath, in the Nine Hells: {CicWord(cicBlue.Count).ToLowerInvariant()} frigates, ten and ten, all at war";
-        string Cic3Roster => $"Blue: {cicLine}, {(cicBlue.Count > 0 && cicBlue[0].section ? "a section" : cicBlue.Count > 2 ? "line abreast" : "a pair")}. Red, the Empire: {VraskMix.Describe(cicEmpire)}. Magenta, the Greys: {VraskMix.Describe(cicGreys)}{Cic3RefitText}";
+        string Cic3Roster => $"Blue: {cicLine}, {(cicBlue.Count > 0 && cicBlue[0].section ? "a section" : cicBlue.Count > 2 ? "line abreast" : cicBlue.Count == 2 ? "a pair" : "alone")}. Red, the Empire: {VraskMix.Describe(cicEmpire)}. Magenta, the Greys: {VraskMix.Describe(cicGreys)}{Cic3RefitText}";
         static string Cic3RefitText => Cic3RefitEmpire == 1f && Cic3RefitGreys == 1f ? "" : $". Refitted for battle: the Empire's weapons x{Cic3RefitEmpire:0.#}, the Greys' x{Cic3RefitGreys:0.#}";
     }
 }

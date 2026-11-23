@@ -58,7 +58,7 @@ namespace CarrierGame.Tests
         }
 
         [UnityTest]
-        public IEnumerator PlatesStayOnTheHullsPartsWhereverTheyWereWhenTheyWentOn()
+        public IEnumerator PlatesWaitForTheHullToBeWhole()
         {
             // a hull of parts (as a ship that breaks up is), off to one side as the plates go on
             var go = new GameObject("chunked ship");
@@ -78,9 +78,10 @@ namespace CarrierGame.Tests
             go.AddComponent<Armor>().SetPlating(1000f);
             go.AddComponent<AblativePlates>().count = 9;
             yield return null;
-            // back in place: the plates come with the parts
+            Assert.That(Plates(go).Count, Is.EqualTo(0), "no plates round a hull that is out of place");
+            // back in place: the plates go on (tried again every quarter second)
             chunks.localPosition = Vector3.zero;
-            yield return null;
+            yield return new WaitForSeconds(0.6f);
             var plates = Plates(go);
             Assert.That(plates.Count, Is.EqualTo(9));
             foreach (var p in plates)

@@ -7,12 +7,15 @@ using UnityEngine;
 namespace CarrierGame.Demo
 {
     /// <summary>
-    /// The three-way CIC reel: StarSystem.exe -reel &lt;folder&gt; -cic -cic3. Two frigates of the
-    /// Mandate of Heaven (Blue; -cicfleet, by default the Vanguard and the Talon, flown as a section
-    /// with their bow beams), ten ships of the Empire (Red) and ten of the Greys (Magenta), all at
-    /// war with each other (Rivalry): every ship sees every other (Rivalry.RevealAll) and each
-    /// faction hunts the other's ships as it does the players'. They meet over Goliath in the Nine
-    /// Hells, at the corners of a triangle 8 km a side, both bands sprung at once.
+    /// The three-way CIC reel: StarSystem.exe -reel &lt;folder&gt; -cic -cic3. Five frigates of the
+    /// Mandate of Heaven (Blue; -cicfleet, by default the Vanguard, Talon, Sentinel, Lancer and
+    /// Warden, line abreast, with their standard guns and bow beams), ten ships of the Empire (Red)
+    /// and ten of the Greys (Magenta), all at war with each other (Rivalry): every ship sees every
+    /// other (Rivalry.RevealAll) and each faction hunts the other's ships as it does the players'.
+    /// They meet over Goliath in the Nine Hells, at the corners of a triangle 3 km a side
+    /// (-cic3side), both bands sprung at once. The camera is with the Mandate's ships (-cic3overview
+    /// for the whole battle's hottest exchange instead): behind one of them, on her target as her
+    /// fire goes in, or on her as she is hit; the wrecks don't burn (FireFx.Off).
     ///
     /// The bands are made over for combat: -cic3empire 4,3,2,1 (Assault, Patrol, Raider, Recon:
     /// the line of battle, its CIWS screen, the raiders and a painter for the guns) and -cic3greys
@@ -31,9 +34,11 @@ namespace CarrierGame.Demo
         GreysFleet cicGreysFleet;
         readonly List<FactionShip> cicEmpire = new List<FactionShip>();
         readonly List<FactionShip> cicGreys = new List<FactionShip>();
-        static readonly string[] Cic3Fleet = { "Vanguard", "Talon" };
+        static readonly string[] Cic3Fleet = { "Vanguard", "Talon", "Sentinel", "Lancer", "Warden" };
         // the triangle's side (m): -cic3side
-        static float Cic3Side => float.TryParse(LaunchArgs.ValueOf("-cic3side"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v) && v > 500f ? v : 8000f;
+        static float Cic3Side => float.TryParse(LaunchArgs.ValueOf("-cic3side"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v) && v > 500f ? v : 3000f;
+        /// <summary>The camera with the Mandate of Heaven's ships (not -cic3overview).</summary>
+        static bool Cic3Pov => !LaunchArgs.Has("-cic3overview");
         // the factions' weapons refitted for the battle, if asked: their damage times this
         // (-cic3refit for the Empire, -cic3refitgreys for the Greys; 1, as in the game, by default)
         static float Cic3Arg(string name, float dflt) => float.TryParse(LaunchArgs.ValueOf(name), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v) && v > 0f ? v : dflt;
@@ -101,6 +106,8 @@ namespace CarrierGame.Demo
             if (SpawnDirector.Instance != null) SpawnDirector.Instance.enabled = false;
             foreach (var b in FindObjectsByType<VraskBombardment>(FindObjectsSortMode.None)) b.enabled = false;
             ScoutTactics.CallInOff = true;
+            // (no wrecks burning: the fire pack's smoke draws as dark squares against space)
+            FireFx.Off = true;
             foreach (var w in FindObjectsByType<EncounterPatrol>(FindObjectsSortMode.None)) if (w.group == cicEmpireGroup || w.group == cicGreysGroup) w.enabled = false;
 
             // the bands made over for combat
@@ -160,6 +167,12 @@ namespace CarrierGame.Demo
             cicGreys.Clear();
             cicGreys.AddRange(cicGreysGroup.pilots.Where(p => p != null).Select(p => p.GetComponent<FactionShip>()).Where(f => f != null).OrderBy(f => f.RoleName).ThenBy(f => f.name));
             Note($"cic3: Empire {VraskMix.Describe(cicEmpire)}; Greys {VraskMix.Describe(cicGreys)}");
+            // (each ship's armour plates laid out again round its hull, whole now: some went on
+            // while the hull was out of place, and stood off it)
+            foreach (var f in cicEmpire.Concat(cicGreys)) Cic3PlateCheck(f);
+            foreach (var f in cicEmpire.Concat(cicGreys)) if (f != null && f.TryGetComponent(out AblativePlates ap)) ap.Relay();
+            yield return null;
+            foreach (var f in cicEmpire.Concat(cicGreys)) Cic3PlateCheck(f);
 
             // at war, and every ship seen by every other
             Rivalry.On = true;
@@ -182,7 +195,7 @@ namespace CarrierGame.Demo
             cicBlue.Clear();
             for (int k = 0; k < entries.Count; k++)
             {
-                float off = (k - (entries.Count - 1) * 0.5f) * 650f;
+                float off = (k - (entries.Count - 1) * 0.5f) * (entries.Count > 2 ? 420f : 650f);
                 Vector3 at = start + side * off;
                 SimPilot p = null;
                 try { p = BattleSim.SpawnFrigate(entries[k], at, Quaternion.LookRotation(c - at, up), true, k, cicEnc, entries[k].displayName); }
@@ -216,6 +229,73 @@ namespace CarrierGame.Demo
         }
 
         float cic3NextDump;
+
+        /// <summary>Where a ship's armour plates sit against its hull (the reel's log: a check).</summary>
+        void Cic3PlateCheck(FactionShip f)
+        {
+            var plates = f != null ? f.GetComponent<AblativePlates>() : null;
+            if (plates == null) return;
+            var toLocal = f.transform.worldToLocalMatrix;
+            float far = 0f, hull = 0f;
+            int n = 0;
+            foreach (var mf in f.GetComponentsInChildren<MeshFilter>())
+            {
+                if (mf.sharedMesh == null || !mf.TryGetComponent(out MeshRenderer mr) || !mr.enabled || mf.GetComponentInParent<Shield>(true) != null) continue;
+                Vector3 c = toLocal.MultiplyPoint3x4(mf.transform.TransformPoint(mf.sharedMesh.bounds.center));
+                if (mf.name.StartsWith(AblativePlates.PlateName)) { n++; far = Mathf.Max(far, new Vector2(c.x, c.y).magnitude); continue; }
+                // (in the ship's own units, as the plates are)
+                Vector3 ls = f.transform.lossyScale;
+                Vector3 e = Vector3.Scale(mf.sharedMesh.bounds.extents, new Vector3(mf.transform.lossyScale.x / ls.x, mf.transform.lossyScale.y / ls.y, mf.transform.lossyScale.z / ls.z));
+                hull = Mathf.Max(hull, new Vector2(Mathf.Abs(c.x) + e.x, Mathf.Abs(c.y) + e.y).magnitude);
+            }
+            Note($"cic3 plates {f.name}: {n} on of {plates.Count}, the farthest {far:F0} m off the keel, the hull {hull:F0} m; laid out round {plates.HullExtents.x:F0}x{plates.HullExtents.y:F0}x{plates.HullExtents.z:F0}, the widest {plates.Widest}");
+        }
+
+        int cic3PovTurn;
+        TacticalDisplay.Track cic3PovFoe;
+
+        /// <summary>The camera with one of the Mandate of Heaven's ships: behind her, looking where
+        /// she fires; on her target as her fire goes in, seen from her side; or on her as she is
+        /// hit, from her attacker's side. Each in turn, the one under fire first every other cut.
+        /// False with none of them left (then the whole battle's hottest exchange).</summary>
+        bool Cic3PovFrame(int variant)
+        {
+            var blue = tac.Tracks.Where(k => k.side == 0 && !k.dead && k.t != null).ToList();
+            if (blue.Count == 0) return false;
+            bool Live(TacticalDisplay.Track k) => k != null && !k.dead && k.t != null;
+            var hit = blue.Where(k => Live(k.lastBy) && k.lastBy.side != 0 && Time.time - k.lastByAt < 4f).OrderByDescending(k => k.lastByAt).FirstOrDefault();
+            var m = hit != null && variant % 2 == 1 ? hit : blue[cic3PovTurn++ % blue.Count];
+            var tgt = m.pilot != null && m.pilot.Target != null ? tac.Of(m.pilot.Target) : null;
+            if (!Live(tgt)) tgt = null;
+            var by = Live(m.lastBy) && m.lastBy.side != 0 && Time.time - m.lastByAt < 6f ? m.lastBy : null;
+            var foe = tgt ?? by ?? tac.Tracks.Where(k => Live(k) && k.side != 0).OrderBy(k => (k.t.position - m.t.position).sqrMagnitude).FirstOrDefault();
+            if (foe == null) return false;
+            float range = Vector3.Distance(m.t.position, foe.t.position);
+            // (under fire: on her, from where it comes; else behind her, or on what she fires at)
+            int kind = m == hit && by != null && variant % 2 == 1 ? 2 : (variant / 2) % 2 == 1 ? 1 : 0;
+            var from = kind == 2 ? by : foe;
+            float sign = variant % 2 == 0 ? 1f : -1f;
+            Transform on;
+            float yawOff, dist, pitch;
+            switch (kind)
+            {
+                case 0: on = m.t; yawOff = 10f * sign; dist = SizeOf(m.t) * 2.3f; pitch = 6f; cicSubject = m; break;
+                case 1: on = foe.t; yawOff = 22f * sign; dist = Mathf.Max(220f, SizeOf(foe.t) * 3f); pitch = 8f; cicSubject = foe; break;
+                default: on = m.t; yawOff = 35f * sign; dist = SizeOf(m.t) * 2.6f; pitch = 9f; cicSubject = m; break;
+            }
+            cic3PovFoe = foe;
+            Transform mt = m.t, ft = from.t;
+            Vector3 P1() => kind == 2 ? ft.position : mt.position;
+            Vector3 P2() => kind == 2 ? mt.position : ft.position;
+            Shot(1250 + variant, on, Vector3.zero, dist, Bearing(P1(), P2()) + yawOff, pitch, 0f);
+            Note($"cic camera ({(kind == 0 ? "behind" : kind == 1 ? "her target" : "she is hit")}): {m.Label} and {foe.Label}{(kind == 2 ? " firing on her" : "")}, {range / 1000f:F1} km");
+            perFrame = () =>
+            {
+                if (mt == null || ft == null || cam == null) return;
+                cam.yaw = Mathf.LerpAngle(cam.yaw, Bearing(P1(), P2()) + yawOff, Time.deltaTime * 1.5f);
+            };
+            return true;
+        }
 
         /// <summary>Every 20 s of the battle: each ship's side, what it is doing, on what, how far
         /// off, its hull and shield (the reel's log: a voice-over's facts, and a check on the fight).</summary>
@@ -284,7 +364,7 @@ namespace CarrierGame.Demo
 
         /// <summary>The opening captions' words.</summary>
         string Cic3Title => $"The Mandate of Heaven, the Empire and the Greys over Goliath, in the Nine Hells: {CicWord(cicBlue.Count).ToLowerInvariant()} frigates, ten and ten, all at war";
-        string Cic3Roster => $"Blue: {cicLine}, a section. Red, the Empire: {VraskMix.Describe(cicEmpire)}. Magenta, the Greys: {VraskMix.Describe(cicGreys)}{Cic3RefitText}";
+        string Cic3Roster => $"Blue: {cicLine}, {(cicBlue.Count > 0 && cicBlue[0].section ? "a section" : cicBlue.Count > 2 ? "line abreast" : "a pair")}. Red, the Empire: {VraskMix.Describe(cicEmpire)}. Magenta, the Greys: {VraskMix.Describe(cicGreys)}{Cic3RefitText}";
         static string Cic3RefitText => Cic3RefitEmpire == 1f && Cic3RefitGreys == 1f ? "" : $". Refitted for battle: the Empire's weapons x{Cic3RefitEmpire:0.#}, the Greys' x{Cic3RefitGreys:0.#}";
     }
 }

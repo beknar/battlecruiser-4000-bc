@@ -142,7 +142,7 @@ namespace CarrierGame.Demo
             {
                 greeted = true;
                 var human = Humans().FirstOrDefault();
-                if (human != null) { Pilot.Follow(human.id); lastLeader = lastSpeaker = human.id; }
+                if (human != null) { CallOffChain(); Pilot.Follow(human.id); lastLeader = lastSpeaker = human.id; }
                 CoopChat.Say($"{Me} on station{(human != null ? $", forming up on {human.name}" : "")}. Orders by name: \"{Me}, follow me / hold / attack / warp to <place> / dock / mine / sell / cargo / give credits / status\".");
             }
             if (!CoopClient.Active) greeted = false;
@@ -196,6 +196,7 @@ namespace CarrierGame.Demo
         {
             if (m.t != CoopWire.Join || m.p == null || IsBot(m.p) || Pilot == null) return;
             if (Pilot.LeaderId != 0 || Pilot.Current != Wingman.Order.Hold || Pilot.Released) return;
+            CallOffChain();
             Pilot.Follow(m.p.id);
             lastLeader = m.p.id;
             CoopChat.Say($"{Me}: welcome, {m.p.name}. Forming up on you; orders by name (\"{Me}, help\").");
@@ -441,9 +442,9 @@ namespace CarrierGame.Demo
             if (chain != null) return Chain(chain, fromId);
             var p = ParseOrder(words);
             if (p == null) return null;
-            // (a new order: whatever was still to come of the last message's is called off)
-            pending.Clear();
-            stepDone = null;
+            // (a new order that takes time: whatever was still to come of the last message's is
+            // called off; a report or credits on the way leave it going)
+            if (!Instant(p.Value.kind)) CallOffChain();
             return Run(p.Value, fromId);
         }
 
@@ -522,9 +523,18 @@ namespace CarrierGame.Demo
         static bool Instant(string kind) => kind == "chat" || kind == "cargo" || kind == "give" || kind == "status" || kind == "help";
         static bool Standing(string kind) => kind == "follow" || kind == "regroup" || kind == "hold";
 
-        // the orders still to come of a message's chain, and whether the one being carried out is over
+        // the orders still to come of a message's chain, and how the one being carried out is
+        // going: 0 still going, 1 done, -1 it couldn't (the rest called off)
         readonly List<(string kind, string arg, int from)> pending = new List<(string, string, int)>();
-        Func<bool> stepDone;
+        Func<int> stepDone;
+        string stepWords = "";
+
+        /// <summary>Whatever was still to come of a chain, called off (a new order, the bot forming up by itself).</summary>
+        void CallOffChain()
+        {
+            pending.Clear();
+            stepDone = null;
+        }
 
         /// <summary>The orders still to come (the tests).</summary>
         public int Pending => pending.Count;
@@ -534,13 +544,12 @@ namespace CarrierGame.Demo
             // (mining sells when the hold is full: "mine and sell" is mining)
             for (int i = orders.Count - 1; i > 0; i--)
                 if (orders[i].kind == "sell" && orders[i - 1].kind == "mine") orders.RemoveAt(i);
-            // (one that goes on till told otherwise can only have what is over at once after it)
-            for (int i = 0; i < orders.Count - 1; i++)
-                if (Standing(orders[i].kind) && orders.Skip(i + 1).Any(x => !Instant(x.kind)))
-                    return $"{Words(orders[i])} goes on till you say otherwise, so nothing can come after it: give it last.";
+            // (one that goes on till told otherwise is over as soon as another order comes:
+            // "stop and dock" is docking, "come here and follow me" following)
+            for (int i = orders.Count - 2; i >= 0; i--)
+                if (Standing(orders[i].kind) && orders.Skip(i + 1).Any(x => !Instant(x.kind))) orders.RemoveAt(i);
+            CallOffChain();
             if (Pilot == null || Pilot.demo == null || Pilot.demo.carrier == null) return "not ready yet";
-            pending.Clear();
-            stepDone = null;
             if (orders.Count == 1) return Run(orders[0], fromId);
             string first = Start(orders[0], fromId, out bool ok);
             if (!ok) return Sentence(first) + " The rest called off.";
@@ -566,20 +575,25 @@ namespace CarrierGame.Demo
             int sales0 = Pilot != null ? Pilot.Sales : 0;
             string answer = Run(o, fromId);
             stepDone = null;
+            stepWords = Words(o);
             ok = true;
             if (Instant(o.kind) || Standing(o.kind) || Pilot == null) return answer;
             // (an order refused: "don't know a place called ...", "no ore aboard")
             ok = Orders > before;
             if (!ok) return answer;
             var pilot = Pilot;
+            var prey = pilot.Target;
+            bool PilotGone() => pilot == null || pilot != Pilot;
             switch (o.kind)
             {
-                case "goto": stepDone = () => pilot.Current != Wingman.Order.Goto; break;
-                case "dock": stepDone = () => pilot.Current != Wingman.Order.Dock; break;
-                case "attack": stepDone = () => pilot.Current != Wingman.Order.Attack; break;
-                // (mining: over with its first load sold; selling: with the sale, or back to what it was doing)
-                case "mine": stepDone = () => pilot.Sales > 0 || pilot.Current != Wingman.Order.Mine; break;
-                case "sell": stepDone = () => pilot.Sales > sales0 || pilot.Current != Wingman.Order.Mine; break;
+                // (over on arriving; it holds after a warp it couldn't make, too: that one failed)
+                case "goto": stepDone = () => PilotGone() ? -1 : pilot.Current == Wingman.Order.Goto ? 0 : pilot.Doing.StartsWith("arrived") ? 1 : -1; break;
+                case "dock": stepDone = () => PilotGone() ? -1 : pilot.Current == Wingman.Order.Dock ? 0 : Docking.Docked ? 1 : -1; break;
+                // (over with the ship it went for destroyed, whatever it goes for next)
+                case "attack": stepDone = () => PilotGone() ? -1 : prey == null || (prey.TryGetComponent(out Health ph) && ph.Dead) ? 1 : pilot.Current == Wingman.Order.Attack ? 0 : -1; break;
+                // (mining: over with its first load sold; selling: with the sale; no longer at it before then: it couldn't)
+                case "mine": stepDone = () => PilotGone() ? -1 : pilot.Sales > 0 ? 1 : pilot.Current == Wingman.Order.Mine ? 0 : -1; break;
+                case "sell": stepDone = () => PilotGone() ? -1 : pilot.Sales > sales0 ? 1 : pilot.Current == Wingman.Order.Mine ? 0 : -1; break;
             }
             return answer;
         }
@@ -587,7 +601,17 @@ namespace CarrierGame.Demo
         /// <summary>The next order of a chain, once the one before it is over (Update).</summary>
         void NextInChain()
         {
-            if (pending.Count == 0 || Pilot == null || (stepDone != null && !stepDone())) return;
+            if (pending.Count == 0 || Pilot == null) return;
+            int how = stepDone != null ? stepDone() : 1;
+            if (how == 0) return;
+            if (how < 0)
+            {
+                // (the step couldn't be done: what was to follow it isn't done either)
+                var left = pending.Select(x => Words((x.kind, x.arg))).ToList();
+                CallOffChain();
+                if (CoopClient.Active) CoopChat.Say($"{Me}: couldn't {stepWords}, so not {string.Join(" or ", left)}.");
+                return;
+            }
             var n = pending[0];
             pending.RemoveAt(0);
             string answer = Start((n.kind, n.arg), n.from, out bool ok);
@@ -971,8 +995,7 @@ namespace CarrierGame.Demo
                     case "/order" when post:
                     {
                         var b = Parse<OrderBody>(body);
-                        pending.Clear();
-                        stepDone = null;
+                        if (!Instant((b?.order ?? "").Trim().ToLowerInvariant())) CallOffChain();
                         int before = Orders;
                         string answer = Order(b?.order, b?.target);
                         bool ok = Orders > before;

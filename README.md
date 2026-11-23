@@ -2192,7 +2192,7 @@ ships`, `everyone` or `wingmen` reaches every bot. It answers each order on the 
 | `dock` | Docks at the station it is at. |
 | `mine` or `mine at <field>` | Mines asteroids: warps to the field (the one it is at, or the nearest), scans, flies to the nearest deposit and cuts it until the hold is full, then warps to the nearest market (a station or base that buys ore), docks, sells the ore and goes back for more, over and over. `start mining` and `mine asteroids` do the same. |
 | `sell` | Takes the ore aboard to the nearest market now, sells it, then goes back to mining. |
-| `cargo` | Reports what is in its hold (the most first: ore by mineral, then goods and parts), how full the hold is, and its credits. `what's in your hold?`, `how full is your hold?`, `inventory` and `manifest` do the same. |
+| `cargo` | Reports what is in its hold (ore and goods by weight, the most first, then parts), how full the hold is, and its credits. `what's in your hold?`, `how full is your hold?`, `inventory` and `manifest` do the same. |
 | `give [N] credits [to <name>]` | Transfers credits from its hold to that player (whoever asked, if no name is given): N (`give me 500 credits`, `transfer 2k credits to Ann`, `give Ann 500 credits`, `pay me 300`), half (`give me half your credits`) or all (`give me all your credits`). Without an amount it asks how many. The player's game adds them to the ship's hold and says so. Credits go only to human players in the same level, and only from a player the server let in with an AI key (on an open server, one that says it is a bot). They come back to the wingman if the player's game doesn't confirm them within 10 s, and a game that only sees them after 6 s refuses them. |
 | `status` | Reports its hull, shield, missiles, hold, credits, what it is doing and where it is. |
 | `chat on`, `chat off`, `chat pause`, `chat resume` | Switches its chat mode (see below) to `llm`, `personality`, `paused`, or back to the mode before the pause. Only its leader or the game's host may switch it. If it has neither, anyone may. `chat mode?` says the mode. |
@@ -2201,11 +2201,12 @@ ships`, `everyone` or `wingmen` reaches every bot. It answers each order on the 
 Several orders can go in one message, separated by `then`, `and`, `,` or `;`
 (`Wingman, warp to Heaven, then dock`, `Wingman, attack the Scavenger and then follow me`). It
 carries them out one after another, each once the one before it is over: a warp when it arrives,
-a dock when it is docked, an attack when the target is destroyed, mining when the first load is
-sold. Reports (`status`, `cargo`) and credits go at once. `mine and sell` is just mining, since
-mining sells when the hold is full. `follow`, `regroup` and `hold` go on until told otherwise, so
-only reports can come after them. An order it can't carry out calls off the rest, and any new
-order replaces what was still to come. A message that isn't all orders is taken as one order (or
+a dock when it is docked, an attack when the ship it went for is destroyed, mining when the
+first load is sold. Reports (`status`, `cargo`) and credits go at once. `mine and sell` is just
+mining, since mining sells when the hold is full. `follow`, `regroup` and `hold` go on until told
+otherwise, so one of them before another order is dropped (`stop and dock` docks). An order it
+can't carry out (a warp refused, nowhere to dock or sell) calls off the rest, and says so. A new
+order that takes time replaces what was still to come; a report or credits on the way don't. A message that isn't all orders is taken as one order (or
 talk).
 
 It also says when it starts a fight, when the target is destroyed, when it arrives, when it sells a

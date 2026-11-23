@@ -159,12 +159,16 @@ namespace CarrierGame.Tests
         }
 
         [Test]
-        public void AStandingOrderCanOnlyComeLast()
+        public void AStandingOrderBeforeAnotherIsDropped()
         {
             var bot = new GameObject("bot").AddComponent<CoopBot>();
             made.Add(bot.gameObject);
-            Assert.That(bot.Command("follow me and then dock", 2), Does.Contain("give it last"));
+            // (no ship: each comes to "not ready yet", none is refused for its order)
+            Assert.That(bot.Command("follow me and then dock", 2), Is.EqualTo("not ready yet"), "docking");
+            Assert.That(bot.Command("stop and wait", 2), Is.EqualTo("not ready yet"), "holding, as before");
+            Assert.That(bot.Command("come here and follow me", 2), Is.EqualTo("not ready yet"));
             Assert.That(bot.Command("form up, then status", 2), Is.EqualTo("not ready yet"), "a report after it is fine");
+            Assert.That(bot.Pending, Is.Zero);
             Assert.That(bot.Orders, Is.Zero);
         }
 

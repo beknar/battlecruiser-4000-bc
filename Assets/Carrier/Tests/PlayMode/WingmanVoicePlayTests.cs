@@ -44,7 +44,6 @@ namespace CarrierGame.Tests
             yield return null;
             Assert.That(v.StockSpoken, Is.EqualTo(2), "off: nothing said");
         }
-    }
 
         [UnityTest]
         public IEnumerator ALineWithNoClipIsSpokenLiveInItsTurn()

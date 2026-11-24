@@ -2278,6 +2278,29 @@ several wingmen it goes to the one last spoken to. A mark shows on the HUD while
   mouse. `-voicetest` (`?voicetest`) feeds it phrases instead of a microphone and logs what it
   would send.
 
+**The wingman's voice.** What an AI wingman says on the comms channel is also spoken over the
+radio in your game, one line after another (a line waiting more than 12 s is dropped). Turn it
+off with Wingman voice in the pause menu. The clean text is spoken, not the jammed text shown.
+- **Stock phrases:** every line it always says the same way (its personality's lines, its fixed
+  replies in `Resources/Data/wingman_replies.json`, and those naming a planet, moon or asteroid
+  field; not stations, landmarks or wrecks, which the live voice says)
+  was recorded ahead of time by `Tools/Voice/render_stock.py`. That's 171 small Ogg clips
+  (2.4 MB) in `Resources/WingmanVoice`, with the radio's sound in them, since the web player has
+  no audio filters. The voice is Piper's `en_US-norman-medium`, which is public domain. Run the
+  tool again (`--piper <piper.exe> --voice <onnx>`) after changing those lines; `--check` tells
+  you whether every line has its clip.
+- **The live voice:** any other line (numbers, people's names, an LLM's own words) is spoken as
+  it comes in.
+  - **On Windows and Linux** it uses CMU Flite (BSD-style licence), built as a 4.7 MB native
+    library with its smallest voice, `cmu_us_kal16` (`Plugins/x86_64`, built by
+    `Tools/Voice/flite`; Flite's licence is beside it). It runs on a worker thread and takes
+    about 2 ms for a line, with the same radio sound put on in C#.
+  - **On the web** it is the browser's own voice (`speechSynthesis`), which adds nothing to the
+    download, so it has no radio sound.
+  - A line is always spoken whole by one voice, stock or live. Help and the greeting, which
+    are lists of orders to read, aren't spoken, and nothing is said while you hold push-to-talk.
+  - Flite's licence goes beside the Windows and Linux players as `THIRD_PARTY_FLITE.txt`.
+
 A message to it that isn't an order (`Wingman, how's it going?`) is talk. Its **chat mode**
 decides who answers talk:
 

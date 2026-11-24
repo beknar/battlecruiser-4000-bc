@@ -1795,7 +1795,7 @@ menu (only the pause menu stops it).
 | The mode's menu | Tab | Back + Y |
 | System map (opens in navigation mode) | M | R3 |
 | Land / take off, dock / undock | K | Back + B |
-| Orbit camera / zoom (with a station's screen up, the wheel scrolls its list instead, over the screen only) | Right-drag / mouse wheel | Right stick / Back + D-pad ← → |
+| Orbit camera / zoom (with a station's screen up, the wheel scrolls its list instead) | Right-drag / mouse wheel | Right stick / Back + D-pad ← → |
 | Help / text size | H / + − | Back / Back + D-pad ↑↓ |
 | Sound on/off | N | (pause menu) |
 | Next song (the music on or off, and the song before: the pause menu) | Shift+N | (pause menu) |

@@ -178,7 +178,7 @@ namespace CarrierGame.Demo
             if (Pilot != null && Pilot.BackToMining != saidBackToMining)
             {
                 saidBackToMining = Pilot.BackToMining;
-                if (CoopClient.Active) CoopChat.Say($"{Me}: back to mining.");
+                if (CoopClient.Active) CoopChat.Say($"{Me}: {WingmanReplies.Get("back_to_mining")}");
             }
             SayDoingIfChanged();
             NextInChain();
@@ -247,7 +247,7 @@ namespace CarrierGame.Demo
             else if (now - toldOrdersOnly > 30f)
             {
                 toldOrdersOnly = now;
-                CoopChat.Say($"{Me}: nobody on comms here, orders only: follow, hold, attack, warp to, dock, mine, sell, cargo, give credits, status.");
+                CoopChat.Say($"{Me}: {WingmanReplies.Get("orders_only")}");
             }
         }
 
@@ -357,7 +357,7 @@ namespace CarrierGame.Demo
                 case ChatMode.Llm:
                     return Listened ? "chat mode llm: talk goes to the listener." : "chat mode llm: no listener on now, I'll answer talk myself till one is.";
                 case ChatMode.Personality:
-                    return "chat mode personality: LLM off, I answer talk myself.";
+                    return WingmanReplies.Get("chat_personality");
                 default:
                     return $"chat mode paused: standing by, orders only. \"{Me}, chat resume\" to resume.";
             }
@@ -512,7 +512,7 @@ namespace CarrierGame.Demo
             if (string.IsNullOrEmpty(reply)) return reply;
             var chain = Clauses(Plain(words));
             var one = chain == null ? ParseOrder(words) : null;
-            bool answered = one.HasValue && (one.Value.kind == "status" || one.Value.kind == "cargo" || one.Value.kind == "help") && reply != "not ready yet";
+            bool answered = one.HasValue && (one.Value.kind == "status" || one.Value.kind == "cargo" || one.Value.kind == "help") && reply != WingmanReplies.Get("not_ready");
             if (Orders > orders || answered) Handled(seq);
             return reply;
         }
@@ -656,7 +656,7 @@ namespace CarrierGame.Demo
                 case "chat": return ChatOrder(p.arg, fromId);
                 case "regroup": return Order("follow", "", fromId);
                 case "status": return Report();
-                case "help": return "orders: follow me / follow <name>, hold, attack [target], warp to <place>, dock, regroup, mine [at <field>], sell, cargo, give [N] credits [to <name>], status; chat on|off|pause|resume. Several at once: \"warp to Heaven, then dock\".";
+                case "help": return WingmanReplies.Get("help");
                 default: return Order(p.kind, p.arg, fromId);
             }
         }
@@ -715,7 +715,7 @@ namespace CarrierGame.Demo
             for (int i = orders.Count - 2; i >= 0; i--)
                 if (Standing(orders[i].kind) && orders.Skip(i + 1).Any(x => !Instant(x.kind))) orders.RemoveAt(i);
             CallOffChain();
-            if (Pilot == null || Pilot.demo == null || Pilot.demo.carrier == null) return "not ready yet";
+            if (Pilot == null || Pilot.demo == null || Pilot.demo.carrier == null) return WingmanReplies.Get("not_ready");
             if (orders.Count == 1) return Run(orders[0], fromId);
             string first = Start(orders[0], fromId, out bool ok);
             if (!ok) return Sentence(first) + " The rest called off.";
@@ -853,7 +853,7 @@ namespace CarrierGame.Demo
         /// <summary>What a hold has aboard, in a line: how full, the cargo (largest first), the credits.</summary>
         public static string CargoLine(CargoHold hold, int most = 5)
         {
-            if (hold == null) return "no cargo hold.";
+            if (hold == null) return WingmanReplies.Get("no_hold");
             var table = IndustryTable.Get();
             // (the most first: by weight, parts after the rest)
             var items = hold.Contents().Where(e => e.amount > 0.005f)
@@ -876,7 +876,7 @@ namespace CarrierGame.Demo
         /// gave it (0 from the API: "follow" with no name is then the last player to speak).</summary>
         public string Order(string order, string target, int fromId = 0)
         {
-            if (Pilot == null || Pilot.demo == null || Pilot.demo.carrier == null) return "not ready yet";
+            if (Pilot == null || Pilot.demo == null || Pilot.demo.carrier == null) return WingmanReplies.Get("not_ready");
             var cc = Pilot.demo.carrier;
             target = (target ?? "").Trim();
             string o = (order ?? "").Trim().ToLowerInvariant();
@@ -898,7 +898,7 @@ namespace CarrierGame.Demo
                         else who = c.Players.FirstOrDefault(p => p != null && p.id == (fromId != 0 ? fromId : lastSpeaker) && p.id != c.MyId);
                         if (who == null) who = NearestHuman(cc.transform.position);
                     }
-                    if (who == null) return "there's nobody to follow.";
+                    if (who == null) return WingmanReplies.Get("nobody_to_follow");
                     Pilot.Follow(who.id);
                     lastLeader = who.id;
                     Orders++;
@@ -908,7 +908,7 @@ namespace CarrierGame.Demo
                     Pilot.Hold();
                     lastLeader = 0;
                     Orders++;
-                    return "holding position.";
+                    return WingmanReplies.Get("holding");
                 case "attack":
                 {
                     var t = target.Length > 0 ? Wingman.FindTarget(target, cc.transform.position) : Wingman.NearestEnemy(cc.transform.position, 30000f);
@@ -924,13 +924,13 @@ namespace CarrierGame.Demo
                     Pilot.Goto(p);
                     lastLeader = 0;
                     Orders++;
-                    return $"heading for {p.displayName}.";
+                    return WingmanReplies.Get("heading", ("place", p.displayName));
                 }
                 case "dock":
                     Pilot.Dock();
                     lastLeader = 0;
                     Orders++;
-                    return "docking.";
+                    return WingmanReplies.Get("docking");
                 case "mine":
                 {
                     // (at a field by name, or the nearest; "asteroids" is any field)
@@ -946,12 +946,12 @@ namespace CarrierGame.Demo
                     Pilot.Mine(field);
                     lastLeader = 0;
                     Orders++;
-                    return $"mining {(field != null ? "in " + field.displayName : "the nearest asteroid field")}; I'll sell the ore when the hold is full.";
+                    return field != null ? WingmanReplies.Get("mine_field", ("field", field.displayName)) : WingmanReplies.Get("mine_nearest");
                 }
                 case "sell":
                 {
                     var hold = cc.GetComponentInChildren<CargoHold>();
-                    if (hold == null || hold.OreTonnes < 0.5f) return "no ore aboard to sell.";
+                    if (hold == null || hold.OreTonnes < 0.5f) return WingmanReplies.Get("no_ore");
                     Pilot.SellNow();
                     lastLeader = 0;
                     Orders++;
@@ -962,9 +962,9 @@ namespace CarrierGame.Demo
                 case "give":
                 {
                     var hold = cc.GetComponentInChildren<CargoHold>();
-                    if (hold == null || hold.Credits < 1f) return "I've no credits to give.";
+                    if (hold == null || hold.Credits < 1f) return WingmanReplies.Get("no_credits");
                     var c = CoopClient.Instance;
-                    if (c == null || !CoopClient.Active) return "not connected to anyone to give credits to.";
+                    if (c == null || !CoopClient.Active) return WingmanReplies.Get("not_connected");
                     // "<amount>[ to <name>]": all, half or a number
                     string amountWord = target, name = "";
                     int at = target.IndexOf(" to ", StringComparison.OrdinalIgnoreCase);
@@ -978,7 +978,7 @@ namespace CarrierGame.Demo
                     }
                     else who = c.Players.FirstOrDefault(p => p != null && p.id != c.MyId && !IsBot(p) && p.id == (fromId != 0 ? fromId : lastSpeaker))
                                ?? NearestHuman(cc.transform.position);
-                    if (who == null) return "there's nobody to give credits to.";
+                    if (who == null) return WingmanReplies.Get("nobody_to_give");
                     if (IsBot(who)) return $"{who.name} is a bot: credits go to players.";
                     var mine = c.Players.FirstOrDefault(p => p != null && p.id == c.MyId);
                     if (mine != null && who.level != mine.level) return $"{who.name} isn't in this part of space: credits go to players here.";
@@ -988,11 +988,11 @@ namespace CarrierGame.Demo
                     if (aw == "" || aw == "all" || aw == "everything") amount = hold.Credits;
                     else if (aw == "half") amount = hold.Credits / 2f;
                     else if (!float.TryParse(aw.Replace(",", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out amount) || !(amount >= 1f))
-                        return "how many credits? (\"give 500 credits\", or \"give all credits\")";
+                        return WingmanReplies.Get("how_many");
                     amount = Mathf.Floor(amount);
-                    if (amount < 1f) return "I've not a whole credit to give.";
+                    if (amount < 1f) return WingmanReplies.Get("no_whole_credit");
                     if (amount > hold.Credits + 1e-3f) return $"I've only {hold.Credits:N0} cr.";
-                    if (!CoopGifts.Give(hold, who.id, amount)) return "couldn't send the credits.";
+                    if (!CoopGifts.Give(hold, who.id, amount)) return WingmanReplies.Get("gift_failed");
                     Orders++;
                     return $"transferred {amount:N0} cr to {who.name}; {hold.Credits:N0} cr left.";
                 }
@@ -1031,7 +1031,7 @@ namespace CarrierGame.Demo
 
         string Report()
         {
-            if (Pilot == null || Pilot.demo == null || Pilot.demo.carrier == null) return "not ready yet";
+            if (Pilot == null || Pilot.demo == null || Pilot.demo.carrier == null) return WingmanReplies.Get("not_ready");
             var cc = Pilot.demo.carrier;
             var sh = cc.GetComponentInChildren<Shield>();
             var near = WarpPoint.Nearest(cc.transform.position);

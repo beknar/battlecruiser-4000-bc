@@ -224,6 +224,24 @@ namespace CarrierGame.Tests
         }
 
         [Test]
+        public void AWingmansOrderIsKeptForTheHud()
+        {
+            CoopChat.Doings.Clear();
+            int lines = CoopChat.Lines.Count;
+            CoopChat.OnMessage(new CoopMsg { t = CoopWire.Doing, from = 7, text = "mining in the Outer Drift: 34 t of ore aboard" });
+            Assert.That(CoopChat.Doings[7].text, Is.EqualTo("mining in the Outer Drift: 34 t of ore aboard"));
+            CoopChat.OnMessage(new CoopMsg { t = CoopWire.Doing, from = 7, text = "back on the field" });
+            Assert.That(CoopChat.Doings[7].text, Is.EqualTo("back on the field"), "the latest");
+            CoopChat.OnMessage(new CoopMsg { t = CoopWire.Leave, id = 7 });
+            Assert.That(CoopChat.Doings.ContainsKey(7), Is.False, "gone with the player");
+            Assert.That(CoopChat.Lines.Count, Is.EqualTo(lines), "not a line on the comms channel");
+
+            Assert.That(CoopBot.MineLine(Wingman.MineStep.Cut, "Outer Drift", null, 34.4f), Is.EqualTo("mining in Outer Drift: 34 t of ore aboard"));
+            Assert.That(CoopBot.MineLine(Wingman.MineStep.Scan, null, null, -1f), Is.EqualTo("mining the nearest asteroid field"));
+            Assert.That(CoopBot.MineLine(Wingman.MineStep.Docking, "Outer Drift", "Kestrel Station", 120f), Is.EqualTo("selling ore at Kestrel Station: 120 t of ore aboard"));
+        }
+
+        [Test]
         public void SeveralOrdersInOneMessageAreSplitIntoThem()
         {
             string Kinds(string said) => string.Join(" | ", CoopBot.Clauses(said).Select(c => c.arg.Length > 0 ? $"{c.kind} {c.arg}" : c.kind));

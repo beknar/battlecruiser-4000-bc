@@ -180,6 +180,7 @@ namespace CarrierGame.Demo
                 saidBackToMining = Pilot.BackToMining;
                 if (CoopClient.Active) CoopChat.Say($"{Me}: back to mining.");
             }
+            SayDoingIfChanged();
             NextInChain();
             while (requests.TryDequeue(out var r)) Serve(r.ctx, r.body);
             CoopGifts.Tick();
@@ -424,6 +425,57 @@ namespace CarrierGame.Demo
             if (Pilot.Fighting && Pilot.Target != null) f["target"] = Wingman.NameOf(Pilot.Target);
             f["docked"] = Docking.Docked ? "docked" : "";
             return f;
+        }
+
+        string saidDoing = "";
+        float saidDoingAt = float.NegativeInfinity;
+
+        /// <summary>What it's doing, for the players' HUD: when it changes (at most every 2 s), and
+        /// every 15 s so a game that joins later has it.</summary>
+        void SayDoingIfChanged()
+        {
+            if (!CoopClient.Active) { saidDoing = ""; return; }
+            float now = Time.realtimeSinceStartup;
+            string line = DoingLine();
+            if (line.Length == 0) return;
+            bool changed = line != saidDoing;
+            if ((changed && now - saidDoingAt >= 2f) || now - saidDoingAt >= 15f)
+            {
+                CoopChat.SayDoing(line);
+                saidDoing = line;
+                saidDoingAt = now;
+            }
+        }
+
+        /// <summary>What it's doing, in a few words ("mining the Outer Drift: 34 t of ore aboard").</summary>
+        public string DoingLine()
+        {
+            var pl = Pilot;
+            if (pl == null) return "";
+            if (pl.Fighting) return pl.Target != null ? $"fighting {Wingman.NameOf(pl.Target)}" : "fighting";
+            switch (pl.Current)
+            {
+                case Wingman.Order.Mine:
+                {
+                    var hold = pl.demo != null && pl.demo.carrier != null ? pl.demo.carrier.GetComponentInChildren<CargoHold>() : null;
+                    return MineLine(pl.Step, pl.MineField != null ? pl.MineField.displayName : null,
+                                    pl.Market != null ? pl.Market.displayName : null, hold != null ? hold.OreTonnes : -1f);
+                }
+                case Wingman.Order.Follow: return pl.LeaderName.Length > 0 ? $"following {pl.LeaderName}" : "following";
+                case Wingman.Order.Attack: return "attacking";
+                case Wingman.Order.Goto: return pl.Destination != null ? $"heading for {pl.Destination.displayName}" : "on the way";
+                case Wingman.Order.Dock: return "docking";
+                default: return Docking.Docked ? "docked" : "holding position";
+            }
+        }
+
+        /// <summary>The mine order's line: where it mines (or sells), and the ore aboard (-1: not known).</summary>
+        public static string MineLine(Wingman.MineStep step, string field, string market, float tonnes)
+        {
+            string where = step >= Wingman.MineStep.ToMarket
+                ? $"selling ore at {(string.IsNullOrEmpty(market) ? "the nearest market" : market)}"
+                : $"mining {(string.IsNullOrEmpty(field) ? "the nearest asteroid field" : "in " + field)}";
+            return tonnes >= 0f ? $"{where}: {tonnes:F0} t of ore aboard" : where;
         }
 
         // messages the bot carried out as orders (by number), marked "handled" for the listener

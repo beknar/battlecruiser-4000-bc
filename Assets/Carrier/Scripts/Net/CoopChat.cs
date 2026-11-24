@@ -50,9 +50,10 @@ namespace CarrierGame.Demo
         string draft = "";
         GUIStyle box, input;
         readonly List<float> heights = new List<float>();
+        readonly List<string> doingLines = new List<string>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { Lines.Clear(); LastSeq = 0; Received = null; Instance = null; }
+        static void ResetStatics() { Lines.Clear(); Doings.Clear(); LastSeq = 0; Received = null; Instance = null; }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Make()
@@ -71,8 +72,30 @@ namespace CarrierGame.Demo
             if (Instance == this) Instance = null;
         }
 
-        static void OnMessage(CoopMsg m)
+        /// <summary>What each AI wingman says it's doing (CoopWire.Doing), by player id, and when
+        /// it said so: shown over the comms lines, so its order doesn't go when they fade.</summary>
+        public static readonly Dictionary<int, (string text, double time)> Doings = new Dictionary<int, (string, double)>();
+        /// <summary>How long a wingman's line stays up without being said again.</summary>
+        public const double DoingKept = 40.0;
+
+        [Serializable] class DoingMsg { public string t = CoopWire.Doing; public string text; }
+
+        /// <summary>Tell everyone what this game's AI wingman is doing (CoopBot).</summary>
+        public static void SayDoing(string text)
         {
+            if (!CoopClient.Active || string.IsNullOrWhiteSpace(text)) return;
+            CoopClient.Instance.Send(new DoingMsg { text = Clean(text, 120) });
+        }
+
+        internal static void OnMessage(CoopMsg m)
+        {
+            if (m.t == CoopWire.Leave) { Doings.Remove(m.id); return; }
+            if (m.t == CoopWire.Doing)
+            {
+                if (string.IsNullOrWhiteSpace(m.text)) Doings.Remove(m.from);
+                else Doings[m.from] = (Clean(m.text, 120), Now);
+                return;
+            }
             if (m.t != CoopWire.Chat || string.IsNullOrWhiteSpace(m.text)) return;
             Add(m.from, CoopClient.Instance != null ? CoopClient.Instance.NameOf(m.from) : $"Player {m.from}", m.text);
         }
@@ -209,7 +232,22 @@ namespace CarrierGame.Demo
                 shown++;
             }
             float y = bottom - (typing ? inputH + 4 * s : 0f) - used;
-            Area = new Rect(x - 4 * s, y, w + 8 * s, bottom - y);
+            // over them, what each AI wingman is doing (always shown, while it keeps saying so)
+            doingLines.Clear();
+            foreach (var kv in Doings)
+                if (now - kv.Value.time < DoingKept && CoopClient.Instance != null)
+                    doingLines.Add($"{CoopClient.Instance.NameOf(kv.Key)}: {kv.Value.text}");
+            float dy = y - doingLines.Count * lh;
+            for (int i = 0; i < doingLines.Count; i++)
+            {
+                var r = new Rect(x - 4 * s, dy + i * lh, w + 8 * s, lh);
+                GUI.color = new Color(0f, 0f, 0f, 0.55f);
+                GUI.DrawTexture(r, Texture2D.whiteTexture);
+                GUI.color = new Color(1f, 0.8f, 0.45f, 1f);
+                GUI.Label(new Rect(x, r.y, w, lh), doingLines[i], box);
+            }
+            GUI.color = Color.white;
+            Area = new Rect(x - 4 * s, dy, w + 8 * s, bottom - dy);
             for (int i = Lines.Count - shown, k = 0; i < Lines.Count; i++, k++)
             {
                 var l = Lines[i];

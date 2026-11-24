@@ -45,4 +45,23 @@ namespace CarrierGame.Tests
             Assert.That(v.StockSpoken, Is.EqualTo(2), "off: nothing said");
         }
     }
+
+        [UnityTest]
+        public IEnumerator ALineWithNoClipIsSpokenLiveInItsTurn()
+        {
+            go = new GameObject("voice test");
+            var v = go.AddComponent<WingmanVoice>();
+            v.Say("holding position.");
+            v.Say("transferred 500 cr to Ann; 1,200 cr left.");
+            yield return null;
+            Assert.That(v.StockSpoken, Is.EqualTo(1));
+            if (!WingmanVoice.LiveAvailable || (Application.platform != RuntimePlatform.WindowsEditor && Application.platform != RuntimePlatform.LinuxEditor))
+                Assert.Ignore("no live voice here");
+            float until = Time.realtimeSinceStartup + 8f;
+            while (v.LiveSpoken < 1 && Time.realtimeSinceStartup < until) yield return null;
+            Assert.That(v.LiveSpoken, Is.EqualTo(1), "after the stock clip, the live voice");
+            Assert.That(v.Speaking, Does.StartWith("transferred"));
+            Assert.That(go.GetComponent<AudioSource>().clip.frequency, Is.EqualTo(16000));
+        }
+    }
 }

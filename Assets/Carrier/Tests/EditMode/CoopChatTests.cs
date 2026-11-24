@@ -109,12 +109,17 @@ namespace CarrierGame.Tests
         [TestCase("all ships, regroup", "regroup")]
         [TestCase("Everyone - status", "status")]
         [TestCase("Wingman", "")]
+        [TestCase("Hey Wingman, mine", "mine")]
+        [TestCase("ok wingman hold", "hold")]
+        [TestCase("Okay, all ships, regroup", "regroup")]
         public void AnOrderStartsWithItsName(string said, string order)
         {
             Assert.That(CoopBot.AddressedPart(said, "Wingman"), Is.EqualTo(order));
         }
 
         [TestCase("follow me, wingman")]
+        [TestCase("hey there")]
+        [TestCase("okay wingmanly")]
         [TestCase("Wingmanly behaviour")]
         [TestCase("nice shooting")]
         [TestCase("")]
@@ -140,6 +145,50 @@ namespace CarrierGame.Tests
             Assert.That(bot.Command("warp to Heaven, then dock", 2), Is.EqualTo("not ready yet"));
             Assert.That(bot.Pending, Is.Zero);
             Assert.That(bot.Orders, Is.Zero);
+        }
+
+        [TestCase("can you mine please", "mine")]
+        [TestCase("Could you go mine some asteroids for me?", "mine some asteroids")]
+        [TestCase("please, hold", "hold")]
+        [TestCase("would you dock now", "dock")]
+        [TestCase("go to Heaven", "go to Heaven")]
+        [TestCase("go mining", "go mining")]
+        [TestCase("hold on, that was close", "hold on, that was close")]
+        public void PolitenessIsLeftOffAnOrder(string said, string plain)
+        {
+            Assert.That(CoopBot.Plain(said), Is.EqualTo(plain));
+        }
+
+        [TestCase("mine", "mine", "")]
+        [TestCase("can you mine some asteroids please", "mine", "")]
+        [TestCase("go mine the nearest rocks", "mine", "")]
+        [TestCase("mine at the Inner Belt", "mine", "Inner Belt")]
+        [TestCase("start mining in the Outer Drift", "mine", "Outer Drift")]
+        [TestCase("mine asteroids in the Outer Drift", "mine", "Outer Drift")]
+        [TestCase("mine for ore", "mine", "")]
+        public void AMineOrderNamesAFieldOrTheNearest(string said, string kind, string field)
+        {
+            var p = CoopBot.ParseOrder(said);
+            Assert.That(p.HasValue, Is.True, said);
+            Assert.That(p.Value.kind, Is.EqualTo(kind));
+            Assert.That(CoopBot.MineFieldName(p.Value.arg), Is.EqualTo(field));
+        }
+
+        [Test]
+        public void TheSameMineOrderTwiceCarriesOn()
+        {
+            var go = new GameObject("wingman");
+            made.Add(go);
+            var w = go.AddComponent<Wingman>();
+            w.Mine();
+            Assert.That(w.Current, Is.EqualTo(Wingman.Order.Mine));
+            // (partway through a run: cutting at a rock)
+            typeof(Wingman).GetProperty(nameof(Wingman.Step)).SetValue(w, Wingman.MineStep.Cut);
+            w.Mine();
+            Assert.That(w.Step, Is.EqualTo(Wingman.MineStep.Cut), "the order given again (as the listener used to): carried on, not started over");
+            var field = go.AddComponent<WarpPoint>();
+            w.Mine(field);
+            Assert.That(w.Step, Is.EqualTo(Wingman.MineStep.ToField), "another field: a new run");
         }
 
         [Test]

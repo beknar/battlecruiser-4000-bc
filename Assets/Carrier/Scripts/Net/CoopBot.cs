@@ -212,7 +212,13 @@ namespace CarrierGame.Demo
             string rest = AddressedPart(line.text, Me);
             if (rest == null) return;
             string reply = Command(rest, line.from);
-            if (!string.IsNullOrEmpty(reply)) { CoopChat.Say($"{Me}: {reply}"); return; }
+            if (!string.IsNullOrEmpty(reply))
+            {
+                // (marked as carried out, for the listener: it isn't to order it a second time)
+                Handled(line.seq);
+                CoopChat.Say($"{Me}: {reply}");
+                return;
+            }
             // talk, not an order: by the chat mode
             float now = Time.realtimeSinceStartup;
             switch (Chat)
@@ -416,11 +422,32 @@ namespace CarrierGame.Demo
             return f;
         }
 
+        // messages the bot carried out as orders (by number), marked "handled" for the listener
+        readonly HashSet<int> handled = new HashSet<int>();
+
+        void Handled(int seq)
+        {
+            handled.Add(seq);
+            if (handled.Count > 400) handled.RemoveWhere(n => n < seq - 300);
+        }
+
+        /// <summary>Was message `seq` carried out by the bot as an order?</summary>
+        public bool WasHandled(int seq) => handled.Contains(seq);
+
+        // words said before the name ("hey wingman, ..."), spoken or typed
+        static readonly string[] Greetings = { "hey", "hi", "ok", "okay", "oi", "right" };
+
         /// <summary>What follows the bot's name (or "@name", "all ships", "everyone", "wingmen") at
-        /// the start of a message; null if the message isn't to it.</summary>
+        /// the start of a message (after a "hey" or "ok"); null if the message isn't to it.</summary>
         public static string AddressedPart(string text, string me)
         {
             text = (text ?? "").Trim();
+            foreach (var g in Greetings)
+                if (text.Length > g.Length && text.StartsWith(g, StringComparison.OrdinalIgnoreCase) && !char.IsLetterOrDigit(text[g.Length]))
+                {
+                    text = text.Substring(g.Length).TrimStart(',', ' ', '!');
+                    break;
+                }
             string lower = text.ToLowerInvariant();
             me = (me ?? "").ToLowerInvariant();
             foreach (var call in new[] { "@" + me, me, "all ships", "everyone", "wingmen" })
@@ -448,12 +475,59 @@ namespace CarrierGame.Demo
             return Run(p.Value, fromId);
         }
 
+        static readonly string[] PoliteLeads = { "please", "can you", "could you", "would you", "will you", "go and", "now" };
+        static readonly string[] PoliteTails = { "please", "now", "for me", "for us", "thanks", "thank you" };
+
+        /// <summary>An order without its politeness: "can you go mine please" is "mine". Leading
+        /// "please", "can you", "could you", "would you", "will you", "now", "go" (not "go to" or
+        /// "go mining", which are orders), and trailing "please", "now", "for me", "thanks".</summary>
+        public static string Plain(string words)
+        {
+            string w = (words ?? "").Trim();
+            for (bool changed = true; changed;)
+            {
+                changed = false;
+                string t = w.TrimEnd('?', '!', '.', ',', ' ');
+                foreach (var lead in PoliteLeads)
+                    if (t.Length > lead.Length + 1 && t.StartsWith(lead, StringComparison.OrdinalIgnoreCase) && (t[lead.Length] == ' ' || t[lead.Length] == ','))
+                    { t = t.Substring(lead.Length + 1).TrimStart(',', ' '); changed = true; }
+                if (t.StartsWith("go ", StringComparison.OrdinalIgnoreCase) && !t.StartsWith("go to ", StringComparison.OrdinalIgnoreCase)
+                    && !t.StartsWith("go mining", StringComparison.OrdinalIgnoreCase))
+                { t = t.Substring(3).TrimStart(); changed = true; }
+                foreach (var tail in PoliteTails)
+                    if (t.Length > tail.Length + 1 && t.EndsWith(" " + tail, StringComparison.OrdinalIgnoreCase))
+                    { t = t.Substring(0, t.Length - tail.Length - 1).TrimEnd(',', ' '); changed = true; }
+                if (changed) w = t;
+            }
+            return w;
+        }
+
+        // words after "mine" that aren't a field's name ("mine some asteroids", "mine the nearest rocks")
+        static readonly HashSet<string> MineFiller = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "the", "a", "an", "some", "any", "in", "at", "nearest", "closest", "near", "nearby", "asteroids", "asteroid",
+            "rocks", "rock", "field", "ore", "for", "there", "here", "it", "them", "minerals", "belt",
+        };
+
+        /// <summary>The field's name in what follows "mine" ("at the Inner Belt": "Inner Belt"), or
+        /// "" for the nearest field ("mine", "mine some asteroids", "mine the nearest rocks").</summary>
+        public static string MineFieldName(string target)
+        {
+            string name = (target ?? "").Trim().TrimEnd('.', '!', '?');
+            foreach (var lead in new[] { "the asteroids", "asteroids", "rocks", "in", "at", "the" })
+                if (name.Equals(lead, StringComparison.OrdinalIgnoreCase)) name = "";
+                else if (name.StartsWith(lead + " ", StringComparison.OrdinalIgnoreCase)) name = name.Substring(lead.Length + 1).Trim();
+            var words = name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            return words.All(x => MineFiller.Contains(x)) ? "" : name;
+        }
+
         /// <summary>An order in words, parsed (none: talk): its kind ("chat", "follow", "regroup",
         /// "cargo", "give", "hold", "attack", "goto", "dock", "mine", "sell", "status", "help") and
         /// what it is to (a name, a place, an amount).</summary>
         public static (string kind, string arg)? ParseOrder(string words)
         {
-            string w = (words ?? "").Trim().TrimEnd('?', '!', '.').TrimEnd();
+            // ("can you mine please": "mine")
+            string w = Plain(words).Trim().TrimEnd('?', '!', '.').TrimEnd();
             string lw = w.ToLowerInvariant();
             string Arg(params string[] verbs)
             {
@@ -769,11 +843,9 @@ namespace CarrierGame.Demo
                 {
                     // (at a field by name, or the nearest; "asteroids" is any field)
                     WarpPoint field = null;
-                    // ("asteroids in the Outer Drift", "at the Inner Belt", "rocks": the field's name, if any)
-                    string name = target.Trim();
-                    foreach (var lead in new[] { "the asteroids", "asteroids", "rocks", "in", "at", "the" })
-                        if (name.Equals(lead, StringComparison.OrdinalIgnoreCase)) name = "";
-                        else if (name.StartsWith(lead + " ", StringComparison.OrdinalIgnoreCase)) name = name.Substring(lead.Length + 1).Trim();
+                    // ("asteroids in the Outer Drift", "at the Inner Belt": the field's name, if any;
+                    // "rocks", "some asteroids", "the nearest field": the nearest)
+                    string name = MineFieldName(target);
                     if (name.Length > 0)
                     {
                         field = Place(name);
@@ -1147,7 +1219,8 @@ namespace CarrierGame.Demo
                 first = false;
                 bool mine = c != null && l.from == c.MyId;
                 bool toMe = !mine && AddressedPart(l.text, Me) != null;
-                sb.Append($"{{\"seq\":{l.seq},\"from\":{Q(l.name)},\"mine\":{B(mine)},\"to_me\":{B(toMe)},\"text\":{Q(l.text)}}}");
+                // (handled: an order the bot carried out itself; the listener doesn't order it again)
+                sb.Append($"{{\"seq\":{l.seq},\"from\":{Q(l.name)},\"mine\":{B(mine)},\"to_me\":{B(toMe)},\"handled\":{B(handled.Contains(l.seq))},\"text\":{Q(l.text)}}}");
             }
             return sb.Append("]}").ToString();
         }

@@ -1,0 +1,24 @@
+{
+    "note": "The AI wingman's own replies to orders and its reports that are always the same, or differ only by a place (CoopBot, through WingmanReplies.Get). Blanks are {name}, filled as the personality's are. The wingman's stock voice is recorded from these (Tools/Voice/render_stock.py): a line with no blank once, a line whose only blanks are {place} or {field} once for each place and field in the star systems. Replies with numbers or people's names in them stay in CoopBot.cs and are spoken by the live voice.",
+    "replies": [
+        { "key": "not_ready", "line": "not ready yet" },
+        { "key": "holding", "line": "holding position." },
+        { "key": "docking", "line": "docking." },
+        { "key": "heading", "line": "heading for {place}." },
+        { "key": "mine_field", "line": "mining in {field}; I'll sell the ore when the hold is full." },
+        { "key": "mine_nearest", "line": "mining the nearest asteroid field; I'll sell the ore when the hold is full." },
+        { "key": "back_to_mining", "line": "back to mining." },
+        { "key": "no_ore", "line": "no ore aboard to sell." },
+        { "key": "no_hold", "line": "no cargo hold." },
+        { "key": "nobody_to_follow", "line": "there's nobody to follow." },
+        { "key": "no_credits", "line": "I've no credits to give." },
+        { "key": "not_connected", "line": "not connected to anyone to give credits to." },
+        { "key": "nobody_to_give", "line": "there's nobody to give credits to." },
+        { "key": "how_many", "line": "how many credits? (\"give 500 credits\", or \"give all credits\")" },
+        { "key": "no_whole_credit", "line": "I've not a whole credit to give." },
+        { "key": "gift_failed", "line": "couldn't send the credits." },
+        { "key": "chat_personality", "line": "chat mode personality: LLM off, I answer talk myself." },
+        { "key": "orders_only", "line": "nobody on comms here, orders only: follow, hold, attack, warp to, dock, mine, sell, cargo, give credits, status." },
+        { "key": "help", "line": "orders: follow me / follow <name>, hold, attack [target], warp to <place>, dock, regroup, mine [at <field>], sell, cargo, give [N] credits [to <name>], status; chat on|off|pause|resume. Several at once: \"warp to Heaven, then dock\"." }
+    ]
+}

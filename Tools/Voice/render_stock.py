@@ -28,6 +28,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unicodedata
+import uuid
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 RES = os.path.join(ROOT, "Assets", "Carrier", "Resources")
@@ -38,6 +40,34 @@ BOT_NAME = "Wingman"
 VOICE_NAME = "en_US-norman-medium"
 
 
+# a clip's import settings: mono, not normalised (the level is the radio's, set here), compressed
+# at about half quality (plenty for a 16 kHz radio voice), loaded with the clip
+META = """fileFormatVersion: 2
+guid: {guid}
+AudioImporter:
+  externalObjects: {{}}
+  serializedVersion: 8
+  defaultSettings:
+    serializedVersion: 2
+    loadType: 0
+    sampleRateSetting: 0
+    sampleRateOverride: 44100
+    compressionFormat: 1
+    quality: 0.5
+    conversionMode: 0
+    preloadAudioData: 1
+  platformSettingOverrides: {{}}
+  forceToMono: 1
+  normalize: 0
+  loadInBackground: 0
+  ambisonic: 0
+  3D: 0
+  userData:
+  assetBundleName:
+  assetBundleVariant:
+"""
+
+
 def key(text):
     """A line as it is matched: lower case, apostrophes dropped, anything but letters and digits a
     space, spaces single (WingmanPersonality.Normalize, WingmanVoice.Key)."""
@@ -45,7 +75,7 @@ def key(text):
     for ch in (text or "").lower():
         if ch in "'’":
             continue
-        if ch.isalnum():
+        if unicodedata.category(ch) in ("Lu", "Ll", "Lt", "Lm", "Lo", "Nd"):
             out.append(ch)
             space = False
         elif not space:
@@ -63,9 +93,6 @@ def places():
             n = o.get("name") or o.get("displayName")
             if isinstance(n, str) and n.strip():
                 names.add(n.strip())
-                kind = str(o.get("kind", "")).lower()
-                if "asteroid" in kind or "belt" in n.lower() or "drift" in n.lower() or "trojans" in n.lower():
-                    fields.add(n.strip())
             for v in o.values():
                 walk(v)
         elif isinstance(o, list):
@@ -74,7 +101,11 @@ def places():
 
     for f in SYSTEMS:
         with open(f, encoding="utf-8") as fh:
-            walk(json.load(fh))
+            d = json.load(fh)
+        walk(d)
+        for field in d.get("fields", []):
+            if isinstance(field, dict) and field.get("name"):
+                fields.add(field["name"].strip())
     return sorted(names), sorted(fields)
 
 
@@ -105,8 +136,6 @@ def lines():
             out += [line.replace("{place}", p) for p in names]
         elif blanks == {"field"}:
             out += [line.replace("{field}", p) for p in fields]
-    # the announcements CoopBot makes itself
-    out += ["back to mining."]
     seen, unique = set(), []
     for line in out:
         k = key(line)
@@ -160,6 +189,15 @@ def render(args):
                                 "-c:a", "libvorbis", "-q:a", "0", dst], capture_output=True)
             if r.returncode != 0 or not os.path.exists(dst):
                 sys.exit(f"ffmpeg failed on {j['text']!r}: " + r.stderr.decode(errors="replace")[-600:])
+        for j in jobs:
+            meta = os.path.join(OUT, j["name"] + ".ogg.meta")
+            if os.path.exists(meta):
+                text = open(meta, encoding="utf-8").read()
+                guid = text.split("guid:")[1].split()[0]
+            else:
+                guid = uuid.uuid4().hex
+            with open(meta, "w", encoding="utf-8", newline="\n") as fh:
+                fh.write(META.format(guid=guid))
         index = {"note": f"The wingman's stock voice (Tools/Voice/render_stock.py, Piper {VOICE_NAME}, public domain): "
                          "each line as the game matches it (WingmanVoice.Key) and its clip here.",
                  "voice": VOICE_NAME,
@@ -185,6 +223,10 @@ def check():
             bad += 1
         elif not os.path.exists(os.path.join(OUT, have[k] + ".ogg")):
             print("clip missing:", have[k], line)
+            bad += 1
+    for line in lines():
+        if any(ord(ch) > 127 for ch in line):
+            print("not plain text (the game and this tool might key it differently):", line)
             bad += 1
     extra = set(have) - {key(l) for l in lines()}
     for k in sorted(extra):

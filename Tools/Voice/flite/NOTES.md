@@ -8,7 +8,7 @@
   https://ziglang.org/download/0.14.1/zig-x86_64-windows-0.14.1.zip
   sha256 `554f5378228923ffd558eac35e21af020c73789d87afeabf4bfd16f2e6feed2c` (matches ziglang.org/download/index.json).
   Unpacked into `scratchpad\flite\tools\zig\`. Nothing was installed system-wide.
-- Linux: gcc 13.3.0 (Ubuntu 24.04) on storm@192.168.1.61, in `~/flite_build`.
+- Linux: gcc 13.3.0 (Ubuntu 24.04), on a Linux machine.
 
 ## Files
 | file | purpose |
@@ -18,10 +18,6 @@
 | build_win.sh | Windows DLL build with `zig cc -target x86_64-windows-gnu` |
 | build_linux.sh | Linux .so build with gcc (set `CC=...` to use another compiler) |
 | test_tts.py | ctypes test that works with either library. It writes a WAV and prints timing and RMS. |
-| pe_info.py | lists a DLL's exports and imports (pure Python) |
-| bctts.dll, libbctts.so | the built libraries |
-| test_windows.wav, test_linux.wav | test output |
-| COPYING.flite | Flite licence (BSD-like, from the v2.2 tree) |
 
 Neither build uses autoconf or a config header. Both compile the same 93 Flite .c files plus bctts.c in one pass:
 - `src/{audio,cg,hrg,lexicon,regex,speech,stats,synth,utils,wavesynth}`
@@ -116,3 +112,6 @@ Text: "Wingman here. Mining the Outer Drift, thirty four tonnes aboard."
 2. **Extra DLL exports.** `flite.h` defines `GLOBALVARDEF __declspec(dllexport)` under `WIN32`. `-UWIN32` does not help, because mingw's `minwindef.h` (pulled in through windows.h) defines it again. A .def file only adds exports, and zig's linker rejects `--exclude-symbols`. These three exports are data symbols and do no harm. Removing them would mean patching flite.h.
 3. zig has no objdump, so the PE exports and imports were checked with the small `pe_info.py` parser instead.
 4. Neither library was loaded in Unity, as instructed. Only Python ctypes tests were run.
+
+
+The built libraries are in `Assets/Carrier/Plugins/x86_64` (bctts.dll, libbctts.so), with Flite's licence beside them as FLITE_LICENSE.txt; a build step (Editor/ThirdPartyNotices.cs) puts it beside the Windows and Linux players as THIRD_PARTY_FLITE.txt.

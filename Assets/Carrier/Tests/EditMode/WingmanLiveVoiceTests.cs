@@ -32,6 +32,9 @@ namespace CarrierGame.Tests
             Assert.That(WingmanVoice.Speakable("taking 34 t of ore; 1,200 cr left."), Is.EqualTo("taking 34 tonnes of ore, 1200 credits left."));
             Assert.That(WingmanVoice.Speakable("hull 62%"), Is.EqualTo("hull 62 percent"));
             Assert.That(WingmanVoice.Speakable("3.4 km off"), Is.EqualTo("3.4 kilometres off"));
+            Assert.That(WingmanVoice.Speakable("12,345,678 cr"), Is.EqualTo("12345678 credits"), "millions too");
+            Assert.That(WingmanVoice.ForReading("orders: follow me / follow <name>, hold"), Is.True, "help: read, not heard");
+            Assert.That(WingmanVoice.ForReading("transferred 500 cr to Ann; 1,200 cr left."), Is.False);
         }
 
         [Test]

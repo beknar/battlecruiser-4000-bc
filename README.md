@@ -2282,7 +2282,8 @@ several wingmen it goes to the one last spoken to. A mark shows on the HUD while
 radio in your game, one line after another (a line waiting more than 12 s is dropped). Turn it
 off with Wingman voice in the pause menu. The clean text is spoken, not the jammed text shown.
 - **Stock phrases:** every line it always says the same way (its personality's lines, its fixed
-  replies in `Resources/Data/wingman_replies.json`, and those naming a place or asteroid field)
+  replies in `Resources/Data/wingman_replies.json`, and those naming a planet, moon or asteroid
+  field; not stations, landmarks or wrecks, which the live voice says)
   was recorded ahead of time by `Tools/Voice/render_stock.py`. That's 171 small Ogg clips
   (2.4 MB) in `Resources/WingmanVoice`, with the radio's sound in them, since the web player has
   no audio filters. The voice is Piper's `en_US-norman-medium`, which is public domain. Run the
@@ -2296,7 +2297,9 @@ off with Wingman voice in the pause menu. The clean text is spoken, not the jamm
     about 2 ms for a line, with the same radio sound put on in C#.
   - **On the web** it is the browser's own voice (`speechSynthesis`), which adds nothing to the
     download, so it has no radio sound.
-  - A line is always spoken whole by one voice, stock or live.
+  - A line is always spoken whole by one voice, stock or live. Help and the greeting, which
+    are lists of orders to read, aren't spoken, and nothing is said while you hold push-to-talk.
+  - Flite's licence goes beside the Windows and Linux players as `THIRD_PARTY_FLITE.txt`.
 
 A message to it that isn't an order (`Wingman, how's it going?`) is talk. Its **chat mode**
 decides who answers talk:

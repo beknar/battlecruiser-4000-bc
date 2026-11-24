@@ -32,7 +32,8 @@ namespace CarrierGame.Demo
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
         {
-            if (Instance != null || Application.isBatchMode) return;
+            // (not in a game that is itself an AI wingman: it would speak the other bots' lines)
+            if (Instance != null || Application.isBatchMode || CoopBot.Enabled) return;
             var go = new GameObject("Wingman voice");
             DontDestroyOnLoad(go);
             Instance = go.AddComponent<WingmanVoice>();
@@ -85,6 +86,7 @@ namespace CarrierGame.Demo
         public int LiveSpoken { get; private set; }
         /// <summary>The line being spoken now (null: none).</summary>
         public string Speaking { get; private set; }
+        float liveUntil;
 
         void Awake()
         {
@@ -114,8 +116,15 @@ namespace CarrierGame.Demo
             // (its lines start with its name: "Wingman: holding position.")
             string text = line.text;
             if (line.name.Length > 0 && text.StartsWith(line.name + ":", StringComparison.OrdinalIgnoreCase)) text = text.Substring(line.name.Length + 1);
+            if (ForReading(text)) return;
             Say(text);
         }
+
+        /// <summary>A line written to be read, not heard: a list of orders ("follow me / hold",
+        /// "warp to &lt;place&gt;"), as help and the greeting are.</summary>
+        public static bool ForReading(string text) =>
+            text != null && (text.Contains(" / ") || text.Contains("<") || text.Contains("[") || text.Contains("|"));
+
 
         /// <summary>Speak a line (after those already waiting).</summary>
         public void Say(string text)
@@ -129,14 +138,20 @@ namespace CarrierGame.Demo
 
         void Play(AudioClip clip)
         {
+            var old = source.clip;
             source.volume = SoundFX.Muted ? 0f : 0.9f;
             source.clip = clip;
             source.Play();
+            // (a live line's clip was made for it: gone once another plays)
+            if (old != null && old != clip && old.name == LiveClipName) Destroy(old);
         }
+
+        const string LiveClipName = "wingman live";
 
         /// <summary>Everything stopped and the queue cleared.</summary>
         public void Hush()
         {
+            foreach (var w in queue) LiveForget(w.ticket);
             queue.Clear();
             if (source != null) source.Stop();
             LiveStop();
@@ -145,8 +160,18 @@ namespace CarrierGame.Demo
 
         void Update()
         {
-            if (source.isPlaying || LiveBusy) return;
+            // (lines waiting too long dropped, whatever is speaking)
+            while (queue.Count > 0 && Time.unscaledTime - queue.Peek().at > MaxWait) LiveForget(queue.Dequeue().ticket);
+            if (LiveBusy)
+            {
+                // (the browser's voice muted with the game, and given up on if it never says it's done)
+                if (SoundFX.Muted || Time.unscaledTime > liveUntil) LiveStop();
+                return;
+            }
+            if (source.isPlaying) return;
             Speaking = null;
+            // (not over the player while they're talking to it)
+            if (VoiceInput.Now == VoiceInput.State.Listening) return;
             while (queue.Count > 0)
             {
                 var w = queue.Peek();
@@ -163,7 +188,7 @@ namespace CarrierGame.Demo
                 {
                     case Live.Waiting: return;   // (still being made: a moment)
                     case Live.Clip: queue.Dequeue(); Play(live); LiveSpoken++; Speaking = w.text; return;
-                    case Live.Spoken: queue.Dequeue(); LiveSpoken++; Speaking = w.text; return;
+                    case Live.Spoken: queue.Dequeue(); LiveSpoken++; Speaking = w.text; liveUntil = Time.unscaledTime + 3f + 0.12f * w.text.Length; return;
                     default: queue.Dequeue(); continue;   // (no live voice here: shown, not said)
                 }
             }

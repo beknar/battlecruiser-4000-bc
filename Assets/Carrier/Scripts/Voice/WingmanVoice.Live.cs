@@ -37,22 +37,37 @@ namespace CarrierGame.Demo
         static readonly ConcurrentDictionary<int, bool> failed = new ConcurrentDictionary<int, bool>();
         static Thread worker;
         static int nextTicket;
+        // (Flite isn't re-entrant: the worker and SpeakNow take turns)
+        static readonly object engine = new object();
+        // tickets given up on (dropped or hushed) while being made: their samples aren't kept
+        static readonly ConcurrentDictionary<int, bool> forgotten = new ConcurrentDictionary<int, bool>();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetLive() { made.Clear(); failed.Clear(); forgotten.Clear(); }
 
         static void Work()
         {
-            try { if (bctts_init() != 1) { LiveAvailable = false; return; } }
+            try { lock (engine) if (bctts_init() != 1) { LiveAvailable = false; return; } }
             catch (Exception e) { LiveAvailable = false; Debug.Log($"[Voice] no live voice: {e.GetType().Name}"); return; }
             foreach (var (ticket, text) in todo.GetConsumingEnumerable())
             {
                 try
                 {
+                    if (forgotten.TryRemove(ticket, out _)) continue;
                     var bytes = System.Text.Encoding.UTF8.GetBytes(Speakable(text) + "\0");
-                    int n = bctts_speak(bytes, out IntPtr p, out int rate);
-                    if (n <= 0 || p == IntPtr.Zero) { failed[ticket] = true; continue; }
-                    var pcm = new short[n];
-                    Marshal.Copy(p, pcm, 0, n);
-                    bctts_free(p);
-                    made[ticket] = (Radio(pcm, rate, ticket), rate);
+                    short[] pcm;
+                    int rate;
+                    lock (engine)
+                    {
+                        int n = bctts_speak(bytes, out IntPtr p, out rate);
+                        if (n <= 0 || p == IntPtr.Zero) { failed[ticket] = true; continue; }
+                        pcm = new short[n];
+                        Marshal.Copy(p, pcm, 0, n);
+                        bctts_free(p);
+                    }
+                    var samples = Radio(pcm, rate, ticket);
+                    if (forgotten.TryRemove(ticket, out _)) continue;
+                    made[ticket] = (samples, rate);
                 }
                 catch (Exception) { failed[ticket] = true; }
             }
@@ -77,9 +92,8 @@ namespace CarrierGame.Demo
             if (ticket < 0) return Live.None;
             if (made.TryRemove(ticket, out var m))
             {
-                clip = AudioClip.Create("wingman live", m.samples.Length, 1, m.rate, false);
+                clip = AudioClip.Create(LiveClipName, m.samples.Length, 1, m.rate, false);
                 clip.SetData(m.samples, 0);
-                Destroy(clip, m.samples.Length / (float)m.rate + 2f);
                 return Live.Clip;
             }
             if (failed.TryRemove(ticket, out _) || !LiveAvailable) return Live.None;
@@ -89,8 +103,8 @@ namespace CarrierGame.Demo
         static void LiveForget(int ticket)
         {
             if (ticket < 0) return;
-            made.TryRemove(ticket, out _);
-            failed.TryRemove(ticket, out _);
+            // (still being made: its samples dropped when they come)
+            if (!made.TryRemove(ticket, out _) && !failed.TryRemove(ticket, out _)) forgotten[ticket] = true;
         }
 
         bool LiveBusy => false;
@@ -103,16 +117,21 @@ namespace CarrierGame.Demo
             rate = 0;
             try
             {
-                int ok = bctts_init();
-                if (ok != 1) { Debug.LogWarning($"[Voice] the speech engine didn't start ({ok})"); return null; }
-                int n = bctts_speak(System.Text.Encoding.UTF8.GetBytes(Speakable(text) + "\0"), out IntPtr p, out rate);
-                if (n <= 0) { Debug.LogWarning($"[Voice] the speech engine said nothing ({n})"); return null; }
-                var pcm = new short[n];
-                Marshal.Copy(p, pcm, 0, n);
-                bctts_free(p);
+                short[] pcm;
+                lock (engine)
+                {
+                    int ok = bctts_init();
+                    if (ok != 1) { Debug.LogWarning($"[Voice] the speech engine didn't start ({ok})"); return null; }
+                    int n = bctts_speak(System.Text.Encoding.UTF8.GetBytes(Speakable(text) + "\0"), out IntPtr p, out rate);
+                    if (n <= 0) { Debug.LogWarning($"[Voice] the speech engine said nothing ({n})"); return null; }
+                    pcm = new short[n];
+                    Marshal.Copy(p, pcm, 0, n);
+                    bctts_free(p);
+                }
                 return Radio(pcm, rate);
             }
             catch (DllNotFoundException ex) { Debug.LogWarning($"[Voice] no speech engine: {ex.Message}"); return null; }
+            catch (EntryPointNotFoundException ex) { Debug.LogWarning($"[Voice] the speech engine is the wrong one: {ex.Message}"); return null; }
         }
 #elif UNITY_WEBGL && !UNITY_EDITOR
         [DllImport("__Internal")] static extern int CarrierSpeechSupported();
@@ -149,11 +168,12 @@ namespace CarrierGame.Demo
         public static string Speakable(string text)
         {
             if (string.IsNullOrEmpty(text)) return "";
-            string t = System.Text.RegularExpressions.Regex.Replace(text, @"(\d),(\d{3})", "$1$2");
+            string t = System.Text.RegularExpressions.Regex.Replace(text, @"(?<=\d),(?=\d{3}\b)", "");
             t = System.Text.RegularExpressions.Regex.Replace(t, @"(\d+(\.\d+)?)\s*t\b", "$1 tonnes");
             t = System.Text.RegularExpressions.Regex.Replace(t, @"(\d+(\.\d+)?)\s*cr\b", "$1 credits");
             t = System.Text.RegularExpressions.Regex.Replace(t, @"(\d+(\.\d+)?)\s*km\b", "$1 kilometres");
             t = t.Replace("%", " percent").Replace(";", ",").Replace("(", ", ").Replace(")", ", ").Replace("\"", "");
+            t = System.Text.RegularExpressions.Regex.Replace(t, @"[<>\[\]|/*_#]", " ");
             return t;
         }
 

@@ -37,6 +37,23 @@ namespace CarrierGame.Tests
         }
 
         [Test]
+        public void AMessageSaysHowItWasMadeForTheServersLog()
+        {
+            // (a wingman's answer through its API, a player's spoken command; typed: none)
+            StringAssert.Contains("\"via\":\"llm\"", JsonUtility.ToJson(new ChatMsg { text = "Wingman: on my way.", via = Via.Llm }));
+            StringAssert.Contains("\"via\":\"voice\"", JsonUtility.ToJson(new ChatMsg { text = "Wingman, mine", via = Via.Voice }));
+            StringAssert.Contains("\"via\":\"\"", JsonUtility.ToJson(new ChatMsg { text = "hello", via = "" }));
+            CollectionAssert.AllItemsAreUnique(new[] { Via.Order, Via.Personality, Via.Llm, Via.Fixed, Via.Paused, Via.Event, Via.Voice });
+        }
+
+        [Test]
+        public void TheWelcomeSaysWhetherTheServerLogsComms()
+        {
+            Assert.That(JsonUtility.FromJson<CoopMsg>("{\"t\":\"welcome\",\"id\":2,\"chatLog\":true}").chatLog, Is.True);
+            Assert.That(JsonUtility.FromJson<CoopMsg>("{\"t\":\"welcome\",\"id\":2}").chatLog, Is.False, "a server that keeps none says nothing");
+        }
+
+        [Test]
         public void AMessageIsCleanedAndCut()
         {
             Assert.That(CoopChat.Clean("  hi\nthere\t "), Is.EqualTo("hithere"));

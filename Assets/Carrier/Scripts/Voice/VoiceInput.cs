@@ -155,7 +155,7 @@ namespace CarrierGame.Demo
             if (msg == null) return;
             if (to != null) lastBot = to;
             LastSent = msg;
-            if (botsForTest == null) CoopChat.Say(msg);
+            if (botsForTest == null) CoopChat.Say(msg, Via.Voice);
         }
 
         /// <summary>The other players (not AI wingmen) in the game, by name.</summary>

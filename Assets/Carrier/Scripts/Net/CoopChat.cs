@@ -12,6 +12,19 @@ namespace CarrierGame.Demo
     {
         public string t = CoopWire.Chat;
         public string text;
+        /// <summary>How it was made, for the server's chat log (CoopChat.Via): "" typed by a
+        /// player.</summary>
+        public string via;
+    }
+
+    /// <summary>How a message on comms was made (ChatMsg.via), so a log of the channel can tell
+    /// a wingman's answers apart: an order it carried out, its personality's talk, Claude's (or
+    /// another LLM's) answer through its API, a fixed line, the paused line, something it reports
+    /// by itself; and a player's spoken command.</summary>
+    public static class Via
+    {
+        public const string Order = "order", Personality = "personality", Llm = "llm", Fixed = "fixed", Paused = "paused",
+                            Event = "event", Voice = "voice";
     }
 
     /// <summary>
@@ -107,12 +120,12 @@ namespace CarrierGame.Demo
         }
 
         /// <summary>Send a message to everyone in the game (and show it here). False if not
-        /// connected, or there is nothing to say.</summary>
-        public static bool Say(string text)
+        /// connected, or there is nothing to say. `via`: how it was made (Via; null: typed).</summary>
+        public static bool Say(string text, string via = null)
         {
             text = Clean(text);
             if (text.Length == 0 || !CoopClient.Active) return false;
-            CoopClient.Instance.Send(new ChatMsg { text = text });
+            CoopClient.Instance.Send(new ChatMsg { text = text, via = via ?? "" });
             Add(CoopClient.Instance.MyId, CoopClient.Instance.MyName, text);
             return true;
         }

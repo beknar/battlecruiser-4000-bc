@@ -49,6 +49,8 @@ namespace CarrierGame.Demo
         public int id, from, max, host;
         public double now, epoch, c, s, ts;
         public string level, why, name;
+        // (the welcome: the server keeps a log of the comms channel)
+        public bool chatLog;
         public CoopPlayer p;
         public CoopPlayer[] players;
         // a player's ship (and everything with a position: from the reach `rf`, or the system's origin if rf is "")

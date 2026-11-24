@@ -385,7 +385,7 @@ namespace CarrierGame.Demo
                 float zt = gp.leftTrigger.ReadValue() - gp.rightTrigger.ReadValue();
                 if (Mathf.Abs(zt) > 0.1f) ZoomPreview(Mathf.Pow(2f, zt * Time.unscaledDeltaTime));
             }
-            if (Time.unscaledTime - previewTurned > 4f) previewYaw += 14f * (paused ? Time.unscaledDeltaTime : Time.deltaTime);
+            if (!(painting && placing) && Time.unscaledTime - previewTurned > 4f) previewYaw += 14f * (paused ? Time.unscaledDeltaTime : Time.deltaTime);
             // put back every frame: while the game runs the level may shift everything (to keep
             // the player's ship near the middle of the world), the preview with it
             previewModel.transform.SetPositionAndRotation(PreviewAt, Quaternion.Euler(0f, previewYaw, 0f));

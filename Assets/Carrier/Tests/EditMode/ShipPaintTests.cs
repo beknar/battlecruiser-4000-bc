@@ -62,13 +62,88 @@ namespace CarrierGame.Tests
         [Test]
         public void WhatIsntACodeIsntRead()
         {
-            foreach (var bad in new[] { null, "", "tiger", "1.2.3", "2.0.100.0.ffffff.ffffff.ffffff.ffffff.0.", "1.x.100.0.ffffff.ffffff.ffffff.ffffff.0.",
+            foreach (var bad in new[] { null, "", "tiger", "1.2.3", "3.0.100.0.ffffff.ffffff.ffffff.ffffff.0.", "2.0.100.0.ffffff.ffffff.ffffff.ffffff.0.",
+                                        "2.0.100.0.ffffff.ffffff.ffffff.ffffff.0.1,2,3.A", "2.0.100.0.ffffff.ffffff.ffffff.ffffff.0.1,2,3,4,5,6,7,8,9,x.A", "1.x.100.0.ffffff.ffffff.ffffff.ffffff.0.",
                                         "1.0.100.0.fffff.ffffff.ffffff.ffffff.0.", "1.0.100.0.gggggg.ffffff.ffffff.ffffff.0.", "1.0.100.0.ffffff.ffffff.ffffff.ffffff.0.A.B" })
                 Assert.That(PaintScheme.TryParse(bad, out _), Is.False, bad ?? "(null)");
             // (no lettering: the last part can be left off)
             Assert.That(PaintScheme.TryParse("1.5.100.0.ffffff.000000.ff0000.ffffff.-1", out var s), Is.True);
             Assert.That(s.text, Is.EqualTo(""));
             Assert.That(s.logo, Is.EqualTo(-1));
+        }
+
+        [Test]
+        public void AMovedLogoAndLetteringGoInAVersionTwoCode()
+        {
+            var s = new PaintScheme { pattern = 90, primary = PaintScheme.C("d9731a"), secondary = PaintScheme.C("1a1a1a"),
+                                      trim = PaintScheme.C("e8dcc0"), letters = PaintScheme.C("1a1a1a"), logo = 8, text = "TIGER-01" };
+            Assert.That(s.Placed, Is.False);
+            Assert.That(s.ToCode(), Does.StartWith("1."), "not moved: a version 1 code, as older games read");
+            s.logoAlong = -20; s.logoUp = 10; s.logoSize = 150; s.logoTurn = 30; s.logoSides = PaintScheme.PortOnly;
+            s.textAlong = 5; s.textUp = -15; s.textSize = 80; s.textTurn = 350; s.textSides = PaintScheme.StarboardOnly;
+            string code = s.ToCode();
+            Assert.That(code, Is.EqualTo("2.90.100.0.d9731a.1a1a1a.e8dcc0.1a1a1a.8.-20,10,150,30,1,5,-15,80,350,2.TIGER-01"));
+            Assert.That(PaintScheme.TryParse(code, out var back), Is.True);
+            Assert.That(back.ToCode(), Is.EqualTo(code));
+            Assert.That(back.logoTurn, Is.EqualTo(30));
+            Assert.That(back.textSides, Is.EqualTo(PaintScheme.StarboardOnly));
+            // (no lettering, still read)
+            Assert.That(PaintScheme.TryParse("2.5.100.0.ffffff.000000.ff0000.ffffff.-1.0,0,100,0,0,0,0,100,0,1", out var bare), Is.True);
+            Assert.That(bare.text, Is.EqualTo(""));
+            Assert.That(bare.textSides, Is.EqualTo(PaintScheme.PortOnly));
+            // out of range: clamped
+            Assert.That(PaintScheme.TryParse("2.5.100.0.ffffff.000000.ff0000.ffffff.-1.99,-99,9999,-30,7,0,0,1,720,0", out var wild), Is.True);
+            Assert.That(wild.logoAlong, Is.EqualTo(PaintScheme.MaxShift));
+            Assert.That(wild.logoUp, Is.EqualTo(-PaintScheme.MaxShift));
+            Assert.That(wild.logoSize, Is.EqualTo(PaintScheme.MaxDecal));
+            Assert.That(wild.logoTurn, Is.EqualTo(330));
+            Assert.That(wild.logoSides, Is.EqualTo(PaintScheme.BothSides));
+            Assert.That(wild.textSize, Is.EqualTo(PaintScheme.MinDecal));
+            Assert.That(wild.textTurn, Is.EqualTo(0));
+            // and put back: version 1 again
+            s.ResetPlacement();
+            Assert.That(s.Placed, Is.False);
+            Assert.That(s.ToCode(), Is.EqualTo("1.90.100.0.d9731a.1a1a1a.e8dcc0.1a1a1a.8.TIGER-01"));
+        }
+
+        [Test]
+        public void TheLogoGoesWhereItIsMovedOnTheHull()
+        {
+            var bounds = new Bounds(Vector3.zero, new Vector3(50f, 60f, 180f));
+            var home = ShipPaint.Decals(new PaintScheme { logo = 2, text = "AB" }, bounds, ShipPaint.Fallback);
+            var moved = ShipPaint.Decals(new PaintScheme { logo = 2, text = "AB", logoAlong = -20, logoUp = 10, logoSize = 200, logoTurn = 90,
+                                                           textSides = PaintScheme.PortOnly }, bounds, ShipPaint.Fallback);
+            Assert.That(moved.logo.x - home.logo.x, Is.EqualTo(-0.2f * 180f).Within(1e-3f), "20% of the length toward the stern");
+            Assert.That(moved.logo.y - home.logo.y, Is.EqualTo(0.1f * 60f).Within(1e-3f), "10% of the height up");
+            Assert.That(moved.logo.z, Is.EqualTo(home.logo.z * 2f).Within(1e-3f), "twice the size");
+            Assert.That(moved.xform.x, Is.EqualTo(Mathf.PI / 2f).Within(1e-4f), "turned a quarter");
+            Assert.That(moved.xform.w, Is.EqualTo(PaintScheme.PortOnly), "the lettering on the port side only");
+            Assert.That(home.xform, Is.EqualTo(Vector4.zero));
+            // kept on the hull however far it's pushed
+            var far = ShipPaint.Decals(new PaintScheme { logo = 2, logoAlong = 45, logoUp = 45 }, bounds, ShipPaint.Fallback);
+            Assert.That(far.logo.x, Is.LessThanOrEqualTo(Mathf.Lerp(bounds.min.z, bounds.max.z, ShipPaint.DecalMax) + 1e-3f));
+            Assert.That(far.logo.y, Is.LessThanOrEqualTo(Mathf.Lerp(bounds.min.y, bounds.max.y, ShipPaint.DecalMax) + 1e-3f));
+            // (and the lettering, however big, never longer than most of the ship)
+            var big = ShipPaint.Decals(new PaintScheme { text = "ABCDEFGHIJKL", textSize = PaintScheme.MaxDecal }, bounds, ShipPaint.Fallback);
+            Assert.That(big.text.z * 0.75f * 12f, Is.LessThanOrEqualTo(0.9f * 180f + 1e-3f));
+            // (a decal that isn't there, moved: not a placement)
+            Assert.That(new PaintScheme { logo = -1, logoAlong = 10 }.Placed, Is.False);
+            Assert.That(new PaintScheme { text = "", textTurn = 30 }.Placed, Is.False);
+            // and a point on the side reads back as where along and up it is
+            var f = ShipPaint.Fractions(bounds, new Vector3(25f, 0f, 45f));
+            Assert.That(f.x, Is.EqualTo(0.75f).Within(1e-4f));
+            Assert.That(f.y, Is.EqualTo(0.5f).Within(1e-4f));
+        }
+
+        [Test]
+        public void APresetOrARandomSchemeLeavesTheLogoWhereItWasPut()
+        {
+            var mine = new PaintScheme { text = "HMS RAZOR", logoAlong = -10, textTurn = 15, textSides = PaintScheme.PortOnly };
+            var p = ShipPaint.FromPreset(2, mine);
+            Assert.That(p.logoAlong, Is.EqualTo(-10));
+            Assert.That(p.textTurn, Is.EqualTo(15));
+            var r = ShipPaint.Random(new System.Random(4), mine);
+            Assert.That(r.textSides, Is.EqualTo(PaintScheme.PortOnly));
         }
 
         [Test]

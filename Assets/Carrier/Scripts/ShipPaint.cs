@@ -17,8 +17,14 @@ namespace CarrierGame
     [Serializable]
     public class PaintScheme
     {
-        public const int Version = 1;
+        /// <summary>The code's version: 1, or 2 with the logo and lettering moved (Placed).</summary>
+        public const int Version = 2;
         public const int MinScale = 25, MaxScale = 400;
+        /// <summary>A decal moved along or up the hull by at most this many percent of it, and
+        /// sized from MinDecal to MaxDecal percent of the class's own size.</summary>
+        public const int MaxShift = 45, MinDecal = 40, MaxDecal = 250;
+        /// <summary>Which sides a decal is on.</summary>
+        public const int BothSides = 0, PortOnly = 1, StarboardOnly = 2;
 
         /// <summary>0 to 99: family (pattern / 10) and variant (pattern % 10).</summary>
         public int pattern;
@@ -35,6 +41,23 @@ namespace CarrierGame
         public int logo = -1;
         /// <summary>Up to ShipPaint.MaxLetters: A-Z, 0-9, the dash and space (SanitizeText).</summary>
         public string text = "";
+
+        // where the logo and the lettering are, from the class's own place (ShipPaint.Placement):
+        // moved along the hull (+ toward the bow) and up it, in percent of its length and height;
+        // their size in percent; turned by degrees (counterclockwise as read); on which sides
+        public int logoAlong, logoUp, logoSize = 100, logoTurn, logoSides;
+        public int textAlong, textUp, textSize = 100, textTurn, textSides;
+
+        /// <summary>Is the logo or the lettering anywhere but the class's own place?</summary>
+        public bool Placed => (logo >= 0 && (logoAlong != 0 || logoUp != 0 || logoSize != 100 || logoTurn != 0 || logoSides != 0))
+                           || (SanitizeText(text).Length > 0 && (textAlong != 0 || textUp != 0 || textSize != 100 || textTurn != 0 || textSides != 0));
+
+        /// <summary>The logo and the lettering back at the class's own place.</summary>
+        public void ResetPlacement()
+        {
+            logoAlong = logoUp = logoTurn = logoSides = textAlong = textUp = textTurn = textSides = 0;
+            logoSize = textSize = 100;
+        }
 
         public PaintScheme Clone() => (PaintScheme)MemberwiseClone();
 
@@ -60,16 +83,33 @@ namespace CarrierGame
             s.logo = logo < 0 || logo >= ShipPaint.Logos ? -1 : logo;
             s.text = SanitizeText(text);
             s.primary.a = s.secondary.a = s.trim.a = s.letters.a = 255;
+            s.logoAlong = Mathf.Clamp(logoAlong, -MaxShift, MaxShift);
+            s.logoUp = Mathf.Clamp(logoUp, -MaxShift, MaxShift);
+            s.logoSize = Mathf.Clamp(logoSize, MinDecal, MaxDecal);
+            s.logoTurn = ((logoTurn % 360) + 360) % 360;
+            s.logoSides = logoSides < 0 || logoSides > StarboardOnly ? BothSides : logoSides;
+            s.textAlong = Mathf.Clamp(textAlong, -MaxShift, MaxShift);
+            s.textUp = Mathf.Clamp(textUp, -MaxShift, MaxShift);
+            s.textSize = Mathf.Clamp(textSize, MinDecal, MaxDecal);
+            s.textTurn = ((textTurn % 360) + 360) % 360;
+            s.textSides = textSides < 0 || textSides > StarboardOnly ? BothSides : textSides;
             return s;
         }
 
+        /// <summary>The scheme as a code. With the logo and lettering where the class puts them,
+        /// a version 1 code, as games before placement read; moved, version 2, with the
+        /// placement ("along,up,size,turn,sides" for the logo, then the lettering) before the text.</summary>
         public string ToCode()
         {
             var s = Clamped();
-            return string.Join(".", Version.ToString(CultureInfo.InvariantCulture), s.pattern.ToString(CultureInfo.InvariantCulture),
-                               s.scale.ToString(CultureInfo.InvariantCulture), s.angle.ToString(CultureInfo.InvariantCulture),
-                               Hex(s.primary), Hex(s.secondary), Hex(s.trim), Hex(s.letters),
-                               s.logo.ToString(CultureInfo.InvariantCulture), s.text.Replace(' ', '_'));
+            string I(int v) => v.ToString(CultureInfo.InvariantCulture);
+            string head = string.Join(".", I(s.Placed ? Version : 1), I(s.pattern), I(s.scale), I(s.angle),
+                                      Hex(s.primary), Hex(s.secondary), Hex(s.trim), Hex(s.letters), I(s.logo));
+            string text = s.text.Replace(' ', '_');
+            if (!s.Placed) return head + "." + text;
+            string place = string.Join(",", I(s.logoAlong), I(s.logoUp), I(s.logoSize), I(s.logoTurn), I(s.logoSides),
+                                       I(s.textAlong), I(s.textUp), I(s.textSize), I(s.textTurn), I(s.textSides));
+            return head + "." + place + "." + text;
         }
 
         public override string ToString() => ToCode();
@@ -81,16 +121,28 @@ namespace CarrierGame
             scheme = null;
             if (string.IsNullOrEmpty(code)) return false;
             var parts = code.Trim().Split('.');
-            if (parts.Length < 9 || parts.Length > 10) return false;
-            if (!Int(parts[0], out int version) || version != Version) return false;
+            if (parts.Length < 9 || !Int(parts[0], out int version) || version < 1 || version > Version) return false;
+            // (version 2: the placement after the logo, then the text)
+            int textAt = version >= 2 ? 10 : 9;
+            if (parts.Length > textAt + 1 || (version >= 2 && parts.Length < 10)) return false;
             if (!Int(parts[1], out int pattern) || !Int(parts[2], out int scale) || !Int(parts[3], out int angle)) return false;
             if (!Col(parts[4], out var a) || !Col(parts[5], out var b) || !Col(parts[6], out var c) || !Col(parts[7], out var d)) return false;
             if (!Int(parts[8], out int logo)) return false;
-            scheme = new PaintScheme
+            var read = new PaintScheme
             {
                 pattern = pattern, scale = scale, angle = angle, primary = a, secondary = b, trim = c, letters = d, logo = logo,
-                text = parts.Length > 9 ? parts[9] : "",
-            }.Clamped();
+                text = parts.Length > textAt ? parts[textAt] : "",
+            };
+            if (version >= 2)
+            {
+                var p = parts[9].Split(',');
+                var v = new int[10];
+                if (p.Length != 10) return false;
+                for (int i = 0; i < 10; i++) if (!Int(p[i], out v[i])) return false;
+                read.logoAlong = v[0]; read.logoUp = v[1]; read.logoSize = v[2]; read.logoTurn = v[3]; read.logoSides = v[4];
+                read.textAlong = v[5]; read.textUp = v[6]; read.textSize = v[7]; read.textTurn = v[8]; read.textSides = v[9];
+            }
+            scheme = read.Clamped();
             return true;
         }
 
@@ -226,8 +278,16 @@ namespace CarrierGame
         public static PaintScheme FromPreset(int i, PaintScheme keep = null)
         {
             var s = Presets[Mathf.Clamp(i, 0, Presets.Length - 1)].Scheme;
-            if (keep != null) s.text = keep.text;
+            if (keep != null) { s.text = keep.text; KeepPlacement(s, keep); }
             return s;
+        }
+
+        /// <summary>The logo and lettering left where the player put them (a new preset or a
+        /// random scheme changes the colours, not where they are).</summary>
+        static void KeepPlacement(PaintScheme s, PaintScheme keep)
+        {
+            s.logoAlong = keep.logoAlong; s.logoUp = keep.logoUp; s.logoSize = keep.logoSize; s.logoTurn = keep.logoTurn; s.logoSides = keep.logoSides;
+            s.textAlong = keep.textAlong; s.textUp = keep.textUp; s.textSize = keep.textSize; s.textTurn = keep.textTurn; s.textSides = keep.textSides;
         }
 
         /// <summary>A random scheme: any pattern, three colours from the palette that differ, a logo.</summary>
@@ -246,6 +306,7 @@ namespace CarrierGame
                 logo = rng.Next(Logos),
                 text = keep != null ? keep.text : "",
             };
+            if (keep != null) KeepPlacement(s, keep);
             return s;
         }
 
@@ -375,6 +436,7 @@ namespace CarrierGame
                             ScaleId = Shader.PropertyToID("_PaintScale"), AngleId = Shader.PropertyToID("_PaintAngle"),
                             MinId = Shader.PropertyToID("_PaintBoundsMin"), MaxId = Shader.PropertyToID("_PaintBoundsMax"),
                             LogoRectId = Shader.PropertyToID("_LogoRect"), TextRectId = Shader.PropertyToID("_TextRect"),
+                            DecalXformId = Shader.PropertyToID("_DecalXform"),
                             Text0Id = Shader.PropertyToID("_Text0"), Text1Id = Shader.PropertyToID("_Text1"), Text2Id = Shader.PropertyToID("_Text2"),
                             LogoTexId = Shader.PropertyToID("_LogoTex"), FontTexId = Shader.PropertyToID("_FontTex");
 
@@ -552,6 +614,7 @@ namespace CarrierGame
             var d = Decals(s, b, place);
             m.SetVector(LogoRectId, d.logo);
             m.SetVector(TextRectId, d.text);
+            m.SetVector(DecalXformId, d.xform);
             m.SetVector(Text0Id, d.letters[0]);
             m.SetVector(Text1Id, d.letters[1]);
             m.SetVector(Text2Id, d.letters[2]);
@@ -599,20 +662,54 @@ namespace CarrierGame
             !string.IsNullOrEmpty(frigate) && placements.TryGetValue(frigate, out var p) ? p : Fallback;
 
         /// <summary>The shader's decal values for a scheme on a ship's bounds: the logo's
-        /// (z, y, half size, index), the lettering's (z, y, letter height, count) and the letters.</summary>
-        public static (Vector4 logo, Vector4 text, Vector4[] letters) Decals(PaintScheme s, Bounds b, Placement place)
+        /// (z, y, half size, index), the lettering's (z, y, letter height, count), the letters, and
+        /// both turns and sides (logo turn in radians, logo sides, lettering turn, lettering sides).
+        /// The player's placement moves and sizes them from the class's own place, kept on the hull.</summary>
+        /// <summary>How far toward the hull's ends a decal's centre can go (fractions of it).</summary>
+        public const float DecalMin = 0.05f, DecalMax = 0.95f;
+
+        public static (Vector4 logo, Vector4 text, Vector4[] letters, Vector4 xform) Decals(PaintScheme s, Bounds b, Placement place)
         {
+            s = s.Clamped();
             float len = Mathf.Max(1f, b.size.z), height = Mathf.Max(1f, b.size.y);
-            float half = 0.5f * Mathf.Min(place.logoSize * height, 0.14f * len);
-            var logo = new Vector4(Mathf.Lerp(b.min.z, b.max.z, place.logoZ), Mathf.Lerp(b.min.y, b.max.y, place.logoY), half, s.logo);
+            float half = 0.5f * Mathf.Min(place.logoSize * height, 0.14f * len) * s.logoSize / 100f;
+            // (the centre kept on the hull, a little in from its ends)
+            float logoZ = Mathf.Clamp(place.logoZ + s.logoAlong / 100f, DecalMin, DecalMax);
+            float logoY = Mathf.Clamp(place.logoY + s.logoUp / 100f, DecalMin, DecalMax);
+            var logo = new Vector4(Mathf.Lerp(b.min.z, b.max.z, logoZ), Mathf.Lerp(b.min.y, b.max.y, logoY), half, s.logo);
             string t = PaintScheme.SanitizeText(s.text);
-            // (the letters no longer than about half the ship)
-            float h = t.Length > 0 ? Mathf.Min(place.textSize * height, 0.5f * len / (t.Length * 0.75f)) : 1f;
-            var text = new Vector4(Mathf.Lerp(b.min.z, b.max.z, place.textZ), Mathf.Lerp(b.min.y, b.max.y, place.textY), h, t.Length);
+            // (the letters no longer than about half the ship, at the class's size)
+            float h = t.Length > 0 ? Mathf.Min(Mathf.Min(place.textSize * height, 0.5f * len / (t.Length * 0.75f)) * s.textSize / 100f,
+                                               0.9f * len / (t.Length * 0.75f)) : 1f;
+            float textZ = Mathf.Clamp(place.textZ + s.textAlong / 100f, DecalMin, DecalMax);
+            float textY = Mathf.Clamp(place.textY + s.textUp / 100f, DecalMin, DecalMax);
+            var text = new Vector4(Mathf.Lerp(b.min.z, b.max.z, textZ), Mathf.Lerp(b.min.y, b.max.y, textY), h, t.Length);
             var letters = new Vector4[3];
             for (int i = 0; i < MaxLetters; i++)
                 letters[i / 4][i % 4] = i < t.Length ? PaintScheme.LetterCode(t[i]) : 0f;
-            return (logo, text, letters);
+            var xform = new Vector4(s.logoTurn * Mathf.Deg2Rad, s.logoSides, s.textTurn * Mathf.Deg2Rad, s.textSides);
+            return (logo, text, letters, xform);
         }
+
+        /// <summary>The bounds (in its own space) a painted ship's logo and lettering are placed in,
+        /// read back from its paint; false if it isn't painted.</summary>
+        public static bool PaintedBounds(GameObject root, out Bounds b)
+        {
+            b = default;
+            if (root == null) return false;
+            foreach (var r in root.GetComponentsInChildren<Renderer>(true))
+                foreach (var m in r.sharedMaterials)
+                    if (m != null && painted.ContainsKey(m))
+                    {
+                        b.SetMinMax(m.GetVector(MinId), m.GetVector(MaxId));
+                        return true;
+                    }
+            return false;
+        }
+
+        /// <summary>The placement fractions (along 0 stern to 1 bow, up 0 keel to 1 top) a point on
+        /// the hull's side is at, for dragging a decal on the preview: `local` in the ship's space.</summary>
+        public static Vector2 Fractions(Bounds b, Vector3 local) =>
+            new Vector2(Mathf.InverseLerp(b.min.z, b.max.z, local.z), Mathf.InverseLerp(b.min.y, b.max.y, local.y));
     }
 }

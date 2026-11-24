@@ -77,7 +77,7 @@ namespace CarrierGame.Demo
 
         // ------------------------------------------------------------ the queue
 
-        struct Waiting { public string text; public AudioClip clip; public float at; }
+        struct Waiting { public string text; public AudioClip clip; public float at; public int ticket; }
         readonly Queue<Waiting> queue = new Queue<Waiting>();
         AudioSource source;
         /// <summary>Spoken so far: from a stock clip, and by the live voice (for the tests).</summary>
@@ -122,7 +122,16 @@ namespace CarrierGame.Demo
         {
             if (!Enabled || string.IsNullOrWhiteSpace(text)) return;
             text = text.Trim();
-            queue.Enqueue(new Waiting { text = text, clip = StockClip(text), at = Time.unscaledTime });
+            var clip = StockClip(text);
+            // (no stock clip: the live voice starts on it now, so it's ready by its turn)
+            queue.Enqueue(new Waiting { text = text, clip = clip, at = Time.unscaledTime, ticket = clip == null ? LiveSubmit(text) : -1 });
+        }
+
+        void Play(AudioClip clip)
+        {
+            source.volume = SoundFX.Muted ? 0f : 0.9f;
+            source.clip = clip;
+            source.Play();
         }
 
         /// <summary>Everything stopped and the queue cleared.</summary>
@@ -140,18 +149,23 @@ namespace CarrierGame.Demo
             Speaking = null;
             while (queue.Count > 0)
             {
-                var w = queue.Dequeue();
-                if (Time.unscaledTime - w.at > MaxWait) continue;
+                var w = queue.Peek();
+                if (Time.unscaledTime - w.at > MaxWait) { queue.Dequeue(); LiveForget(w.ticket); continue; }
                 if (w.clip != null)
                 {
-                    source.volume = SoundFX.Muted ? 0f : 0.9f;
-                    source.clip = w.clip;
-                    source.Play();
+                    queue.Dequeue();
+                    Play(w.clip);
                     StockSpoken++;
                     Speaking = w.text;
                     return;
                 }
-                if (LiveSay(w.text)) { LiveSpoken++; Speaking = w.text; return; }
+                switch (LiveTake(w.text, w.ticket, out var live))
+                {
+                    case Live.Waiting: return;   // (still being made: a moment)
+                    case Live.Clip: queue.Dequeue(); Play(live); LiveSpoken++; Speaking = w.text; return;
+                    case Live.Spoken: queue.Dequeue(); LiveSpoken++; Speaking = w.text; return;
+                    default: queue.Dequeue(); continue;   // (no live voice here: shown, not said)
+                }
             }
         }
     }

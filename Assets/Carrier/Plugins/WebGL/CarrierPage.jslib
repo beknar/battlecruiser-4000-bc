@@ -12,10 +12,27 @@ mergeInto(LibraryManager.library, {
   CarrierPadRumble: function (low, high, ms) {
     if (typeof window.carrierRumble === "function") window.carrierRumble(low, high, ms);
   },
-  // Quit from the pause menu: a page can't close its own tab, so the page shuts the game down
-  // (and offers to start it again); without the page's handler, nothing happens
+  // Quit from the pause menu. A page can't close its own tab, and the engine can't be shut down
+  // in a page that stays open: its own main loop and mouse and key listeners outlive it, and
+  // call into freed memory ("memory access out of bounds", "null function"). So the game has
+  // saved; this writes the save to the browser's storage, after the frame, and the page then
+  // leaves for its "ended" page (window.carrierQuit). Without the page's handler, nothing happens.
   CarrierPageQuit: function () {
     console.log("[Page] quit");
-    if (typeof window.carrierQuit === "function") window.carrierQuit();
+    var left = false;
+    function leave() {
+      if (left) return;
+      left = true;
+      if (typeof window.carrierQuit === "function") window.carrierQuit();
+    }
+    setTimeout(function () {
+      try {
+        FS.syncfs(false, function (err) {
+          if (err) console.warn("[Page] the save didn't reach the browser's storage: " + err);
+          leave();
+        });
+      } catch (e) { leave(); }
+      setTimeout(leave, 2000);   // never stuck on a sync that doesn't come back
+    }, 0);
   },
 });

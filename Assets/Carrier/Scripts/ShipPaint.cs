@@ -687,6 +687,22 @@ namespace CarrierGame
             return (logo, text, letters, xform);
         }
 
+        /// <summary>The bounds (in its own space) a painted ship's logo and lettering are placed in,
+        /// read back from its paint; false if it isn't painted.</summary>
+        public static bool PaintedBounds(GameObject root, out Bounds b)
+        {
+            b = default;
+            if (root == null) return false;
+            foreach (var r in root.GetComponentsInChildren<Renderer>(true))
+                foreach (var m in r.sharedMaterials)
+                    if (m != null && painted.ContainsKey(m))
+                    {
+                        b.SetMinMax(m.GetVector(MinId), m.GetVector(MaxId));
+                        return true;
+                    }
+            return false;
+        }
+
         /// <summary>The placement fractions (along 0 stern to 1 bow, up 0 keel to 1 top) a point on
         /// the hull's side is at, for dragging a decal on the preview: `local` in the ship's space.</summary>
         public static Vector2 Fractions(Bounds b, Vector3 local) =>

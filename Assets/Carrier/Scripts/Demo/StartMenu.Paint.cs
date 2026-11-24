@@ -15,6 +15,11 @@ namespace CarrierGame.Demo
     /// (W/S) a row, left/right (A/D) change it (held: repeats), Q/E the pattern family, T type the
     /// lettering (Enter or up/down to stop), R random, Enter or Space done, Esc back. Pad: D-pad or
     /// left stick, LB/RB the pattern family, Y random, X reset, A done, B back.
+    ///
+    /// The PLACE page (P, the pad's View button, or its tab) takes the right-hand column instead
+    /// of the colours: where the logo or the lettering is on the hull (along it and up it), its
+    /// size, its turn and which sides it's on, and "Put back". On the picture then, the left
+    /// button drags the one chosen about the hull, and the right button turns the ship.
     /// </summary>
     public partial class StartMenu
     {
@@ -46,7 +51,68 @@ namespace CarrierGame.Demo
         int typeFrame = -10;          // T pressed to type: that key isn't typed
 
         const int RowPreset = 0, RowPattern = 1, RowScale = 2, RowAngle = 3, RowSlot = 4, RowSwatch = 5,
-                  RowHue = 6, RowSat = 7, RowVal = 8, RowLogo = 9, RowText = 10, Rows = 11;
+                  RowHue = 6, RowSat = 7, RowVal = 8, RowLogo = 9, RowText = 10,
+                  // (the PLACE page's, in the right-hand column instead of the colours)
+                  RowDecal = 11, RowAlong = 12, RowUp = 13, RowSize = 14, RowTurn = 15, RowSides = 16, Rows = 17;
+        static readonly string[] SideNames = { "Both sides", "Port", "Starboard" };
+
+        /// <summary>The PLACE page is up (where the logo and lettering are), not the colours.</summary>
+        bool placing;
+        /// <summary>The logo is being placed (else the lettering).</summary>
+        bool placeLogo = true;
+        bool draggingDecal;
+
+        /// <summary>The PLACE page is showing (for the tests).</summary>
+        public bool Placing => Customising && placing;
+
+        // the placement of the one being placed
+        ref int Along { get { if (placeLogo) return ref edit.logoAlong; return ref edit.textAlong; } }
+        ref int Up { get { if (placeLogo) return ref edit.logoUp; return ref edit.textUp; } }
+        ref int Size { get { if (placeLogo) return ref edit.logoSize; return ref edit.textSize; } }
+        ref int Turn { get { if (placeLogo) return ref edit.logoTurn; return ref edit.textTurn; } }
+        ref int Sides { get { if (placeLogo) return ref edit.logoSides; return ref edit.textSides; } }
+
+        /// <summary>Is a row on the page showing (the left half always; the right, the colours or PLACE)?</summary>
+        bool RowShown(int row) => row <= RowAngle || (placing ? row >= RowDecal : row <= RowText);
+
+        /// <summary>The PLACE page up or down (the right-hand column's rows go with it).</summary>
+        public void TogglePlacing()
+        {
+            placing = !placing;
+            draggingDecal = false;
+            if (!RowShown(focus)) focus = placing ? RowDecal : RowSlot;
+            // (the lettering's field isn't drawn on the PLACE page: no longer typed into)
+            typing = false;
+            GUIUtility.keyboardControl = 0;
+            SoundFX.Ui(Sfx.UiClear);
+        }
+
+        /// <summary>The one being placed back where the class puts it.</summary>
+        void PutBack()
+        {
+            Along = 0; Up = 0; Size = 100; Turn = 0; Sides = 0;
+            Touched(true, decal: true);
+            SoundFX.Ui(Sfx.UiClear);
+        }
+
+        /// <summary>The one being placed moved to where the pointer is on the preview's hull: the
+        /// pointer's ray onto the side of the hull's bounds that faces the camera.</summary>
+        void DragDecal(Vector2 gui, Rect pic)
+        {
+            if (previewModel == null || previewCam == null || !ShipPaint.PaintedBounds(previewModel, out var b)) return;
+            var t = previewModel.transform;
+            var ray = previewCam.ViewportPointToRay(new Vector3((gui.x - pic.x) / pic.width, 1f - (gui.y - pic.y) / pic.height, 0f));
+            Vector3 o = t.InverseTransformPoint(ray.origin), d = t.InverseTransformDirection(ray.direction);
+            float x = o.x >= b.center.x ? b.max.x : b.min.x;
+            if (Mathf.Abs(d.x) < 1e-5f) return;
+            float along = (x - o.x) / d.x;
+            if (along <= 0f) return;
+            var f = ShipPaint.Fractions(b, o + d * along);
+            var place = ShipPaint.PlacementFor(paintId);
+            Along = Mathf.Clamp(Mathf.RoundToInt((f.x - (placeLogo ? place.logoZ : place.textZ)) * 100f), -PaintScheme.MaxShift, PaintScheme.MaxShift);
+            Up = Mathf.Clamp(Mathf.RoundToInt((f.y - (placeLogo ? place.logoY : place.textY)) * 100f), -PaintScheme.MaxShift, PaintScheme.MaxShift);
+            Touched(true, decal: true);
+        }
         static readonly string[] SlotNames = { "Primary", "Secondary", "Trim", "Lettering" };
         const string TextControl = "paintLettering";
 
@@ -230,6 +296,12 @@ namespace CarrierGame.Demo
                 case RowSat: SyncHsv(); sat = Mathf.Clamp01(sat + dir * 0.04f); FromHsv(); break;
                 case RowVal: SyncHsv(); val = Mathf.Clamp01(val + dir * 0.04f); FromHsv(); break;
                 case RowLogo: edit.logo = (edit.logo + 1 + dir + ShipPaint.Logos + 1) % (ShipPaint.Logos + 1) - 1; break;
+                case RowDecal: placeLogo = !placeLogo; SoundFX.Ui(Sfx.UiClear); return;
+                case RowAlong: Along = Mathf.Clamp(Along + dir, -PaintScheme.MaxShift, PaintScheme.MaxShift); Touched(true, decal: true); return;
+                case RowUp: Up = Mathf.Clamp(Up + dir, -PaintScheme.MaxShift, PaintScheme.MaxShift); Touched(true, decal: true); return;
+                case RowSize: Size = Mathf.Clamp(Size + dir * 5, PaintScheme.MinDecal, PaintScheme.MaxDecal); Touched(true, decal: true); return;
+                case RowTurn: Turn = (Turn + dir * 5 + 360) % 360; Touched(true, decal: true); return;
+                case RowSides: Sides = (Sides + dir + 3) % 3; Touched(true, decal: true); return;
                 default: return;
             }
             Touched(decal: row == RowLogo || (slot == 3 && row >= RowSwatch && row <= RowVal));
@@ -297,6 +369,7 @@ namespace CarrierGame.Demo
                 if (k.qKey.wasPressedThisFrame) Family(-1);
                 if (k.eKey.wasPressedThisFrame) Family(+1);
                 if (k.rKey.wasPressedThisFrame) RandomScheme();
+                if (k.pKey.wasPressedThisFrame) TogglePlacing();
                 if (k.tKey.wasPressedThisFrame) { focus = RowText; wantType = true; typeFrame = Time.frameCount; }
                 if (k.escapeKey.wasPressedThisFrame || k.backspaceKey.wasPressedThisFrame) { BackFromPaint(); return; }
                 if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame || k.spaceKey.wasPressedThisFrame) { DonePainting(); return; }
@@ -319,12 +392,14 @@ namespace CarrierGame.Demo
                 if (pad.rightShoulder.wasPressedThisFrame) Family(+1);
                 if (pad.buttonNorth.wasPressedThisFrame) RandomScheme();
                 if (pad.buttonWest.wasPressedThisFrame) ResetScheme();
+                if (pad.selectButton.wasPressedThisFrame) TogglePlacing();
                 if (pad.buttonEast.wasPressedThisFrame) { BackFromPaint(); return; }
                 if (pad.buttonSouth.wasPressedThisFrame || pad.startButton.wasPressedThisFrame) { DonePainting(); return; }
             }
             if (vertical != 0)
             {
-                focus = (focus + vertical + Rows) % Rows;
+                // (the rows on the page: the right-hand column's are the colours' or PLACE's)
+                do focus = (focus + vertical + Rows) % Rows; while (!RowShown(focus));
                 if (focus == RowText) wantType = true;
                 SoundFX.Ui(Sfx.UiClear);
             }
@@ -345,13 +420,31 @@ namespace CarrierGame.Demo
         // ------------------------------------------------------------ turning the preview
 
         /// <summary>The mouse on the picture: drag to turn the ship (round and over), the wheel to
-        /// zoom, a double-click to put her back on the turntable.</summary>
+        /// zoom, a double-click to put her back on the turntable. With the PLACE page up, the left
+        /// button drags the logo or the lettering about the hull and the right one turns her.</summary>
         void TurnPreviewWithMouse(Rect pic)
         {
             var e = Event.current;
-            // (a release anywhere ends a turn, even one another control has used)
-            if (e.rawType == EventType.MouseUp && turningPreview) turningPreview = false;
-            if (e.type == EventType.MouseDown && e.button == 0 && pic.Contains(e.mousePosition))
+            // (a release anywhere ends a turn or a drag, even one another control has used)
+            if (e.rawType == EventType.MouseUp) { turningPreview = false; draggingDecal = false; }
+            if (placing && e.type == EventType.MouseDown && e.button == 0 && pic.Contains(e.mousePosition))
+            {
+                if (typing) { GUI.FocusControl(null); GUIUtility.keyboardControl = 0; }
+                draggingDecal = true;
+                DragDecal(e.mousePosition, pic);
+                e.Use();
+            }
+            else if (draggingDecal && e.type == EventType.MouseDrag)
+            {
+                DragDecal(e.mousePosition, pic);
+                e.Use();
+            }
+            else if (placing && e.type == EventType.MouseDown && e.button == 1 && pic.Contains(e.mousePosition))
+            {
+                turningPreview = true;
+                e.Use();
+            }
+            else if (e.type == EventType.MouseDown && e.button == 0 && pic.Contains(e.mousePosition) && !placing)
             {
                 // (a click on the picture stops the typing, as a click on nothing does)
                 if (typing) { GUI.FocusControl(null); GUIUtility.keyboardControl = 0; }
@@ -479,7 +572,8 @@ namespace CarrierGame.Demo
             if (factory) GUI.Label(new Rect(pic.x + 8f * s, pic.y + 6f * s, pic.width, 20f * s),
                                    $"<color=#9aa4b0>Factory finish{(PlainFactory ? "" : ", with the logo and lettering")}</color>", small);
             GUI.Label(new Rect(pic.x + 8f * s, pic.yMax - 22f * s, pic.width - 16f * s, 20f * s),
-                      "<color=#6f7a86>drag to turn, wheel to zoom, double-click: back on the turntable</color>", small);
+                      placing ? $"<color=#6f7a86>drag to move the {(placeLogo ? "logo" : "lettering")}, right-drag to turn, wheel to zoom</color>"
+                              : "<color=#6f7a86>drag to turn, wheel to zoom, double-click: back on the turntable</color>", small);
             TurnPreviewWithMouse(pic);
 
             float gy = pic.yMax + 12f * s;
@@ -523,10 +617,18 @@ namespace CarrierGame.Demo
             if (moved) { edit.angle = Mathf.RoundToInt(an / 5f) * 5 % 360; focus = RowAngle; Touched(); }
             GUI.Label(new Rect(angleRow.xMax - 64f * s, sy, 64f * s, 30f * s), $"{edit.angle}°", small);
 
-            // ---- the colours, the logo and the lettering, on the right
+            // ---- the colours, the logo and the lettering, on the right (or, PLACE, where the
+            // logo and lettering go): a tab for each
             float cy = top;
-            GUI.Label(new Rect(bx, cy, bw, 22f * s), "<b>COLOURS</b>", head);
-            cy += 26f * s;
+            var tabColours = new Rect(bx, cy - 4f * s, bw * 0.5f - 3f * s, 28f * s);
+            var tabPlace = new Rect(bx + bw * 0.5f + 3f * s, cy - 4f * s, bw * 0.5f - 3f * s, 28f * s);
+            Hud.Fill(tabColours, !placing ? new Color(0.25f, 0.45f, 0.8f, 0.55f) : new Color(1f, 1f, 1f, 0.05f));
+            Hud.Fill(tabPlace, placing ? new Color(0.25f, 0.45f, 0.8f, 0.55f) : new Color(1f, 1f, 1f, 0.05f));
+            GUI.Label(tabColours, "<b>COLOURS</b>", Hud.Text(15, !placing, TextAnchor.MiddleCenter));
+            GUI.Label(tabPlace, $"<b>PLACE</b> <color=#9aa4b0>({(Gamepad.current != null ? "View" : "P")})</color>", Hud.Text(15, placing, TextAnchor.MiddleCenter));
+            if (Clicked(placing ? tabColours : tabPlace)) TogglePlacing();
+            cy += 30f * s;
+            if (placing) { PlaceGUI(bx, cy, bw, s); BackAndDone(panel, pad, w, s); return; }
             float tw = bw / 4f;
             Focus(RowSlot, new Rect(bx - 3f * s, cy - 3f * s, bw + 6f * s, 46f * s));
             for (int i = 0; i < 4; i++)
@@ -625,18 +727,74 @@ namespace CarrierGame.Demo
             cy += 40f * s;
             GUI.Label(new Rect(bx, cy, bw, 20f * s), $"<color=#9aa4b0>A-Z, 0-9, - and spaces, up to {ShipPaint.MaxLetters}; in the lettering colour</color>", Hud.Text(12, false));
 
+            BackAndDone(panel, pad, w, s);
+
+            // a click on nothing in particular stops the typing
+            if (e.type == EventType.MouseDown && !textRect.Contains(e.mousePosition) && typing) { GUI.FocusControl(null); GUIUtility.keyboardControl = 0; }
+        }
+
+        /// <summary>The PLACE page: which one, where it is along and up the hull, its size and
+        /// turn, its sides, and Put back.</summary>
+        void PlaceGUI(float bx, float cy, float bw, float s)
+        {
+            var small = Hud.Text(13, false, TextAnchor.MiddleLeft);
+            var head = Hud.Text(15, false);
+            GUI.Label(new Rect(bx, cy, bw, 22f * s), "<b>MOVE</b>", head);
+            cy += 26f * s;
+            Focus(RowDecal, new Rect(bx - 3f * s, cy - 3f * s, bw + 6f * s, 46f * s));
+            for (int i = 0; i < 2; i++)
+            {
+                var r = new Rect(bx + i * bw * 0.5f + 2f * s, cy, bw * 0.5f - 4f * s, 40f * s);
+                bool sel = (i == 0) == placeLogo;
+                Hud.Fill(r, sel ? new Color(0.25f, 0.45f, 0.8f, 0.55f) : new Color(1f, 1f, 1f, 0.05f));
+                string what = i == 0 ? (edit.logo < 0 ? "Logo (none)" : "Logo") : (PaintScheme.SanitizeText(draft).Length == 0 ? "Lettering (none)" : "Lettering");
+                GUI.Label(r, what, Hud.Text(15, sel, TextAnchor.MiddleCenter));
+                if (Clicked(r)) { placeLogo = i == 0; focus = RowDecal; }
+            }
+            cy += 52f * s;
+            float lab = 92f * s;
+            void Row(int row, string name, int value, int min, int max, string shown, System.Action<int> set)
+            {
+                var r = new Rect(bx, cy, bw, 30f * s);
+                Focus(row, r);
+                GUI.Label(new Rect(bx, cy, lab, 30f * s), name, small);
+                float v = Slider(new Rect(bx + lab, cy, bw - lab - 64f * s, 30f * s), row, value, min, max, new Color(0.45f, 0.75f, 1f, 0.9f), out bool moved);
+                if (moved) { set(Mathf.RoundToInt(v)); focus = row; Touched(true, decal: true); }
+                GUI.Label(new Rect(r.xMax - 60f * s, cy, 60f * s, 30f * s), shown, small);
+                cy += 36f * s;
+            }
+            Row(RowAlong, "Along", Along, -PaintScheme.MaxShift, PaintScheme.MaxShift, $"{Along:+0;-0;0}%", v => Along = v);
+            Row(RowUp, "Up", Up, -PaintScheme.MaxShift, PaintScheme.MaxShift, $"{Up:+0;-0;0}%", v => Up = v);
+            Row(RowSize, "Size", Size, PaintScheme.MinDecal, PaintScheme.MaxDecal, $"{Size}%", v => Size = Mathf.RoundToInt(v / 5f) * 5);
+            Row(RowTurn, "Turn", Turn, 0, 359, $"{Turn}°", v => Turn = Mathf.RoundToInt(v / 5f) * 5 % 360);
+            Focus(RowSides, new Rect(bx - 3f * s, cy - 3f * s, bw + 6f * s, 40f * s));
+            for (int i = 0; i < 3; i++)
+            {
+                var r = new Rect(bx + i * bw / 3f + 2f * s, cy, bw / 3f - 4f * s, 34f * s);
+                bool sel = Sides == i;
+                Hud.Fill(r, sel ? new Color(0.25f, 0.45f, 0.8f, 0.55f) : new Color(1f, 1f, 1f, 0.05f));
+                GUI.Label(r, SideNames[i], Hud.Text(13, sel, TextAnchor.MiddleCenter));
+                if (Clicked(r)) { Sides = i; focus = RowSides; Touched(true, decal: true); }
+            }
+            cy += 46f * s;
+            Button(new Rect(bx, cy, bw * 0.5f, 38f * s), "Put back", false, PutBack);
+            cy += 48f * s;
+            GUI.Label(new Rect(bx, cy, bw, 60f * s),
+                      "<color=#9aa4b0>Drag on the picture to move it about the hull (on its sides: not the top or the belly). Along is toward the bow; Turn is as it reads.</color>",
+                      new GUIStyle(Hud.Text(12, false)) { wordWrap = true });
+        }
+
+        void BackAndDone(Rect panel, float pad, float w, float s)
+        {
             // ---- back and done
             var done = new Rect(panel.xMax - pad - 260f * s, panel.yMax - pad - 64f * s, 260f * s, 56f * s);
             Button(done, paintOnly ? "DONE" : "DONE: LAUNCH", true, DonePainting);
             launchRect = done;
             Button(new Rect(done.x - 150f * s, done.y + 8f * s, 136f * s, 44f * s), paintOnly ? "Cancel" : "Back", false, BackFromPaint);
             string hint = Gamepad.current != null
-                ? "D-pad rows / change   LB/RB pattern family   Y random   X reset   A done   B back"
-                : "Up/down rows   Left/right change   Q/E pattern family   T lettering   R random   Enter done   Esc back";
+                ? "D-pad rows / change   LB/RB pattern family   View place   Y random   X reset   A done   B back"
+                : "Up/down rows   Left/right change   Q/E pattern family   T lettering   P place   R random   Enter done   Esc back";
             GUI.Label(new Rect(panel.x + pad, panel.yMax - pad - 26f * s, w - 460f * s, 24f * s), $"<color=#9aa4b0>{hint}</color>", Hud.Text(13, false));
-
-            // a click on nothing in particular stops the typing
-            if (e.type == EventType.MouseDown && !textRect.Contains(e.mousePosition) && typing) { GUI.FocusControl(null); GUIUtility.keyboardControl = 0; }
         }
     }
 }

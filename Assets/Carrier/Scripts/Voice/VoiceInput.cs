@@ -58,7 +58,7 @@ namespace CarrierGame.Demo
             {
 #if UNITY_WEBGL && !UNITY_EDITOR
                 int s = CarrierVoiceSupported();
-                return s == 1 ? null : s == 2 ? "needs the page on https" : "not in this browser (Chrome or Edge have it)";
+                return s == 1 ? null : s == 2 ? "needs the page on https" : "not in this browser (Chrome, Edge or Safari have it)";
 #elif UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
                 return PhraseRecognitionSystem.isSupported ? null : "Windows speech recognition isn't on this machine";
 #else
@@ -74,7 +74,7 @@ namespace CarrierGame.Demo
             {
                 string why = WhyNot;
                 if (why != null) return $"Voice commands: {why}";
-                return Enabled ? "Voice commands: hold ` or the mouse's back button" : "Voice commands: off";
+                return !Enabled ? "Voice commands: off" : LaunchArgs.OnWeb ? "Voice commands: hold `" : "Voice commands: hold ` or the mouse's back button";
             }
         }
 
@@ -86,7 +86,7 @@ namespace CarrierGame.Demo
             Enabled = !Enabled;
             if (Enabled)
 #if UNITY_WEBGL && !UNITY_EDITOR
-                Notices.Post("Voice commands on: hold ` (or the mouse's back button) and speak. The browser sends what you say to its maker to recognise it, and asks for the microphone the first time.");
+                Notices.Post("Voice commands on: hold ` and speak. The browser sends what you say to its maker to recognise it, and asks for the microphone the first time.");
 #else
                 Notices.Post("Voice commands on: hold ` (or the mouse's back button) and speak. Windows dictation sends what you say to Microsoft to recognise it; without it, a short list of orders is heard offline.");
 #endif
@@ -94,7 +94,7 @@ namespace CarrierGame.Demo
 
         string lastBot;
         bool talking;
-        float workingUntil;
+        float workingUntil, stopAt = -1f;
 
         void Start()
         {
@@ -116,13 +116,14 @@ namespace CarrierGame.Demo
         void Update()
         {
             PollWeb();
+            if (stopAt >= 0f && Time.unscaledTime >= stopAt) { stopAt = -1f; StopListening(); if (Now == State.Working) Now = State.Idle; }
             if (Now == State.Working && Time.unscaledTime > workingUntil) { Now = State.Idle; StopListening(); }
             if (!Enabled || WhyNot != null) { if (talking) End(); return; }
             // (not while typing, or a menu has the keys)
             bool free = InputFocus.Holder == InputFocus.Panel.None || InputFocus.Holder == InputFocus.Panel.ModeMenu;
             var k = Keyboard.current;
             var m = Mouse.current;
-            bool held = free && ((k != null && k.backquoteKey.isPressed) || (m != null && m.backButton.isPressed));
+            bool held = free && ((k != null && k.backquoteKey.isPressed) || (m != null && m.backButton.isPressed && !LaunchArgs.OnWeb));
             if (held && !talking) Begin();
             else if (!held && talking) End();
         }
@@ -146,16 +147,23 @@ namespace CarrierGame.Demo
         /// <summary>What was heard: sent as an order to a wingman (or, not sure of it, not).</summary>
         public void Heard(string text, bool sure, IList<string> botsForTest = null)
         {
-            if (Now == State.Working) { Now = State.Idle; StopListening(); }
             if (string.IsNullOrWhiteSpace(text)) return;
             if (!sure) { Notices.Post($"Didn't catch that (heard \"{text.Trim()}\")"); return; }
             var bots = botsForTest ?? Bots();
             if (bots.Count == 0) { Notices.Post($"Heard \"{text.Trim()}\": no AI wingman in the game to give it to"); return; }
-            string msg = VoiceCommand.ToChat(text, bots, lastBot);
+            string msg = VoiceCommand.ToChat(text, bots, lastBot, out string to, botsForTest == null ? People() : null);
             if (msg == null) return;
-            foreach (var b in bots) if (msg.StartsWith(b + ",")) lastBot = b;
+            if (to != null) lastBot = to;
             LastSent = msg;
             if (botsForTest == null) CoopChat.Say(msg);
+        }
+
+        /// <summary>The other players (not AI wingmen) in the game, by name.</summary>
+        static List<string> People()
+        {
+            var c = CoopClient.Instance;
+            if (c == null || !CoopClient.Active) return new List<string>();
+            return c.Players.Where(p => p != null && p.id != c.MyId && !p.ai && !CoopBot.IsBot(p)).Select(p => p.name).ToList();
         }
 
         /// <summary>The AI wingmen in the game, by name.</summary>
@@ -170,13 +178,19 @@ namespace CarrierGame.Demo
         {
             yield return new WaitForSecondsRealtime(1f);
             var bots = new List<string> { "Wingman" };
-            foreach (var said in new[] { "um mine some asteroids please", "warp to Heaven then dock", "give me two thousand five hundred credits",
-                                         "hey wingman follow me", "all ships regroup" })
+            int bad = 0;
+            foreach (var (said, want) in new[] { ("um mine some asteroids please", "Wingman, mine some asteroids please"),
+                                                 ("warp to Heaven then dock", "Wingman, warp to Heaven then dock"),
+                                                 ("give me two thousand five hundred credits", "Wingman, give me 2500 credits"),
+                                                 ("hey wingman follow me", "Hey wingman follow me"),
+                                                 ("all ships regroup", "All ships regroup") })
             {
                 Heard(said, true, bots);
-                Debug.Log($"[VoiceTest] heard \"{said}\": sent \"{LastSent}\"");
+                bool ok = LastSent == want;
+                if (!ok) bad++;
+                Debug.Log($"[VoiceTest] {(ok ? "ok" : "FAIL")}: heard \"{said}\": sent \"{LastSent}\"");
             }
-            Debug.Log("[VoiceTest] done");
+            Debug.Log(bad == 0 ? "[VoiceTest] done: all sent as they should be" : $"[VoiceTest] done: {bad} FAILED");
             if (LaunchArgs.Has("-voicetest") && Application.isBatchMode) Application.Quit();
         }
 
@@ -196,9 +210,8 @@ namespace CarrierGame.Demo
 #if UNITY_WEBGL && !UNITY_EDITOR
             CarrierVoiceStop();
 #elif UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
-            // (dictation: given a moment after the key is let go to finish the phrase; keywords stop now)
-            if (keywords != null && keywords.IsRunning) keywords.Stop();
-            if (dictation != null && dictation.Status == SpeechSystemStatus.Running) Invoke(nameof(StopListening), 1.5f);
+            // (given a moment after the key is let go to finish the phrase, dictation or keywords)
+            stopAt = Time.unscaledTime + 1.5f;
 #endif
         }
 
@@ -243,12 +256,13 @@ namespace CarrierGame.Demo
 #if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
         DictationRecognizer dictation;
         KeywordRecognizer keywords;
-        bool noDictation;
+        string keywordsFor;
+        int dictationFailures;
 
         void WinStart()
         {
-            CancelInvoke(nameof(StopListening));
-            if (!noDictation)
+            stopAt = -1f;
+            if (dictationFailures < 2)
             {
                 try
                 {
@@ -259,10 +273,21 @@ namespace CarrierGame.Demo
                         dictation = new DictationRecognizer();
                         dictation.DictationResult += (text, confidence) =>
                             Heard(text, confidence != ConfidenceLevel.Rejected && confidence != ConfidenceLevel.Low);
+                        dictation.DictationComplete += cause =>
+                        {
+                            // (it stops by itself after a silence: again, while the key is still held)
+                            if ((cause == DictationCompletionCause.TimeoutExceeded || cause == DictationCompletionCause.Complete) && talking)
+                                dictation.Start();
+                            else if (cause == DictationCompletionCause.MicrophoneUnavailable)
+                                Notices.Post("Voice commands: no microphone (or Windows won't let the game have it: Settings > Privacy > Microphone)");
+                            else if (cause == DictationCompletionCause.NetworkFailure)
+                                Notices.Post("Voice commands: dictation needs the internet (it's recognised by Microsoft)");
+                        };
                         dictation.DictationError += (error, hresult) =>
                         {
-                            // (dictation off in Windows' settings, or no microphone allowed: keywords instead)
-                            noDictation = true;
+                            // (dictation off in Windows' settings, or no microphone allowed: keywords
+                            // instead, after a second failure, not for one that may pass)
+                            dictationFailures++;
                             Notices.Post($"Voice commands: Windows dictation isn't available ({error}); listening for a short list of orders instead. " +
                                          "Dictation needs Settings > Privacy > Speech: Online speech recognition, and the microphone allowed.");
                             if (Now != State.Idle) { Now = State.Idle; talking = false; }
@@ -273,17 +298,22 @@ namespace CarrierGame.Demo
                 }
                 catch (System.Exception e)
                 {
-                    noDictation = true;
+                    dictationFailures++;
                     Debug.Log($"[Voice] no dictation: {e.Message}");
                 }
             }
             try
             {
                 if (dictation != null && dictation.Status == SpeechSystemStatus.Running) dictation.Stop();
+                var bots = Bots().DefaultIfEmpty("Wingman").ToList();
+                var places = Places().ToList();
+                string sig = string.Join("|", bots) + "#" + string.Join("|", places);
+                if (keywords != null && keywordsFor != sig) { keywords.Dispose(); keywords = null; }
                 if (keywords == null)
                 {
-                    keywords = new KeywordRecognizer(VoiceCommand.Phrases(Bots().DefaultIfEmpty("Wingman"), Places()), ConfidenceLevel.Medium);
+                    keywords = new KeywordRecognizer(VoiceCommand.Phrases(bots, places), ConfidenceLevel.Medium);
                     keywords.OnPhraseRecognized += a => Heard(a.text, true);
+                    keywordsFor = sig;
                 }
                 if (PhraseRecognitionSystem.Status != SpeechSystemStatus.Running) PhraseRecognitionSystem.Restart();
                 if (!keywords.IsRunning) keywords.Start();
@@ -291,7 +321,7 @@ namespace CarrierGame.Demo
             catch (System.Exception e)
             {
                 Notices.Post($"Voice commands: Windows speech recognition didn't start ({e.Message})");
-                Enabled = false;
+                Debug.LogWarning($"[Voice] keywords: {e}");
                 talking = false;
                 Now = State.Idle;
             }

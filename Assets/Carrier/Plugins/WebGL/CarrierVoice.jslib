@@ -1,6 +1,6 @@
-// The browser's speech for the game (VoiceInput, WingmanVoice): recognition while the player holds
-// push-to-talk, and the wingman's voice. Nothing here calls into the game: it polls (as it does
-// the co-op socket), so nothing is left pointing into the game when the page leaves.
+// The browser's speech recognition for the game's voice commands (VoiceInput), while the player
+// holds push-to-talk. Nothing here calls into the game: it polls (as it does the co-op socket), so
+// nothing is left pointing into the game when the page leaves.
 mergeInto(LibraryManager.library, {
   // 1: speech recognition is here; 0: the browser has none (Firefox, Safari); 2: it has, but the
   // page isn't secure (http), so the microphone is out of reach
@@ -14,7 +14,8 @@ mergeInto(LibraryManager.library, {
   CarrierVoiceStart: function () {
     var R = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!R) return;
-    var v = window.carrierVoice || (window.carrierVoice = { heard: [], listening: false, rec: null });
+    var v = window.carrierVoice || (window.carrierVoice = { heard: [], listening: false, rec: null, wanted: false });
+    v.wanted = true;
     try { if (v.rec) v.rec.abort(); } catch (e) { }
     var rec = new R();
     rec.lang = "en-US";
@@ -22,7 +23,15 @@ mergeInto(LibraryManager.library, {
     rec.interimResults = false;
     rec.maxAlternatives = 1;
     rec.onstart = function () { v.listening = true; };
-    rec.onend = function () { v.listening = false; if (v.rec === rec) v.rec = null; v.heard.push("end|0|"); };
+    rec.onend = function () {
+      v.listening = false;
+      if (v.rec === rec) v.rec = null;
+      // (Chrome ends a session by itself after a silence or a minute: again, while still held)
+      if (v.wanted) { try { var again = new R(); again.lang = rec.lang; again.continuous = true; again.interimResults = false;
+                            again.onstart = rec.onstart; again.onend = rec.onend; again.onerror = rec.onerror; again.onresult = rec.onresult;
+                            v.rec = again; rec = again; again.start(); return; } catch (e) { } }
+      v.heard.push("end|0|");
+    };
     rec.onerror = function (e) { v.heard.push("error|0|" + (e.error || "unknown")); };
     rec.onresult = function (e) {
       for (var i = e.resultIndex; i < e.results.length; i++)
@@ -35,12 +44,8 @@ mergeInto(LibraryManager.library, {
   // push-to-talk let go: what was said so far is finished and comes in
   CarrierVoiceStop: function () {
     var v = window.carrierVoice;
+    if (v) v.wanted = false;
     if (v && v.rec) try { v.rec.stop(); } catch (e) { }
-  },
-
-  CarrierVoiceListening: function () {
-    var v = window.carrierVoice;
-    return v && v.listening ? 1 : 0;
   },
 
   // the next thing heard: "ok|confidence|words", "error|0|why" or "end|0|" (0: nothing)

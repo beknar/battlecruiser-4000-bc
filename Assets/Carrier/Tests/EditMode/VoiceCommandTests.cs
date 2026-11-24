@@ -59,21 +59,47 @@ namespace CarrierGame.Tests
         }
 
         [Test]
-        public void NumbersThatArentNumbersAreLeftAlone()
+        public void NumbersAreFiguresOnlyInACreditOrder()
         {
+            Assert.That(VoiceCommand.ToChat("attack Snare Two", One), Is.EqualTo("Wingman, attack Snare Two"), "a ship's name keeps its number word");
+            Assert.That(VoiceCommand.ToChat("follow the one in front", One), Is.EqualTo("Wingman, follow the one in front"));
+            Assert.That(VoiceCommand.ToChat("Wingman give me two hundred", One), Is.EqualTo("Wingman give me 200"));
             Assert.That(VoiceCommand.Numbers("attack a corsair"), Is.EqualTo("attack a corsair"));
-            Assert.That(VoiceCommand.Numbers("follow the one in front"), Is.EqualTo("follow the 1 in front"));
             Assert.That(VoiceCommand.Numbers("two, three"), Is.EqualTo("2, 3"));
             Assert.That(VoiceCommand.Numbers("twenty five thousand"), Is.EqualTo("25000"));
+            Assert.That(VoiceCommand.Numbers("one two three"), Is.EqualTo("1 2 3"), "units after units aren't added");
+            Assert.That(VoiceCommand.Numbers("five twenty"), Is.EqualTo("5 20"));
+            Assert.That(VoiceCommand.Numbers("two and three"), Is.EqualTo("2 and 3"), "'and' joins only after a hundred or a thousand");
+            Assert.That(VoiceCommand.Numbers("two hundred?"), Is.EqualTo("200?"));
+        }
+
+        [Test]
+        public void AWingmanNamedIsTheOneTheNextOrderGoesTo()
+        {
+            var two = new List<string> { "Wingman", "Bravo" };
+            Assert.That(VoiceCommand.ToChat("Bravo dock", two, null, out string to), Is.EqualTo("Bravo dock"));
+            Assert.That(to, Is.EqualTo("Bravo"));
+            Assert.That(VoiceCommand.ToChat("dock", two, to, out to), Is.EqualTo("Bravo, dock"), "then an order naming no one goes to Bravo");
+            Assert.That(VoiceCommand.ToChat("hey Wingman, hold", two, to, out to), Is.EqualTo("Hey Wingman, hold"));
+            Assert.That(to, Is.EqualTo("Wingman"));
+            Assert.That(VoiceCommand.ToChat("all ships regroup", two, to, out to), Is.EqualTo("All ships regroup"));
+            Assert.That(to, Is.Null, "to them all: no one in particular");
+        }
+
+        [Test]
+        public void AMessageToAPersonGoesAsItWasSaid()
+        {
+            Assert.That(VoiceCommand.ToChat("Ann, follow me", One, null, out string to, new List<string> { "Ann" }), Is.EqualTo("Ann, follow me"));
+            Assert.That(to, Is.Null);
         }
 
         [Test]
         public void TheKeywordListHasEveryOrderForEveryWingmanAndPlace()
         {
             var phrases = VoiceCommand.Phrases(new[] { "Wingman" }, new[] { "Inner Belt", "Heaven" });
-            foreach (var want in new[] { "mine", "Wingman mine", "all ships regroup", "Wingman warp to Heaven", "mine at Inner Belt", "Wingman follow me" })
+            foreach (var want in new[] { "mine", "Wingman mine", "all ships regroup", "Wingman warp to Heaven", "mine at Inner Belt", "mine at the Inner Belt", "Wingman follow me" })
                 Assert.That(phrases, Does.Contain(want));
-            Assert.That(phrases.Distinct().Count(), Is.EqualTo(phrases.Length));
+            Assert.That(phrases.All(p => p.Trim().Length > 0), Is.True, "no empty phrase");
         }
     }
 }

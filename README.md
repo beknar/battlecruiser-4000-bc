@@ -2272,7 +2272,7 @@ several wingmen it goes to the one last spoken to. A mark shows on the HUD while
   place).
 - **The web:** the browser's speech recognition, in Chrome or Edge, on an https page. It sends
   the audio to the browser's maker, and the browser asks for the microphone the first time.
-  Firefox and Safari have none.
+  Firefox has none.
 - **Linux:** not supported.
 - **Off by default.** The pad has no free button for push-to-talk, so it's the keyboard or the
   mouse. `-voicetest` (`?voicetest`) feeds it phrases instead of a microphone and logs what it

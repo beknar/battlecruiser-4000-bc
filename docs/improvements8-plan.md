@@ -44,6 +44,26 @@ that review changed.
 | Voice in | Nothing. No `Microphone`, speech recogniser or Web Speech code anywhere. |
 | Voice out | Nothing. The wingman is text only: about 150 personality lines in `wingman_dialogue.json` (54 with blanks), order replies built in `CoopBot.cs` with names, places and numbers, and free text from an LLM. The game has no audio mixer, and Unity's audio filters don't run on the web. |
 
+## As it was done
+
+All eleven pieces were merged, as #128 to #137. Where the work moved away from the plan:
+- **PR 1:** the list still scrolls with the wheel from anywhere on the screen. Its review found
+  that limiting it to the panel left dead bands where the wheel did nothing.
+- **PR 2:** the keyboard quit mode of the web test was dropped. With the stand-in mouse clicking
+  meanwhile it couldn't drive the menu reliably, and an old build's menu ignored synthetic keys.
+  The fix was tested by the in-frame quit `?quittest` and by quitting from the page.
+- **PR 6:**
+  - The pad has no push-to-talk: every input is taken.
+  - What was heard is sent at once, and shows as the player's own chat line. It isn't held in
+    the typing line first.
+  - Numbers become figures only in orders to hand over credits, so ship names like "Snare Two"
+    keep their words.
+- **PR 7a:** only the replies that are fixed, or differ only by a place, moved to the data file.
+  Those with numbers or names stay in code, where the live voice speaks them.
+- **PRs 7b and 8:** they were stacked and reviewed as one, so they landed together as #137.
+- **The voice model:** Piper's `en_US-norman-medium` (public domain, trained from scratch). Most
+  Piper voices, including `libritts_r`, are fine-tuned from Lessac, whose data is research-only.
+
 ## The PRs
 
 Each PR goes like this:

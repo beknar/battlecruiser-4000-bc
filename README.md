@@ -2259,6 +2259,25 @@ can't do what it was told. What it's doing is always shown on the HUD, over the 
 line of its own that doesn't fade ("Wingman: mining in Outer Drift: 34 t of ore aboard"), so an
 order isn't lost when its reply has faded.
 
+**Voice commands.** Orders can be spoken instead of typed: turn on Voice commands in the pause
+menu, then hold the ` key (or the mouse's back button) and speak, "mine at the Outer Drift" or
+"Wingman, warp to Heaven then dock". What was heard goes out on the comms channel as if it had
+been typed, with filler words left out, spoken numbers as figures ("give me two thousand
+credits" is `give me 2000 credits`) and the wingman's name put first if it wasn't said. With
+several wingmen it goes to the one last spoken to. A mark shows on the HUD while it listens.
+- **Windows:** the speech recognition built into Windows, so nothing is added to the download.
+  Dictation hears anything said, but it sends the audio to Microsoft to recognise it, and needs
+  Settings > Privacy > Speech: Online speech recognition. Without it, a short list of orders is
+  heard offline (each order, alone or after a wingman's name, and "warp to" or "mine at" each
+  place).
+- **The web:** the browser's speech recognition, in Chrome, Edge or Safari, on an https page. It sends
+  the audio to the browser's maker, and the browser asks for the microphone the first time.
+  Firefox has none.
+- **Linux:** not supported.
+- **Off by default.** The pad has no free button for push-to-talk, so it's the keyboard or the
+  mouse. `-voicetest` (`?voicetest`) feeds it phrases instead of a microphone and logs what it
+  would send.
+
 A message to it that isn't an order (`Wingman, how's it going?`) is talk. Its **chat mode**
 decides who answers talk:
 

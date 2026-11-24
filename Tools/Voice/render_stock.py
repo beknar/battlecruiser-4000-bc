@@ -144,11 +144,15 @@ def render(args):
             sys.exit("piper failed: " + r.stderr.decode(errors="replace")[-800:])
         # the radio: a squelch of static, the voice band-limited and compressed, a squelch again
         radio = ("anoisesrc=d=0.07:c=white:a=0.06[n1];anoisesrc=d=0.05:c=white:a=0.05[n2];"
-                 "[0:a]aresample=16000,highpass=f=320,lowpass=f=3300,acompressor=threshold=-20dB:ratio=4:attack=5:release=80,volume=1.5[v];"
+                 "[0:a]aresample=16000,highpass=f=320,lowpass=f=3300,acompressor=threshold=-20dB:ratio=4:attack=5:release=80,volume=2.6[v];"
                  "[n1]aresample=16000,highpass=f=800,lowpass=f=4000[s1];[n2]aresample=16000,highpass=f=800,lowpass=f=4000[s2];"
                  "[s1][v][s2]concat=n=3:v=0:a=1,aformat=sample_rates=16000:channel_layouts=mono[out]")
+        # (a clip no longer wanted goes, with its .meta; the others keep theirs, so Unity's ids for
+        # them don't change from one recording to the next)
+        wanted = {j["name"] for j in jobs}
         for old in os.listdir(OUT):
-            if old.endswith(".ogg") or old.endswith(".ogg.meta"):
+            stem = old.split(".")[0]
+            if (old.endswith(".ogg") or old.endswith(".ogg.meta")) and stem not in wanted:
                 os.remove(os.path.join(OUT, old))
         for j in jobs:
             dst = os.path.join(OUT, j["name"] + ".ogg")

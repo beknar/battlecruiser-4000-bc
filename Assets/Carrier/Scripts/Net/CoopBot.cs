@@ -164,12 +164,18 @@ namespace CarrierGame.Demo
             }
             // a fight starting is said once, whatever it says it is doing on the way in
             bool fighting = Pilot != null && Pilot.Fighting;
-            if (fighting && !wasFighting && CoopClient.Active)
+            if (fighting && !wasFighting && Pilot.Target != null)
             {
+                wasFighting = true;
                 var info = Pilot.Target.GetComponent<TargetInfo>();
-                CoopChat.Say($"{Me}: engaging {(info != null && !string.IsNullOrEmpty(info.Name) ? info.Name : Pilot.Target.name)}.");
+                if (CoopClient.Active) CoopChat.Say($"{Me}: engaging {(info != null && !string.IsNullOrEmpty(info.Name) ? info.Name : Pilot.Target.name)}.");
             }
-            wasFighting = fighting;
+            else if (!fighting && wasFighting)
+            {
+                // (and the fight over: said too when it goes back to mining, so the order isn't lost)
+                wasFighting = false;
+                if (CoopClient.Active && Pilot != null && Pilot.Current == Wingman.Order.Mine) CoopChat.Say($"{Me}: back to mining.");
+            }
             NextInChain();
             while (requests.TryDequeue(out var r)) Serve(r.ctx, r.body);
             CoopGifts.Tick();

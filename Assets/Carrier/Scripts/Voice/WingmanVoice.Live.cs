@@ -22,7 +22,7 @@ namespace CarrierGame.Demo
     {
         enum Live { None, Waiting, Clip, Spoken }
 
-#if (UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX || UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX) && !UNITY_WEBGL
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
         const string Lib = "bctts";
         [DllImport(Lib)] static extern int bctts_init();
         [DllImport(Lib)] static extern int bctts_speak(byte[] utf8, out IntPtr samples, out int rate);
@@ -103,15 +103,16 @@ namespace CarrierGame.Demo
             rate = 0;
             try
             {
-                if (bctts_init() != 1) return null;
+                int ok = bctts_init();
+                if (ok != 1) { Debug.LogWarning($"[Voice] the speech engine didn't start ({ok})"); return null; }
                 int n = bctts_speak(System.Text.Encoding.UTF8.GetBytes(Speakable(text) + "\0"), out IntPtr p, out rate);
-                if (n <= 0) return null;
+                if (n <= 0) { Debug.LogWarning($"[Voice] the speech engine said nothing ({n})"); return null; }
                 var pcm = new short[n];
                 Marshal.Copy(p, pcm, 0, n);
                 bctts_free(p);
                 return Radio(pcm, rate);
             }
-            catch (DllNotFoundException) { return null; }
+            catch (DllNotFoundException ex) { Debug.LogWarning($"[Voice] no speech engine: {ex.Message}"); return null; }
         }
 #elif UNITY_WEBGL && !UNITY_EDITOR
         [DllImport("__Internal")] static extern int CarrierSpeechSupported();

@@ -2288,6 +2288,15 @@ off with Wingman voice in the pause menu. The clean text is spoken, not the jamm
   no audio filters. The voice is Piper's `en_US-norman-medium`, which is public domain. Run the
   tool again (`--piper <piper.exe> --voice <onnx>`) after changing those lines; `--check` tells
   you whether every line has its clip.
+- **The live voice:** any other line (numbers, people's names, an LLM's own words) is spoken as
+  it comes in.
+  - **On Windows and Linux** it uses CMU Flite (BSD-style licence), built as a 4.7 MB native
+    library with its smallest voice, `cmu_us_kal16` (`Plugins/x86_64`, built by
+    `Tools/Voice/flite`; Flite's licence is beside it). It runs on a worker thread and takes
+    about 2 ms for a line, with the same radio sound put on in C#.
+  - **On the web** it is the browser's own voice (`speechSynthesis`), which adds nothing to the
+    download, so it has no radio sound.
+  - A line is always spoken whole by one voice, stock or live.
 
 A message to it that isn't an order (`Wingman, how's it going?`) is talk. Its **chat mode**
 decides who answers talk:

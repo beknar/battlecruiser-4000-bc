@@ -205,6 +205,8 @@ namespace CarrierGame.Demo
         /// <summary>A player joined: with nobody to follow yet, it forms up on them.</summary>
         void OnMessage(CoopMsg m)
         {
+            // (someone new in the room: what it's doing, said again at once)
+            if (m.t == CoopWire.Join) saidDoingAt = float.NegativeInfinity;
             if (m.t != CoopWire.Join || m.p == null || IsBot(m.p) || Pilot == null) return;
             if (Pilot.LeaderId != 0 || Pilot.Current != Wingman.Order.Hold || Pilot.Released) return;
             CallOffChain();
@@ -428,7 +430,7 @@ namespace CarrierGame.Demo
         }
 
         string saidDoing = "";
-        float saidDoingAt = float.NegativeInfinity;
+        float saidDoingAt = float.NegativeInfinity, nextDoingLook;
 
         /// <summary>What it's doing, for the players' HUD: when it changes (at most every 2 s), and
         /// every 15 s so a game that joins later has it.</summary>
@@ -436,8 +438,15 @@ namespace CarrierGame.Demo
         {
             if (!CoopClient.Active) { saidDoing = ""; return; }
             float now = Time.realtimeSinceStartup;
+            if (now < nextDoingLook) return;
+            nextDoingLook = now + 0.5f;
             string line = DoingLine();
-            if (line.Length == 0) return;
+            // (nothing to say any more, a ship lost say: the line taken down, once)
+            if (line.Length == 0)
+            {
+                if (saidDoing.Length > 0) { CoopChat.SayDoing(""); saidDoing = ""; saidDoingAt = now; }
+                return;
+            }
             bool changed = line != saidDoing;
             if ((changed && now - saidDoingAt >= 2f) || now - saidDoingAt >= 15f)
             {
@@ -447,7 +456,7 @@ namespace CarrierGame.Demo
             }
         }
 
-        /// <summary>What it's doing, in a few words ("mining the Outer Drift: 34 t of ore aboard").</summary>
+        /// <summary>What it's doing, in a few words ("mining in Outer Drift: 34 t of ore aboard").</summary>
         public string DoingLine()
         {
             var pl = Pilot;
@@ -472,7 +481,9 @@ namespace CarrierGame.Demo
         /// <summary>The mine order's line: where it mines (or sells), and the ore aboard (-1: not known).</summary>
         public static string MineLine(Wingman.MineStep step, string field, string market, float tonnes)
         {
-            string where = step >= Wingman.MineStep.ToMarket
+            string where = step == Wingman.MineStep.Leave
+                ? $"heading back to {(string.IsNullOrEmpty(field) ? "the nearest asteroid field" : field)}"
+                : step >= Wingman.MineStep.ToMarket
                 ? $"selling ore at {(string.IsNullOrEmpty(market) ? "the nearest market" : market)}"
                 : $"mining {(string.IsNullOrEmpty(field) ? "the nearest asteroid field" : "in " + field)}";
             return tonnes >= 0f ? $"{where}: {tonnes:F0} t of ore aboard" : where;

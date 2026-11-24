@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -51,6 +52,7 @@ namespace CarrierGame.Demo
         GUIStyle box, input;
         readonly List<float> heights = new List<float>();
         readonly List<string> doingLines = new List<string>();
+        readonly List<float> doingHeights = new List<float>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() { Lines.Clear(); Doings.Clear(); LastSeq = 0; Received = null; Instance = null; }
@@ -81,11 +83,15 @@ namespace CarrierGame.Demo
         [Serializable] class DoingMsg { public string t = CoopWire.Doing; public string text; }
 
         /// <summary>Tell everyone what this game's AI wingman is doing (CoopBot).</summary>
+        /// <summary>("": nothing to show any more, the line taken down.)</summary>
         public static void SayDoing(string text)
         {
-            if (!CoopClient.Active || string.IsNullOrWhiteSpace(text)) return;
-            CoopClient.Instance.Send(new DoingMsg { text = Clean(text, 120) });
+            if (!CoopClient.Active) return;
+            CoopClient.Instance.Send(new DoingMsg { text = Clean(text ?? "", DoingMax) });
         }
+
+        /// <summary>A wingman's line at most this long (a row of the HUD).</summary>
+        public const int DoingMax = 70;
 
         internal static void OnMessage(CoopMsg m)
         {
@@ -93,7 +99,7 @@ namespace CarrierGame.Demo
             if (m.t == CoopWire.Doing)
             {
                 if (string.IsNullOrWhiteSpace(m.text)) Doings.Remove(m.from);
-                else Doings[m.from] = (Clean(m.text, 120), Now);
+                else Doings[m.from] = (Clean(m.text, DoingMax), Now);
                 return;
             }
             if (m.t != CoopWire.Chat || string.IsNullOrWhiteSpace(m.text)) return;
@@ -233,18 +239,25 @@ namespace CarrierGame.Demo
             }
             float y = bottom - (typing ? inputH + 4 * s : 0f) - used;
             // over them, what each AI wingman is doing (always shown, while it keeps saying so)
+            // (only players in this room now: not one gone, or left behind in another room)
             doingLines.Clear();
-            foreach (var kv in Doings)
-                if (now - kv.Value.time < DoingKept && CoopClient.Instance != null)
-                    doingLines.Add($"{CoopClient.Instance.NameOf(kv.Key)}: {kv.Value.text}");
-            float dy = y - doingLines.Count * lh;
+            var client = CoopClient.Instance;
+            if (client != null)
+                foreach (var p in client.Players.OrderBy(q => q.id))
+                    if (p != null && p.level == client.RoomLevel && Doings.TryGetValue(p.id, out var d) && now - d.time < DoingKept)
+                        doingLines.Add($"{p.name}: {d.text}");
+            float total = 0f;
+            doingHeights.Clear();
+            foreach (var line in doingLines) { float h = Mathf.Max(lh, box.CalcHeight(new GUIContent(line), w)); doingHeights.Add(h); total += h; }
+            float dy = y - total, ry = dy;
             for (int i = 0; i < doingLines.Count; i++)
             {
-                var r = new Rect(x - 4 * s, dy + i * lh, w + 8 * s, lh);
+                var r = new Rect(x - 4 * s, ry, w + 8 * s, doingHeights[i]);
                 GUI.color = new Color(0f, 0f, 0f, 0.55f);
                 GUI.DrawTexture(r, Texture2D.whiteTexture);
                 GUI.color = new Color(1f, 0.8f, 0.45f, 1f);
-                GUI.Label(new Rect(x, r.y, w, lh), doingLines[i], box);
+                GUI.Label(new Rect(x, r.y, w, r.height), doingLines[i], box);
+                ry += doingHeights[i];
             }
             GUI.color = Color.white;
             Area = new Rect(x - 4 * s, dy, w + 8 * s, bottom - dy);

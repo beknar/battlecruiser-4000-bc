@@ -689,12 +689,22 @@ namespace CarrierGame.Demo
                 for (int i = 0; i < rowRects.Count; i++)
                     if (rowRects[i].Contains(gui)) { selected = scroll + i; return; }
             }
-            if (mouse != null)
+            if (mouse != null && OverPanel(mouse))
             {
                 float wheel = mouse.scroll.ReadValue().y;
                 if (wheel > 0.1f) Move(-1);
                 else if (wheel < -0.1f) Move(1);
             }
+        }
+
+        /// <summary>The panel as last drawn (GUI space), for the wheel: it scrolls the list only while
+        /// the pointer is over the panel.</summary>
+        Rect panelRect;
+
+        bool OverPanel(Mouse mouse)
+        {
+            Vector2 mp = mouse.position.ReadValue();
+            return panelRect.Contains(new Vector2(mp.x, Screen.height - mp.y));
         }
 
         /// <summary>Undock, or take off from the pad (K pressed with the screen up).</summary>
@@ -763,6 +773,7 @@ namespace CarrierGame.Demo
             float s = Hud.S;
             float W = Mathf.Min(Screen.width - 24f * s, 1220f * s), H = Mathf.Min(Screen.height - 24f * s, 720f * s);
             var panel = new Rect((Screen.width - W) * 0.5f, (Screen.height - H) * 0.5f, W, H);
+            panelRect = panel;
             Hud.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0.01f, 0.03f, 0.45f));
             Hud.Fill(panel, new Color(0.03f, 0.05f, 0.09f, 0.96f));
             Hud.Outline(panel, Mathf.Max(1f, s), new Color(1f, 1f, 1f, 0.12f));

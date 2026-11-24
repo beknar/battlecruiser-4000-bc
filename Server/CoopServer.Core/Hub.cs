@@ -25,14 +25,18 @@ public sealed class Hub
     public const int Protocol = CoopWire.Protocol;
     /// <summary>Messages that can wait to go out to one player.</summary>
     public const int QueueLength = 2000;
+    /// <summary>The most of one player's lines the chat log takes in a second.</summary>
+    public const int LogPerSecond = 5;
     readonly ServerConfig cfg;
     readonly object gate = new();
     readonly Dictionary<int, Player> players = new();
     readonly Dictionary<string, Room> rooms = new();
     readonly Stopwatch clock = Stopwatch.StartNew();
     int nextId = 1;
+    /// <summary>The comms channel's log (null: none kept).</summary>
+    readonly ChatLog? chatLog;
 
-    public Hub(ServerConfig cfg) { this.cfg = cfg; }
+    public Hub(ServerConfig cfg, ChatLog? chatLog = null) { this.cfg = cfg; this.chatLog = chatLog; }
 
     public double Now => clock.Elapsed.TotalSeconds;
     public int Count { get { lock (gate) return players.Count; } }
@@ -55,6 +59,15 @@ public sealed class Hub
         /// inside the hub's lock).</summary>
         public CancellationTokenSource? Session;
         public bool Overflowed;
+        // (the chat log takes at most LogPerSecond of a player's lines a second, so a game that
+        // floods the channel can't fill the disk; what it sends is still passed on)
+        double logSecond = double.MinValue;
+        int logged;
+        public bool MayLog(double now)
+        {
+            if (now - logSecond >= 1.0) { logSecond = now; logged = 0; }
+            return ++logged <= LogPerSecond;
+        }
         // what is waiting to go out; a player this far behind is let go rather than have
         // messages dropped (a lost 'room' would leave them wrong about who hosts)
         public readonly Channel<string> Out = Channel.CreateBounded<string>(new BoundedChannelOptions(QueueLength) { FullMode = BoundedChannelFullMode.Wait });
@@ -263,6 +276,8 @@ public sealed class Hub
         msg[CoopWire.From] = me.Id;
         lock (gate)
         {
+            if (chatLog != null && (t == CoopWire.Chat || t == CoopWire.Doing) && me.MayLog(Now))
+                chatLog.Add(Said(me, t, msg));
             if (Int(msg[CoopWire.To]) is int to && to > 0)
             {
                 if (players.TryGetValue(to, out var target)) Send(target, msg);
@@ -304,7 +319,10 @@ public sealed class Hub
                 ["epoch"] = room.Epoch,
                 ["host"] = room.Host,
             };
+            // (so the game can tell the player that what they say on comms is kept)
+            if (chatLog != null) welcome["chatLog"] = true;
             Send(me, welcome);
+            chatLog?.Add(Event(me, "join", room));
             foreach (int id in room.Members)
                 if (id != me.Id && players.TryGetValue(id, out var other))
                     Send(other, new JsonObject { ["t"] = CoopWire.Join, ["p"] = me.Public() });
@@ -313,10 +331,41 @@ public sealed class Hub
         Roster();
     }
 
+    /// <summary>The chat log's line for a message on comms (chat) or a wingman's "doing" line: the
+    /// room, who (their id, name, and whether they came with an AI key), who it was to if only
+    /// one player, how it was made ("via", which an AI player's game adds: order, personality,
+    /// llm ...; "voice" for a player's spoken command), and the text.</summary>
+    static JsonObject Said(Player me, string t, JsonObject msg) => new()
+    {
+        ["room"] = me.Level,
+        ["kind"] = t,
+        ["from"] = me.Id,
+        ["name"] = me.Name,
+        ["ai"] = me.KeyAi,
+        ["to"] = Int(msg[CoopWire.To]) is int to && to > 0 ? to : null,
+        ["via"] = Str(msg["via"]),
+        ["text"] = Str(msg["text"]) ?? "",
+    };
+
+    /// <summary>The chat log's line for a player coming into a room or leaving it (with who else
+    /// is there), so a conversation can be told from the next.</summary>
+    JsonObject Event(Player me, string kind, Room room)
+    {
+        var others = new JsonArray();
+        foreach (int id in room.Members)
+            if (id != me.Id && players.TryGetValue(id, out var p)) others.Add(new JsonObject { ["id"] = p.Id, ["name"] = p.Name, ["ai"] = p.KeyAi });
+        return new JsonObject
+        {
+            ["room"] = room.Level, ["kind"] = kind, ["from"] = me.Id, ["name"] = me.Name, ["ai"] = me.KeyAi,
+            ["client"] = me.Client, ["with"] = others,
+        };
+    }
+
     void LeaveRoom(Player me)
     {
         if (!rooms.TryGetValue(me.Level, out var room)) return;
         room.Members.Remove(me.Id);
+        chatLog?.Add(Event(me, "leave", room));
         foreach (int id in room.Members)
             if (players.TryGetValue(id, out var other)) Send(other, new JsonObject { ["t"] = CoopWire.Leave, ["id"] = me.Id });
         if (room.Members.Count == 0)

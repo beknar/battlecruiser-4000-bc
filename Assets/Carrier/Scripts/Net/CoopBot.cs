@@ -136,7 +136,7 @@ namespace CarrierGame.Demo
                     Pilot = demo.GetComponent<Wingman>();
                     if (Pilot == null) Pilot = demo.gameObject.AddComponent<Wingman>();
                     Pilot.demo = demo;
-                    Pilot.Sold += what => { if (CoopClient.Active) CoopChat.Say($"{Me}: {what}."); };
+                    Pilot.Sold += what => { if (CoopClient.Active) CoopChat.Say($"{Me}: {what}.", Via.Event); };
                     if (lastLeader != 0) Pilot.Follow(lastLeader);
                 }
             }
@@ -145,7 +145,7 @@ namespace CarrierGame.Demo
                 greeted = true;
                 var human = Humans().FirstOrDefault();
                 if (human != null) { CallOffChain(); Pilot.Follow(human.id); lastLeader = lastSpeaker = human.id; }
-                CoopChat.Say($"{Me} on station{(human != null ? $", forming up on {human.name}" : "")}. Orders by name: \"{Me}, follow me / hold / attack / warp to <place> / dock / mine / sell / cargo / give credits / status\".");
+                CoopChat.Say($"{Me} on station{(human != null ? $", forming up on {human.name}" : "")}. Orders by name: \"{Me}, follow me / hold / attack / warp to <place> / dock / mine / sell / cargo / give credits / status\".", Via.Event);
             }
             if (!CoopClient.Active) greeted = false;
             // says what it starts doing, when it's worth saying
@@ -154,7 +154,7 @@ namespace CarrierGame.Demo
                 string now = Pilot.Doing;
                 bool worth = now.StartsWith("target destroyed") || now.StartsWith("arrived") || now.StartsWith("can't");
                 lastDoing = now;
-                if (worth) CoopChat.Say($"{Me}: {now}.");
+                if (worth) CoopChat.Say($"{Me}: {now}.", Via.Event);
             }
             // waiting over a world for a landed leader: said once a landing (not again after each
             // fight while it waits)
@@ -162,7 +162,7 @@ namespace CarrierGame.Demo
             if (over != lastWaitingOver)
             {
                 lastWaitingOver = over;
-                if (over != null && CoopClient.Active) CoopChat.Say($"{Me}: {Pilot.WaitingLine}.");
+                if (over != null && CoopClient.Active) CoopChat.Say($"{Me}: {Pilot.WaitingLine}.", Via.Event);
             }
             // a fight starting is said once, whatever it says it is doing on the way in
             bool fighting = Pilot != null && Pilot.Fighting;
@@ -170,7 +170,7 @@ namespace CarrierGame.Demo
             {
                 wasFighting = true;
                 var info = Pilot.Target.GetComponent<TargetInfo>();
-                if (CoopClient.Active) CoopChat.Say($"{Me}: engaging {(info != null && !string.IsNullOrEmpty(info.Name) ? info.Name : Pilot.Target.name)}.");
+                if (CoopClient.Active) CoopChat.Say($"{Me}: engaging {(info != null && !string.IsNullOrEmpty(info.Name) ? info.Name : Pilot.Target.name)}.", Via.Event);
             }
             else if (!fighting && wasFighting) wasFighting = false;
             // (a fight over while mining, back at the rocks: said, so the order isn't lost)
@@ -178,7 +178,7 @@ namespace CarrierGame.Demo
             if (Pilot != null && Pilot.BackToMining != saidBackToMining)
             {
                 saidBackToMining = Pilot.BackToMining;
-                if (CoopClient.Active) CoopChat.Say($"{Me}: {WingmanReplies.Get("back_to_mining")}");
+                if (CoopClient.Active) CoopChat.Say($"{Me}: {WingmanReplies.Get("back_to_mining")}", Via.Event);
             }
             SayDoingIfChanged();
             NextInChain();
@@ -212,7 +212,7 @@ namespace CarrierGame.Demo
             CallOffChain();
             Pilot.Follow(m.p.id);
             lastLeader = m.p.id;
-            CoopChat.Say($"{Me}: welcome, {m.p.name}. Forming up on you; orders by name (\"{Me}, help\").");
+            CoopChat.Say($"{Me}: welcome, {m.p.name}. Forming up on you; orders by name (\"{Me}, help\").{(CoopClient.Instance.ChatLogged ? " Comms are logged on this server." : "")}", Via.Event);
         }
 
         // ------------------------------------------------------------ orders on the comms channel
@@ -225,7 +225,7 @@ namespace CarrierGame.Demo
             string rest = AddressedPart(line.text, Me);
             if (rest == null) return;
             string reply = Take(rest, line.from, line.seq);
-            if (!string.IsNullOrEmpty(reply)) { CoopChat.Say($"{Me}: {reply}"); return; }
+            if (!string.IsNullOrEmpty(reply)) { CoopChat.Say($"{Me}: {reply}", Via.Order); return; }
             // talk, not an order: by the chat mode
             float now = Time.realtimeSinceStartup;
             switch (Chat)
@@ -235,19 +235,19 @@ namespace CarrierGame.Demo
                     if (now - toldPaused > 30f)
                     {
                         toldPaused = now;
-                        CoopChat.Say($"{Me}: {Personality?.PausedLine(Facts(line.from)) ?? "comms quiet, standing by. Orders still work."}");
+                        CoopChat.Say($"{Me}: {Personality?.PausedLine(Facts(line.from)) ?? "comms quiet, standing by. Orders still work."}", Via.Paused);
                     }
                     return;
                 case ChatMode.Llm when Listened:
                     return;        // (the listener answers it)
             }
             string said = Personality?.Reply(line.name, rest, now, Facts(line.from));
-            if (!string.IsNullOrEmpty(said)) CoopChat.Say($"{Me}: {said}");
+            if (!string.IsNullOrEmpty(said)) CoopChat.Say($"{Me}: {said}", Via.Personality);
             // (no personality to talk with: say so, not more than once in half a minute)
             else if (now - toldOrdersOnly > 30f)
             {
                 toldOrdersOnly = now;
-                CoopChat.Say($"{Me}: {WingmanReplies.Get("orders_only")}");
+                CoopChat.Say($"{Me}: {WingmanReplies.Get("orders_only")}", Via.Fixed);
             }
         }
 
@@ -775,14 +775,14 @@ namespace CarrierGame.Demo
                 // (the step couldn't be done: what was to follow it isn't done either)
                 var left = pending.Select(x => Words((x.kind, x.arg))).ToList();
                 CallOffChain();
-                if (CoopClient.Active) CoopChat.Say($"{Me}: couldn't {stepWords}, so not {string.Join(" or ", left)}.");
+                if (CoopClient.Active) CoopChat.Say($"{Me}: couldn't {stepWords}, so not {string.Join(" or ", left)}.", Via.Order);
                 return;
             }
             var n = pending[0];
             pending.RemoveAt(0);
             string answer = Start((n.kind, n.arg), n.from, out bool ok);
             if (!ok && pending.Count > 0) { pending.Clear(); answer = Sentence(answer) + " The rest called off."; }
-            if (CoopClient.Active && !string.IsNullOrEmpty(answer)) CoopChat.Say($"{Me}: {answer}");
+            if (CoopClient.Active && !string.IsNullOrEmpty(answer)) CoopChat.Say($"{Me}: {answer}", Via.Order);
         }
 
         static string Sentence(string s) => string.IsNullOrEmpty(s) ? "" : char.ToUpperInvariant(s[0]) + s.Substring(1) + (".!?".IndexOf(s[s.Length - 1]) >= 0 ? "" : ".");
@@ -1143,14 +1143,14 @@ namespace CarrierGame.Demo
                             json = "{\"ok\":false,\"error\":" + Q($"mode '{b?.mode}': one of llm, personality, paused (or on, off, pause, resume)") + "}";
                             break;
                         }
-                        if (Chat != was && CoopClient.Active) CoopChat.Say($"{Me}: {ChatModeLine()}");
+                        if (Chat != was && CoopClient.Active) CoopChat.Say($"{Me}: {ChatModeLine()}", Via.Event);
                         json = ChatModeJson($"\"ok\":true,\"previous\":{Q(ModeName(was))},");
                         break;
                     }
                     case "/say" when post:
                     {
                         var b = Parse<SayBody>(body);
-                        bool ok = b != null && CoopChat.Say(b.text);
+                        bool ok = b != null && CoopChat.Say(b.text, Via.Llm);
                         // (longer than a message may be: what was said was cut, and the caller is told)
                         bool cut = ok && CoopChat.Clean(b.text, int.MaxValue).Length > CoopChat.MaxLength;
                         json = ok ? (cut ? $"{{\"ok\":true,\"cut\":true,\"max\":{CoopChat.MaxLength}}}" : "{\"ok\":true}") : "{\"ok\":false,\"error\":" + Q(CoopClient.Active ? "nothing to say" : "not connected to a co-op game") + "}";
@@ -1163,7 +1163,7 @@ namespace CarrierGame.Demo
                         int before = Orders;
                         string answer = Order(b?.order, b?.target);
                         bool ok = Orders > before;
-                        if (ok && CoopClient.Active) CoopChat.Say($"{Me}: {answer}");
+                        if (ok && CoopClient.Active) CoopChat.Say($"{Me}: {answer}", Via.Order);
                         json = $"{{\"ok\":{B(ok)},\"answer\":{Q(answer)}}}";
                         break;
                     }

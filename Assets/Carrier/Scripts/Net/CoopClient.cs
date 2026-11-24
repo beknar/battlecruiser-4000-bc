@@ -25,6 +25,8 @@ namespace CarrierGame.Demo
         /// <summary>What is going on, in a few words (for the menus).</summary>
         public string Status { get; private set; } = "";
         public int MyId { get; private set; }
+        /// <summary>The server keeps a log of the comms channel (it said so in its welcome).</summary>
+        public bool ChatLogged { get; private set; }
         public string MyName { get; private set; } = "";
         public int MaxPlayers { get; private set; }
         public int HostId { get; private set; }
@@ -127,6 +129,7 @@ namespace CarrierGame.Demo
             }
             bool was = MyId > 0;
             MyId = 0;
+            ChatLogged = false;
             HostId = 0;
             Players.Clear();
             if (why.Length > 0) Status = why;
@@ -210,7 +213,9 @@ namespace CarrierGame.Demo
                     clock.Welcome(m.now, Time.realtimeSinceStartupAsDouble);
                     SetRoom(m.level, m.epoch, m.host);
                     Status = $"connected to {Url}";
-                    Debug.Log($"[Co-op] welcome: player #{MyId}, room '{RoomLevel}', host #{HostId}");
+                    ChatLogged = m.chatLog;
+                    if (ChatLogged) Notices.Post("This co-op server keeps a log of what is said on comms");
+                    Debug.Log($"[Co-op] welcome: player #{MyId}, room '{RoomLevel}', host #{HostId}{(ChatLogged ? ", comms logged" : "")}");
                     return;
                 case CoopWire.Reject:
                     Close($"refused: {m.why}");

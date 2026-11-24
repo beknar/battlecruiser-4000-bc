@@ -2055,6 +2055,7 @@ else installed when built as below.
 CoopServer [--port 7777] [--bind 0.0.0.0] [--max-players 7]
            [--allow 192.168.1.0/24,10.0.0.5] [--config coopserver.json]
            [--cert server.pfx --cert-password secret] [--keys coopkeys.json] [--open]
+           [--chat-log <folder>]
 CoopServer --new-key <name> [--ai]      make an API key, then exit
 CoopServer --list-keys                  list the keys made, then exit
 CoopServer --revoke-key <name|key>      revoke a key, then exit
@@ -2086,6 +2087,31 @@ CoopServer --revoke-key <name|key>      revoke a key, then exit
     lets in can read it); the console's `status` does.
   - A new server has no keys, so no one can join until one is made: its console says so.
   - `"requireKey": false` (or `--open`) lets in anyone the allow-list does, without a key.
+- **Chat log.** `chatLog` (a folder, next to the settings unless a full path; or `--chat-log
+  <folder>`) keeps a log of the comms channel, to build a set of conversations for a later AI
+  wingman. It is off unless set.
+  - **What's logged:** every chat message and every wingman's HUD status ("doing") line, in
+    every room. Each line has the time (UTC), the room, the sender's id and name, and whether
+    they came with an AI key. A message to one player also has `to`, and the text is kept up to
+    2000 characters.
+  - **How a message was made (`via`):** a wingman's game tags its messages `order`,
+    `personality`, `llm` (said through its API, as Claude's answers are), `fixed`, `paused` or
+    `event`. A player's spoken command is tagged `voice`, and a typed message has no tag.
+  - **Rooms:** players coming into and leaving rooms are logged too, with who else is there,
+    so one conversation can be told from the next.
+  - **Files:** one a day, `chat-yyyy-MM-dd.jsonl`, with one JSON object a line. They're written
+    on a thread of their own, so the server never waits on the disk.
+  - **Floods:** at most 5 of a player's lines a second are logged, so a game flooding the
+    channel can't fill the disk. Everything it sends is still passed on.
+  - **Players are told:** the welcome says the log is kept, so a player's game shows a notice
+    and the wingman mentions it when it greets them.
+  - **Making a database:** `python Tools/CoopAI/chat_dataset.py <folder> [--out <folder>]
+    [--anonymise]` turns the logs into `conversations.jsonl` and `pairs.jsonl`.
+    - `conversations.jsonl` has one line per conversation in a room, from when someone came in
+      until it emptied or went quiet for 30 minutes.
+    - `pairs.jsonl` has each wingman answer with the player's message it answers, how the
+      answer was made, and what the wingman was doing.
+    - `--anonymise` replaces the people's names with Player 1, 2 ... in both files.
 - **Live changes.** Saved changes to the file's `allow`, `maxPlayers` and `requireKey` take
   effect at once, without a restart.
 - **Console.** While the server runs, type `status` for who is on (and whose key each player
@@ -2193,7 +2219,8 @@ messages show under it, each wrapped over as many lines as it needs, and fade af
 seconds. They scale with the HUD text size. A message that starts with its sender's name (the
 wingman's do) doesn't show the name twice. Each message from someone else also goes to the
 captain's notices. The server passes chat on like any other game message (type `chat`, field
-`text`, 400 characters at most), so it needs no change. The bot's `/say` answers `"cut":true`
+`text`, 400 characters at most, and `via`, how it was made, for the server's chat log), and
+logs it if its chat log is on. The bot's `/say` answers `"cut":true`
 when it had to shorten a message.
 
 **The AI wingman.** Any copy of the Star System game can join as an AI player. Start it with
@@ -2375,6 +2402,9 @@ tokens.
 **Tests.**
 - `Tools/Tests/test_coop_ai_mcp.py` (in the tools stage) tests the MCP server without the game:
   its JSON-RPC, and its tools against a stand-in for the API.
+- `Tools/Tests/test_chat_dataset.py` (in the tools stage) tests the chat log's database tool:
+  conversations split by room, an empty room and a quiet spell; answers paired with what they
+  answer; and names made anonymous. The server's `ChatLogTests` test the log itself.
 - The test runner's `aibot` stage starts a server and the bot game headless. A test player
   (`Tools/CoopAI/aibot_test.py`) then checks:
   - that the bot greets it and follows it;

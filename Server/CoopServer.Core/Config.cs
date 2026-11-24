@@ -26,8 +26,13 @@ public sealed class ServerConfig
     public bool RequireKey { get; set; } = true;
     /// <summary>The API keys' file, next to the settings file (or the program) unless a full path.</summary>
     public string KeysFile { get; set; } = "coopkeys.json";
+    /// <summary>A folder for the comms channel's log (ChatLog), next to the settings file (or the
+    /// program) unless a full path. Null or empty: no log is kept.</summary>
+    public string? ChatLog { get; set; }
 
     [System.Text.Json.Serialization.JsonIgnore] public string? Path { get; private set; }
+    /// <summary>The chat log's folder in full (null: no log).</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public string? ChatLogFolder { get; set; }
     [System.Text.Json.Serialization.JsonIgnore] public IpAllowList AllowList { get; private set; } = new(new List<string>());
     /// <summary>The API keys (in memory only until Load gives them their file).</summary>
     [System.Text.Json.Serialization.JsonIgnore] public ApiKeys Keys { get; private set; } = new(null);
@@ -64,6 +69,13 @@ public sealed class ServerConfig
             keysPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(baseDir, cfg.KeysFile));
         }
         cfg.Keys = new ApiKeys(keysPath);
+        // (the chat log's folder found the same way as the keys')
+        if (Arg(args, "--chat-log") is string cl) cfg.ChatLogFolder = System.IO.Path.GetFullPath(cl);
+        else if (!string.IsNullOrWhiteSpace(cfg.ChatLog))
+        {
+            string baseDir = cfg.Path != null ? System.IO.Path.GetDirectoryName(cfg.Path)! : AppContext.BaseDirectory;
+            cfg.ChatLogFolder = System.IO.Path.GetFullPath(System.IO.Path.Combine(baseDir, cfg.ChatLog));
+        }
         if (cfg.Keys.Error != null) { error = cfg.Keys.Error; return cfg; }
         if (cfg.MaxPlayers < 1) { error = "--max-players must be at least 1"; return cfg; }
         if (cfg.Port < 1 || cfg.Port > 65535) { error = "--port must be 1 to 65535"; return cfg; }

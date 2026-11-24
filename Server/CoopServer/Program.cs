@@ -12,6 +12,7 @@ if (args.Contains("--help") || args.Contains("-h") || args.Contains("/?"))
           CoopServer [--port 7777] [--bind 0.0.0.0] [--max-players 7]
                      [--allow 192.168.1.0/24,10.0.0.5] [--config coopserver.json]
                      [--cert server.pfx --cert-password secret] [--keys coopkeys.json] [--open]
+                     [--chat-log <folder>]
           CoopServer --new-key <name> [--ai]      make an API key (shown once), then exit
           CoopServer --list-keys                  list the keys made, then exit
           CoopServer --revoke-key <name|key>      revoke a key (by its name, or its first characters), then exit
@@ -28,6 +29,9 @@ if (args.Contains("--help") || args.Contains("-h") || args.Contains("/?"))
           --keys          the API keys' file (default: coopkeys.json next to the settings)
           --open          let players in without an API key (by default each player, and each
                           AI player, needs one of this server's keys)
+          --chat-log      keep a log of the comms channel in this folder: every chat message and
+                          AI wingman's status line, in every room, a file a day
+                          (chat-yyyy-MM-dd.jsonl). Players' games are told it is kept.
 
         Players connect to ws://<this computer's address>:<port>/coop, giving their API key in the
         game's co-op panel (or -apikey <key> on the command line). While it runs, type 'status' for
@@ -90,7 +94,13 @@ builder.WebHost.ConfigureKestrel(k =>
     });
 });
 var app = builder.Build();
-var hub = new Hub(cfg);
+ChatLog? chatLog = null;
+if (cfg.ChatLogFolder != null)
+{
+    try { chatLog = new ChatLog(cfg.ChatLogFolder, Log); }
+    catch (Exception e) { Console.Error.WriteLine($"CoopServer: can't keep the chat log in {cfg.ChatLogFolder}: {e.Message}"); return 1; }
+}
+var hub = new Hub(cfg, chatLog);
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(15) });
 
 static void Log(string s) => Console.WriteLine($"{DateTime.Now:HH:mm:ss}  {s}");
@@ -212,10 +222,12 @@ Log($"listening on {scheme}://{cfg.Bind}:{cfg.Port}/coop, up to {cfg.MaxPlayers}
 Log($"allowed to connect: {cfg.AllowList}{(cfg.Path != null ? $" (settings: {cfg.Path})" : "")}");
 Log($"{cfg.KeyRule}{(cfg.RequireKey ? $" (keys: {cfg.Keys.Path})" : "")}");
 if (cfg.RequireKey && cfg.Keys.Count == 0) Log("no API keys yet, so no one can join: type 'newkey <name>' to make one");
+if (chatLog != null) Log($"keeping a log of the comms channel in {chatLog.Folder} (players are told when they join)");
 Log("type 'status', 'newkey <name>', 'newaikey <name>', 'keys', 'revoke <name|key>', 'reload' or 'quit'");
 try { await app.RunAsync(); }
 catch (IOException e) { Console.Error.WriteLine($"CoopServer: can't listen on port {cfg.Port}: {e.Message}"); return 2; }
 watcher?.Dispose();
 poller?.Dispose();
 revoker.Dispose();
+chatLog?.Dispose();
 return 0;

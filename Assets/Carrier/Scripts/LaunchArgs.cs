@@ -103,7 +103,7 @@ namespace CarrierGame
             get
             {
                 foreach (var m in new[] { "-systemtest", "-reel", "-autotest", "-webpadtest", "-cooptest", "-coopbot", "-battlesim" }) if (Has(m)) return true;
-                return PageHas("systemtest") || PageHas("padtest");
+                return PageHas("systemtest") || PageHas("padtest") || PageHas("quittest") || PageHas("quittestcheck");
             }
         }
     }

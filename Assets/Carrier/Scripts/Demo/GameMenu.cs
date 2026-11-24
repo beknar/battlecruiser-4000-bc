@@ -152,13 +152,19 @@ namespace CarrierGame.Demo
 #endif
         }
 
-        static void Quit()
+        /// <summary>Quit the game (the menu's Quit; the web quit test calls it too).</summary>
+        public static void Quit()
         {
             PadSupport.StopRumble();
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;
 #elif UNITY_WEBGL
-            CarrierPageQuit();   // a web page can't close its own tab: the page shuts the game down
+            // a web page can't close its own tab, and the engine can't be shut down in a page that
+            // stays open (its own listeners outlive it). So the game saves here, and the page
+            // writes the save to the browser's storage and then leaves for its "ended" page.
+            if (IndustryDirector.Instance != null) IndustryDirector.Instance.Save();
+            PlayerPrefs.Save();
+            CarrierPageQuit();
 #else
             Application.Quit();
 #endif

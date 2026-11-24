@@ -74,6 +74,26 @@
       loader.style.display = "flex";
     }
 
+    // the "ended" page, after Quit: the game isn't started again (the page that ran it is gone,
+    // with all of the engine's listeners), only "Play again", which goes back without ?ended
+    function options() {
+      return location.search.replace(/^\?/, "").split("&").filter(function (p) { return p && p.split("=")[0] !== "ended"; });
+    }
+    function address(extra) {
+      var q = options();
+      if (extra) q.push(extra);
+      return location.pathname + (q.length ? "?" + q.join("&") : "") + location.hash;
+    }
+    var ended = location.search.replace(/^\?/, "").split("&").some(function (p) { return p.split("=")[0] === "ended"; });
+    document.getElementById("again").onclick = function () { location.replace(address(null)); };
+    if (ended) {
+      document.getElementById("game").style.display = "none";
+      document.getElementById("hud").style.display = "none";
+      loader.style.display = "none";
+      document.getElementById("ended").style.display = "flex";
+      console.log("[Page] ended");
+    }
+
     var buildUrl = "Build";
     var config = {
       arguments: [],
@@ -95,6 +115,9 @@
       companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
       productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
       productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+      // what the game writes under persistentDataPath (its saves) goes to the browser's storage
+      // by itself, without a call from the game after each file
+      autoSyncPersistentDataPath: true,
       // a heavy 3D scene: cap the render resolution on very high-DPI screens
       devicePixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
       showBanner: function (msg, type) {
@@ -103,38 +126,34 @@
       },
     };
 
-    var script = document.createElement("script");
-    script.src = buildUrl + "/{{{ LOADER_FILENAME }}}";
-    script.onload = function () {
-      createUnityInstance(canvas, config, function (progress) {
-        fill.style.width = Math.round(100 * progress) + "%";
-        statusEl.textContent = progress < 0.9 ? "Loading… " + Math.round(100 * progress) + "%" : "Building the star system…";
-      }).then(function (instance) {
-        window.unityInstance = instance;
-        loader.style.opacity = 0;
-        setTimeout(function () { loader.style.display = "none"; }, 650);
-        canvas.focus();
-        document.getElementById("fullscreen").onclick = function () { instance.SetFullscreen(1); };
-        // Quit in the game's pause menu: shut the game down and offer to start again
-        window.carrierQuit = function () {
-          if (document.fullscreenElement) document.exitFullscreen().catch(function () {});
-          var shown = false;
-          function show() {
-            if (shown) return;
-            shown = true;
-            document.getElementById("game").style.display = "none";
-            document.getElementById("hud").style.display = "none";
-            document.getElementById("ended").style.display = "flex";
-          }
-          instance.Quit().then(show, show);
-        };
-        document.getElementById("again").onclick = function () { location.reload(); };
-      }).catch(function (message) {
-        showError("The game couldn't start: " + message);
-      });
-    };
-    script.onerror = function () { showError("Couldn't load the game files."); };
-    document.body.appendChild(script);
+    if (!ended) {
+      var script = document.createElement("script");
+      script.src = buildUrl + "/{{{ LOADER_FILENAME }}}";
+      script.onload = function () {
+        createUnityInstance(canvas, config, function (progress) {
+          fill.style.width = Math.round(100 * progress) + "%";
+          statusEl.textContent = progress < 0.9 ? "Loading… " + Math.round(100 * progress) + "%" : "Building the star system…";
+        }).then(function (instance) {
+          window.unityInstance = instance;
+          loader.style.opacity = 0;
+          setTimeout(function () { loader.style.display = "none"; }, 650);
+          canvas.focus();
+          document.getElementById("fullscreen").onclick = function () { instance.SetFullscreen(1); };
+          // Quit in the game's pause menu (after its save has reached the browser's storage):
+          // stop the engine's loop and leave for the "ended" page. The engine isn't shut down here
+          // (instance.Quit): its own listeners would outlive it in this page and call into freed
+          // memory. Leaving the page takes everything with it.
+          window.carrierQuit = function () {
+            try { if (instance.Module && instance.Module.pauseMainLoop) instance.Module.pauseMainLoop(); } catch (e) { }
+            location.replace(address("ended"));
+          };
+        }).catch(function (message) {
+          showError("The game couldn't start: " + message);
+        });
+      };
+      script.onerror = function () { showError("Couldn't load the game files."); };
+      document.body.appendChild(script);
+    }
 
     // keep keyboard focus on the game after clicking it
     canvas.addEventListener("pointerdown", function () { canvas.focus(); });

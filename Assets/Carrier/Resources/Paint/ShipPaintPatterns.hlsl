@@ -14,6 +14,7 @@ float4 _PaintBoundsMin, _PaintBoundsMax;
 float4 _LogoRect;   // x: centre along the ship (z), y: centre height (y), z: half its size, w: logo (-1 none)
 float4 _TextRect;   // x: centre along the ship, y: centre height, z: letter height, w: how many letters
 float4 _Text0, _Text1, _Text2;   // the letters, 4 to each (0 space, 1-26 A-Z, 27-36 0-9, 37 the dash)
+float4 _DecalXform; // x: the logo's turn (radians), y: its sides (0 both, 1 port, 2 starboard), z, w: the lettering's
 TEXTURE2D(_LogoTex); SAMPLER(sampler_LogoTex);
 TEXTURE2D(_FontTex); SAMPLER(sampler_FontTex);
 
@@ -412,6 +413,19 @@ float LetterAt(float i)
     return k < 0.5 ? v.x : (k < 1.5 ? v.y : (k < 2.5 ? v.z : v.w));
 }
 
+// a point (along, up) about a decal's centre, turned back by `a` (so the decal turns by a, as read)
+float2 DecalTurn(float2 d, float a)
+{
+    float c = cos(a), s = sin(a);
+    return float2(c * d.x + s * d.y, -s * d.x + c * d.y);
+}
+
+// is a decal on this side (sides: 0 both, 1 port only, 2 starboard only)?
+float DecalSide(float sides, float side)
+{
+    return sides < 0.5 ? 1.0 : (sides < 1.5 ? step(side, 0.0) : step(0.0, side));
+}
+
 // x: the logo here, y: the lettering (0 to 1)
 float2 DecalMask(float3 p, float3 n)
 {
@@ -421,8 +435,8 @@ float2 DecalMask(float3 p, float3 n)
     float side = p.x >= cx ? 1.0 : -1.0;     // starboard reads toward the bow, port toward the stern
     float facing = saturate((n.x * side - 0.3) * 6.0);
 
-    // the logo: a square, projected across the ship
-    float2 l = float2((p.z - _LogoRect.x) * side, p.y - _LogoRect.y) / max(2.0 * _LogoRect.z, 1e-3) + 0.5;
+    // the logo: a square, projected across the ship (turned, and on its sides)
+    float2 l = DecalTurn(float2((p.z - _LogoRect.x) * side, p.y - _LogoRect.y), _DecalXform.x) / max(2.0 * _LogoRect.z, 1e-3) + 0.5;
     float2 ldx = ddx(l), ldy = ddy(l);
     if (_LogoRect.w > -0.5)
     {
@@ -432,12 +446,13 @@ float2 DecalMask(float3 p, float3 n)
         float2 lc = clamp(l, 0.005, 0.995);
         float2 auv = float2((col + lc.x) / LOGO_COLS, 1.0 - (row + 1.0 - lc.y) / LOGO_ROWS);
         float2 cells = float2(LOGO_COLS, LOGO_ROWS);
-        res.x = SAMPLE_TEXTURE2D_GRAD(_LogoTex, sampler_LogoTex, auv, ldx / cells, ldy / cells).r * inside * facing;
+        res.x = SAMPLE_TEXTURE2D_GRAD(_LogoTex, sampler_LogoTex, auv, ldx / cells, ldy / cells).r * inside * facing * DecalSide(_DecalXform.y, side);
     }
 
     // the lettering: a row of letters, each FONT_ADVANCE of its height wide
     float h = max(_TextRect.z, 1e-3), count = _TextRect.w;
-    float2 t = float2((p.z - _TextRect.x) * side / (h * FONT_ADVANCE) + count * 0.5, (p.y - _TextRect.y) / h + 0.5);
+    float2 td = DecalTurn(float2((p.z - _TextRect.x) * side, p.y - _TextRect.y), _DecalXform.z);
+    float2 t = float2(td.x / (h * FONT_ADVANCE) + count * 0.5, td.y / h + 0.5);
     float2 tdx = ddx(t), tdy = ddy(t);
     if (count > 0.5)
     {
@@ -449,7 +464,7 @@ float2 DecalMask(float3 p, float3 n)
         float2 fc = float2(clamp(t.x - ci, 0.005, 0.995), clamp(t.y, 0.005, 0.995));
         float2 auv = float2((col + fc.x) / FONT_COLS, 1.0 - (row + 1.0 - fc.y) / FONT_ROWS);
         float2 cells = float2(FONT_COLS, FONT_ROWS);
-        res.y = SAMPLE_TEXTURE2D_GRAD(_FontTex, sampler_FontTex, auv, tdx / cells, tdy / cells).r * inside * facing;
+        res.y = SAMPLE_TEXTURE2D_GRAD(_FontTex, sampler_FontTex, auv, tdx / cells, tdy / cells).r * inside * facing * DecalSide(_DecalXform.w, side);
     }
     return res;
 }

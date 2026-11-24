@@ -58,6 +58,7 @@ Shader "Carrier/ShipPaint"
         _Text0 ("Letters 0-3", Vector) = (0, 0, 0, 0)
         _Text1 ("Letters 4-7", Vector) = (0, 0, 0, 0)
         _Text2 ("Letters 8-11", Vector) = (0, 0, 0, 0)
+        _DecalXform ("Logo turn, sides; lettering turn, sides", Vector) = (0, 0, 0, 0)
         [NoScaleOffset] _LogoTex ("Logo atlas (4 x 3)", 2D) = "black" {}
         [NoScaleOffset] _FontTex ("Font atlas (8 x 5)", 2D) = "black" {}
     }

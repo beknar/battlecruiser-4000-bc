@@ -105,7 +105,7 @@ namespace CarrierGame.Demo
             bool docked = dock.Current == Docking.State.Docked && dock.At == st;
             bool atBerth = Vector3.Distance(cc.transform.position, st.BerthPosition) < 5f;
             bool repaired = hull.Current >= hull.maxHealth - 0.5f;
-            // at a market, the ore is sold on the services screen's trade page
+            // at a market, the ore is sold on the services screen's SELL page
             var panel = IndustryPanel.Instance;
             bool traded = true;
             if (st.market && panel != null)

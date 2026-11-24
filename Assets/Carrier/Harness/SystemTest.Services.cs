@@ -8,9 +8,9 @@ namespace CarrierGame.Demo
 {
     /// <summary>
     /// The services mode (-servicestest): docking at a station puts the game in services mode, its
-    /// screen offering what the place does; at a trading station (the Highport) the trade page
-    /// sells what is aboard at its worth and buys at a markup, and the crew page drops crew off
-    /// (they join those waiting to sign on); a refinery's trade page buys minerals only; leaving
+    /// screen offering what the place does; at a trading station (the Highport) the SELL page
+    /// sells what is aboard at its worth and the BUY page buys at a markup, and the crew page drops crew off
+    /// (they join those waiting to sign on); a refinery's SELL page buys minerals only (and it has no BUY page); leaving
     /// puts the game back in the mode it was in.
     /// </summary>
     public partial class SystemTest
@@ -35,7 +35,7 @@ namespace CarrierGame.Demo
             if (dock == null || panel == null || hold == null) { Log("FAIL: services (no docking, services screen or hold)"); yield break; }
             var table = IndustryTable.Get();
 
-            // ---- docking at the Highport: services mode, the trade and crew pages
+            // ---- docking at the Highport: services mode, the SELL, BUY and crew pages
             yield return Key(kb, K.Digit2);   // (mining mode, to come back to)
             yield return WarpTo(kb, "Thalassa Highport", "sv_highport");
             var hp = Installation.All.FirstOrDefault(i => i.displayName == "Thalassa Highport");

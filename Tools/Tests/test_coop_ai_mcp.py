@@ -264,6 +264,7 @@ class Listener(unittest.TestCase):
         self.assertFalse(listen.wanted(m, False, "personality"), "the bot answers talk itself")
         self.assertFalse(listen.wanted(m, True, "paused"), "nobody answers talk")
         self.assertTrue(listen.wanted(m, False, "llm"))
+        self.assertFalse(listen.wanted(dict(m, handled=True), True), "an order the bot carried out itself isn't given again")
 
     def test_a_change_of_chat_mode_is_printed(self):
         import listen

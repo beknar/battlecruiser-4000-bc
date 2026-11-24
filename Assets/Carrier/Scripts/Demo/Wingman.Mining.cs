@@ -41,6 +41,16 @@ namespace CarrierGame.Demo
         /// <summary>Mine (at a field by name, or the nearest), and sell when the hold is full.</summary>
         public void Mine(WarpPoint field = null)
         {
+            // (the same order again, as when it's given twice: carried on with, not started over,
+            // so the run isn't sent back to the field and its sales aren't forgotten; but the rocks
+            // it passed over get another look, and a sale under way goes back to mining after)
+            if (Current == Order.Mine && MineField == field)
+            {
+                afterSale = null;
+                skipped.Clear();
+                nextScan = 0f;
+                return;
+            }
             LeaveLeader();
             MineField = field;
             Set(Order.Mine);

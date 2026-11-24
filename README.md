@@ -2207,8 +2207,10 @@ StarSystem.exe -coopbot -connect <address>:<port> -name Wingman [-frigate Lancer
 - Its pilot flies through the same controls a player uses: the autopilot inputs, the throttle,
   the target, the guns, the bow beam, missiles, the warp drive and docking.
 
-To give it orders, start a message with its name (`Wingman, ...` or `@Wingman ...`). `all
-ships`, `everyone` or `wingmen` reaches every bot. It answers each order on the channel.
+To give it orders, start a message with its name (`Wingman, ...` or `@Wingman ...`), after a
+`hey` or `ok` if you like (`Hey Wingman, mine`). `all ships`, `everyone` or `wingmen` reaches
+every bot. Politeness is left off an order: `Wingman, can you mine some asteroids please?` is
+`mine`. It answers each order on the channel.
 
 | Order | What it does |
 | --- | --- |
@@ -2218,7 +2220,7 @@ ships`, `everyone` or `wingmen` reaches every bot. It answers each order on the 
 | `attack [target]` | Fights that target, or the nearest enemy. |
 | `warp to <place>` | Warps there, then holds. |
 | `dock` | Docks at the station it is at. |
-| `mine` or `mine at <field>` | Mines asteroids: warps to the field (the one it is at, or the nearest), scans, flies to the nearest deposit and cuts it until the hold is full, then warps to the nearest market (a station or base that buys ore), docks, sells the ore and goes back for more, over and over. `start mining` and `mine asteroids` do the same. |
+| `mine` or `mine at <field>` | Mines asteroids: warps to the field (the one it is at, or the nearest), scans, flies to the nearest deposit and cuts it until the hold is full, then warps to the nearest market (a station or base that buys ore), docks, sells the ore and goes back for more, over and over. `start mining` and `mine asteroids` do the same, and words after `mine` that don't name a field (`mine some rocks`, `mine the nearest asteroids`) mean the nearest. Given again while it's already mining there, it carries on rather than starting the run over. |
 | `sell` | Takes the ore aboard to the nearest market now, sells it, then goes back to mining. |
 | `cargo` | Reports what is in its hold (ore and goods by weight, the most first, then parts), how full the hold is, and its credits. `what's in your hold?`, `how full is your hold?`, `inventory` and `manifest` do the same. |
 | `give [N] credits [to <name>]` | Transfers credits from its hold to that player (whoever asked, if no name is given): N (`give me 500 credits`, `transfer 2k credits to Ann`, `give Ann 500 credits`, `pay me 300`), half (`give me half your credits`) or all (`give me all your credits`). Without an amount it asks how many. The player's game adds them to the ship's hold and says so. Credits go only to human players in the same level, and only from a player the server let in with an AI key (on an open server, one that says it is a bot). They come back to the wingman if the player's game doesn't confirm them within 10 s, and a game that only sees them after 6 s refuses them. |
@@ -2300,7 +2302,9 @@ through Claude Code:
    prints a line for each message addressed to the wingman (`--all` for every player's message), and
    each line wakes the session. Claude reads it, checks `status` or `cargo` if the answer needs
    facts, and answers with `say`. It can also act on what it's asked with `order` or
-   `give_credits`. While a listener is reading the channel and the chat mode is `llm`, the bot
+   `give_credits`. Orders the bot carried out itself are marked `handled` on the channel, and
+   `listen.py` doesn't print them, so they aren't given a second time. While a listener is
+   reading the channel and the chat mode is `llm`, the bot
    leaves talk to it. In the other modes `listen.py` keeps listening, but prints only the change
    of mode.
 4. `Tools/CoopAI/WINGMAN.md` is the voice brief: short radio lines, facts only from its

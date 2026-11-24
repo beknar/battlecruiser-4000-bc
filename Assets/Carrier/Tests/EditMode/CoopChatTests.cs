@@ -109,12 +109,18 @@ namespace CarrierGame.Tests
         [TestCase("all ships, regroup", "regroup")]
         [TestCase("Everyone - status", "status")]
         [TestCase("Wingman", "")]
+        [TestCase("Hey Wingman, mine", "mine")]
+        [TestCase("ok wingman hold", "hold")]
+        [TestCase("Okay, all ships, regroup", "regroup")]
+        [TestCase("hey wingman please mine", "please mine")]
         public void AnOrderStartsWithItsName(string said, string order)
         {
             Assert.That(CoopBot.AddressedPart(said, "Wingman"), Is.EqualTo(order));
         }
 
         [TestCase("follow me, wingman")]
+        [TestCase("hey there")]
+        [TestCase("okay wingmanly")]
         [TestCase("Wingmanly behaviour")]
         [TestCase("nice shooting")]
         [TestCase("")]
@@ -142,6 +148,81 @@ namespace CarrierGame.Tests
             Assert.That(bot.Orders, Is.Zero);
         }
 
+        [TestCase("can you mine please", "mine")]
+        [TestCase("Could you go mine some asteroids for me?", "mine some asteroids")]
+        [TestCase("please, hold", "hold")]
+        [TestCase("would you dock now", "dock")]
+        [TestCase("go to Heaven", "go to Heaven")]
+        [TestCase("go mining", "go mining")]
+        [TestCase("hold on, that was close", "hold on, that was close")]   // (left alone here; still read as "hold", as it always was)
+        public void PolitenessIsLeftOffAnOrder(string said, string plain)
+        {
+            Assert.That(CoopBot.Plain(said), Is.EqualTo(plain));
+        }
+
+        [TestCase("mine", "mine", "")]
+        [TestCase("can you mine some asteroids please", "mine", "")]
+        [TestCase("go mine the nearest rocks", "mine", "")]
+        [TestCase("mine at the Inner Belt", "mine", "Inner Belt")]
+        [TestCase("start mining in the Outer Drift", "mine", "Outer Drift")]
+        [TestCase("mine asteroids in the Outer Drift", "mine", "Outer Drift")]
+        [TestCase("mine for ore", "mine", "")]
+        [TestCase("mine some asteroids in the Outer Drift", "mine", "Outer Drift")]
+        [TestCase("mine for ore at the Inner Belt", "mine", "Inner Belt")]
+        [TestCase("mine the Outer Drift asteroids", "mine", "Outer Drift")]
+        public void AMineOrderNamesAFieldOrTheNearest(string said, string kind, string field)
+        {
+            var p = CoopBot.ParseOrder(said);
+            Assert.That(p.HasValue, Is.True, said);
+            Assert.That(p.Value.kind, Is.EqualTo(kind));
+            Assert.That(CoopBot.MineFieldName(p.Value.arg), Is.EqualTo(field));
+        }
+
+        [Test]
+        public void TheSameMineOrderTwiceCarriesOn()
+        {
+            var go = new GameObject("wingman");
+            made.Add(go);
+            var w = go.AddComponent<Wingman>();
+            w.Mine();
+            Assert.That(w.Current, Is.EqualTo(Wingman.Order.Mine));
+            // (partway through a run: cutting at a rock)
+            typeof(Wingman).GetProperty(nameof(Wingman.Step)).SetValue(w, Wingman.MineStep.Cut);
+            w.Mine();
+            typeof(Wingman).GetProperty(nameof(Wingman.Sales)).SetValue(w, 2);
+            w.Mine();
+            Assert.That(w.Step, Is.EqualTo(Wingman.MineStep.Cut), "the order given again (as the listener used to): carried on, not started over");
+            Assert.That(w.Sales, Is.EqualTo(2), "and its sales not forgotten");
+            // (told to sell while following: a mine order on the way means mining after the sale)
+            var afterSale = typeof(Wingman).GetField("afterSale", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            afterSale.SetValue(w, (Wingman.Order?)Wingman.Order.Follow);
+            w.Mine();
+            Assert.That(afterSale.GetValue(w), Is.Null, "mining after the sale, not back to following");
+            var field = go.AddComponent<WarpPoint>();
+            w.Mine(field);
+            Assert.That(w.Step, Is.EqualTo(Wingman.MineStep.ToField), "another field: a new run");
+        }
+
+        [Test]
+        public void OnlyOrdersCarriedOutOrAnsweredAreMarkedHandled()
+        {
+            var bot = new GameObject("bot").AddComponent<CoopBot>();
+            made.Add(bot.gameObject);
+            Assert.That(bot.Take("help", 0, 41), Does.Contain("follow me"));
+            Assert.That(bot.WasHandled(41), Is.True, "answered: the listener isn't to answer it again");
+            Assert.That(bot.Take("hold", 0, 42), Is.EqualTo("not ready yet"));
+            Assert.That(bot.WasHandled(42), Is.False, "not carried out: left for the listener to put right");
+            Assert.That(bot.Take("nice weather", 0, 43), Is.Null);
+            Assert.That(bot.WasHandled(43), Is.False, "talk");
+        }
+
+        [Test]
+        public void AGreetingIsAlsoAName()
+        {
+            Assert.That(CoopBot.AddressedPart("Ok, mine", "Ok"), Is.EqualTo("mine"), "a bot called Ok still answers");
+            Assert.That(CoopBot.AddressedPart("Right, mine", "Wingman"), Is.Null);
+        }
+
         [Test]
         public void SeveralOrdersInOneMessageAreSplitIntoThem()
         {
@@ -151,6 +232,10 @@ namespace CarrierGame.Tests
             Assert.That(Kinds("mine at the Inner Belt; status"), Is.EqualTo("mine Inner Belt | status"));
             Assert.That(Kinds("attack the Scavenger and then follow me"), Is.EqualTo("attack Scavenger | follow"));
             Assert.That(Kinds("dock, sell, cargo"), Is.EqualTo("dock | sell | cargo"));
+            // (politeness round them, as the bot strips it first)
+            Assert.That(Kinds(CoopBot.Plain("go and mine and sell")), Is.EqualTo("mine | sell"));
+            Assert.That(Kinds(CoopBot.Plain("please mine, then sell, thanks")), Is.EqualTo("mine | sell"));
+            Assert.That(Kinds("mine, then sell, thanks"), Is.EqualTo("mine | sell"), "a part that's only politeness is left out");
             // one order, or not all orders: taken whole
             Assert.That(CoopBot.Clauses("mine"), Is.Null);
             Assert.That(CoopBot.Clauses("give me 1,000 credits"), Is.Null, "a comma in a number isn't a break");

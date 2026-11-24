@@ -26,7 +26,7 @@ Two environment variables change where it looks. Add them with `-e NAME=value` b
 | --- | --- |
 | `launch_bot` | Starts the bot game (headless by default) and connects it to a server (`server` is `host:port`, default `127.0.0.1:7777`), with a `name`, a `ship` class, a `chatmode` and the `apikey` the server issued for it (`CoopServer --new-key Wingman --ai`; default `COOP_KEY` from the MCP server's environment). Give it 20 to 60 s to load. |
 | `status` | The ship: hull, shield, crew, missiles, speed, warp, docked or landed. Also the pilot's order and what it is doing, what is near it (enemies first), and the players. |
-| `read_messages` | The comms channel since the last read (or since `after`). Messages addressed to the bot are marked `to_me`. |
+| `read_messages` | The comms channel since the last read (or since `after`). Messages addressed to the bot are marked `to_me`, and the orders it carried out itself `handled` (never to be ordered again). |
 | `wait_messages` | The same, but if nothing new has been said, it waits up to `timeout` seconds (55 at most) for the next message. |
 | `cargo` | The hold: each item and its amount, tonnes used of the capacity, how full it is, and the credits. |
 | `give_credits` | Transfers credits from the bot's hold to a player (`amount`: a number, `all` or `half`; `to`: a name, or the last player to speak). |

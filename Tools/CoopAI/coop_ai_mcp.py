@@ -220,7 +220,8 @@ TOOLS = [
      {}, [], t_status),
     ("read_messages", "Messages on the co-op comms channel since the last read (or since 'after'): from players, "
                       "and the bot's own. A message addressed to the bot by name is marked to_me; the bot carries "
-                      "out simple orders in those by itself and says so.",
+                      "out simple orders in those by itself and says so, and marks those handled: "
+                      "never order a handled message again.",
      {"after": {"type": "integer", "description": "read from after this message number instead"}}, [], t_read_messages),
     ("wait_messages", "Like read_messages, but if nothing new has been said, waits up to 'timeout' seconds for "
                       "the next message before answering. Use it to listen for players talking to the wingman.",
@@ -293,7 +294,8 @@ def handle(msg):
                             "instructions": "You are flying a ship in a co-op space game, as the players' wingman. "
                                             "Listen on the comms channel (wait_messages, or read_messages) and answer players "
                                             "with say, in short radio lines (400 characters at most). Orders addressed to the "
-                                            "bot by name are carried out by it already; answer the talk, but only while the "
+                                            "bot by name are carried out by it already (marked handled: never order those again); "
+                                            "answer the talk, but only while the "
                                             "chat_mode in read_messages/wait_messages is llm (personality: the bot answers "
                                             "talk itself; paused: nobody does). Carry out what they ask "
                                             "with order or give_credits; facts come from status and cargo, never made up. "

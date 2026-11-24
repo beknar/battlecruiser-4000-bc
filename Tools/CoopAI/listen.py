@@ -38,8 +38,9 @@ def line_for(m):
 
 def wanted(m, everything, mode="llm"):
     """Is a message printed? Players' messages to the wingman (any message with --all), and only
-    while the chat mode is llm: in the others the bot answers talk itself, or nobody does."""
-    return mode == "llm" and not m.get("mine") and (everything or m.get("to_me"))
+    while the chat mode is llm: in the others the bot answers talk itself, or nobody does. An
+    order the bot carried out itself (handled) isn't, so it isn't ordered a second time."""
+    return mode == "llm" and not m.get("mine") and not m.get("handled") and (everything or m.get("to_me"))
 
 
 def mode_note(was, now):

@@ -15,8 +15,9 @@ namespace CarrierGame.Demo
     ///   REFINE   (a refinery) queue refining jobs (minerals in storage into refined materials);
     ///   BUILD    (a factory) queue factory jobs (refined materials into ship parts);
     ///   FIT      (a factory) fit parts to the ship, or take them off (back into storage);
-    ///   TRADE    (a trading station: a market, or any place with people) sell what is aboard,
-    ///            buy raw minerals, refined materials and ship parts; (a refinery) sell minerals;
+    ///   SELL     (a trading station: a market, or any place with people) sell what is aboard;
+    ///            (a refinery) sell minerals;
+    ///   BUY      (a trading station) buy raw minerals, refined materials and ship parts;
     ///   CREW     (a place with people) recruit, or drop crew off;
     ///   SHIPYARD (a shipyard) build a ship from parts, take command of one.
     /// The game goes on while it is open (the jobs run in game time). Keyboard: up/down (W/S) to
@@ -29,8 +30,13 @@ namespace CarrierGame.Demo
     {
         public CarrierController carrier;
 
-        public enum Page { Storage, Refine, Build, Fit, Trade, Crew, Shipyard }
-        static readonly Page[] Pages = { Page.Storage, Page.Refine, Page.Build, Page.Fit, Page.Trade, Page.Crew, Page.Shipyard };
+        /// <summary>The screen's pages. Trade is two: SELL (what's aboard) and BUY (what the
+        /// market has for sale).</summary>
+        public enum Page { Storage, Refine, Build, Fit, Sell, Buy, Crew, Shipyard }
+        static readonly Page[] Pages = { Page.Storage, Page.Refine, Page.Build, Page.Fit, Page.Sell, Page.Buy, Page.Crew, Page.Shipyard };
+
+        /// <summary>On one of the two trade pages (SELL or BUY)?</summary>
+        bool Trading => Current == Page.Sell || Current == Page.Buy;
 
         /// <summary>What a trading station asks over what it pays (it buys at an item's worth).</summary>
         public const float BuyMarkup = 1.3f;
@@ -69,7 +75,7 @@ namespace CarrierGame.Demo
         // in the yard ("*fleet:" and its class)
         const string FleetHere = "*fleet:";
         const int JoinFleet = 16, TowIt = 17, LeaveHere = 18;
-        // the trade page's rows: an item aboard to sell, or one to buy; and selling all the ore
+        // the SELL and BUY pages' rows: an item aboard to sell, or one to buy; and selling all the ore
         const string SellPrefix = "*sell:", BuyPrefix = "*buy:", SellOre = "*sellore";
         const int Sell = 11, SellAll = 12, Buy = 13, BuyTen = 14;
         // the crew page's: drop crew off here
@@ -158,6 +164,8 @@ namespace CarrierGame.Demo
                      : System.Array.Find(Pages, PageAvailable);
             }
             Show(page);
+            // (nothing aboard to sell at a market: what it has for sale instead)
+            if (Current == Page.Sell && rows.Count == 0 && PageAvailable(Page.Buy)) Show(Page.Buy);
             SoundFX.Ui(Sfx.UiLock);
             return true;
         }
@@ -218,19 +226,23 @@ namespace CarrierGame.Demo
                     rows.Add(RecruitAll);
                     if (CrewAboard is Crew aboard && aboard.Aboard > Mathf.CeilToInt(aboard.complement * CrewTable.Get().survivors)) { rows.Add(DropOne); rows.Add(DropTen); }
                     break;
-                case Page.Trade:
+                case Page.Sell:
+                    // what's aboard that this place buys (a market everything, a refinery minerals)
                     if (hold != null)
                     {
                         bool market = IsMarket(Site);
                         if (hold.OreTonnes > 0.05f) rows.Add(SellOre);
                         foreach (var e in hold.Contents())
                             if (market || Table.Kind(e.id) == ItemKind.Raw) rows.Add(SellPrefix + e.id);
-                        if (market)
-                        {
-                            foreach (var r in Table.refined) rows.Add(BuyPrefix + r.id);
-                            foreach (var p in Table.parts) rows.Add(BuyPrefix + p.id);
-                            foreach (var m in System.Enum.GetNames(typeof(Mineral))) if (Table.Kind(m) == ItemKind.Raw) rows.Add(BuyPrefix + m);
-                        }
+                    }
+                    break;
+                case Page.Buy:
+                    // what a market has for sale
+                    if (hold != null && IsMarket(Site))
+                    {
+                        foreach (var r in Table.refined) rows.Add(BuyPrefix + r.id);
+                        foreach (var p in Table.parts) rows.Add(BuyPrefix + p.id);
+                        foreach (var m in System.Enum.GetNames(typeof(Mineral))) if (Table.Kind(m) == ItemKind.Raw) rows.Add(BuyPrefix + m);
                     }
                     break;
                 case Page.Shipyard:
@@ -268,8 +280,9 @@ namespace CarrierGame.Demo
         bool PageAvailable(Page p)
         {
             if (p == Page.Crew) return Site != null && Site.Recruits;
-            // (a market trades everything; a refinery buys minerals)
-            if (p == Page.Trade) return Site != null && (IsMarket(Site) || (Site.Spec != null && Site.Spec.CanRefine));
+            // (a market trades everything; a refinery buys minerals, and sells nothing)
+            if (p == Page.Sell) return Site != null && (IsMarket(Site) || (Site.Spec != null && Site.Spec.CanRefine));
+            if (p == Page.Buy) return Site != null && IsMarket(Site);
             var spec = Site != null ? Site.Spec : null;
             if (spec == null) return false;
             switch (p)
@@ -513,7 +526,7 @@ namespace CarrierGame.Demo
             return credits;
         }
 
-        /// <summary>Sell all the ore aboard (the trade page's first row, and the self-test):
+        /// <summary>Sell all the ore aboard (the SELL page's first row, and the self-test):
         /// the credits it fetched, and the tonnes.</summary>
         public float SellAllOre(out float tonnes)
         {
@@ -674,7 +687,7 @@ namespace CarrierGame.Demo
                     if (pad.buttonNorth.wasPressedThisFrame) Act(id, TowIt);
                 }
                 else if (Current == Page.Shipyard && pad.buttonNorth.wasPressedThisFrame) Act(id, CancelLast);
-                else if (Current == Page.Trade && pad.buttonWest.wasPressedThisFrame) Primary(id, true);
+                else if (Trading && pad.buttonWest.wasPressedThisFrame) Primary(id, true);
                 if (pad.buttonSouth.wasPressedThisFrame) Primary(id, false);
             }
             var mouse = Mouse.current;
@@ -724,7 +737,8 @@ namespace CarrierGame.Demo
                 case Page.Crew:
                     Act(id, id == DropOne || id == DropTen ? DropOff : Recruit);
                     break;
-                case Page.Trade:
+                case Page.Sell:
+                case Page.Buy:
                     if (id == SellOre) Act(id, SellAll);
                     else if (id != null && id.StartsWith(SellPrefix)) Act(id, more ? SellAll : Sell);
                     else Act(id, more ? BuyTen : Buy);
@@ -798,7 +812,8 @@ namespace CarrierGame.Demo
                 bool on = Pages[i] == Current, can = PageAvailable(Pages[i]);
                 Hud.Fill(r, on ? new Color(0.25f, 0.45f, 0.8f, 0.6f) : new Color(1f, 1f, 1f, can ? 0.06f : 0.02f));
                 string name = Pages[i].ToString().ToUpper();
-                GUI.Label(r, can ? name : $"<color=#5a6470>{name}</color>", Hud.Text(15, on, TextAnchor.MiddleCenter));
+                // (smaller in a narrow window, so SHIPYARD still fits its tab)
+                GUI.Label(r, can ? name : $"<color=#5a6470>{name}</color>", Hud.Text(tw < 100f * s ? 12 : 15, on, TextAnchor.MiddleCenter));
             }
             string tabsHint = Gamepad.current != null && PadSupport.UsingPad ? "LB / RB" : "Tab or Q / E";
             GUI.Label(new Rect(panel.x + pad + Pages.Length * (tw + 6f * s), ty, 200f * s, 34f * s), $"<color=#7a8490>{tabsHint}</color>", Hud.Text(12, false, TextAnchor.MiddleLeft));
@@ -828,7 +843,8 @@ namespace CarrierGame.Demo
                 case Page.Refine:
                 case Page.Build: return padUsed ? "A queue one   X queue five   Y cancel last   B close" : "Enter queue one   Shift+Enter five   Backspace cancel   U / Esc close";
                 case Page.Crew: return padUsed ? "A recruit / drop off   B close" : "Enter recruit / drop off   U / Esc close   K leave";
-                case Page.Trade: return padUsed ? "A sell / buy   X sell all / buy ten   B close" : "Enter sell / buy   Shift+Enter sell all / buy ten   U / Esc close";
+                case Page.Sell: return padUsed ? "A sell   X sell all   B close" : "Enter sell   Shift+Enter sell all   U / Esc close";
+                case Page.Buy: return padUsed ? "A buy   X buy ten   B close" : "Enter buy   Shift+Enter buy ten   U / Esc close";
                 case Page.Shipyard: return padUsed ? "A build / take command   X join the fleet   Y tow / stop building   B close"
                                                    : "Enter build / take command   J join the fleet   T tow   Backspace stop building   U / Esc close";
                 default: return padUsed ? "A fit / take off   B close" : "Enter fit / take off   U / Esc close";
@@ -848,7 +864,8 @@ namespace CarrierGame.Demo
                 string why = Current == Page.Fit ? "No parts here to fit: build them in BUILD, or bring them in the hold."
                            : Current == Page.Shipyard ? "No ships are built here."
                                                  : Current == Page.Storage ? "Nothing aboard or in storage."
-                                                 : Current == Page.Trade ? "Nothing aboard to sell here." : "Nothing can be made here.";
+                                                 : Current == Page.Sell ? "Nothing aboard to sell here."
+                                                 : Current == Page.Buy ? "Nothing for sale here." : "Nothing can be made here.";
                 GUI.Label(new Rect(area.x, area.y, area.width, 40f * s), $"<color=#9aa4b0>{why}</color>", Hud.Text(14, false, TextAnchor.MiddleLeft));
                 return;
             }
@@ -897,7 +914,7 @@ namespace CarrierGame.Demo
                 Button(new Rect(r.xMax - 100f * s, r.y + 7f * s, 94f * s, r.height - 14f * s), "Sell", id, SellAll, s);
                 return;
             }
-            if (Current == Page.Trade) { DrawTradeRow(r, id, sel, s); return; }
+            if (Trading) { DrawTradeRow(r, id, sel, s); return; }
             if (id == AllOre || id == Everything)
             {
                 GUI.Label(new Rect(x + 4f * s, r.y, r.width - 200f * s, r.height), id == AllOre ? "Store all the ore aboard" : "Store everything aboard", Hud.Text(15, sel, TextAnchor.MiddleLeft));
@@ -1120,8 +1137,8 @@ namespace CarrierGame.Demo
             float y = area.y + pad;
             if (Current == Page.Crew) { DrawCrew(area, s); return; }
             // (a trade row's item: its picture and details, with its price here)
-            if (Current == Page.Trade && id == SellOre) id = null;
-            else if (Current == Page.Trade) id = Item(id);
+            if (Trading && id == SellOre) id = null;
+            else if (Trading) id = Item(id);
             if (Current == Page.Shipyard) { if (id != null) DrawShipDetail(area, id, s); return; }
             if (Current == Page.Fit || (Current != Page.Storage && id == null))
             {
@@ -1147,7 +1164,7 @@ namespace CarrierGame.Demo
             GUI.Label(new Rect(tx, y, tw, 26f * s), t.Name(id), Hud.Text(18, true, TextAnchor.UpperLeft));
             var kind = t.Kind(id);
             string kindText = kind == ItemKind.Raw ? "Raw mineral" : kind == ItemKind.Refined ? "Refined material" : "Ship part";
-            GUI.Label(new Rect(tx, y + 26f * s, tw, 20f * s), $"<color=#9aa4b0>{kindText}  ·  {t.Value(id):N0} cr{(kind == ItemKind.Part ? " each" : " a tonne")}</color>", Hud.Text(12, false, TextAnchor.UpperLeft));
+            GUI.Label(new Rect(tx, y + 26f * s, tw, 20f * s), $"<color=#9aa4b0>{kindText}  ·  {t.Value(id) * (Current == Page.Buy ? BuyMarkup : 1f):N0} cr{(kind == ItemKind.Part ? " each" : " a tonne")}</color>", Hud.Text(12, false, TextAnchor.UpperLeft));
             GUI.Label(new Rect(tx, y + 48f * s, tw, pic - 48f * s), t.Describe(id), Hud.Text(13, false, TextAnchor.UpperLeft));
             y = pr.yMax + pad;
             var sb = new System.Text.StringBuilder();

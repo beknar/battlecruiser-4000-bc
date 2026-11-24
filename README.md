@@ -339,12 +339,22 @@ screen for the ship being flown, and Done paints it straight away.
   skull, shield, eagle, lightning, anchor, planet, claw, crescent, comet and gear.
 - **Lettering.** Up to 12 letters, digits, dashes and spaces, on both sides amidships. They read
   the right way round on each side.
+- **Placing them (PLACE).** The PLACE tab (P, or View on the pad) takes the right-hand column in
+  place of the colours. For the logo or the lettering:
+  - Along and Up move it about the hull, from where the class puts it;
+  - Size makes it 40% to 250% of the class's size;
+  - Turn turns it (as it reads, on each side);
+  - Both sides, Port or Starboard choose where it goes;
+  - Put back returns it to the class's own place.
+  On the picture, the left button drags it about the hull and the right button turns the ship.
+  It stays on the hull's sides: not on the top or the belly.
 - **Random and Reset.** Random picks a pattern, three different palette colours and a logo.
   Reset puts back the paint the ship had when the screen opened.
 
 Keys: up/down choose a row, left/right change it (hold to repeat), Q/E step through the pattern
-families, T types the lettering, R is random, Enter or Space is done, Esc goes back. On the pad:
-D-pad or left stick, LB/RB for the pattern family, Y random, X reset, A done, B back. The mouse
+families, T types the lettering, P places the logo and lettering, R is random, Enter or Space is
+done, Esc goes back. On the pad: D-pad or left stick, LB/RB for the pattern family, View place, Y
+random, X reset, A done, B back. The mouse
 can click anything and drag the sliders.
 
 The paint is kept for each class, so a Lancer and a Warden can wear different schemes. A class
@@ -362,7 +372,11 @@ The colours are `RRGGBB`, the logo is -1 for none, and spaces in the text are un
 example, `1.90.100.0.d9731a.1a1a1a.e8dcc0.1a1a1a.8.TIGER-01`. Pattern -1 is the factory finish
 with a logo or lettering on it (`1.-1.100.0.ffffff.000000.ff0000.ffd040.3.BC_4000`); the
 factory finish with neither is kept as no scheme at all. A game from before this shows pattern
--1 as the first pattern.
+-1 as the first pattern. A scheme with the logo or lettering moved is written as version 2, with
+the placement before the text: `along,up,size,turn,sides` for the logo, then the same for the
+lettering, so `2.90.100.0.d9731a.1a1a1a.e8dcc0.1a1a1a.8.-20,10,150,30,1,5,-15,80,350,2.TIGER-01`
+(sides: 0 both, 1 port, 2 starboard). With nothing moved it is still version 1. A game from before
+this shows a version 2 ship in its factory finish.
 
 ### Destroyers and the cruiser
 

@@ -105,12 +105,28 @@ namespace CarrierGame.Demo
         readonly System.Collections.Generic.HashSet<Installation> givenUp = new System.Collections.Generic.HashSet<Installation>();
         int dockTries;
 
-        /// <summary>A fight: the laser off and the approach called off; afterwards it looks again.</summary>
+        // the rock it was flying to or cutting when a fight broke in: back to it afterwards
+        IMineralSource resumeRock;
+        float skippedCleared;
+
+        /// <summary>A fight: the laser off and the approach called off; afterwards it goes back
+        /// to the same rock (if it's still there), else looks again.</summary>
         void MinePause()
         {
             StopMiningGear();
-            if (Step == MineStep.Approach || Step == MineStep.Cut) Go(MineStep.Scan);
+            if (Step == MineStep.Approach || Step == MineStep.Cut)
+            {
+                var mm = MiningMode;
+                if (mm != null && mm.Chosen != null) resumeRock = mm.Chosen;
+                Go(MineStep.Scan);
+            }
         }
+
+        /// <summary>Is `p` at the asteroid field (within its reach), whatever world is near it?
+        /// (Places.At names the planet or moon first, so a field close to one would never count
+        /// as reached, and the bot would warp to it again and again.)</summary>
+        public static bool AtField(WarpPoint field, Vector3 p) =>
+            field != null && Vector3.Distance(p, field.Position) < Mathf.Max(field.bodyRadius * 1.6f, 80000f);
 
         void StopMiningGear()
         {
@@ -145,7 +161,7 @@ namespace CarrierGame.Demo
                     if (Undocking()) { Doing = "undocking to go mining"; return; }
                     var field = FieldFor(me);
                     if (field == null) { Doing = "can't mine: no asteroid field"; Current = Order.Hold; return; }
-                    if (Places.At(me) == field) { skipped.Clear(); nextScan = 0f; Go(MineStep.Scan); return; }
+                    if (AtField(field, me)) { skipped.Clear(); resumeRock = null; nextScan = 0f; Go(MineStep.Scan); return; }
                     // (a warp refused, under fire say: it tries again in a while, still mining)
                     TryWarp(field, $"warping to {field.displayName} to mine");
                     return;
@@ -156,10 +172,14 @@ namespace CarrierGame.Demo
                     cc.throttle = 0f;
                     if (!Modes.Is(ModeOfPlay.Mining)) Modes.Set(ModeOfPlay.Mining);
                     if (sensor.Sweeping) { Doing = "scanning for deposits"; return; }
-                    // (what the last scan found here: not what an earlier one found at another field)
-                    var found = sensor.Finds.Select(f => f.source)
+                    // (the rock a fight took it off, if it's still there; else the nearest the last
+                    // scan found here, not what an earlier one found at another field)
+                    var found = resumeRock != null && resumeRock.Valid && !resumeRock.Depleted && !skipped.Contains(resumeRock)
+                                && laser.Reach(resumeRock) < sensor.spaceRange ? resumeRock
+                              : sensor.Finds.Select(f => f.source)
                                     .Where(s => s != null && s.Valid && !s.Depleted && !(s is SurfaceVein) && !skipped.Contains(s) && laser.Reach(s) < sensor.spaceRange)
                                     .OrderBy(s => laser.Reach(s)).FirstOrDefault();
+                    resumeRock = null;
                     if (found != null)
                     {
                         mm.Choose(found);
@@ -173,6 +193,9 @@ namespace CarrierGame.Demo
                     if (Time.time >= nextScan)
                     {
                         nextScan = Time.time + 8f;
+                        // (a fresh scan, a minute on: the rocks passed over get another chance, so
+                        // it doesn't wander the field with every rock near it skipped)
+                        if (Time.time - skippedCleared > 60f) { skipped.Clear(); skippedCleared = Time.time; }
                         if (!sensor.Scan(out string why)) Doing = $"can't scan: {why}";
                         else Doing = "scanning for deposits";
                         return;

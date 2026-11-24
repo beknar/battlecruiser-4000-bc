@@ -39,7 +39,9 @@ namespace CarrierGame.Demo
         /// <summary>Told to hold, go somewhere or dock: it doesn't form up on a player by itself.</summary>
         public bool Released { get; private set; }
         /// <summary>In a fight: attacking, or fighting back.</summary>
-        public bool Fighting => (Current == Order.Attack || defending) && Target != null;
+        /// <summary>In a fight: attacking its target, or defending (which goes on, between
+        /// targets, till the calm is out).</summary>
+        public bool Fighting => (Current == Order.Attack && Target != null) || defending;
         public string LeaderName => LeaderId != 0 && CoopClient.Instance != null ? CoopClient.Instance.NameOf(LeaderId) : "";
         public Transform Target { get; private set; }
         public WarpPoint Destination { get; private set; }
@@ -174,6 +176,28 @@ namespace CarrierGame.Demo
         /// <summary>A target's name as the player sees it.</summary>
         public static string NameOf(Transform t) => Targets.NameOf(t);
 
+        /// <summary>How much further than defendRange a fight goes on, once started.</summary>
+        public const float DefendKeep = 1.25f;
+        /// <summary>Seconds with no enemy in reach before a fight is over, while mining.</summary>
+        public const float DefendCalm = 8f;
+        float lastEnemySeen = float.NegativeInfinity;
+
+        /// <summary>With no enemy in reach for `sinceSeen` seconds, is the fight still on? Mining,
+        /// till the calm is out; otherwise, no.</summary>
+        public static bool StillDefending(bool mining, float sinceSeen) => mining && sinceSeen < DefendCalm;
+
+        /// <summary>Fights over while mining, back at the rocks (CoopBot says so on the channel).</summary>
+        public int BackToMining { get; private set; }
+
+        /// <summary>The fight over: back to the order.</summary>
+        void EndDefence(CarrierController cc)
+        {
+            defending = false;
+            Target = null;
+            cc.SetTarget(null);
+            if (Current == Order.Mine && Step <= MineStep.Cut) BackToMining++;
+        }
+
         static bool Gone(Transform t) => t == null || !t.gameObject.activeInHierarchy || (t.TryGetComponent(out Health h) && h.Dead);
 
         // ------------------------------------------------------------ flying
@@ -200,13 +224,22 @@ namespace CarrierGame.Demo
             if (drive != null && drive.Current != WarpDrive.State.Ready) { Steer(0f, 0f); Doing = "in warp"; return; }
             if (PlanetLanding.Busy) { Steer(0f, 0f); Doing = "down on a planet"; return; }
 
-            // an enemy close while following or holding: fight it, then carry on
+            // an enemy close while following, holding or mining: fight it, then carry on. A fight
+            // starts inside defendRange and goes on while one is inside DefendKeep of that, and
+            // until none has been seen for DefendCalm: so one at the edge of the sensors' reach
+            // (which jamming moves about) doesn't start and stop a fight every second
             if (Time.time >= nextLook && Current != Order.Attack && Current != Order.Dock)
             {
                 nextLook = Time.time + 1f;
-                var near = NearestEnemy(cc.transform.position, defendRange);
-                if (near != null) { defending = true; if (Gone(Target)) Target = near; }
-                else if (defending) { defending = false; Target = null; cc.SetTarget(null); }
+                Vector3 pos = cc.transform.position;
+                float keep = defendRange * DefendKeep;
+                bool far = !Gone(Target) && (Target.position - pos).sqrMagnitude > keep * keep;
+                var near = NearestEnemy(pos, defending ? keep : defendRange);
+                // (a nearer one in reach rather than one run off; none in reach, mining: not chased
+                // off the field, but watched for)
+                if (near != null) { defending = true; lastEnemySeen = Time.time; if (Gone(Target) || far) Target = near; }
+                else if (defending && !StillDefending(Current == Order.Mine, Time.time - lastEnemySeen)) EndDefence(cc);
+                else if (defending && far && Current == Order.Mine) { Target = null; cc.SetTarget(null); }
             }
 
             if (Current == Order.Attack || defending)
@@ -215,17 +248,27 @@ namespace CarrierGame.Demo
                 if (Current == Order.Mine) MinePause();
                 if (Gone(Target))
                 {
-                    Target = NearestEnemy(cc.transform.position, Current == Order.Attack ? 30000f : defendRange);
+                    // (mining and watching for more: the check each second finds the next one)
+                    Target = Current == Order.Mine && defending ? null
+                           : NearestEnemy(cc.transform.position, Current == Order.Attack ? 30000f : defendRange * DefendKeep);
                     if (Target == null)
                     {
-                        if (Current == Order.Attack) { Current = LeaderId != 0 ? Order.Follow : Order.Hold; Doing = "target destroyed"; }
-                        defending = false;
-                        cc.SetTarget(null);
-                        return;
+                        if (Current == Order.Attack)
+                        {
+                            Current = LeaderId != 0 ? Order.Follow : Order.Hold;
+                            Doing = "target destroyed";
+                            defending = false;
+                            cc.SetTarget(null);
+                            return;
+                        }
+                        // (nothing left to fight. Mining, it holds where it is till the calm is out,
+                        // in case another comes, rather than going back to a rock and off it again;
+                        // otherwise it carries on at once, not to lose its leader)
+                        if (!StillDefending(Current == Order.Mine, Time.time - lastEnemySeen)) EndDefence(cc);
+                        else { cc.SetTarget(null); Steer(0f, 0f); cc.throttle = 0f; Doing = "watching for more"; return; }
                     }
                 }
-                Fight(cc, Target);
-                return;
+                if (Target != null) { Fight(cc, Target); return; }
             }
 
             switch (Current)

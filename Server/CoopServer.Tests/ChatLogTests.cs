@@ -135,6 +135,19 @@ public sealed class ChatLogTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task AFloodIsPassedOnButOnlyPartLogged()
+    {
+        Start(logging: true);
+        var (a, _) = await Join("Alpha", "NineHells");
+        var (b, _) = await Join("Bravo", "NineHells");
+        for (int i = 0; i < 40; i++) await a.Send(new JsonObject { ["t"] = "chat", ["text"] = $"spam {i}" });
+        for (int i = 0; i < 40; i++) await b.Next("chat");           // (every one passed on)
+        int kept = Lines().Count(l => (string?)l["kind"] == "chat");
+        // (five a second: ten if the flood crossed into a second second)
+        Assert.InRange(kept, Hub.LogPerSecond, 2 * Hub.LogPerSecond);
+    }
+
+    [Fact]
     public async Task TheWelcomeSaysTheLogIsKept()
     {
         Start(logging: true);

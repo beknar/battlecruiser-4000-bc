@@ -25,6 +25,8 @@ public sealed class Hub
     public const int Protocol = CoopWire.Protocol;
     /// <summary>Messages that can wait to go out to one player.</summary>
     public const int QueueLength = 2000;
+    /// <summary>The most of one player's lines the chat log takes in a second.</summary>
+    public const int LogPerSecond = 5;
     readonly ServerConfig cfg;
     readonly object gate = new();
     readonly Dictionary<int, Player> players = new();
@@ -57,6 +59,15 @@ public sealed class Hub
         /// inside the hub's lock).</summary>
         public CancellationTokenSource? Session;
         public bool Overflowed;
+        // (the chat log takes at most LogPerSecond of a player's lines a second, so a game that
+        // floods the channel can't fill the disk; what it sends is still passed on)
+        double logSecond = double.MinValue;
+        int logged;
+        public bool MayLog(double now)
+        {
+            if (now - logSecond >= 1.0) { logSecond = now; logged = 0; }
+            return ++logged <= LogPerSecond;
+        }
         // what is waiting to go out; a player this far behind is let go rather than have
         // messages dropped (a lost 'room' would leave them wrong about who hosts)
         public readonly Channel<string> Out = Channel.CreateBounded<string>(new BoundedChannelOptions(QueueLength) { FullMode = BoundedChannelFullMode.Wait });
@@ -265,7 +276,7 @@ public sealed class Hub
         msg[CoopWire.From] = me.Id;
         lock (gate)
         {
-            if (chatLog != null && (t == CoopWire.Chat || t == CoopWire.Doing))
+            if (chatLog != null && (t == CoopWire.Chat || t == CoopWire.Doing) && me.MayLog(Now))
                 chatLog.Add(Said(me, t, msg));
             if (Int(msg[CoopWire.To]) is int to && to > 0)
             {

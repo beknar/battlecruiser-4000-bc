@@ -2101,6 +2101,8 @@ CoopServer --revoke-key <name|key>      revoke a key, then exit
     so one conversation can be told from the next.
   - **Files:** one a day, `chat-yyyy-MM-dd.jsonl`, with one JSON object a line. They're written
     on a thread of their own, so the server never waits on the disk.
+  - **Floods:** at most 5 of a player's lines a second are logged, so a game flooding the
+    channel can't fill the disk. Everything it sends is still passed on.
   - **Players are told:** the welcome says the log is kept, so a player's game shows a notice
     and the wingman mentions it when it greets them.
   - **Making a database:** `python Tools/CoopAI/chat_dataset.py <folder> [--out <folder>]

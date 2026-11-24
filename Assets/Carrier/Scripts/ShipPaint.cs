@@ -49,8 +49,8 @@ namespace CarrierGame
         public int textAlong, textUp, textSize = 100, textTurn, textSides;
 
         /// <summary>Is the logo or the lettering anywhere but the class's own place?</summary>
-        public bool Placed => logoAlong != 0 || logoUp != 0 || logoSize != 100 || logoTurn != 0 || logoSides != 0
-                           || textAlong != 0 || textUp != 0 || textSize != 100 || textTurn != 0 || textSides != 0;
+        public bool Placed => (logo >= 0 && (logoAlong != 0 || logoUp != 0 || logoSize != 100 || logoTurn != 0 || logoSides != 0))
+                           || (SanitizeText(text).Length > 0 && (textAlong != 0 || textUp != 0 || textSize != 100 || textTurn != 0 || textSides != 0));
 
         /// <summary>The logo and the lettering back at the class's own place.</summary>
         public void ResetPlacement()
@@ -665,20 +665,24 @@ namespace CarrierGame
         /// (z, y, half size, index), the lettering's (z, y, letter height, count), the letters, and
         /// both turns and sides (logo turn in radians, logo sides, lettering turn, lettering sides).
         /// The player's placement moves and sizes them from the class's own place, kept on the hull.</summary>
+        /// <summary>How far toward the hull's ends a decal's centre can go (fractions of it).</summary>
+        public const float DecalMin = 0.05f, DecalMax = 0.95f;
+
         public static (Vector4 logo, Vector4 text, Vector4[] letters, Vector4 xform) Decals(PaintScheme s, Bounds b, Placement place)
         {
             s = s.Clamped();
             float len = Mathf.Max(1f, b.size.z), height = Mathf.Max(1f, b.size.y);
             float half = 0.5f * Mathf.Min(place.logoSize * height, 0.14f * len) * s.logoSize / 100f;
             // (the centre kept on the hull, a little in from its ends)
-            float logoZ = Mathf.Clamp(place.logoZ + s.logoAlong / 100f, 0.05f, 0.95f);
-            float logoY = Mathf.Clamp(place.logoY + s.logoUp / 100f, 0.05f, 0.95f);
+            float logoZ = Mathf.Clamp(place.logoZ + s.logoAlong / 100f, DecalMin, DecalMax);
+            float logoY = Mathf.Clamp(place.logoY + s.logoUp / 100f, DecalMin, DecalMax);
             var logo = new Vector4(Mathf.Lerp(b.min.z, b.max.z, logoZ), Mathf.Lerp(b.min.y, b.max.y, logoY), half, s.logo);
             string t = PaintScheme.SanitizeText(s.text);
             // (the letters no longer than about half the ship, at the class's size)
-            float h = t.Length > 0 ? Mathf.Min(place.textSize * height, 0.5f * len / (t.Length * 0.75f)) * s.textSize / 100f : 1f;
-            float textZ = Mathf.Clamp(place.textZ + s.textAlong / 100f, 0.05f, 0.95f);
-            float textY = Mathf.Clamp(place.textY + s.textUp / 100f, 0.05f, 0.95f);
+            float h = t.Length > 0 ? Mathf.Min(Mathf.Min(place.textSize * height, 0.5f * len / (t.Length * 0.75f)) * s.textSize / 100f,
+                                               0.9f * len / (t.Length * 0.75f)) : 1f;
+            float textZ = Mathf.Clamp(place.textZ + s.textAlong / 100f, DecalMin, DecalMax);
+            float textY = Mathf.Clamp(place.textY + s.textUp / 100f, DecalMin, DecalMax);
             var text = new Vector4(Mathf.Lerp(b.min.z, b.max.z, textZ), Mathf.Lerp(b.min.y, b.max.y, textY), h, t.Length);
             var letters = new Vector4[3];
             for (int i = 0; i < MaxLetters; i++)

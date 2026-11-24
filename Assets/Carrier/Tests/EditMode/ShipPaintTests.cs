@@ -121,8 +121,14 @@ namespace CarrierGame.Tests
             Assert.That(home.xform, Is.EqualTo(Vector4.zero));
             // kept on the hull however far it's pushed
             var far = ShipPaint.Decals(new PaintScheme { logo = 2, logoAlong = 45, logoUp = 45 }, bounds, ShipPaint.Fallback);
-            Assert.That(far.logo.x, Is.LessThanOrEqualTo(bounds.max.z));
-            Assert.That(far.logo.y, Is.LessThanOrEqualTo(bounds.max.y));
+            Assert.That(far.logo.x, Is.LessThanOrEqualTo(Mathf.Lerp(bounds.min.z, bounds.max.z, ShipPaint.DecalMax) + 1e-3f));
+            Assert.That(far.logo.y, Is.LessThanOrEqualTo(Mathf.Lerp(bounds.min.y, bounds.max.y, ShipPaint.DecalMax) + 1e-3f));
+            // (and the lettering, however big, never longer than most of the ship)
+            var big = ShipPaint.Decals(new PaintScheme { text = "ABCDEFGHIJKL", textSize = PaintScheme.MaxDecal }, bounds, ShipPaint.Fallback);
+            Assert.That(big.text.z * 0.75f * 12f, Is.LessThanOrEqualTo(0.9f * 180f + 1e-3f));
+            // (a decal that isn't there, moved: not a placement)
+            Assert.That(new PaintScheme { logo = -1, logoAlong = 10 }.Placed, Is.False);
+            Assert.That(new PaintScheme { text = "", textTurn = 30 }.Placed, Is.False);
             // and a point on the side reads back as where along and up it is
             var f = ShipPaint.Fractions(bounds, new Vector3(25f, 0f, 45f));
             Assert.That(f.x, Is.EqualTo(0.75f).Within(1e-4f));

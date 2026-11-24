@@ -75,11 +75,22 @@ namespace CarrierGame.Demo
         /// <summary>Is a row on the page showing (the left half always; the right, the colours or PLACE)?</summary>
         bool RowShown(int row) => row <= RowAngle || (placing ? row >= RowDecal : row <= RowText);
 
+        /// <summary>A shift (percent) only as far as the decal can go from the class's own place
+        /// (`home`, a fraction of the hull): no dead range at the end of a slider.</summary>
+        static int ClampShift(int shift, float home) =>
+            Mathf.Clamp(shift, Mathf.Max(-PaintScheme.MaxShift, Mathf.CeilToInt((ShipPaint.DecalMin - home) * 100f)),
+                               Mathf.Min(PaintScheme.MaxShift, Mathf.FloorToInt((ShipPaint.DecalMax - home) * 100f)));
+
+        ShipPaint.Placement Home => ShipPaint.PlacementFor(paintId);
+        float HomeAlong => placeLogo ? Home.logoZ : Home.textZ;
+        float HomeUp => placeLogo ? Home.logoY : Home.textY;
+
         /// <summary>The PLACE page up or down (the right-hand column's rows go with it).</summary>
         public void TogglePlacing()
         {
             placing = !placing;
             draggingDecal = false;
+            wantType = wantStopTyping = false;
             if (!RowShown(focus)) focus = placing ? RowDecal : RowSlot;
             // (the lettering's field isn't drawn on the PLACE page: no longer typed into)
             typing = false;
@@ -107,10 +118,14 @@ namespace CarrierGame.Demo
             if (Mathf.Abs(d.x) < 1e-5f) return;
             float along = (x - o.x) / d.x;
             if (along <= 0f) return;
-            var f = ShipPaint.Fractions(b, o + d * along);
+            var hit = o + d * along;
+            // (off the hull's side, on the background say: nothing moved)
+            if (hit.y < b.min.y || hit.y > b.max.y || hit.z < b.min.z || hit.z > b.max.z) return;
+            var f = ShipPaint.Fractions(b, hit);
             var place = ShipPaint.PlacementFor(paintId);
-            Along = Mathf.Clamp(Mathf.RoundToInt((f.x - (placeLogo ? place.logoZ : place.textZ)) * 100f), -PaintScheme.MaxShift, PaintScheme.MaxShift);
-            Up = Mathf.Clamp(Mathf.RoundToInt((f.y - (placeLogo ? place.logoY : place.textY)) * 100f), -PaintScheme.MaxShift, PaintScheme.MaxShift);
+            Along = ClampShift(Mathf.RoundToInt((f.x - (placeLogo ? place.logoZ : place.textZ)) * 100f), placeLogo ? place.logoZ : place.textZ);
+            Up = ClampShift(Mathf.RoundToInt((f.y - (placeLogo ? place.logoY : place.textY)) * 100f), placeLogo ? place.logoY : place.textY);
+            previewTurned = Time.unscaledTime;
             Touched(true, decal: true);
         }
         static readonly string[] SlotNames = { "Primary", "Secondary", "Trim", "Lettering" };
@@ -169,6 +184,8 @@ namespace CarrierGame.Demo
             hsvSlot = -1;
             typing = wantType = false;
             dragging = -1;
+            placing = draggingDecal = false;
+            placeLogo = true;
             step = Step.Paint;
             ResetTurntable();
             turningPreview = false;
@@ -297,8 +314,8 @@ namespace CarrierGame.Demo
                 case RowVal: SyncHsv(); val = Mathf.Clamp01(val + dir * 0.04f); FromHsv(); break;
                 case RowLogo: edit.logo = (edit.logo + 1 + dir + ShipPaint.Logos + 1) % (ShipPaint.Logos + 1) - 1; break;
                 case RowDecal: placeLogo = !placeLogo; SoundFX.Ui(Sfx.UiClear); return;
-                case RowAlong: Along = Mathf.Clamp(Along + dir, -PaintScheme.MaxShift, PaintScheme.MaxShift); Touched(true, decal: true); return;
-                case RowUp: Up = Mathf.Clamp(Up + dir, -PaintScheme.MaxShift, PaintScheme.MaxShift); Touched(true, decal: true); return;
+                case RowAlong: Along = ClampShift(Along + dir, HomeAlong); Touched(true, decal: true); return;
+                case RowUp: Up = ClampShift(Up + dir, HomeUp); Touched(true, decal: true); return;
                 case RowSize: Size = Mathf.Clamp(Size + dir * 5, PaintScheme.MinDecal, PaintScheme.MaxDecal); Touched(true, decal: true); return;
                 case RowTurn: Turn = (Turn + dir * 5 + 360) % 360; Touched(true, decal: true); return;
                 case RowSides: Sides = (Sides + dir + 3) % 3; Touched(true, decal: true); return;
@@ -370,7 +387,11 @@ namespace CarrierGame.Demo
                 if (k.eKey.wasPressedThisFrame) Family(+1);
                 if (k.rKey.wasPressedThisFrame) RandomScheme();
                 if (k.pKey.wasPressedThisFrame) TogglePlacing();
-                if (k.tKey.wasPressedThisFrame) { focus = RowText; wantType = true; typeFrame = Time.frameCount; }
+                if (k.tKey.wasPressedThisFrame)
+                {
+                    if (placing) TogglePlacing();   // (the lettering is typed on the colours' page)
+                    focus = RowText; wantType = true; typeFrame = Time.frameCount;
+                }
                 if (k.escapeKey.wasPressedThisFrame || k.backspaceKey.wasPressedThisFrame) { BackFromPaint(); return; }
                 if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame || k.spaceKey.wasPressedThisFrame) { DonePainting(); return; }
             }
@@ -763,8 +784,9 @@ namespace CarrierGame.Demo
                 GUI.Label(new Rect(r.xMax - 60f * s, cy, 60f * s, 30f * s), shown, small);
                 cy += 36f * s;
             }
-            Row(RowAlong, "Along", Along, -PaintScheme.MaxShift, PaintScheme.MaxShift, $"{Along:+0;-0;0}%", v => Along = v);
-            Row(RowUp, "Up", Up, -PaintScheme.MaxShift, PaintScheme.MaxShift, $"{Up:+0;-0;0}%", v => Up = v);
+            int alongMin = ClampShift(-100, HomeAlong), alongMax = ClampShift(100, HomeAlong), upMin = ClampShift(-100, HomeUp), upMax = ClampShift(100, HomeUp);
+            Row(RowAlong, "Along", Along, alongMin, alongMax, $"{Along:+0;-0;0}%", v => Along = v);
+            Row(RowUp, "Up", Up, upMin, upMax, $"{Up:+0;-0;0}%", v => Up = v);
             Row(RowSize, "Size", Size, PaintScheme.MinDecal, PaintScheme.MaxDecal, $"{Size}%", v => Size = Mathf.RoundToInt(v / 5f) * 5);
             Row(RowTurn, "Turn", Turn, 0, 359, $"{Turn}°", v => Turn = Mathf.RoundToInt(v / 5f) * 5 % 360);
             Focus(RowSides, new Rect(bx - 3f * s, cy - 3f * s, bw + 6f * s, 40f * s));

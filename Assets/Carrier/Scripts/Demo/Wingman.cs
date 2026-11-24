@@ -186,13 +186,16 @@ namespace CarrierGame.Demo
         /// till the calm is out; otherwise, no.</summary>
         public static bool StillDefending(bool mining, float sinceSeen) => mining && sinceSeen < DefendCalm;
 
-        /// <summary>The fight over: back to the order (and, mining, it says so).</summary>
+        /// <summary>Fights over while mining, back at the rocks (CoopBot says so on the channel).</summary>
+        public int BackToMining { get; private set; }
+
+        /// <summary>The fight over: back to the order.</summary>
         void EndDefence(CarrierController cc)
         {
             defending = false;
             Target = null;
             cc.SetTarget(null);
-            if (Current == Order.Mine) Doing = "back to mining";
+            if (Current == Order.Mine && Step <= MineStep.Cut) BackToMining++;
         }
 
         static bool Gone(Transform t) => t == null || !t.gameObject.activeInHierarchy || (t.TryGetComponent(out Health h) && h.Dead);
@@ -228,9 +231,15 @@ namespace CarrierGame.Demo
             if (Time.time >= nextLook && Current != Order.Attack && Current != Order.Dock)
             {
                 nextLook = Time.time + 1f;
-                var near = NearestEnemy(cc.transform.position, defending ? defendRange * DefendKeep : defendRange);
-                if (near != null) { defending = true; lastEnemySeen = Time.time; if (Gone(Target)) Target = near; }
+                Vector3 pos = cc.transform.position;
+                float keep = defendRange * DefendKeep;
+                bool far = !Gone(Target) && (Target.position - pos).sqrMagnitude > keep * keep;
+                var near = NearestEnemy(pos, defending ? keep : defendRange);
+                // (a nearer one in reach rather than one run off; none in reach, mining: not chased
+                // off the field, but watched for)
+                if (near != null) { defending = true; lastEnemySeen = Time.time; if (Gone(Target) || far) Target = near; }
                 else if (defending && !StillDefending(Current == Order.Mine, Time.time - lastEnemySeen)) EndDefence(cc);
+                else if (defending && far && Current == Order.Mine) { Target = null; cc.SetTarget(null); }
             }
 
             if (Current == Order.Attack || defending)
@@ -239,7 +248,9 @@ namespace CarrierGame.Demo
                 if (Current == Order.Mine) MinePause();
                 if (Gone(Target))
                 {
-                    Target = NearestEnemy(cc.transform.position, Current == Order.Attack ? 30000f : defendRange * DefendKeep);
+                    // (mining and watching for more: the check each second finds the next one)
+                    Target = Current == Order.Mine && defending ? null
+                           : NearestEnemy(cc.transform.position, Current == Order.Attack ? 30000f : defendRange * DefendKeep);
                     if (Target == null)
                     {
                         if (Current == Order.Attack)

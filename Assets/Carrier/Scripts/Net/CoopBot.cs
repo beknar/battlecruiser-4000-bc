@@ -84,6 +84,8 @@ namespace CarrierGame.Demo
         bool greeted;
         string lastDoing = "";
         bool wasFighting;
+        int saidBackToMining;
+        Wingman backToMiningOf;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() => Instance = null;
@@ -170,11 +172,13 @@ namespace CarrierGame.Demo
                 var info = Pilot.Target.GetComponent<TargetInfo>();
                 if (CoopClient.Active) CoopChat.Say($"{Me}: engaging {(info != null && !string.IsNullOrEmpty(info.Name) ? info.Name : Pilot.Target.name)}.");
             }
-            else if (!fighting && wasFighting)
+            else if (!fighting && wasFighting) wasFighting = false;
+            // (a fight over while mining, back at the rocks: said, so the order isn't lost)
+            if (Pilot != backToMiningOf) { backToMiningOf = Pilot; saidBackToMining = Pilot != null ? Pilot.BackToMining : 0; }
+            if (Pilot != null && Pilot.BackToMining != saidBackToMining)
             {
-                // (and the fight over: said too when it goes back to mining, so the order isn't lost)
-                wasFighting = false;
-                if (CoopClient.Active && Pilot != null && Pilot.Current == Wingman.Order.Mine) CoopChat.Say($"{Me}: back to mining.");
+                saidBackToMining = Pilot.BackToMining;
+                if (CoopClient.Active) CoopChat.Say($"{Me}: back to mining.");
             }
             NextInChain();
             while (requests.TryDequeue(out var r)) Serve(r.ctx, r.body);
@@ -417,7 +421,7 @@ namespace CarrierGame.Demo
                                      .OrderBy(t => (t.position - at).sqrMagnitude).ToList();
             f["hostiles"] = hostile.Count == 0 ? "nothing hostile"
                 : $"{hostile.Count} hostile{(hostile.Count == 1 ? "" : "s")}, nearest {Wingman.NameOf(hostile[0])} at {Vector3.Distance(hostile[0].position, at) / 1000f:F1} km";
-            if (Pilot.Fighting) f["target"] = Wingman.NameOf(Pilot.Target);
+            if (Pilot.Fighting && Pilot.Target != null) f["target"] = Wingman.NameOf(Pilot.Target);
             f["docked"] = Docking.Docked ? "docked" : "";
             return f;
         }

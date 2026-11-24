@@ -42,6 +42,9 @@ namespace CarrierGame
         public const string Shot = "shot", Missile = "msl", Beam = "beam";
         // a message on the comms channel, to everyone in the room (CoopChat): {text}
         public const string Chat = "chat";
+        // what an AI wingman is doing, in a few words, for the players' HUD (CoopChat): {text},
+        // sent when it changes and every 15 s (games before it ignore it)
+        public const string Doing = "doing";
         // credits handed to one player by an AI wingman: {to, a, gid}; and the receipt back: {to, a, gid}
         public const string Gift = "gift", GiftReceipt = "giftok";
         // the host's tractor beams on one player's ship: {to, on, x, y, z, rf, n, held}, sent as a

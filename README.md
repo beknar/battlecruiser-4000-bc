@@ -2240,7 +2240,10 @@ order that takes time replaces what was still to come; a report or credits on th
 talk).
 
 It also says when it starts a fight, when the target is destroyed, when it arrives, when it sells a
-load (how much, where, and for how much), and when it can't do what it was told.
+load (how much, where, and for how much), when it goes back to mining after a fight, and when it
+can't do what it was told. What it's doing is always shown on the HUD, over the comms lines, in a
+line of its own that doesn't fade ("Wingman: mining in Outer Drift: 34 t of ore aboard"), so an
+order isn't lost when its reply has faded.
 
 A message to it that isn't an order (`Wingman, how's it going?`) is talk. Its **chat mode**
 decides who answers talk:

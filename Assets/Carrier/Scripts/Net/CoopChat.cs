@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -50,9 +51,11 @@ namespace CarrierGame.Demo
         string draft = "";
         GUIStyle box, input;
         readonly List<float> heights = new List<float>();
+        readonly List<string> doingLines = new List<string>();
+        readonly List<float> doingHeights = new List<float>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { Lines.Clear(); LastSeq = 0; Received = null; Instance = null; }
+        static void ResetStatics() { Lines.Clear(); Doings.Clear(); LastSeq = 0; Received = null; Instance = null; }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Make()
@@ -71,8 +74,34 @@ namespace CarrierGame.Demo
             if (Instance == this) Instance = null;
         }
 
-        static void OnMessage(CoopMsg m)
+        /// <summary>What each AI wingman says it's doing (CoopWire.Doing), by player id, and when
+        /// it said so: shown over the comms lines, so its order doesn't go when they fade.</summary>
+        public static readonly Dictionary<int, (string text, double time)> Doings = new Dictionary<int, (string, double)>();
+        /// <summary>How long a wingman's line stays up without being said again.</summary>
+        public const double DoingKept = 40.0;
+
+        [Serializable] class DoingMsg { public string t = CoopWire.Doing; public string text; }
+
+        /// <summary>Tell everyone what this game's AI wingman is doing (CoopBot).</summary>
+        /// <summary>("": nothing to show any more, the line taken down.)</summary>
+        public static void SayDoing(string text)
         {
+            if (!CoopClient.Active) return;
+            CoopClient.Instance.Send(new DoingMsg { text = Clean(text ?? "", DoingMax) });
+        }
+
+        /// <summary>A wingman's line at most this long (a row of the HUD).</summary>
+        public const int DoingMax = 70;
+
+        internal static void OnMessage(CoopMsg m)
+        {
+            if (m.t == CoopWire.Leave) { Doings.Remove(m.id); return; }
+            if (m.t == CoopWire.Doing)
+            {
+                if (string.IsNullOrWhiteSpace(m.text)) Doings.Remove(m.from);
+                else Doings[m.from] = (Clean(m.text, DoingMax), Now);
+                return;
+            }
             if (m.t != CoopWire.Chat || string.IsNullOrWhiteSpace(m.text)) return;
             Add(m.from, CoopClient.Instance != null ? CoopClient.Instance.NameOf(m.from) : $"Player {m.from}", m.text);
         }
@@ -209,7 +238,29 @@ namespace CarrierGame.Demo
                 shown++;
             }
             float y = bottom - (typing ? inputH + 4 * s : 0f) - used;
-            Area = new Rect(x - 4 * s, y, w + 8 * s, bottom - y);
+            // over them, what each AI wingman is doing (always shown, while it keeps saying so)
+            // (only players in this room now: not one gone, or left behind in another room)
+            doingLines.Clear();
+            var client = CoopClient.Instance;
+            if (client != null)
+                foreach (var p in client.Players.OrderBy(q => q.id))
+                    if (p != null && p.level == client.RoomLevel && Doings.TryGetValue(p.id, out var d) && now - d.time < DoingKept)
+                        doingLines.Add($"{p.name}: {d.text}");
+            float total = 0f;
+            doingHeights.Clear();
+            foreach (var line in doingLines) { float h = Mathf.Max(lh, box.CalcHeight(new GUIContent(line), w)); doingHeights.Add(h); total += h; }
+            float dy = y - total, ry = dy;
+            for (int i = 0; i < doingLines.Count; i++)
+            {
+                var r = new Rect(x - 4 * s, ry, w + 8 * s, doingHeights[i]);
+                GUI.color = new Color(0f, 0f, 0f, 0.55f);
+                GUI.DrawTexture(r, Texture2D.whiteTexture);
+                GUI.color = new Color(1f, 0.8f, 0.45f, 1f);
+                GUI.Label(new Rect(x, r.y, w, r.height), doingLines[i], box);
+                ry += doingHeights[i];
+            }
+            GUI.color = Color.white;
+            Area = new Rect(x - 4 * s, dy, w + 8 * s, bottom - dy);
             for (int i = Lines.Count - shown, k = 0; i < Lines.Count; i++, k++)
             {
                 var l = Lines[i];

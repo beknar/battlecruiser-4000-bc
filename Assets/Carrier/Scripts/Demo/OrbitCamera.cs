@@ -28,6 +28,9 @@ namespace CarrierGame.Demo
             // no orbiting or zooming under the pause menu or the system map, which pans and zooms
             // itself with the same controls (it still follows its target)
             bool held = GameMenu.IsOpen || SystemMap.IsOpen;
+            // the station panel scrolls its list with the wheel, so the wheel doesn't zoom under it
+            // (the right button still orbits, to look the ship over)
+            bool wheelHeld = IndustryPanel.IsOpen || IndustryPanel.JustClosed;
             var mouse = held ? null : Mouse.current;
             if (mouse != null)
             {
@@ -37,7 +40,7 @@ namespace CarrierGame.Demo
                     yaw += d.x * sensitivity;
                     pitch = Mathf.Clamp(pitch - d.y * sensitivity, -85f, 85f);
                 }
-                float scroll = mouse.scroll.ReadValue().y;
+                float scroll = wheelHeld ? 0f : mouse.scroll.ReadValue().y;
                 if (Mathf.Abs(scroll) > 0.01f)
                     distance = Mathf.Clamp(distance * (scroll > 0 ? 0.9f : 1.1f), minDistance, maxDistance);
             }

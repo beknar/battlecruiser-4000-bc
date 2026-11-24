@@ -2270,7 +2270,7 @@ several wingmen it goes to the one last spoken to. A mark shows on the HUD while
   Settings > Privacy > Speech: Online speech recognition. Without it, a short list of orders is
   heard offline (each order, alone or after a wingman's name, and "warp to" or "mine at" each
   place).
-- **The web:** the browser's speech recognition, in Chrome or Edge, on an https page. It sends
+- **The web:** the browser's speech recognition, in Chrome, Edge or Safari, on an https page. It sends
   the audio to the browser's maker, and the browser asks for the microphone the first time.
   Firefox has none.
 - **Linux:** not supported.

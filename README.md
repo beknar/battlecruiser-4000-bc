@@ -104,7 +104,7 @@ scenes cut through black.
   to get back. The propellant depot at Jovara's L5, and the Trojan asteroids at L4.
 - **The Highport and the space elevator.** The geostationary station with its turning ring, and a
   climber riding the tether.
-- **Docking.** At the Highport: the hull is repaired, and the ore sold on its trade page.
+- **Docking.** At the Highport: the hull is repaired, and the ore sold on its SELL page.
 - **Launch systems.** The launch loop on Thalassa, the StarTram and spin launcher on Ochre, the
   mass driver on Selene and the slingatron on Steropes, each launching a payload.
 - **Stations.** Deepcut Station, Ochre Relay and Brontes Shipyard.
@@ -254,7 +254,7 @@ There is no script: what to do next is the player's. A usual way up:
    choose a deposit in the menu (Tab), let the ship fly there (C) and cut it (Z) until the hold
    is full.
 2. **Sell or refine** (services mode, 4). Dock or land at a trading station and sell the ore on
-   the trade page, or take it to a refinery, store it and refine it into materials.
+   the SELL page, or take it to a refinery, store it and refine it into materials.
 3. **Build and fit.** At a factory, build ship parts from the materials and fit them to the
    ship (more armour, a stronger shield, faster engines, a bigger hold, more guns...), or sell
    them.
@@ -275,7 +275,7 @@ There is no script: what to do next is the player's. A usual way up:
 | 1 Combat | weapons, targets, lining up, salvage, strikes from orbit | the targets in range, and the wrecks near |
 | 2 Mining | the scan, the laser, flying to a deposit, the hold | the deposits found, and the ore aboard |
 | 3 Navigation | the system map, cruise, auto-travel, landing and docking | the points of interest at the place the ship is |
-| 4 Services | what a station or base offers, docked or on its pad | its services screen: storage, refining, building, fitting, trade, crew, the shipyard |
+| 4 Services | what a station or base offers, docked or on its pad | its services screen: storage, refining, building, fitting, selling, buying, crew, the shipyard |
 | 5 Fleet | orders to the other ships | the fleet, and the ships berthed at the yards |
 
 Flying is the same in every mode. See [Controls](#controls) for every key.
@@ -804,7 +804,7 @@ system to travel around.
   | Selene Base | A colony on the surface of Selene: domes, habitats, a control tower and tanks round a landing pad |
   | Cinder Fortress | The corsairs' stronghold on the surface of Cinder (hostile) |
 
-  - **Docking** (K, Back + B on the pad). (The ore is sold on the services screen's trade page,
+  - **Docking** (K, Back + B on the pad). (The ore is sold on the services screen's SELL page,
     at a market.) Within 1.6 km of the berth of a station or base, and out of combat, K brings
     the frigate in to it. Farther out, but where a warp or an auto-flight there leaves the ship
     (a few kilometres off: Deepcut at the edge of the Inner Belt, the Lantern Arcology, Kestrel
@@ -1163,12 +1163,12 @@ fitted to the frigate to make it better. All of it is in
   - **Build**: queue factory jobs, refined materials into parts.
   - **Fit**: fit parts from storage (or the hold) to the frigate, or take them off again (they
     go back into storage). Each part can be fitted once, and each frigate has so many slots.
-  - **Trade**, at a trading station: a market (the Thalassa Highport, Deepcut Station, the
-    Jovara L5 Depot) or any place where people live. Sell what is aboard, at its worth: the ore
-    all at once, or item by item (Enter one lot, Shift+Enter all of it). Buy raw minerals,
-    refined materials and ship parts at 1.3 times their worth (Enter one lot, Shift+Enter
-    ten). A refinery's trade page buys minerals only. Docking no longer sells the ore by
-    itself.
+  - **Sell** and **Buy**, two pages, at a trading station: a market (the Thalassa Highport,
+    Deepcut Station, the Jovara L5 Depot) or any place where people live. SELL lists what is
+    aboard, sold at its worth: the ore all at once, or item by item (Enter one lot, Shift+Enter
+    all of it). BUY lists what is for sale: raw minerals, refined materials and ship parts at 1.3
+    times their worth (Enter one lot, Shift+Enter ten). A refinery has a SELL page that buys
+    minerals only, and no BUY page. Docking no longer sells the ore by itself.
   - **Crew**: recruit, where the place recruits, or drop crew off (one or ten at a time): they
     go ashore and join those waiting there to sign on (never below the few a ship keeps through
     anything). A screen that opened because the crew is short opens on this page.
@@ -1847,7 +1847,7 @@ menu (only the pause menu stops it).
 
 | Action | Keyboard / mouse | Xbox 360 pad |
 |---|---|---|
-| The services screen (docked, or on its pad; it opens by itself on arriving): storage, refining, building, fitting, trade, crew, the shipyard, as the place offers | Tab or U | A |
+| The services screen (docked, or on its pad; it opens by itself on arriving): storage, refining, building, fitting, selling, buying, crew, the shipyard, as the place offers | Tab or U | A |
 | In the site's screen: pages / choose / load, store / act / cancel a job / close | Tab or Q E / ↑↓ / ← → (Shift for all) / Enter / Backspace / U or Esc | LB RB / D-pad ↑↓ / D-pad ← →, X, Y / A / Y / B |
 
 **Fleet mode (5)**: the player's other ships (see [Fleets](#fleets)). Orders go to the ship chosen in the menu, or all of them.
@@ -2659,9 +2659,10 @@ Each part can also be run alone:
   leader to Thalassa; the Halberd destroyed is lost; the Rapier left at the yard is berthed
   there, and the leader's speed and warps are back to normal.
   Add `-servicestest` (or `?servicestest` on the web) to test the services mode: docking at the
-  Highport puts the game in services mode; its trade page sells the ore at its worth, buys a
-  part at the markup and sells it back; ten crew are dropped off and recruited back; undocking
-  goes back to the mode before; and the Belt Smelter's trade page buys minerals and nothing else.
+  Highport puts the game in services mode; its SELL page lists what's aboard and its BUY page
+  what's for sale, each on its own; the ore sells at its worth, a part is bought at the markup
+  and sold back; ten crew are dropped off and recruited back; undocking goes back to the mode
+  before; and the Belt Smelter's SELL page buys minerals and nothing else, with no BUY page.
   Add `-navtest` (or `?navtest` on the web) to test the navigation mode: which places are
   places and which are points of interest at them; the map stepping through places only; at
   Thalassa, the menu listing its points of interest; auto-travel to the Highport to dock, flown

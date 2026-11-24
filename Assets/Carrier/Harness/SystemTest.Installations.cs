@@ -110,8 +110,8 @@ namespace CarrierGame.Demo
             bool traded = true;
             if (st.market && panel != null)
             {
-                if (IndustryPanel.IsOpen) panel.Show(IndustryPanel.Page.Trade); else panel.Open(IndustryPanel.Page.Trade);
-                traded = IndustryPanel.IsOpen && panel.Current == IndustryPanel.Page.Trade;
+                if (IndustryPanel.IsOpen) panel.Show(IndustryPanel.Page.Sell); else panel.Open(IndustryPanel.Page.Sell);
+                traded = IndustryPanel.IsOpen && panel.Current == IndustryPanel.Page.Sell;
                 yield return new WaitForSeconds(0.5f);
                 Shot(shot + "_trade");
                 panel.SellAllOre();

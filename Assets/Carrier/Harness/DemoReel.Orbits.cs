@@ -307,7 +307,7 @@ namespace CarrierGame.Demo
             float sold = 0f;
             if (panel != null && dock.Current == Docking.State.Docked)
             {
-                if (IndustryPanel.IsOpen) panel.Show(IndustryPanel.Page.Trade); else panel.Open(IndustryPanel.Page.Trade);
+                if (IndustryPanel.IsOpen) panel.Show(IndustryPanel.Page.Sell); else panel.Open(IndustryPanel.Page.Sell);
                 yield return Wait(1.6f);
                 sold = panel.SellAllOre();
                 yield return Wait(1.6f);

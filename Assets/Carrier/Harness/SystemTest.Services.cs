@@ -51,10 +51,20 @@ namespace CarrierGame.Demo
             Check(Docking.Docked && Modes.Is(ModeOfPlay.Services), $"docked at the Highport: {Modes.Name(Modes.Current)} mode");
             if (!IndustryPanel.IsOpen) yield return Key(kb, K.Tab);
             Check(IndustryPanel.IsOpen, $"the services screen is up ({panel.Current})");
-            panel.Show(IndustryPanel.Page.Trade);
+            panel.Show(IndustryPanel.Page.Sell);
             yield return null;
-            Check(panel.Current == IndustryPanel.Page.Trade, "the Highport has a trade page");
+            var sellRows = panel.RowIds.ToList();
+            Check(panel.Current == IndustryPanel.Page.Sell && sellRows.Contains("*sell:Platinum") && !sellRows.Any(r => r.StartsWith("*buy:")),
+                  $"the Highport has a SELL page: what's aboard, nothing for sale ({sellRows.Count} rows)");
             Shot("sv_trade");
+            panel.Show(IndustryPanel.Page.Buy);
+            yield return null;
+            var buyRows = panel.RowIds.ToList();
+            Check(panel.Current == IndustryPanel.Page.Buy && buyRows.Contains("*buy:ArmourPlating") && !buyRows.Any(r => r.StartsWith("*sell:")),
+                  $"and a BUY page of its own: what's for sale, nothing aboard ({buyRows.Count} rows)");
+            Shot("sv_buy");
+            panel.Show(IndustryPanel.Page.Sell);
+            yield return null;
 
             // sell the ore at its worth
             float worth = hold.Value, credits0 = hold.Credits;
@@ -115,13 +125,16 @@ namespace CarrierGame.Demo
                 until = Time.time + 10f;
                 while (Time.time < until && !Docking.Docked) yield return null;
                 yield return new WaitForSeconds(1f);
-                if (!IndustryPanel.IsOpen) panel.Open(IndustryPanel.Page.Trade); else panel.Show(IndustryPanel.Page.Trade);
+                if (!IndustryPanel.IsOpen) panel.Open(IndustryPanel.Page.Sell); else panel.Show(IndustryPanel.Page.Sell);
                 yield return null;
                 var rows = panel.RowIds.ToList();
                 bool sellsIron = rows.Contains("*sell:Iron"), sellsSteel = rows.Contains("*sell:SteelPlate"), buys = rows.Any(r => r.StartsWith("*buy:"));
-                Check(panel.Current == IndustryPanel.Page.Trade && sellsIron && !sellsSteel && !buys,
-                      $"the Belt Smelter's trade page buys the iron, not the steel plate, and sells nothing ({rows.Count} rows)");
+                Check(panel.Current == IndustryPanel.Page.Sell && sellsIron && !sellsSteel && !buys,
+                      $"the Belt Smelter's SELL page buys the iron, not the steel plate ({rows.Count} rows)");
                 Shot("sv_smelter_trade");
+                panel.Show(IndustryPanel.Page.Buy);
+                yield return null;
+                Check(panel.Current != IndustryPanel.Page.Buy, $"and it has no BUY page: it sells nothing ({panel.Current} shown instead)");
                 panel.Close();
                 yield return null;
                 yield return Key(kb, K.K);

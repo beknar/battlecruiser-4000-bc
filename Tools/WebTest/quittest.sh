@@ -12,7 +12,8 @@
 # --headless=new; the chrome-headless-shell needs none, so pass HEADLESS=" "). CHROME_EXTRA: more
 # flags (e.g. --no-sandbox, for Chrome as a user on Ubuntu, which blocks its sandbox). QUIT_FROM=page
 # quits from the page instead (?fakequit), for a build too old to have ?quittest; it then skips
-# the save check. KEEP=dir keeps the browser's logs there. AFTER: seconds to watch on after the
+# the save check. QUIT_FROM=keys quits through the pause menu with the keys (?fakekeysquit), for an
+# old build too. KEEP=dir keeps the browser's logs there. AFTER: seconds to watch on after the
 # quit (default 15).
 HERE=$(cd "$(dirname "$0")" && pwd)
 BUILD=${1:-$HERE/../../../Builds/StarSystemWeb}
@@ -55,17 +56,19 @@ chrome() {   # chrome <query> <seconds> <log> <pattern>: stops 15 s after <patte
 }
 TOKEN=$RANDOM$RANDOM
 if [ "$QUIT_FROM" = page ]; then chrome "fakequit=15" "$SECS" "$WORK/play.log" "[FakeMouse] quitting from the page"
+elif [ "$QUIT_FROM" = keys ]; then chrome "fakekeysquit=15" "$SECS" "$WORK/play.log" "[Page] quit"
 else chrome "quittest=$TOKEN" "$SECS" "$WORK/play.log" "[Page] ended"; fi
 grep -a -o '\[\(QuitTest\|Page\|FakeMouse\)\][^"]*' "$WORK/play.log"
 
 fail=0
 expect() { grep -aqF -- "$1" "$2" || { echo "MISSING: $1"; fail=1; }; }
-[ "$QUIT_FROM" = page ] || { expect "[QuitTest] wrote $TOKEN" "$WORK/play.log"; expect "[Page] quit" "$WORK/play.log"; }
+[ "$QUIT_FROM" = game ] && expect "[QuitTest] wrote $TOKEN" "$WORK/play.log"
+[ "$QUIT_FROM" = page ] || expect "[Page] quit" "$WORK/play.log"
 expect "[Page] ended" "$WORK/play.log"
 if grep -aiE "memory access out of bounds|null function|RuntimeError" "$WORK/play.log" | head -5 | grep .; then
   echo "ERRORS in the console (above)"; fail=1
 fi
-if [ "$QUIT_FROM" != page ]; then
+if [ "$QUIT_FROM" = game ]; then
   chrome "quittestcheck=$TOKEN" "$SECS" "$WORK/check.log" "[QuitTest] "
   grep -a -o '\[QuitTest\][^"]*' "$WORK/check.log"
   expect "[QuitTest] found $TOKEN" "$WORK/check.log"

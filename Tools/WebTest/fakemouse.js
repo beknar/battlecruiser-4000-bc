@@ -1,7 +1,8 @@
 // A stand-in mouse for the web quit check (quittest.sh): moves, clicks and wheels over the game's
 // canvas every 100 ms for as long as the page is up, as a player's mouse would, including over
 // the page that's left when the game quits. ?fakequit=N quits from the page N seconds after the
-// game is up (window.carrierQuit), for a build too old to have ?quittest.
+// game is up (window.carrierQuit), for a build too old to have ?quittest; ?fakekeysquit=N quits
+// through the pause menu with the keys instead (Esc, Up to Quit, Enter, Enter), as a player does.
 (function () {
   var n = 0;
   var q = new URLSearchParams(location.search);
@@ -22,6 +23,23 @@
     n++;
   }, 100);
   setInterval(function () { console.log("[FakeMouse] events " + n); }, 5000);
+  function key(code, k) {
+    var o = { key: k, code: code, bubbles: true, cancelable: true };
+    window.dispatchEvent(new KeyboardEvent("keydown", o));
+    setTimeout(function () { window.dispatchEvent(new KeyboardEvent("keyup", o)); }, 120);
+  }
+  var keysAfter = parseFloat(q.get("fakekeysquit"));
+  if (keysAfter > 0) {
+    var upk = setInterval(function () {
+      if (typeof window.carrierQuit !== "function") return;
+      clearInterval(upk);
+      console.log("[FakeMouse] the game is up: quitting through the menu in " + keysAfter + " s");
+      var steps = [["Escape", "Escape"], ["ArrowUp", "ArrowUp"], ["Enter", "Enter"], ["Enter", "Enter"]];
+      steps.forEach(function (st, i) {
+        setTimeout(function () { console.log("[FakeMouse] key " + st[1]); key(st[0], st[1]); }, keysAfter * 1000 + i * 900);
+      });
+    }, 250);
+  }
   var after = parseFloat(q.get("fakequit"));
   if (after > 0) {
     var up = setInterval(function () {

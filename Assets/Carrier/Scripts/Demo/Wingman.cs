@@ -182,6 +182,10 @@ namespace CarrierGame.Demo
         public const float DefendCalm = 8f;
         float lastEnemySeen = float.NegativeInfinity;
 
+        /// <summary>With no enemy in reach for `sinceSeen` seconds, is the fight still on? Mining,
+        /// till the calm is out; otherwise, no.</summary>
+        public static bool StillDefending(bool mining, float sinceSeen) => mining && sinceSeen < DefendCalm;
+
         /// <summary>The fight over: back to the order (and, mining, it says so).</summary>
         void EndDefence(CarrierController cc)
         {
@@ -226,7 +230,7 @@ namespace CarrierGame.Demo
                 nextLook = Time.time + 1f;
                 var near = NearestEnemy(cc.transform.position, defending ? defendRange * DefendKeep : defendRange);
                 if (near != null) { defending = true; lastEnemySeen = Time.time; if (Gone(Target)) Target = near; }
-                else if (defending && (Current != Order.Mine || Time.time - lastEnemySeen >= DefendCalm)) EndDefence(cc);
+                else if (defending && !StillDefending(Current == Order.Mine, Time.time - lastEnemySeen)) EndDefence(cc);
             }
 
             if (Current == Order.Attack || defending)
@@ -249,7 +253,7 @@ namespace CarrierGame.Demo
                         // (nothing left to fight. Mining, it holds where it is till the calm is out,
                         // in case another comes, rather than going back to a rock and off it again;
                         // otherwise it carries on at once, not to lose its leader)
-                        if (Current != Order.Mine || Time.time - lastEnemySeen >= DefendCalm) EndDefence(cc);
+                        if (!StillDefending(Current == Order.Mine, Time.time - lastEnemySeen)) EndDefence(cc);
                         else { cc.SetTarget(null); Steer(0f, 0f); cc.throttle = 0f; Doing = "watching for more"; return; }
                     }
                 }

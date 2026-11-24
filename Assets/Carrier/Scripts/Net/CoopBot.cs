@@ -211,14 +211,8 @@ namespace CarrierGame.Demo
             lastSpeaker = line.from;
             string rest = AddressedPart(line.text, Me);
             if (rest == null) return;
-            string reply = Command(rest, line.from);
-            if (!string.IsNullOrEmpty(reply))
-            {
-                // (marked as carried out, for the listener: it isn't to order it a second time)
-                Handled(line.seq);
-                CoopChat.Say($"{Me}: {reply}");
-                return;
-            }
+            string reply = Take(rest, line.from, line.seq);
+            if (!string.IsNullOrEmpty(reply)) { CoopChat.Say($"{Me}: {reply}"); return; }
             // talk, not an order: by the chat mode
             float now = Time.realtimeSinceStartup;
             switch (Chat)
@@ -434,6 +428,22 @@ namespace CarrierGame.Demo
         /// <summary>Was message `seq` carried out by the bot as an order?</summary>
         public bool WasHandled(int seq) => handled.Contains(seq);
 
+        /// <summary>An order to the bot (message `seq`), carried out: the answer to give (null:
+        /// talk). Marked handled for the listener only when it was carried out or answered (a
+        /// report, help); a refusal ("don't know a place called ...") isn't, so the listener can
+        /// still put it right.</summary>
+        public string Take(string words, int fromId, int seq)
+        {
+            int orders = Orders;
+            string reply = Command(words, fromId);
+            if (string.IsNullOrEmpty(reply)) return reply;
+            var chain = Clauses(Plain(words));
+            var one = chain == null ? ParseOrder(words) : null;
+            bool answered = one.HasValue && (one.Value.kind == "status" || one.Value.kind == "cargo" || one.Value.kind == "help") && reply != "not ready yet";
+            if (Orders > orders || answered) Handled(seq);
+            return reply;
+        }
+
         // words said before the name ("hey wingman, ..."), spoken or typed
         static readonly string[] Greetings = { "hey", "hi", "ok", "okay", "oi", "right" };
 
@@ -442,12 +452,17 @@ namespace CarrierGame.Demo
         public static string AddressedPart(string text, string me)
         {
             text = (text ?? "").Trim();
+            string to = Addressed(text, me);
+            if (to != null) return to;
+            // (after a greeting: "hey Wingman, ..."; the name first, for a bot called "Ok")
             foreach (var g in Greetings)
                 if (text.Length > g.Length && text.StartsWith(g, StringComparison.OrdinalIgnoreCase) && !char.IsLetterOrDigit(text[g.Length]))
-                {
-                    text = text.Substring(g.Length).TrimStart(',', ' ', '!');
-                    break;
-                }
+                    return Addressed(text.Substring(g.Length).TrimStart(',', ' ', '!'), me);
+            return null;
+        }
+
+        static string Addressed(string text, string me)
+        {
             string lower = text.ToLowerInvariant();
             me = (me ?? "").ToLowerInvariant();
             foreach (var call in new[] { "@" + me, me, "all ships", "everyone", "wingmen" })
@@ -465,7 +480,7 @@ namespace CarrierGame.Demo
         /// out one after another (Chain).</summary>
         public string Command(string words, int fromId)
         {
-            var chain = Clauses(words);
+            var chain = Clauses(Plain(words));
             if (chain != null) return Chain(chain, fromId);
             var p = ParseOrder(words);
             if (p == null) return null;
@@ -477,6 +492,7 @@ namespace CarrierGame.Demo
 
         static readonly string[] PoliteLeads = { "please", "can you", "could you", "would you", "will you", "go and", "now" };
         static readonly string[] PoliteTails = { "please", "now", "for me", "for us", "thanks", "thank you" };
+        static readonly HashSet<string> Politeness = new HashSet<string> { "go", "please", "thanks", "thank you", "now", "cheers" };
 
         /// <summary>An order without its politeness: "can you go mine please" is "mine". Leading
         /// "please", "can you", "could you", "would you", "will you", "now", "go" (not "go to" or
@@ -509,16 +525,18 @@ namespace CarrierGame.Demo
             "rocks", "rock", "field", "ore", "for", "there", "here", "it", "them", "minerals", "belt",
         };
 
+        static readonly HashSet<string> MineTail = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "asteroids", "asteroid", "rocks", "field", "ore", "minerals" };
+
         /// <summary>The field's name in what follows "mine" ("at the Inner Belt": "Inner Belt"), or
         /// "" for the nearest field ("mine", "mine some asteroids", "mine the nearest rocks").</summary>
         public static string MineFieldName(string target)
         {
-            string name = (target ?? "").Trim().TrimEnd('.', '!', '?');
-            foreach (var lead in new[] { "the asteroids", "asteroids", "rocks", "in", "at", "the" })
-                if (name.Equals(lead, StringComparison.OrdinalIgnoreCase)) name = "";
-                else if (name.StartsWith(lead + " ", StringComparison.OrdinalIgnoreCase)) name = name.Substring(lead.Length + 1).Trim();
-            var words = name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            return words.All(x => MineFiller.Contains(x)) ? "" : name;
+            // (the filler before the name, whatever its order: "some asteroids in the Outer Drift",
+            // "for ore at the Inner Belt"; and "asteroids" or "field" after it)
+            var words = (target ?? "").Trim().TrimEnd('.', '!', '?').Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+            while (words.Count > 0 && MineFiller.Contains(words[0])) words.RemoveAt(0);
+            while (words.Count > 1 && MineTail.Contains(words[words.Count - 1])) words.RemoveAt(words.Count - 1);
+            return string.Join(" ", words);
         }
 
         /// <summary>An order in words, parsed (none: talk): its kind ("chat", "follow", "regroup",
@@ -580,7 +598,8 @@ namespace CarrierGame.Demo
         public static List<(string kind, string arg)> Clauses(string words)
         {
             string w = (words ?? "").Trim().TrimEnd('?', '!', '.').TrimEnd();
-            var parts = ThenRx.Split(w).Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
+            // (a part that's only politeness, "go and mine", "mine, then sell, thanks": left out)
+            var parts = ThenRx.Split(w).Select(x => x.Trim()).Where(x => x.Length > 0 && !Politeness.Contains(x.ToLowerInvariant().TrimEnd('!', '.'))).ToList();
             if (parts.Count < 2) return null;
             var list = new List<(string kind, string arg)>();
             foreach (var part in parts)
@@ -666,7 +685,7 @@ namespace CarrierGame.Demo
                 // (over with the ship it went for destroyed, whatever it goes for next)
                 case "attack": stepDone = () => PilotGone() ? -1 : prey == null || (prey.TryGetComponent(out Health ph) && ph.Dead) ? 1 : pilot.Current == Wingman.Order.Attack ? 0 : -1; break;
                 // (mining: over with its first load sold; selling: with the sale; no longer at it before then: it couldn't)
-                case "mine": stepDone = () => PilotGone() ? -1 : pilot.Sales > 0 ? 1 : pilot.Current == Wingman.Order.Mine ? 0 : -1; break;
+                case "mine": stepDone = () => PilotGone() ? -1 : pilot.Sales > sales0 ? 1 : pilot.Current == Wingman.Order.Mine ? 0 : -1; break;
                 case "sell": stepDone = () => PilotGone() ? -1 : pilot.Sales > sales0 ? 1 : pilot.Current == Wingman.Order.Mine ? 0 : -1; break;
             }
             return answer;

@@ -92,10 +92,10 @@ namespace CarrierGame.Tests
             MakeSystem();
             var seen = new HashSet<WarpPoint>();
             for (int i = 0; i < 10; i++) { map.Step(1); seen.Add(map.Selected); }
-            Assert.That(seen, Does.Contain(planet).And.Contain(other).And.Contain(star));
-            Assert.That(seen, Does.Not.Contain(moon).And.Not.Contain(outerMoon), "at the whole system's view Tab never stops on a moon");
+            Assert.That(seen, Has.Member(planet).And.Member(other).And.Member(star));
+            Assert.That(seen, Has.No.Member(moon).And.No.Member(outerMoon), "at the whole system's view Tab never stops on a moon");
             for (int i = 0; i < 10; i++) { map.Step(-1); seen.Add(map.Selected); }
-            Assert.That(seen, Does.Not.Contain(moon).And.Not.Contain(outerMoon), "nor does Shift+Tab");
+            Assert.That(seen, Has.No.Member(moon).And.No.Member(outerMoon), "nor does Shift+Tab");
             map.Select(planet);
             foreach (var dir in new[] { Vector2.left, Vector2.right, Vector2.up, Vector2.down })
             {
@@ -107,7 +107,7 @@ namespace CarrierGame.Tests
             map.ZoomAt(map.ScreenPosOf(planet), 1e6f);
             seen.Clear();
             for (int i = 0; i < 10; i++) { map.Step(1); seen.Add(map.Selected); }
-            Assert.That(seen, Does.Contain(moon).And.Contain(outerMoon), "zoomed in, Tab steps onto the moons");
+            Assert.That(seen, Has.Member(moon).And.Member(outerMoon), "zoomed in, Tab steps onto the moons");
             map.Select(planet);
             map.StepToward(Vector2.right);
             Assert.That(map.Selected, Is.SameAs(moon), "and the arrow toward a moon drawn apart chooses it");
@@ -129,7 +129,7 @@ namespace CarrierGame.Tests
             Assert.That(around.Skip(2).Take(3), Is.EquivalentTo(new[] { high, north, station }), "then the planet's own points of interest");
             Assert.That(around.Skip(5), Is.EqualTo(new[] { moonHigh, outerHigh }), "then each moon's, moon by moon");
             Assert.That(around, Is.Unique);
-            Assert.That(Places.PointsOfInterest(planet, planet.Position), Does.Not.Contain(moon), "a moon is still a place of its own");
+            Assert.That(Places.PointsOfInterest(planet, planet.Position), Has.No.Member(moon), "a moon is still a place of its own");
 
             Assert.That(Places.Around(moon), Is.EqualTo(new[] { moonHigh }), "round a moon: only its own");
             Assert.That(Places.Around(other), Is.Empty, "a planet with nothing round it");

@@ -13,7 +13,8 @@ server turns that API into MCP tools, over stdio:
     give_credits    hand the bot's credits to a player (their game adds them to their hold)
     say             send a message on the comms channel (every player in its level sees it)
     order           give the pilot an order: follow <player>, hold, attack [target], goto <place>,
-                    regroup, dock, mine [field], sell, defend [player], assist [player] (attack
+                    regroup, dock, mine [mineral | the most valuable ore] [at field], sell,
+                    defend [player], assist [player] (attack
                     what that player has locked), rename <name> (a new name for the bot)
     destinations    the places a ship can warp to, with distances
     get_chat_mode   who answers talk to the bot: llm (this listener), personality (the bot's own) or paused
@@ -240,14 +241,17 @@ TOOLS = [
               "warping after them; hold: stop where it is; attack [target name]: fight the target or the nearest "
               "enemy; goto <place>: warp to a destination; regroup: form up on the nearest player; dock: dock at "
               "the station it is at; mine [asteroid field]: mine asteroids (the nearest field if none is named), "
-              "selling the ore at the nearest market whenever the hold is full, over and over; sell: take the ore "
+              "selling the ore at the nearest market whenever the hold is full, over and over; the target can also say "
+              "which rocks, as a player would: a mineral by name or symbol ('platinum', 'Pt', 'He-3': the rocks richest "
+              "in it, or the most valuable if none in range has any), 'the most valuable ore' (worth most a tonne), and "
+              "either with a field ('gold at Inner Belt'); status then has ore, ore_missing and rock_mix; sell: take the ore "
               "aboard to the nearest market now; defend [player name]: go to that player from wherever it is and fight "
               "what's on them; assist [player name]: attack what that player has locked (their game says it). Without "
               "a name, defend and assist mean the last player to speak. rename <new name>: the bot asks the co-op server "
               "for the name, and says on the comms (in its new name) whether it has it; it keeps the name for its next "
               "start, and from then on players order it by that name.",
      {"order": {"type": "string", "enum": ORDERS},
-      "target": {"type": "string", "description": "a player's name (follow, defend, assist), a target's (attack), a place's (goto), an asteroid field's (mine) or the bot's new name (rename)"}},
+      "target": {"type": "string", "description": "a player's name (follow, defend, assist), a target's (attack), a place's (goto), an asteroid field, a mineral or both for mine ('Inner Belt', 'platinum', 'gold at Inner Belt', 'the most valuable ore'), or the bot's new name (rename)"}},
      ["order"], t_order),
     ("destinations", "The places a ship can warp to, nearest first, with their kinds and distances.", {}, [], t_destinations),
     ("get_chat_mode", "Who answers players' talk to the bot (anything addressed to it that isn't an order): 'llm', "

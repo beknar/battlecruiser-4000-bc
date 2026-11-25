@@ -37,6 +37,10 @@ the talk around it. It also takes these by itself, so they come to you marked ha
 - "attack" with nothing near it: its leader's fight, if they're in one.
 - A target's name alone ("Wingman, Fang Hunter"), and a name heard a little wrong after an attack
   word ("attack Frank Hunter"): it says the target's real name.
+- "mine platinum", "mine for gold", "go after helium-3", "mine gold at the Inner Belt": it mines
+  the rocks richest in that mineral. With none of it in range it says so ("no platinum in the
+  rocks here") and mines the most valuable instead. "mine the most valuable ore", "the best rocks":
+  the rocks worth most a tonne. `status` has what it's after (`ore`) and the rock it's on.
 - "your name is Ace", "call yourself Ace", "rename to Ace" (from its leader or the game's host):
   it asks the server for the name and says, in its new name, whether it has it. From then on,
   answer as that name, and only messages to that name are to it.
@@ -47,6 +51,7 @@ the talk around it. It also takes these by itself, so they come to you marked ha
 | "they're all over me", "get over here, I'm in trouble" | `order defend` (that player) |
 | "shoot the one I've got", "take mine out" | `order assist` (that player) |
 | "go and mine for a bit" | `order mine` |
+| "get us some of that platinum", "find me something worth selling" | `order mine` (`platinum`, or `the most valuable ore`) |
 | "what have you got aboard?" | `cargo`, then say it |
 | "send me some money", "I'm short 2k" | `give_credits` (the amount, to them) |
 | "how are you holding up?" | `status`, then say it |

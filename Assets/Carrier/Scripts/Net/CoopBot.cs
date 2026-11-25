@@ -19,7 +19,8 @@ namespace CarrierGame.Demo
     ///
     /// Players order it on the comms channel, by its name: "Wingman, follow me", "@Wingman attack
     /// the cruiser", "Wingman hold", "Wingman warp to Thalassa Highport", "Wingman dock",
-    /// "Wingman, mine asteroids" (and sell the ore when the hold is full), "Wingman, sell",
+    /// "Wingman, mine asteroids" (and sell the ore when the hold is full; "mine platinum", "mine
+    /// the most valuable ore", "mine gold at the Inner Belt" choose the rocks), "Wingman, sell",
     /// "Wingman status" ("all ships", "everyone" or "wingmen" orders every bot), "Wingman, attack
     /// my target" (what the speaker's game says they have locked), "Wingman, defend me" (to them
     /// from anywhere, and fight what's on them; with only this wingman in the room, "I'm under
@@ -149,6 +150,7 @@ namespace CarrierGame.Demo
                     if (Pilot == null) Pilot = demo.gameObject.AddComponent<Wingman>();
                     Pilot.demo = demo;
                     Pilot.Sold += what => { if (CoopClient.Active) CoopChat.Say($"{Me}: {what}.", Via.Event); };
+                    Pilot.Remark += what => { if (CoopClient.Active) CoopChat.Say($"{Me}: {what}.", Via.Event); };
                     if (lastLeader != 0) Pilot.Follow(lastLeader);
                 }
             }
@@ -577,7 +579,7 @@ namespace CarrierGame.Demo
                 {
                     var hold = pl.demo != null && pl.demo.carrier != null ? pl.demo.carrier.GetComponentInChildren<CargoHold>() : null;
                     return MineLine(pl.Step, pl.MineField != null ? pl.MineField.displayName : null,
-                                    pl.Market != null ? pl.Market.displayName : null, hold != null ? hold.OreTonnes : -1f);
+                                    pl.Market != null ? pl.Market.displayName : null, hold != null ? hold.OreTonnes : -1f, pl.MineChoice, pl.OreMissing);
                 }
                 case Wingman.Order.Follow: return pl.LeaderName.Length > 0 ? $"following {pl.LeaderName}" : "following";
                 case Wingman.Order.Defend: return pl.LeaderName.Length > 0 ? $"defending {pl.LeaderName}" : "defending";
@@ -588,14 +590,23 @@ namespace CarrierGame.Demo
             }
         }
 
-        /// <summary>The mine order's line: where it mines (or sells), and the ore aboard (-1: not known).</summary>
-        public static string MineLine(Wingman.MineStep step, string field, string market, float tonnes)
+        /// <summary>The mine order's line: where it mines (or sells), for what ("mining for
+        /// platinum in the Inner Belt"; with none of it there, "mining the most valuable ore in the
+        /// Inner Belt (no platinum here)"), and the ore aboard (-1: not known).</summary>
+        public static string MineLine(Wingman.MineStep step, string field, string market, float tonnes,
+                                      Wingman.OreChoice choice = default, bool missing = false)
         {
+            bool nearest = string.IsNullOrEmpty(field);
+            string what = choice.kind == Wingman.OreChoice.Kind.Nearest ? ""
+                        : choice.kind == Wingman.OreChoice.Kind.Mineral && !missing ? $" for {choice.MineralName}" : " the most valuable ore";
+            string lacking = choice.kind == Wingman.OreChoice.Kind.Mineral && missing ? $" (no {choice.MineralName} here)" : "";
             string where = step == Wingman.MineStep.Leave
-                ? $"heading back to {(string.IsNullOrEmpty(field) ? "the nearest asteroid field" : field)}"
+                ? $"heading back to {(nearest ? "the nearest asteroid field" : field)}{(choice.kind == Wingman.OreChoice.Kind.Mineral ? $" for {choice.MineralName}" : "")}"
                 : step >= Wingman.MineStep.ToMarket
                 ? $"selling ore at {(string.IsNullOrEmpty(market) ? "the nearest market" : market)}"
-                : $"mining {(string.IsNullOrEmpty(field) ? "the nearest asteroid field" : "in " + field)}";
+                : what.Length == 0
+                ? $"mining {(nearest ? "the nearest asteroid field" : "in " + field)}"
+                : $"mining{what} {(nearest ? "at the nearest asteroid field" : "in " + field)}{lacking}";
             return tonnes >= 0f ? $"{where}: {tonnes:F0} t of ore aboard" : where;
         }
 
@@ -688,8 +699,9 @@ namespace CarrierGame.Demo
         static readonly HashSet<string> Politeness = new HashSet<string> { "go", "please", "thanks", "thank you", "now", "cheers" };
 
         /// <summary>An order without its politeness: "can you go mine please" is "mine". Leading
-        /// "please", "can you", "could you", "would you", "will you", "now", "go" (not "go to" or
-        /// "go mining", which are orders), and trailing "please", "now", "for me", "thanks".</summary>
+        /// "please", "can you", "could you", "would you", "will you", "now", "go" (not "go to",
+        /// "go mining", "go after" or "go for", which are orders), and trailing "please", "now",
+        /// "for me", "thanks".</summary>
         public static string Plain(string words)
         {
             string w = (words ?? "").Trim();
@@ -701,7 +713,8 @@ namespace CarrierGame.Demo
                     if (t.Length > lead.Length + 1 && t.StartsWith(lead, StringComparison.OrdinalIgnoreCase) && (t[lead.Length] == ' ' || t[lead.Length] == ','))
                     { t = t.Substring(lead.Length + 1).TrimStart(',', ' '); changed = true; }
                 if (t.StartsWith("go ", StringComparison.OrdinalIgnoreCase) && !t.StartsWith("go to ", StringComparison.OrdinalIgnoreCase)
-                    && !t.StartsWith("go mining", StringComparison.OrdinalIgnoreCase))
+                    && !t.StartsWith("go mining", StringComparison.OrdinalIgnoreCase) && !t.StartsWith("go after ", StringComparison.OrdinalIgnoreCase)
+                    && !t.StartsWith("go for ", StringComparison.OrdinalIgnoreCase))
                 { t = t.Substring(3).TrimStart(); changed = true; }
                 foreach (var tail in PoliteTails)
                     if (t.Length > tail.Length + 1 && t.EndsWith(" " + tail, StringComparison.OrdinalIgnoreCase))
@@ -720,16 +733,107 @@ namespace CarrierGame.Demo
 
         static readonly HashSet<string> MineTail = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "asteroids", "asteroid", "rocks", "field", "ore", "minerals" };
 
-        /// <summary>The field's name in what follows "mine" ("at the Inner Belt": "Inner Belt"), or
-        /// "" for the nearest field ("mine", "mine some asteroids", "mine the nearest rocks").</summary>
-        public static string MineFieldName(string target)
+        /// <summary>The field's name in what follows "mine" ("at the Inner Belt": "Inner Belt";
+        /// "gold at the Inner Belt": "Inner Belt"), or "" for the nearest field ("mine", "mine
+        /// some asteroids", "mine the nearest rocks", "mine platinum").</summary>
+        public static string MineFieldName(string target) => MineTarget(target, out _);
+
+        // words before what it's to go after ("for some gold", "the nearest platinum"), and those
+        // that ask for what's worth most ("the most valuable ore", "the best rocks", "the richest")
+        static readonly HashSet<string> OreLead = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            // (the filler before the name, whatever its order: "some asteroids in the Outer Drift",
-            // "for ore at the Inner Belt"; and "asteroids" or "field" after it)
-            var words = (target ?? "").Trim().TrimEnd('.', '!', '?').Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+            "for", "after", "some", "the", "a", "an", "any", "only", "just", "nearest", "closest", "nearby", "most", "top", "highest", "high", "very",
+        };
+        static readonly HashSet<string> OreWorth = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "valuable", "best", "richest", "rich", "priciest", "pricey", "expensive", "precious", "lucrative", "value", "high-value",
+            "highest-value", "best-paying",
+        };
+        // and after it ("gold ore", "platinum-rich rocks")
+        static readonly HashSet<string> OreTail = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "ore", "ores", "rock", "rocks", "asteroid", "asteroids", "deposit", "deposits", "mineral", "minerals", "metal", "metals",
+            "stuff", "rich", "bearing", "ones",
+        };
+        static readonly Regex OreRichRx = new Regex(@"(?<=\w)-(rich|bearing)\b", RxOpt);
+        // where it is, not a field's name ("the best rocks in range", "platinum nearby")
+        static readonly string[] HereWords = { "in range", "in sensor range", "within range", "in reach", "within reach", "nearby", "around here", "near here", "near me", "close by" };
+
+        /// <summary>What follows "mine", taken apart: which rocks (`choice`: a mineral, the most
+        /// valuable, or the nearest) and the field's name, returned ("" for the nearest field).
+        /// "gold at the Inner Belt": gold, "Inner Belt"; "for the best rocks": the most valuable,
+        /// ""; "the Outer Drift for platinum": platinum, "Outer Drift"; "some asteroids": the
+        /// nearest, "". A mineral is matched (with its symbol, "Pt", "He-3") before a field.</summary>
+        public static string MineTarget(string target, out Wingman.OreChoice choice)
+        {
+            string t = OreRichRx.Replace((target ?? "").Trim().TrimEnd('.', '!', '?'), " $1");
+            var words = t.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(w => w.Trim(',', ';')).Where(w => w.Length > 0).ToList();
+            // (the rocks first: "gold at the Inner Belt", "the most valuable ore")
+            int used = OreAt(words, 0, out choice);
+            if (used > 0) return FieldPart(words.Skip(used));
+            // (or after "for" or "after", to the end: "the Inner Belt for gold")
+            for (int k = words.Count - 2; k > 0; k--)
+            {
+                if (!words[k].Equals("for", StringComparison.OrdinalIgnoreCase) && !words[k].Equals("after", StringComparison.OrdinalIgnoreCase)) continue;
+                if (OreAt(words, k + 1, out choice) == words.Count - k - 1) return FieldPart(words.Take(k));
+            }
+            choice = Wingman.OreChoice.Nearest;
+            return FieldPart(words);
+        }
+
+        /// <summary>Which rocks the words from `start` ask for, and how many words that took (0:
+        /// they ask for none, so the nearest).</summary>
+        static int OreAt(List<string> words, int start, out Wingman.OreChoice choice)
+        {
+            choice = Wingman.OreChoice.Nearest;
+            int i = start;
+            bool worth = false;
+            while (i < words.Count && (OreLead.Contains(words[i]) || OreWorth.Contains(words[i])))
+            {
+                if (OreWorth.Contains(words[i])) worth = true;
+                i++;
+            }
+            // (a mineral's name of up to three words: "rare earth elements", "helium 3")
+            bool named = false;
+            for (int n = Math.Min(3, words.Count - i); n >= 1 && !named; n--)
+                if (Minerals.TryParse(string.Join(" ", words.Skip(i).Take(n)), out var m))
+                {
+                    choice = Wingman.OreChoice.For(m);
+                    i += n;
+                    named = true;
+                }
+            if (!named && !worth) return 0;
+            if (!named) choice = Wingman.OreChoice.MostValuable;
+            while (i < words.Count && OreTail.Contains(words[i])) i++;
+            return i - start;
+        }
+
+        /// <summary>The field's name in words (the filler before it, whatever its order: "some
+        /// asteroids in the Outer Drift", "for ore at the Inner Belt"; "asteroids" or "field"
+        /// after it; "in range" or "nearby"); "" for the nearest.</summary>
+        static string FieldPart(IEnumerable<string> list)
+        {
+            string s = string.Join(" ", list);
+            foreach (var h in HereWords)
+            {
+                if (s.Equals(h, StringComparison.OrdinalIgnoreCase)) s = "";
+                else if (s.EndsWith(" " + h, StringComparison.OrdinalIgnoreCase)) s = s.Substring(0, s.Length - h.Length - 1);
+            }
+            var words = s.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
             while (words.Count > 0 && MineFiller.Contains(words[0])) words.RemoveAt(0);
             while (words.Count > 1 && MineTail.Contains(words[words.Count - 1])) words.RemoveAt(words.Count - 1);
             return string.Join(" ", words);
+        }
+
+        /// <summary>The mine order's answer when it's told which rocks: "mining for platinum in
+        /// Inner Belt; ...", "mining the most valuable ore at the nearest asteroid field; ...".
+        /// (Not in wingman_replies.json: a mineral's name is said by the live voice.)</summary>
+        public static string MineReply(Wingman.OreChoice choice, string field)
+        {
+            string where = string.IsNullOrEmpty(field) ? "at the nearest asteroid field" : "in " + field;
+            string what = choice.kind == Wingman.OreChoice.Kind.Mineral ? $"for {choice.MineralName} {where}, the rocks richest in it"
+                        : $"the most valuable ore {where}";
+            return $"mining {what}; I'll sell the ore when the hold is full.";
         }
 
         // "attack my target", "my lock", "what I'm shooting at": what the speaker has locked
@@ -758,7 +862,8 @@ namespace CarrierGame.Demo
         /// <summary>An order in words, parsed (none: talk): its kind ("chat", "follow", "regroup",
         /// "cargo", "give", "hold", "attack", "assist" (what the speaker has locked), "defend",
         /// "where", "goto", "dock", "mine", "sell", "status", "help", "rename" (a new name for it))
-        /// and what it is to (a name, a place, an amount).</summary>
+        /// and what it is to (a name, a place, an amount; for "mine", the rocks and the field as
+        /// said, "gold at Inner Belt", which MineTarget takes apart).</summary>
         public static (string kind, string arg)? ParseOrder(string words)
         {
             // ("can you mine please": "mine")
@@ -795,6 +900,13 @@ namespace CarrierGame.Demo
             if ((a = Arg("attack", "engage", "fire on", "kill", "shoot", "take out")) != null) return ("attack", NoThe(a));
             if ((a = Arg("warp to", "go to", "goto", "jump to", "warp")) != null) return ("goto", a);
             if (Arg("dock") != null) return ("dock", "");
+            // ("go after helium-3", "look for platinum", "hunt for the best rocks": mining, when
+            // it's ore they ask for; "go after the Skink" isn't)
+            if ((a = Arg("go after", "go for", "hunt for", "look for", "search for", "prospect for", "dig for")) != null)
+            {
+                MineTarget(a, out var oc);
+                if (oc.kind != Wingman.OreChoice.Kind.Nearest) return ("mine", NoThe(a));
+            }
             if ((a = Arg("start mining", "go mining", "mine asteroids", "mine at", "mine in", "mine")) != null) return ("mine", NoThe(a));
             // ("sell at the nearest station", "sell it": wherever the nearest market is)
             if (Arg("sell the ore", "sell ore", "sell") != null) return ("sell", "");
@@ -951,7 +1063,12 @@ namespace CarrierGame.Demo
             {
                 case "goto": return $"warp to {o.arg}";
                 case "attack": return o.arg.Length > 0 ? $"attack {o.arg}" : "attack";
-                case "mine": return o.arg.Length > 0 ? $"mine at {o.arg}" : "mine";
+                case "mine":
+                {
+                    string field = MineTarget(o.arg, out var oc);
+                    string what = oc.kind == Wingman.OreChoice.Kind.Mineral ? $" for {oc.MineralName}" : oc.kind == Wingman.OreChoice.Kind.MostValuable ? " the most valuable ore" : "";
+                    return $"mine{what}{(field.Length > 0 ? $" at {field}" : "")}";
+                }
                 case "follow": return o.arg.Length > 0 ? $"follow {o.arg}" : "follow";
                 case "assist": return "attack your target";
                 case "defend": return o.arg.Length > 0 ? $"defend {o.arg}" : "defend you";
@@ -1111,16 +1228,20 @@ namespace CarrierGame.Demo
                     // (at a field by name, or the nearest; "asteroids" is any field)
                     WarpPoint field = null;
                     // ("asteroids in the Outer Drift", "at the Inner Belt": the field's name, if any;
-                    // "rocks", "some asteroids", "the nearest field": the nearest)
-                    string name = MineFieldName(target);
+                    // "rocks", "some asteroids", "the nearest field": the nearest; and which rocks
+                    // there: "platinum", "the most valuable ore", or the nearest)
+                    string name = MineTarget(target, out var choice);
                     if (name.Length > 0)
                     {
                         field = Place(name);
-                        if (field == null || field.kind != WarpPoint.Kind.AsteroidField) return $"don't know an asteroid field called {name}.";
+                        if (field == null || field.kind != WarpPoint.Kind.AsteroidField)
+                            return choice.kind == Wingman.OreChoice.Kind.Nearest && name.IndexOf(' ') < 0
+                                ? $"don't know an asteroid field or a mineral called {name}." : $"don't know an asteroid field called {name}.";
                     }
-                    Pilot.Mine(field);
+                    Pilot.Mine(field, choice);
                     lastLeader = 0;
                     Orders++;
+                    if (choice.kind != Wingman.OreChoice.Kind.Nearest) return MineReply(choice, field != null ? field.displayName : null);
                     return field != null ? WingmanReplies.Get("mine_field", ("field", field.displayName)) : WingmanReplies.Get("mine_nearest");
                 }
                 case "sell":
@@ -1590,7 +1711,8 @@ namespace CarrierGame.Demo
                 sb.Append("}");
                 sb.Append($",\"order\":{{\"order\":{Q(Pilot.Current.ToString().ToLowerInvariant())},\"leader\":{Q(Pilot.LeaderName)}");
                 sb.Append($",\"target\":{Q(Wingman.NameOf(Pilot.Target))},\"destination\":{Q(Pilot.Destination != null ? Pilot.Destination.displayName : "")},\"doing\":{Q(Pilot.Doing)}" +
-                          (Pilot.Current == Wingman.Order.Mine ? $",\"step\":{Q(Pilot.Step.ToString().ToLowerInvariant())},\"sold_t\":{F(Pilot.TonnesSold)},\"earned\":{F(Pilot.CreditsEarned)},\"sales\":{Pilot.Sales}" : "") + "}");
+                          (Pilot.Current == Wingman.Order.Mine ? $",\"step\":{Q(Pilot.Step.ToString().ToLowerInvariant())},\"sold_t\":{F(Pilot.TonnesSold)},\"earned\":{F(Pilot.CreditsEarned)},\"sales\":{Pilot.Sales}" + MineJson() : "") +
+                          $",\"line\":{Q(DoingLine())}}}");
                 // what is near, enemies first
                 sb.Append(",\"nearby\":[");
                 bool first = true;
@@ -1621,6 +1743,18 @@ namespace CarrierGame.Demo
                 sb.Append("]");
             }
             return sb.Append("}").ToString();
+        }
+
+        /// <summary>The mine order's choice for the status: "ore" (the mineral's name, "most
+        /// valuable", or "" for the nearest rocks), "ore_missing" (none of the mineral in range,
+        /// so the most valuable), and the rock it's at ("rock", "rock_mix": "Fe 61%  Ni 22%  Pt 1.1%").</summary>
+        string MineJson()
+        {
+            var sb = new StringBuilder($",\"ore\":{Q(Pilot.MineChoice.Key)},\"ore_missing\":{B(Pilot.OreMissing)}");
+            var rock = Pilot.Rock;
+            if (rock != null && rock.Valid)
+                sb.Append($",\"rock\":{Q(rock.Label)},\"rock_mix\":{Q(Minerals.Summary(rock.Mix, 3, false))},\"rock_t\":{F(rock.Remaining)}");
+            return sb.ToString();
         }
 
         string MessagesJson(int after)

@@ -119,8 +119,9 @@ namespace CarrierGame.Demo
 
         /// <summary>What an order asks for, out of a hold: `amount` a number of tonnes (parts),
         /// "all", "half" (or "?", not said: null, with why "how much?"); `item` "ore" (every
-        /// mineral aboard, the most valuable first), a mineral (its name or symbol as said, or
-        /// its id), or another item's id. Null, and why, when there's none of it aboard.</summary>
+        /// mineral aboard, the most valuable first), "parts" (every part aboard, salvaged say, in
+        /// whole parts), a mineral (its name or symbol as said, or its id), or another item's id.
+        /// Null, and why, when there's none of it aboard.</summary>
         public static List<CoopItem> Wanted(CargoHold hold, string amount, string item, out string why)
         {
             why = "";
@@ -148,6 +149,22 @@ namespace CarrierGame.Demo
                 return list;
             }
             var table = IndustryTable.Get();
+            // ("parts": every part aboard, whole ones, as many as asked for)
+            if (what.Equals("parts", StringComparison.OrdinalIgnoreCase))
+            {
+                var aboard = hold.Contents().Where(e => table.Part(e.id) != null && e.amount >= 1f - 1e-4f).ToList();
+                if (aboard.Count == 0) { why = "no parts aboard"; return null; }
+                float left = n;
+                foreach (var e in aboard)
+                {
+                    float a = Mathf.Floor((all ? e.amount : half ? e.amount / 2f : Mathf.Min(e.amount, left)) + 1e-4f);
+                    if (!all && !half) left -= a;
+                    if (a >= 1f) list.Add(new CoopItem { id = e.id, a = a });
+                    if (!all && !half && left < 1f) break;
+                }
+                if (list.Count == 0) why = "not a whole part to hand over";
+                return list.Count > 0 ? list : null;
+            }
             string id = Minerals.TryParse(what, out var mineral) ? mineral.ToString() : what;
             if (table.Kind(id) == ItemKind.None) { why = $"don't know what {what} is"; return null; }
             float have = hold.Amount(id);

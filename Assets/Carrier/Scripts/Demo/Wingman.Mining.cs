@@ -360,55 +360,19 @@ namespace CarrierGame.Demo
                         Go(afterSale != null ? MineStep.Leave : MineStep.ToField);
                         return;
                     }
-                    var dock = Docking.Instance;
-                    // docked already (told to sell there): sell, if it buys ore; else away first
-                    if (dock != null && dock.Current == Docking.State.Docking) { Doing = "docking"; return; }
-                    if (Docking.Docked)
+                    switch (TowardMarket(cc, me, $"{hold.OreTonnes:F0} t of ore", "ore"))
                     {
-                        if (BuysOre(dock.At)) { Market = dock.At; Go(MineStep.Sell); }
-                        else { Undocking(); Doing = "undocking to sell the ore at a market"; }
-                        return;
+                        case Trip.Docked: Go(MineStep.Sell); break;
+                        case Trip.Docking: Go(MineStep.Docking); break;
+                        case Trip.Failed: Current = Order.Hold; break;
                     }
-                    if (dock != null && dock.Current == Docking.State.Undocking) return;
-                    if (Market == null) Market = NearestMarket(me);
-                    if (Market == null) { Doing = "nowhere to sell ore"; Current = Order.Hold; return; }
-                    var wp = Market.Point;
-                    // in the approach to its berth: dock (flying in); kept off while it can't yet
-                    string w = "";
-                    var cand = dock != null ? dock.Candidate(out w) : null;
-                    if (cand == Market)
-                    {
-                        if (w != "") { Steer(0f, 0f); cc.throttle = 0f; Doing = $"waiting to dock at {Market.displayName}: {w}"; return; }
-                        Release();
-                        if (dock.Dock()) { Go(MineStep.Docking); Doing = $"docking at {Market.displayName} to sell"; }
-                        return;
-                    }
-                    if (wp == null) { Doing = $"can't find the way to {Market.displayName}"; Current = Order.Hold; return; }
-                    // far: warp there (a refusal: again in a while); close (at the place, but outside its approach): fly in
-                    if (Vector3.Distance(me, Market.BerthPosition) > Mathf.Max(20000f, wp.arrivalDistance * 3f))
-                    {
-                        TryWarp(wp, $"warping to {Market.displayName} to sell {hold.OreTonnes:F0} t of ore");
-                        return;
-                    }
-                    var v = ShipAutopilot.Travel(cc, Market.ApproachPoint(me), null, out float clear);
-                    Steer(v.x, v.y);
-                    cc.throttle = 0.6f * clear;
-                    Doing = $"flying to {Market.displayName} to sell";
                     return;
                 }
                 case MineStep.Docking:
                 {
-                    if (Docking.Docked) { Go(MineStep.Sell); return; }
-                    var dock = Docking.Instance;
-                    var nav = FindAnyObjectByType<NavigationMode>();
-                    // (navigation flies her in to the berth, then docking brings her alongside)
-                    if ((dock != null && dock.Current != Docking.State.Free) || (nav != null && nav.Travelling)) { Doing = $"docking at {Market?.displayName}"; return; }
-                    if (Time.time - stepSince > 5f)
-                    {
-                        // (it gave up: again, and after three tries another market)
-                        if (++dockTries >= 3 && Market != null) { givenUp.Add(Market); dockTries = 0; }
-                        Go(MineStep.ToMarket);
-                    }
+                    int docked = DockingAtMarket();
+                    if (docked > 0) Go(MineStep.Sell);
+                    else if (docked < 0) Go(MineStep.ToMarket);
                     return;
                 }
                 case MineStep.Sell:
@@ -441,6 +405,67 @@ namespace CarrierGame.Demo
                     Go(MineStep.ToField);
                     return;
             }
+        }
+
+        /// <summary>How a trip to a market is going: on the way, docking begun, docked at one, or
+        /// with nowhere to go.</summary>
+        enum Trip { Going, Docking, Docked, Failed }
+
+        /// <summary>One frame of the way to the nearest market (Market), to sell `load` ("120 t
+        /// of ore") of `kind` ("ore", "salvage"): warping there, flying in, and docking (flying in
+        /// to the berth). Docked already: sold there if it buys, else away first. Doing says how
+        /// it goes, and why when it fails. (The Mine and Salvage orders' trip.)</summary>
+        Trip TowardMarket(CarrierController cc, Vector3 me, string load, string kind)
+        {
+            var dock = Docking.Instance;
+            if (dock != null && dock.Current == Docking.State.Docking) { Doing = "docking"; return Trip.Going; }
+            if (Docking.Docked)
+            {
+                if (BuysOre(dock.At)) { Market = dock.At; return Trip.Docked; }
+                Undocking();
+                Doing = $"undocking to sell the {kind} at a market";
+                return Trip.Going;
+            }
+            if (dock != null && dock.Current == Docking.State.Undocking) return Trip.Going;
+            if (Market == null) Market = NearestMarket(me);
+            if (Market == null) { Doing = $"nowhere to sell {kind}"; return Trip.Failed; }
+            var wp = Market.Point;
+            // in the approach to its berth: dock (flying in); kept off while it can't yet
+            string w = "";
+            var cand = dock != null ? dock.Candidate(out w) : null;
+            if (cand == Market)
+            {
+                if (w != "") { Steer(0f, 0f); cc.throttle = 0f; Doing = $"waiting to dock at {Market.displayName}: {w}"; return Trip.Going; }
+                Release();
+                if (dock.Dock()) { Doing = $"docking at {Market.displayName} to sell"; return Trip.Docking; }
+                return Trip.Going;
+            }
+            if (wp == null) { Doing = $"can't find the way to {Market.displayName}"; return Trip.Failed; }
+            // far: warp there (a refusal: again in a while); close (at the place, but outside its approach): fly in
+            if (Vector3.Distance(me, Market.BerthPosition) > Mathf.Max(20000f, wp.arrivalDistance * 3f))
+            {
+                TryWarp(wp, $"warping to {Market.displayName} to sell {load}");
+                return Trip.Going;
+            }
+            var v = ShipAutopilot.Travel(cc, Market.ApproachPoint(me), null, out float clear);
+            Steer(v.x, v.y);
+            cc.throttle = 0.6f * clear;
+            Doing = $"flying to {Market.displayName} to sell";
+            return Trip.Going;
+        }
+
+        /// <summary>One frame of docking at the market: 1 docked, 0 still at it, -1 it gave up
+        /// (try the trip again; after three tries at one market, another).</summary>
+        int DockingAtMarket()
+        {
+            if (Docking.Docked) return 1;
+            var dock = Docking.Instance;
+            var nav = FindAnyObjectByType<NavigationMode>();
+            // (navigation flies her in to the berth, then docking brings her alongside)
+            if ((dock != null && dock.Current != Docking.State.Free) || (nav != null && nav.Travelling)) { Doing = $"docking at {Market?.displayName}"; return 0; }
+            if (Time.time - stepSince <= 5f) return 0;
+            if (++dockTries >= 3 && Market != null) { givenUp.Add(Market); dockTries = 0; }
+            return -1;
         }
 
         /// <summary>Said on the comms when it has sold a load (CoopBot passes it on).</summary>

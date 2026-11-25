@@ -45,6 +45,12 @@ the talk around it. It also takes these by itself, so they come to you marked ha
   hold to theirs (within 50 km, in the same level). Their game loads what fits, and it says what
   came back aboard. "take my ore", "take the iron": their own game sends the ore, and it says what
   came. Ore goes only between a person and an AI wingman.
+- "salvage", "scavenge", "salvage the wrecks", "salvage the wreck of the Fang Hunter": it strips
+  the wrecks near it (the one named first), sells what it takes when the hold is full, and goes
+  back to what it was doing when none is left ("nothing left to salvage"). With no wreck within
+  30 km it says "nothing to salvage". `status` has the wreck it's on and the `wrecks` near.
+- "give me the parts": it hands the parts aboard over, and keeps the ones it salvages for that
+  player (handed over when they're within 50 km) instead of selling them.
 - "your name is Ace", "call yourself Ace", "rename to Ace" (from its leader or the game's host):
   it asks the server for the name and says, in its new name, whether it has it. From then on,
   answer as that name, and only messages to that name are to it.
@@ -59,6 +65,7 @@ the talk around it. It also takes these by itself, so they come to you marked ha
 | "what have you got aboard?" | `cargo`, then say it |
 | "send me some money", "I'm short 2k" | `give_credits` (the amount, to them) |
 | "I need that platinum", "pass me some iron, 50 t" | `give_ore` (the mineral and the tonnes, to them) |
+| "there's a wreck over here, strip it", "pick up the scrap" | `order salvage` (the wreck's name if they give one: `Fang Hunter`) |
 | "can you hold some of my ore?" | tell them to say "take my ore" (or press G in the mining menu): their game sends it |
 | "how are you holding up?" | `status`, then say it |
 | "I'll call you Ace from now on", "you're Ace now" | `order rename` (Ace), if that player is its leader or the host |

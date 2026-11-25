@@ -34,7 +34,8 @@ namespace CarrierGame.Demo
         // (nor the captain: she is chosen on the start menu too, and stays for the game)
         // (the ship's paint can be changed, though: Paint opens the start menu's Customise step for it)
         enum Item { Resume, Restart, Sound, Music, Song, Coop, Paint, HudCaptain, HudSize, HudFleet, Voice, Microphone, WingmanVoice, Quit }
-        // (the microphone's line only where one can be chosen, or the browser's default said: the web)
+        // (the microphone's line only where one can be chosen, or the browser's default said: the
+        // web, and Windows and Linux, where a device of one's own is heard by Vosk)
         static readonly Item[] Items = new[] { Item.Resume, Item.Restart, Item.Sound, Item.Music, Item.Song, Item.Coop, Item.Paint, Item.HudCaptain, Item.HudSize, Item.HudFleet, Item.Voice, Item.Microphone, Item.WingmanVoice, Item.Quit }
             .Where(i => i != Item.Microphone || VoiceInput.MicMenu).ToArray();
 

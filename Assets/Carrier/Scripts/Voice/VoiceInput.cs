@@ -1,3 +1,8 @@
+// (a microphone of one's own, recognised by Vosk: the Windows and Linux players, and the editor
+// on either; the same guard as VoskRecognizer's and WingmanVoice.Live's, for this file only)
+#if UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX || ((UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX) && !UNITY_EDITOR)
+#define CARRIER_LOCAL_MIC
+#endif
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -12,15 +17,21 @@ namespace CarrierGame.Demo
     /// Voice commands for the AI wingman: while push-to-talk is held (the ` key, or the mouse's
     /// back button), what the player says is recognised on their own machine and sent on the comms
     /// channel as an order (VoiceCommand.ToChat, CoopChat.Say), as if it had been typed.
-    ///   - Windows: the speech recognition built into Windows (UnityEngine.Windows.Speech).
-    ///     Dictation, for anything said (it sends the audio to Microsoft to recognise, and needs
-    ///     Windows' "Online speech recognition" on); without it, offline keywords: the orders,
-    ///     the wingmen's names and the places of the system.
+    ///   - Windows, "Windows default" in the pause menu's Microphone: the speech recognition built
+    ///     into Windows (UnityEngine.Windows.Speech), which always listens on the default recording
+    ///     device. Dictation, for anything said (it sends the audio to Microsoft to recognise, and
+    ///     needs Windows' "Online speech recognition" on); without it, offline keywords: the
+    ///     orders, the wingmen's names and the places of the system.
+    ///   - Windows with a microphone chosen, and Linux (where it's the only way): the device is
+    ///     recorded with Unity's Microphone while voice commands are on, push-to-talk takes what
+    ///     was said from its ring (from just before the key went down, so the first word isn't
+    ///     clipped), and Vosk recognises it offline on a worker thread (VoskRecognizer), listening
+    ///     for the orders, the wingmen's names and the places it knows. A place it doesn't know
+    ///     comes out as "[unk]", and the order isn't sent: a notice says it may need typing.
     ///   - The web: the browser's SpeechRecognition (Chrome and Edge; it sends the audio to the
     ///     browser maker's servers), on a secure (https) page only. Its best few guesses come in,
     ///     and the first that reads as an order is sent (VoiceCommand.Choose). On Chrome and Edge
     ///     135 and later the microphone can be chosen in the pause menu (Microphone).
-    ///   - Linux: none.
     /// Off until turned on in the pause menu (Voice commands), and remembered. A HUD mark shows
     /// while it listens. -voicetest (?voicetest) feeds it phrases instead of a microphone.
     /// </summary>
@@ -62,7 +73,13 @@ namespace CarrierGame.Demo
                 int s = CarrierVoiceSupported();
                 return s == 1 ? null : s == 2 ? "needs the page on https" : "not in this browser (Chrome, Edge or Safari have it)";
 #elif UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
-                return PhraseRecognitionSystem.isSupported ? null : "Windows speech recognition isn't on this machine";
+                // (Windows' own, or a microphone of one's own for Vosk)
+                if (WindowsDefault || OfflineUsable && Devices().Length > 0) return null;
+                return "Windows speech recognition isn't on this machine";
+#elif CARRIER_LOCAL_MIC
+                if (!VoskRecognizer.Present) return "the offline recogniser isn't with this game (vosk-model)";
+                if (VoskRecognizer.Failed) return $"the offline recogniser didn't start ({VoskRecognizer.Error})";
+                return Devices().Length > 0 ? null : "no microphone found";
 #else
                 return "not on this system";
 #endif
@@ -90,7 +107,9 @@ namespace CarrierGame.Demo
 #if UNITY_WEBGL && !UNITY_EDITOR
                 Notices.Post("Voice commands on: hold ` and speak. The browser sends what you say to its maker to recognise it, and asks for the microphone the first time.");
 #else
-                Notices.Post("Voice commands on: hold ` (or the mouse's back button) and speak. Windows dictation sends what you say to Microsoft to recognise it; without it, a short list of orders is heard offline.");
+                Notices.Post(UsesOffline
+                    ? $"Voice commands on: hold ` (or the mouse's back button) and speak. {ChosenDevice()} is heard on this machine, for the orders, the wingmen's names and the places it knows."
+                    : "Voice commands on: hold ` (or the mouse's back button) and speak. Windows dictation sends what you say to Microsoft to recognise it; without it, a short list of orders is heard offline.");
 #endif
         }
 
@@ -109,6 +128,7 @@ namespace CarrierGame.Demo
         void OnDestroy()
         {
             StopListening();
+            StopRecording();
 #if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
             dictation?.Dispose();
             keywords?.Dispose();
@@ -121,7 +141,10 @@ namespace CarrierGame.Demo
         void Update()
         {
             PollWeb();
+            KeepRecording();
+            PollOffline();
             if (stopAt >= 0f && Time.unscaledTime >= stopAt) { stopAt = -1f; StopListening(); if (Now == State.Working) Now = State.Idle; }
+            if (takeAt >= 0f && Time.unscaledTime >= takeAt) TakeWhatWasSaid();
             if (Now == State.Working && Time.unscaledTime > workingUntil) { Now = State.Idle; StopListening(); }
             if (!Enabled || WhyNot != null) { if (talking) End(); return; }
             // (not while typing, or a menu has the keys)
@@ -135,9 +158,13 @@ namespace CarrierGame.Demo
 
         void Begin()
         {
+            // (the last one not yet taken from the ring: taken now, before this one)
+            if (takeAt >= 0f) TakeWhatWasSaid();
             talking = true;
             Now = State.Listening;
-            StartListening();
+            // (a microphone of one's own, recording already: what's said is taken from its ring)
+            offlineTalk = BeginOffline();
+            if (!offlineTalk) StartListening();
         }
 
         void End()
@@ -146,6 +173,13 @@ namespace CarrierGame.Demo
             // (what was said is still coming: a moment to finish it)
             Now = State.Working;
             workingUntil = Time.unscaledTime + 3f;
+            if (offlineTalk)
+            {
+                // (the last word's end, a moment after the key; then Vosk, given time for a slow first load)
+                takeAt = Time.unscaledTime + 0.3f;
+                workingUntil = Time.unscaledTime + 15f;
+                return;
+            }
             FinishListening();
         }
 
@@ -284,8 +318,22 @@ namespace CarrierGame.Demo
         static bool micsAsked;
 
         /// <summary>Does the pause menu have a Microphone line? On the web, yes: a choice where the
-        /// browser can take one (Chrome and Edge 135 and later), else "browser default".</summary>
-        public static bool MicMenu => LaunchArgs.OnWeb;
+        /// browser can take one (Chrome and Edge 135 and later), else "browser default". On Windows
+        /// and Linux, yes: the devices (and on Windows, "Windows default" first).</summary>
+        public static bool MicMenu => LaunchArgs.OnWeb || LocalMics;
+
+        /// <summary>Is the Microphone line this machine's own devices (Windows and Linux, not the web)?</summary>
+        static bool LocalMics
+        {
+            get
+            {
+#if CARRIER_LOCAL_MIC
+                return !LaunchArgs.OnWeb;
+#else
+                return false;
+#endif
+            }
+        }
 
         /// <summary>Can the microphone be chosen here?</summary>
         public static bool MicChoice
@@ -319,6 +367,7 @@ namespace CarrierGame.Demo
         {
             get
             {
+                if (LocalMics) return LocalMicLine();
                 if (!MicChoice) return "Microphone: browser default";
                 AskForMics();
                 string id = Mic;
@@ -333,16 +382,26 @@ namespace CarrierGame.Demo
         /// <summary>The next microphone (dir +1) or the one before (-1), the default among them.</summary>
         public static void StepMic(int dir)
         {
+            if (LocalMics)
+            {
+                var d = Devices();
+                if (d.Length == 0 || !OfflineUsable) return;
+                Mic = NextMic(d, Mic, dir, WindowsDefault);
+                return;
+            }
             if (!MicChoice) return;
             AskForMics(again: true);
             Mic = NextMic(mics.Select(m => m.id).ToList(), Mic, dir);
         }
 
-        /// <summary>Of `ids` (with "", the default, before them), the one `dir` steps from `current`.</summary>
-        public static string NextMic(IList<string> ids, string current, int dir)
+        /// <summary>Of `ids` (with "", the default, before them, if `withDefault`), the one `dir`
+        /// steps from `current`. One not there (unplugged, or none chosen) steps from the first.</summary>
+        public static string NextMic(IList<string> ids, string current, int dir, bool withDefault = true)
         {
-            var all = new List<string> { "" };
+            var all = new List<string>();
+            if (withDefault) all.Add("");
             all.AddRange(ids.Where(x => !string.IsNullOrEmpty(x)));
+            if (all.Count == 0) return "";
             int i = Mathf.Max(0, all.IndexOf(current ?? ""));
             return all[((i + dir) % all.Count + all.Count) % all.Count];
         }
@@ -444,6 +503,198 @@ namespace CarrierGame.Demo
             }
         }
 #endif
+
+        // ------------------------------------------------------------ a microphone of one's own (Windows and Linux: Vosk)
+
+        /// <summary>Is Windows' own speech recognition here (the Microphone line's "Windows default")?</summary>
+        static bool WindowsDefault
+        {
+            get
+            {
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
+                return PhraseRecognitionSystem.isSupported;
+#else
+                return false;
+#endif
+            }
+        }
+
+        /// <summary>Can Vosk be used here: the library and the model with the game, and it hasn't failed?</summary>
+        static bool OfflineUsable => LocalMics && VoskRecognizer.Present && !VoskRecognizer.Failed;
+
+#if CARRIER_LOCAL_MIC
+        static string[] devices = new string[0];
+        static float devicesAt = -1f;
+#endif
+
+        /// <summary>This machine's recording devices, by name (Unity's Microphone.devices, looked at
+        /// again every two seconds; none on the web).</summary>
+        static string[] Devices()
+        {
+#if CARRIER_LOCAL_MIC
+            float now = Time.unscaledTime;
+            if (devicesAt < 0f || now - devicesAt > 2f || now < devicesAt)
+            {
+                devicesAt = now;
+                try { devices = Microphone.devices ?? new string[0]; }
+                catch (System.Exception) { devices = new string[0]; }
+            }
+            return devices;
+#else
+            return new string[0];
+#endif
+        }
+
+        /// <summary>The device Vosk hears (null: none; on Windows, its own recognition instead): the
+        /// one chosen if it's plugged in, else (on Linux, with no "Windows default") the first.</summary>
+        static string ChosenDevice()
+        {
+            if (!OfflineUsable) return null;
+            var d = Devices();
+            string m = Mic;
+            if (m.Length > 0 && d.Contains(m)) return m;
+            return WindowsDefault ? null : d.FirstOrDefault();
+        }
+
+        /// <summary>Is push-to-talk heard by Vosk, from a device of one's own (not Windows' own)?</summary>
+        static bool UsesOffline => ChosenDevice() != null;
+
+        /// <summary>The Microphone line on Windows and Linux: "Windows default" (Windows only) or a device.</summary>
+        static string LocalMicLine()
+        {
+            bool windows = WindowsDefault;
+            string none = windows ? "Windows default" : "none";
+            if (!VoskRecognizer.Present) return $"Microphone: {none} (the offline recogniser isn't with this game)";
+            if (VoskRecognizer.Failed) return $"Microphone: {none} (the offline recogniser didn't start)";
+            if (Devices().Length == 0) return windows ? "Microphone: Windows default (no other found)" : "Microphone: none found";
+            string dev = ChosenDevice();
+            string m = Mic;
+            string shown = dev ?? "Windows default";
+            if (m.Length > 0 && dev != m) shown = $"(not plugged in) {shown}";
+            return $"Microphone:  <   {shown}   >";
+        }
+
+#if CARRIER_LOCAL_MIC
+        AudioClip micClip;
+        string micDevice;
+        int micRate, micStart;
+        float micSince, micRetryAt;
+#endif
+        bool offlineTalk;
+        float takeAt = -1f;
+        int offlinePending;
+
+        /// <summary>The chosen device kept recording while voice commands are on (into a ring of
+        /// 10 s), so push-to-talk has what was said from just before the key went down; stopped
+        /// otherwise. Its first start also gets Vosk ready (the model loads on the worker).</summary>
+        void KeepRecording()
+        {
+#if CARRIER_LOCAL_MIC
+            string want = Enabled && WhyNot == null ? ChosenDevice() : null;
+            if (want == micDevice && (want == null || Microphone.IsRecording(want))) return;
+            // (the same device stopped by itself, unplugged: tried again in a moment)
+            bool dropped = want != null && want == micDevice;
+            StopRecording();
+            if (dropped) micRetryAt = Time.unscaledTime + 3f;
+            if (want == null || Time.unscaledTime < micRetryAt) return;
+            Microphone.GetDeviceCaps(want, out int min, out int max);
+            int rate = min == 0 && max == 0 ? VoskRate : Mathf.Clamp(VoskRate, min, max);
+            micClip = Microphone.Start(want, true, 10, rate);
+            if (micClip == null)
+            {
+                micRetryAt = Time.unscaledTime + 3f;
+                Debug.LogWarning($"[Voice] {want} didn't start recording");
+                return;
+            }
+            micDevice = want;
+            micRate = micClip.frequency;
+            VoskRecognizer.Preload();
+#endif
+        }
+
+        // (what Vosk's model was made for; another rate is resampled by it)
+        const int VoskRate = 16000;
+
+        void StopRecording()
+        {
+#if CARRIER_LOCAL_MIC
+            if (micDevice != null)
+                try { Microphone.End(micDevice); } catch (System.Exception) { }
+            micDevice = null;
+            micClip = null;
+#endif
+        }
+
+        /// <summary>Push-to-talk down, with the device recording: where what's said starts in the
+        /// ring (0.3 s before now). False: not recording (Windows' own recognition, or nothing).</summary>
+        bool BeginOffline()
+        {
+#if CARRIER_LOCAL_MIC
+            if (micClip == null || micDevice == null || !OfflineUsable) return false;
+            int n = micClip.samples;
+            micStart = ((Microphone.GetPosition(micDevice) - micRate * 3 / 10) % n + n) % n;
+            micSince = Time.unscaledTime;
+            return true;
+#else
+            return false;
+#endif
+        }
+
+        /// <summary>A moment after push-to-talk is let go: what was said taken from the ring, as
+        /// 16-bit samples, and given to Vosk on its worker, with the grammar of the orders, the
+        /// wingmen's names and the places.</summary>
+        void TakeWhatWasSaid()
+        {
+            takeAt = -1f;
+#if CARRIER_LOCAL_MIC
+            if (micClip == null || micDevice == null) { if (Now == State.Working && offlinePending == 0) Now = State.Idle; return; }
+            int n = micClip.samples, ch = Mathf.Max(1, micClip.channels);
+            int end = Microphone.GetPosition(micDevice);
+            int len = ((end - micStart) % n + n) % n;
+            // (held longer than the ring holds: its last 9.5 s)
+            if ((Time.unscaledTime - micSince + 0.3f) * micRate >= n - micRate / 2) len = n - micRate / 2;
+            var ring = new float[n * ch];
+            micClip.GetData(ring, 0);
+            var pcm = new short[len];
+            int start = ((end - len) % n + n) % n;
+            for (int i = 0; i < len; i++)
+                pcm[i] = (short)Mathf.Clamp(Mathf.RoundToInt(ring[((start + i) % n) * ch] * 32767f), -32768, 32767);
+            var bots = Bots().DefaultIfEmpty("Wingman").ToList();
+            if (VoskRecognizer.Submit(pcm, len, micRate, VoiceCommand.GrammarPhrases(bots, Places().ToList())) >= 0) offlinePending++;
+            else if (Now == State.Working && offlinePending == 0) Now = State.Idle;
+#else
+            if (Now == State.Working) Now = State.Idle;
+#endif
+        }
+
+        /// <summary>Vosk's results, as they come from its worker.</summary>
+        void PollOffline()
+        {
+            while (VoskRecognizer.TryTake(out _, out string text))
+            {
+                if (offlinePending > 0) offlinePending--;
+                if (offlinePending == 0 && Now == State.Working) Now = State.Idle;
+                if (text == null) { Notices.Post($"Voice commands: the offline recogniser didn't work ({VoskRecognizer.Error ?? "no reason given"})"); continue; }
+                HeardOffline(text, null);
+            }
+        }
+
+        /// <summary>What Vosk heard (lower case, "[unk]" for a word it doesn't know): sent as Heard
+        /// sends it, its "[unk]"s left out, but not with a place it doesn't know where the place
+        /// goes ("warp to [unk]"): a notice says place names may need typing instead.</summary>
+        public void HeardOffline(string text, IList<string> botsForTest = null)
+        {
+            string said = VoskRecognizer.WithoutUnknowns(text, out bool unknown, out bool nameMissing);
+            if (nameMissing)
+            {
+                string shown = (text ?? "").Replace(VoskRecognizer.Unknown, "...");
+                Notices.Post($"Heard \"{shown}\": a name the offline recogniser doesn't know. Place names may need typing" +
+                             (WindowsDefault ? " (or the Microphone set to Windows default)." : "."));
+                return;
+            }
+            if (said.Length == 0) { if (unknown) Notices.Post("Didn't catch that"); return; }
+            Heard(said, true, botsForTest);
+        }
 
         /// <summary>The places to name in the keyword list: every warp point and asteroid field.</summary>
         static IEnumerable<string> Places() =>

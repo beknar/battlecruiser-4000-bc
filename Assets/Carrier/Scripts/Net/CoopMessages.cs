@@ -62,7 +62,7 @@ namespace CarrierGame.Demo
         public string surf, fr;
         // enemies
         public CoopEntity[] e;
-        // shots and beams
+        // shots and beams (tg: what a missile is after, a hit's enemy, or what a player's ship has locked)
         public string src, k, pf, tg;
         public float dx, dy, dz;
         // damage (kd: the kind as games before the new kinds know it; kx: the kind + 1, 0 if not
@@ -133,6 +133,11 @@ namespace CarrierGame.Demo
         /// <summary>Its paint (ShipPaint: PaintScheme.ToCode, "" unpainted; older games leave
         /// it out, and ignore it).</summary>
         public string pt = "";
+        /// <summary>What its player has locked (CoopWorld.LockWire): an enemy's id, the same in
+        /// every game; "" nothing; "x:" and a name, something that isn't an enemy (a station, a
+        /// player's ship); "?:" and a name, an enemy only this game has. Never a player's id, so
+        /// nothing reading it can be sent after a player. Games before content 3 leave it out.</summary>
+        public string tg = "";
     }
 
     /// <summary>The enemies, from the host to everyone else in the room.</summary>

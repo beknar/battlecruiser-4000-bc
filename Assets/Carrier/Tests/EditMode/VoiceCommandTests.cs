@@ -41,6 +41,20 @@ namespace CarrierGame.Tests
         }
 
         [Test]
+        public void TheFightOrdersAreOrdersAndInTheKeywordList()
+        {
+            var phrases = VoiceCommand.Phrases(One, new string[0]);
+            foreach (var said in new[] { "attack my target", "defend me", "cover me", "help me", "I'm under attack", "where are you" })
+            {
+                Assert.That(VoiceCommand.IsOrder(VoiceCommand.ToChat(said, One), One), Is.True, said);
+                Assert.That(phrases, Does.Contain("Wingman " + said));
+            }
+            // (of the browser's guesses, the one that's an order)
+            Assert.That(VoiceCommand.Choose(new List<string> { "Wingman, where are you going", "Wingman, where are you" }, One, null, out _, out _),
+                        Is.EqualTo("Wingman, where are you"));
+        }
+
+        [Test]
         public void NothingHeardOrNoWingmanSendsNothing()
         {
             Assert.That(VoiceCommand.ToChat("", One), Is.Null);

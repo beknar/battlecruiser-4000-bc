@@ -202,6 +202,7 @@ namespace CarrierGame.Demo
         {
             "mine", "mining", "sell", "dock", "attack", "follow", "hold", "stop", "status", "cargo", "help", "warp", "regroup", "report",
             "give", "go", "come", "salvage", "scavenge", "defend", "cover", "engage", "kill", "wait", "stay", "please", "now",
+            "where", "protect", "shoot",
         };
 
         /// <summary>Does a heard word sound like a name? Their sound keys (SoundKey) end alike and
@@ -251,8 +252,12 @@ namespace CarrierGame.Demo
             return sb.ToString();
         }
 
-        static int Edits(string a, string b)
+        /// <summary>How many letters must change, go in or come out to make one word the other
+        /// (the edit distance).</summary>
+        public static int Edits(string a, string b)
         {
+            a ??= "";
+            b ??= "";
             var d = new int[a.Length + 1, b.Length + 1];
             for (int i = 0; i <= a.Length; i++) d[i, 0] = i;
             for (int j = 0; j <= b.Length; j++) d[0, j] = j;
@@ -332,7 +337,8 @@ namespace CarrierGame.Demo
         static bool IsA(string w) => w.ToLowerInvariant().Trim(',', '.') == "a";
 
         static readonly string[] Orders = { "follow me", "hold", "stop", "attack", "dock", "mine", "start mining", "sell", "sell the ore",
-                                            "cargo", "status", "report", "regroup", "form up", "help", "what's in your hold" };
+                                            "cargo", "status", "report", "regroup", "form up", "help", "what's in your hold",
+                                            "attack my target", "my target", "defend me", "cover me", "help me", "I'm under attack", "where are you" };
 
         /// <summary>Phrases for an offline keyword recogniser (Windows without dictation): each
         /// order, alone and after each wingman's name (and "all ships"), and "mine at", "warp to"

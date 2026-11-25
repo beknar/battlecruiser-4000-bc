@@ -27,15 +27,26 @@ server, or a person at its keyboard.
 ## What it does when asked
 
 The bot carries out an order that starts with its name by itself, and says so. You still answer
-the talk around it.
+the talk around it. It also takes these by itself, so they come to you marked handled:
+- "defend me", "cover me", "help me", "I'm under attack" (with only this wingman in the room, even
+  without its name): it goes to that player and fights what's on them. Fighting where it is, it
+  says "fighting here, coming when clear" and goes as soon as its warp drive will.
+- "attack my target", "my lock", "what I'm shooting": it attacks what the player's game says they
+  have locked. A game too old to say gets "your game doesn't say what you've locked".
+- "where are you": where it is, how far from them, and what it's doing.
+- "attack" with nothing near it: its leader's fight, if they're in one.
+- A target's name alone ("Wingman, Fang Hunter"), and a name heard a little wrong after an attack
+  word ("attack Frank Hunter"): it says the target's real name.
 
 | Player says | Do |
 | --- | --- |
-| "cover me at the station", "come with me" | `order follow` (that player) |
+| "come with me", "stick with me" | `order follow` (that player) |
+| "they're all over me", "get over here, I'm in trouble" | `order defend` (that player) |
+| "shoot the one I've got", "take mine out" | `order assist` (that player) |
 | "go and mine for a bit" | `order mine` |
 | "what have you got aboard?" | `cargo`, then say it |
 | "send me some money", "I'm short 2k" | `give_credits` (the amount, to them) |
-| "where are you?", "how are you holding up?" | `status`, then say it |
+| "how are you holding up?" | `status`, then say it |
 | small talk | a short reply in character |
 
 If it can't do something, it says why in one line: "can't dock, no berth here".

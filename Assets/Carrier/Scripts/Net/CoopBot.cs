@@ -20,8 +20,12 @@ namespace CarrierGame.Demo
     /// Players order it on the comms channel, by its name: "Wingman, follow me", "@Wingman attack
     /// the cruiser", "Wingman hold", "Wingman warp to Thalassa Highport", "Wingman dock",
     /// "Wingman, mine asteroids" (and sell the ore when the hold is full), "Wingman, sell",
-    /// "Wingman status" ("all ships", "everyone" or "wingmen" orders every bot). It answers, and
-    /// says when it starts a fight, finishes one, arrives or can't do what it was told.
+    /// "Wingman status" ("all ships", "everyone" or "wingmen" orders every bot), "Wingman, attack
+    /// my target" (what the speaker's game says they have locked), "Wingman, defend me" (to them
+    /// from anywhere, and fight what's on them; with only this wingman in the room, "I'm under
+    /// attack" or "help me" needs no name), "Wingman, where are you", or a target's name alone
+    /// ("Wingman, Fang Hunter"). It answers, and says when it starts a fight, finishes one,
+    /// arrives or can't do what it was told.
     ///
     /// It also answers on a small HTTP API on this machine only (127.0.0.1, -botport, 7781 by
     /// default), for an AI to fly it (Tools/CoopAI/coop_ai_mcp.py makes it an MCP server):
@@ -29,7 +33,8 @@ namespace CarrierGame.Demo
     ///   GET  /messages?after=N  the comms channel after message N
     ///   GET  /destinations      the places to warp to, nearest first
     ///   POST /say   {text}      say something on the comms channel
-    ///   POST /order {order, target}  follow|hold|attack|goto|regroup|dock|mine|sell
+    ///   POST /order {order, target}  follow|hold|attack|goto|regroup|dock|mine|sell|defend|assist
+    ///                           (defend and assist: a player's name, or the last to speak)
     ///   GET  /chatmode          who answers talk that isn't an order: {mode, listener_seen_s}
     ///   POST /chatmode {mode}   llm|personality|paused (or on|off|pause|resume)
     ///   POST /quit              close the game
@@ -145,7 +150,7 @@ namespace CarrierGame.Demo
                 greeted = true;
                 var human = Humans().FirstOrDefault();
                 if (human != null) { CallOffChain(); Pilot.Follow(human.id); lastLeader = lastSpeaker = human.id; }
-                CoopChat.Say($"{Me} on station{(human != null ? $", forming up on {human.name}" : "")}. Orders by name: \"{Me}, follow me / hold / attack / warp to <place> / dock / mine / sell / cargo / give credits / status\".", Via.Event);
+                CoopChat.Say($"{Me} on station{(human != null ? $", forming up on {human.name}" : "")}. Orders by name: \"{Me}, follow me / defend me / hold / attack [my target] / warp to <place> / dock / mine / sell / cargo / give credits / where are you / status\".", Via.Event);
             }
             if (!CoopClient.Active) greeted = false;
             // says what it starts doing, when it's worth saying
@@ -222,7 +227,7 @@ namespace CarrierGame.Demo
             var c = CoopClient.Instance;
             if (c == null || line.from == c.MyId) return;
             lastSpeaker = line.from;
-            string rest = AddressedPart(line.text, Me);
+            string rest = AddressedPart(line.text, Me) ?? UnnamedCall(line);
             if (rest == null) return;
             string reply = Take(rest, line.from, line.seq);
             if (!string.IsNullOrEmpty(reply)) { CoopChat.Say($"{Me}: {reply}", Via.Order); return; }
@@ -249,6 +254,20 @@ namespace CarrierGame.Demo
                 toldOrdersOnly = now;
                 CoopChat.Say($"{Me}: {WingmanReplies.Get("orders_only")}", Via.Fixed);
             }
+        }
+
+        /// <summary>A call for help to no one by name ("I'm under attack", "help me", "defend
+        /// me") from a player, while this is the only wingman in the room: its words, taken as an
+        /// order to it; null for anything else (a plain "help" among them: that's to the others).</summary>
+        string UnnamedCall(CoopChat.Line line)
+        {
+            var c = CoopClient.Instance;
+            if (c == null || line.from == c.MyId) return null;
+            var p = ParseOrder(line.text);
+            if (p == null || p.Value.kind != "defend" || p.Value.arg.Length > 0) return null;
+            var who = c.Players.FirstOrDefault(x => x != null && x.id == line.from);
+            if (who == null || IsBot(who)) return null;
+            return c.Players.Any(x => x != null && x.id != c.MyId && IsBot(x)) ? null : line.text;
         }
 
         WingmanPersonality Personality
@@ -471,6 +490,7 @@ namespace CarrierGame.Demo
                                     pl.Market != null ? pl.Market.displayName : null, hold != null ? hold.OreTonnes : -1f);
                 }
                 case Wingman.Order.Follow: return pl.LeaderName.Length > 0 ? $"following {pl.LeaderName}" : "following";
+                case Wingman.Order.Defend: return pl.LeaderName.Length > 0 ? $"defending {pl.LeaderName}" : "defending";
                 case Wingman.Order.Attack: return "attacking";
                 case Wingman.Order.Goto: return pl.Destination != null ? $"heading for {pl.Destination.displayName}" : "on the way";
                 case Wingman.Order.Dock: return "docking";
@@ -512,7 +532,8 @@ namespace CarrierGame.Demo
             if (string.IsNullOrEmpty(reply)) return reply;
             var chain = Clauses(Plain(words));
             var one = chain == null ? ParseOrder(words) : null;
-            bool answered = one.HasValue && (one.Value.kind == "status" || one.Value.kind == "cargo" || one.Value.kind == "help") && reply != WingmanReplies.Get("not_ready");
+            bool answered = one.HasValue && (one.Value.kind == "status" || one.Value.kind == "cargo" || one.Value.kind == "help" || one.Value.kind == "where")
+                            && reply != WingmanReplies.Get("not_ready");
             if (Orders > orders || answered) Handled(seq);
             return reply;
         }
@@ -556,7 +577,15 @@ namespace CarrierGame.Demo
             var chain = Clauses(Plain(words));
             if (chain != null) return Chain(chain, fromId);
             var p = ParseOrder(words);
-            if (p == null) return null;
+            if (p == null)
+            {
+                // (a target's name alone, "Wingman, Fang Hunter": an attack on it; only a name an
+                // enemy has, word for word, so talk isn't taken for one)
+                var named = NamedAlone(words);
+                if (named == null) return null;
+                CallOffChain();
+                return Engage(named);
+            }
             // (a new order that takes time: whatever was still to come of the last message's is
             // called off; a report or credits on the way leave it going)
             if (!Instant(p.Value.kind)) CallOffChain();
@@ -612,13 +641,34 @@ namespace CarrierGame.Demo
             return string.Join(" ", words);
         }
 
+        // "attack my target", "my lock", "what I'm shooting at": what the speaker has locked
+        static readonly Regex AssistRx = new Regex(
+            @"^(?:(?:attack|engage|fire\s+(?:on|at)|kill|shoot(?:\s+at)?|take\s+out|destroy|hit|get|help\s+me\s+(?:with|kill))\s+)?" +
+            @"(?:my\s+(?:current\s+)?(?:target|lock|locked\s+target|mark)|(?:what(?:ever)?|the\s+one|the\s+ship)\s+i(?:'m|m|\s+am)\s+" +
+            @"(?:shooting(?:\s+at)?|locked\s+on(?:to)?|targeting|firing\s+(?:on|at)|attacking|fighting|aiming\s+at|on))$", RxOpt);
+        // "defend me", "cover me", "help me", "I'm under attack": to the speaker, to fight what's on them
+        static readonly Regex DefendRx = new Regex(
+            @"^(?:(?:come\s+(?:and\s+)?)?(?:defend|cover|protect|guard|help|assist|save)\s+(?:me|us)(?:\s+out)?|back\s+me\s+up" +
+            @"|(?:i(?:'m|m|\s+am)|we(?:'re|\s+are))\s+(?:under\s+(?:attack|fire)|being\s+attacked|taking\s+fire|in\s+trouble)" +
+            @"|i\s+need\s+(?:help|backup|back\s*up|support|cover)|under\s+attack|mayday(?:\s+mayday)*)$", RxOpt);
+        // "defend Ann", "cover Ann": another player ("cover me at the station" is the speaker)
+        static readonly Regex DefendWhoRx = new Regex(@"^(?:defend|cover|protect|guard)\s+(?<who>.+)$", RxOpt);
+        static readonly Regex MeFirstRx = new Regex(@"^(?:me|us)\b", RxOpt);
+        // "where are you": a report
+        static readonly Regex WhereRx = new Regex(
+            @"^(?:where\s+(?:are|r)\s+(?:you|u|ya)(?:\s+(?:at|now))?|where(?:'re)\s+you(?:\s+at)?|where\s+you\s+at" +
+            @"|what(?:'s|s|\s+is)\s+your\s+(?:position|location)|(?:your\s+)?(?:position|location)(?:\s+report)?" +
+            @"|how\s+far\s+(?:away\s+|off\s+)?are\s+you(?:\s+from\s+me)?)$", RxOpt);
+
         /// <summary>An order in words, parsed (none: talk): its kind ("chat", "follow", "regroup",
-        /// "cargo", "give", "hold", "attack", "goto", "dock", "mine", "sell", "status", "help") and
-        /// what it is to (a name, a place, an amount).</summary>
+        /// "cargo", "give", "hold", "attack", "assist" (what the speaker has locked), "defend",
+        /// "where", "goto", "dock", "mine", "sell", "status", "help") and what it is to (a name, a
+        /// place, an amount).</summary>
         public static (string kind, string arg)? ParseOrder(string words)
         {
             // ("can you mine please": "mine")
-            string w = Plain(words).Trim().TrimEnd('?', '!', '.').TrimEnd();
+            // (a typed curly apostrophe as a straight one: I'm, typed on a phone)
+            string w = Plain(words).Replace('\u2019', '\'').Trim().TrimEnd('?', '!', '.').TrimEnd();
             string lw = w.ToLowerInvariant();
             string Arg(params string[] verbs)
             {
@@ -629,6 +679,12 @@ namespace CarrierGame.Demo
             string NoThe(string x) => x.StartsWith("the ", StringComparison.OrdinalIgnoreCase) ? x.Substring(4) : x;
             string a;
             if ((a = ChatOrderArg(w)) != null) return ("chat", a);
+            // (before "attack" and "help": "attack my target", "help me")
+            if (AssistRx.IsMatch(w)) return ("assist", "");
+            if (DefendRx.IsMatch(w)) return ("defend", "");
+            var dw = DefendWhoRx.Match(w);
+            if (dw.Success) return ("defend", MeFirstRx.IsMatch(dw.Groups["who"].Value) ? "" : NoThe(dw.Groups["who"].Value.Trim()));
+            if (WhereRx.IsMatch(w)) return ("where", "");
             if ((a = Arg("follow", "escort", "form up on", "form on")) != null) return ("follow", a.Length == 0 || a.ToLowerInvariant() == "me" ? "" : a);
             if (Arg("regroup", "form up", "come here", "return", "rtb") != null) return ("regroup", "");
             // (before "hold": "hold report", "what's in your hold")
@@ -638,7 +694,7 @@ namespace CarrierGame.Demo
                 return ("cargo", "");
             if ((a = GiveArgs(w.TrimEnd('?', '.', '!'))) != null) return ("give", a);
             if (Arg("hold", "stop", "wait", "stay") != null) return ("hold", "");
-            if ((a = Arg("attack", "engage", "fire on", "kill")) != null) return ("attack", NoThe(a));
+            if ((a = Arg("attack", "engage", "fire on", "kill", "shoot", "take out")) != null) return ("attack", NoThe(a));
             if ((a = Arg("warp to", "go to", "goto", "jump to", "warp")) != null) return ("goto", a);
             if (Arg("dock") != null) return ("dock", "");
             if ((a = Arg("start mining", "go mining", "mine asteroids", "mine at", "mine in", "mine")) != null) return ("mine", NoThe(a));
@@ -656,6 +712,7 @@ namespace CarrierGame.Demo
                 case "chat": return ChatOrder(p.arg, fromId);
                 case "regroup": return Order("follow", "", fromId);
                 case "status": return Report();
+                case "where": return Where(fromId);
                 case "help": return WingmanReplies.Get("help");
                 default: return Order(p.kind, p.arg, fromId);
             }
@@ -686,8 +743,8 @@ namespace CarrierGame.Demo
 
         /// <summary>Orders that are over at once (said, or handed over), and those that are never
         /// over till another order comes (nothing can come after them).</summary>
-        static bool Instant(string kind) => kind == "chat" || kind == "cargo" || kind == "give" || kind == "status" || kind == "help";
-        static bool Standing(string kind) => kind == "follow" || kind == "regroup" || kind == "hold";
+        static bool Instant(string kind) => kind == "chat" || kind == "cargo" || kind == "give" || kind == "status" || kind == "where" || kind == "help";
+        static bool Standing(string kind) => kind == "follow" || kind == "regroup" || kind == "hold" || kind == "defend";
 
         // the orders still to come of a message's chain, and how the one being carried out is
         // going: 0 still going, 1 done, -1 it couldn't (the rest called off)
@@ -756,7 +813,8 @@ namespace CarrierGame.Demo
                 case "goto": stepDone = () => PilotGone() ? -1 : pilot.Current == Wingman.Order.Goto ? 0 : pilot.Doing.StartsWith("arrived") ? 1 : -1; break;
                 case "dock": stepDone = () => PilotGone() ? -1 : pilot.Current == Wingman.Order.Dock ? 0 : Docking.Docked ? 1 : -1; break;
                 // (over with the ship it went for destroyed, whatever it goes for next)
-                case "attack": stepDone = () => PilotGone() ? -1 : prey == null || (prey.TryGetComponent(out Health ph) && ph.Dead) ? 1 : pilot.Current == Wingman.Order.Attack ? 0 : -1; break;
+                case "attack":
+                case "assist": stepDone = () => PilotGone() ? -1 : prey == null || (prey.TryGetComponent(out Health ph) && ph.Dead) ? 1 : pilot.Current == Wingman.Order.Attack ? 0 : -1; break;
                 // (mining: over with its first load sold; selling: with the sale; no longer at it before then: it couldn't)
                 case "mine": stepDone = () => PilotGone() ? -1 : pilot.Sales > sales0 ? 1 : pilot.Current == Wingman.Order.Mine ? 0 : -1; break;
                 case "sell": stepDone = () => PilotGone() ? -1 : pilot.Sales > sales0 ? 1 : pilot.Current == Wingman.Order.Mine ? 0 : -1; break;
@@ -795,6 +853,9 @@ namespace CarrierGame.Demo
                 case "attack": return o.arg.Length > 0 ? $"attack {o.arg}" : "attack";
                 case "mine": return o.arg.Length > 0 ? $"mine at {o.arg}" : "mine";
                 case "follow": return o.arg.Length > 0 ? $"follow {o.arg}" : "follow";
+                case "assist": return "attack your target";
+                case "defend": return o.arg.Length > 0 ? $"defend {o.arg}" : "defend you";
+                case "where": return "say where I am";
                 case "give": return "give credits";
                 default: return o.kind;
             }
@@ -911,12 +972,23 @@ namespace CarrierGame.Demo
                     return WingmanReplies.Get("holding");
                 case "attack":
                 {
-                    var t = target.Length > 0 ? Wingman.FindTarget(target, cc.transform.position) : Wingman.NearestEnemy(cc.transform.position, 30000f);
-                    if (t == null) return target.Length > 0 ? $"no target called {target} in sight." : "no enemies in sight.";
-                    Pilot.Attack(t);
-                    Orders++;
-                    return $"engaging {Wingman.NameOf(t)}.";
+                    Vector3 at = cc.transform.position;
+                    // (by name, as heard: "Frank Hunter" is the Fang Hunter, and the answer says so)
+                    if (target.Length > 0)
+                    {
+                        var named = Wingman.FindTargetLoose(target, at);
+                        return named != null ? Engage(named) : $"no target called {target} in sight.";
+                    }
+                    var t = Wingman.NearestEnemy(at, 30000f);
+                    if (t != null) return Engage(t);
+                    // (nothing near it, but its leader, or whoever asked, is in a fight: that one)
+                    var (fight, whose) = FightOf(fromId);
+                    return fight != null ? Engage(fight, $"nothing near me; going to {whose} fight: ") : "no enemies in sight.";
                 }
+                case "assist":
+                    return Assist(target, fromId);
+                case "defend":
+                    return Defend(target, fromId);
                 case "goto":
                 {
                     var p = Place(target);
@@ -1014,6 +1086,153 @@ namespace CarrierGame.Demo
                 if (best == null || d < bd) { best = p; bd = d; }
             }
             return best;
+        }
+
+        // ------------------------------------------------------------ the fights
+
+        /// <summary>A distance as a pilot says it: "850 m", "1.7 km", "12,400 km", "2.1 million km".</summary>
+        public static string HowFar(float metres)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            if (metres < 1000f) return Mathf.Max(0f, metres).ToString("F0", inv) + " m";
+            float km = metres / 1000f;
+            if (km < 10f) return km.ToString("0.0", inv) + " km";
+            if (km < 1e6f) return km.ToString("N0", inv) + " km";
+            return (km / 1e6f).ToString("0.0", inv) + " million km";
+        }
+
+        /// <summary>Attack a target: the answer, with its name as it is (whatever it was called)
+        /// and, far off, how far (the pilot warps to it).</summary>
+        string Engage(Transform t, string lead = "")
+        {
+            if (Pilot == null || Pilot.demo == null || Pilot.demo.carrier == null) return WingmanReplies.Get("not_ready");
+            float d = Vector3.Distance(Pilot.demo.carrier.transform.position, t.position);
+            Pilot.Attack(t);
+            Orders++;
+            return $"{lead}engaging {Wingman.NameOf(t)}{(d > Pilot.warpAfter ? $" ({HowFar(d)} off)" : "")}.";
+        }
+
+        /// <summary>The enemy a message is only the name of ("Fang Hunter", "the Skink"), or null.</summary>
+        Transform NamedAlone(string words)
+        {
+            var cc = Pilot != null && Pilot.demo != null ? Pilot.demo.carrier : null;
+            if (cc == null) return null;
+            return Wingman.EnemyNamed(Plain(words).Trim().TrimEnd('?', '!', '.'), cc.transform.position);
+        }
+
+        /// <summary>Whoever gave an order (from the API: the last player to speak).</summary>
+        int Asker(int fromId) => fromId != 0 ? fromId : lastSpeaker;
+
+        /// <summary>The player an order is about: the one named (part of the name), else whoever
+        /// gave it, else the nearest player. `refusal` says why there's none.</summary>
+        CoopPlayer PlayerFor(string name, int fromId, out string refusal)
+        {
+            refusal = null;
+            var c = CoopClient.Instance;
+            if (c == null) return null;
+            name = (name ?? "").Trim();
+            if (name.Length > 0 && !name.Equals("me", StringComparison.OrdinalIgnoreCase) && !name.Equals("us", StringComparison.OrdinalIgnoreCase))
+            {
+                var named = c.Players.FirstOrDefault(p => p != null && p.id != c.MyId && p.name.ToLowerInvariant().Contains(name.ToLowerInvariant()));
+                if (named == null) refusal = $"there's no player called {name}.";
+                return named;
+            }
+            int asker = Asker(fromId);
+            var cc = Pilot != null && Pilot.demo != null ? Pilot.demo.carrier : null;
+            return c.Players.FirstOrDefault(p => p != null && p.id != c.MyId && p.id == asker)
+                   ?? (cc != null ? NearestHuman(cc.transform.position) : null);
+        }
+
+        /// <summary>"attack my target": what the player's game says they have locked (an enemy's
+        /// id, the same in every game), warping to it if it's far. Never a player: their game
+        /// never sends one.</summary>
+        string Assist(string name, int fromId)
+        {
+            var who = PlayerFor(name, fromId, out string refusal);
+            if (who == null) return refusal ?? "whose target?";
+            bool asker = who.id == Asker(fromId);
+            string your = asker ? "your" : who.name + "'s";
+            var w = CoopWorld.Instance;
+            var r = w != null ? w.RemoteOf(who.id) : null;
+            if (r == null) return $"can't see {your} ship from here.";
+            // (a game too old to say: not "nothing locked", which it can't tell)
+            if (r.ContentVersion < CoopWire.ContentTarget)
+                return $"{your} game doesn't say what {(asker ? "you've" : who.name + "'s")} locked: name it (\"attack the Skink\").";
+            string id = r.TargetId ?? "";
+            if (id.Length == 0) return $"{(asker ? "you've" : who.name + " has")} nothing locked.";
+            if (id.StartsWith(CoopWorld.NotEnemyLock))
+            {
+                string what = id.Substring(CoopWorld.NotEnemyLock.Length);
+                return what.Length > 0 ? $"that's not an enemy: {what}." : "that's not an enemy.";
+            }
+            if (id.StartsWith(CoopWorld.OwnEnemyLock)) return $"can't see {id.Substring(CoopWorld.OwnEnemyLock.Length)} from here.";
+            var t = w.EntityTransform(id);
+            if (t == null || !t.gameObject.activeInHierarchy) return $"can't see {your} target from here.";
+            if (t.TryGetComponent(out Health h) && h.Dead) return $"{Wingman.NameOf(t)} is already destroyed.";
+            if (!(t.TryGetComponent(out TargetInfo info) && info.Hostile)) return $"that's not an enemy: {Wingman.NameOf(t)}.";
+            return Engage(t);
+        }
+
+        /// <summary>"defend me": to the player from wherever it is, to fight what's on them. The
+        /// answer says how it goes: with them, on its way, or fighting where it is till the warp
+        /// drive will go ("fighting here, coming when clear": the drive won't under fire).</summary>
+        string Defend(string name, int fromId)
+        {
+            var cc = Pilot.demo.carrier;
+            var who = PlayerFor(name, fromId, out string refusal);
+            if (who == null) return refusal ?? "there's nobody to defend.";
+            bool busy = Pilot.Fighting;
+            Pilot.Defend(who.id);
+            lastLeader = who.id;
+            Orders++;
+            bool asker = who.id == Asker(fromId);
+            string you = asker ? "you" : who.name;
+            var w = CoopWorld.Instance;
+            var r = w != null ? w.RemoteOf(who.id) : null;
+            if (r == null || r.Hidden) return $"coming to {you} as soon as I can see {(asker ? "your" : who.name + "'s")} ship.";
+            float d = Vector3.Distance(cc.transform.position, r.transform.position);
+            var threat = Wingman.ThreatTo(r);
+            string onYou = threat != null ? $", {Wingman.NameOf(threat)} on {you}" : "";
+            if (d <= Pilot.warpAfter)
+                return threat != null ? $"with {you}: engaging {Wingman.NameOf(threat)}." : $"with {you} ({HowFar(d)} off); nothing on {you} that I can see.";
+            var drive = cc.GetComponent<WarpDrive>();
+            if (drive != null && drive.Current != WarpDrive.State.Ready) return $"coming to {you} when I'm out of warp ({HowFar(d)} off{onYou}).";
+            if (drive != null && !drive.CanWarp(out string why))
+                return busy || drive.InCombat(out _) ? $"fighting here, coming when clear ({HowFar(d)} off{onYou})." : $"coming to {you}, but I can't warp: {why} ({HowFar(d)} off).";
+            return $"on my way to {you}, {HowFar(d)} off{onYou}.";
+        }
+
+        /// <summary>A fight its leader (or whoever asked) is in: what they've locked, or the
+        /// nearest enemy within 30 km of them, and whose fight it is ("your", "Ann's"); none if
+        /// neither is in one, or their ship isn't seen.</summary>
+        (Transform fight, string whose) FightOf(int fromId)
+        {
+            var w = CoopWorld.Instance;
+            var c = CoopClient.Instance;
+            if (w == null || c == null || Pilot == null) return (null, "");
+            int asker = Asker(fromId);
+            foreach (int id in new[] { Pilot.LeaderId, asker })
+            {
+                if (id == 0 || id == c.MyId) continue;
+                var t = Wingman.ThreatTo(w.RemoteOf(id), 30000f);
+                if (t != null) return (t, id == asker ? "your" : c.NameOf(id) + "'s");
+            }
+            return (null, "");
+        }
+
+        /// <summary>Where it is ("near Havilah, 1.7 km from you; closing on Ann (1.7 km)"): the
+        /// nearest place, how far from whoever asked (when their ship is seen), and what it's doing.</summary>
+        string Where(int fromId)
+        {
+            if (Pilot == null || Pilot.demo == null || Pilot.demo.carrier == null) return WingmanReplies.Get("not_ready");
+            Vector3 at = Pilot.demo.carrier.transform.position;
+            var near = WarpPoint.Nearest(at);
+            string place = near != null ? $"near {near.displayName}" : "out in open space";
+            var w = CoopWorld.Instance;
+            int id = Asker(fromId);
+            var r = w != null && id != 0 ? w.RemoteOf(id) : null;
+            string off = r != null && !r.Hidden ? $", {HowFar(Vector3.Distance(at, r.transform.position))} from you" : "";
+            return $"{place}{off}; {Pilot.Doing}.";
         }
 
         static WarpPoint Place(string name)
@@ -1310,7 +1529,7 @@ namespace CarrierGame.Demo
                 if (!first) sb.Append(',');
                 first = false;
                 bool mine = c != null && l.from == c.MyId;
-                bool toMe = !mine && AddressedPart(l.text, Me) != null;
+                bool toMe = !mine && (AddressedPart(l.text, Me) != null || UnnamedCall(l) != null);
                 // (handled: an order the bot carried out itself; the listener doesn't order it again)
                 sb.Append($"{{\"seq\":{l.seq},\"from\":{Q(l.name)},\"mine\":{B(mine)},\"to_me\":{B(toMe)},\"handled\":{B(handled.Contains(l.seq))},\"text\":{Q(l.text)}}}");
             }

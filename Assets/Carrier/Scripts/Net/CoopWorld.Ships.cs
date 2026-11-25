@@ -42,7 +42,26 @@ namespace CarrierGame.Demo
                 cby = me.Captured ? me.CapturedBy : null,
                 cv = CoopWire.Content,
                 pt = ShipPaint.PlayerCode,
+                tg = LockWire(me.target),
             });
+        }
+
+        /// <summary>The start of a lock on something that isn't an enemy, and of one on an enemy
+        /// only this game has (its name follows either): ShipMsg.tg.</summary>
+        public const string NotEnemyLock = "x:", OwnEnemyLock = "?:";
+
+        /// <summary>My lock, as my ship's message says it (tg): an enemy's id, the same in every
+        /// game; "" nothing; NotEnemyLock and its name for a station, a planet or a player's ship
+        /// (a player is never sent as a target); OwnEnemyLock and its name for an enemy the others
+        /// haven't got (one on my planet's surface, say).</summary>
+        string LockWire(Transform t)
+        {
+            if (t == null || !t.gameObject.activeInHierarchy) return "";
+            if ((me != null && t.root == me.transform.root) || remoteByRoot.ContainsKey(t.root)) return NotEnemyLock + Targets.NameOf(t);
+            var e = EntOf(t);
+            if (e != null) return e.id;
+            var info = t.GetComponentInParent<TargetInfo>();
+            return (info != null && info.Hostile ? OwnEnemyLock : NotEnemyLock) + Targets.NameOf(t);
         }
 
         /// <summary>The ship showing another player, made the first time they are heard from: their

@@ -72,6 +72,61 @@ namespace CarrierGame
         public static float Value(Mineral m) => Table[(int)m].value;
         public static string Hex(Mineral m) => "#" + ColorUtility.ToHtmlStringRGB(Table[(int)m].color);
 
+        // ------------------------------------------------------------------ minerals by name
+
+        // other words for them, as said (their names and symbols are taken from the table)
+        static readonly (string word, Mineral m)[] OtherNames =
+        {
+            ("ice", Mineral.Water), ("water ice", Mineral.Water), ("aluminum", Mineral.Aluminium), ("sulphur", Mineral.Sulfur),
+            ("dry ice", Mineral.CarbonDioxide), ("helium three", Mineral.Helium3), ("he 3", Mineral.Helium3),
+            ("heavy water", Mineral.Deuterium), ("rare earth", Mineral.RareEarths), ("rare earth elements", Mineral.RareEarths),
+            ("rare earth metals", Mineral.RareEarths), ("silicate rock", Mineral.Silicates), ("diamond", Mineral.Diamonds),
+        };
+
+        static Dictionary<string, Mineral> byName;
+
+        /// <summary>A word as names are kept: lower case, letters and digits only ("He-3": "he3").</summary>
+        static string NameKey(string s)
+        {
+            var sb = new StringBuilder();
+            foreach (char c in s ?? "") if (char.IsLetterOrDigit(c)) sb.Append(char.ToLowerInvariant(c));
+            return sb.ToString();
+        }
+
+        /// <summary>A mineral by its name or symbol as said ("platinum", "Pt", "He-3", "helium 3",
+        /// "Rare earths", "diamond", "ice"): any case, with or without spaces and hyphens, singular
+        /// or plural. False for anything else, a one-letter symbol among them ("C", "U" and "D" are
+        /// taken as letters, not carbon, uranium or deuterium).</summary>
+        public static bool TryParse(string said, out Mineral m)
+        {
+            if (byName == null)
+            {
+                var d = new Dictionary<string, Mineral>();
+                for (int i = 0; i < Table.Length; i++)
+                {
+                    d[NameKey(Table[i].name)] = (Mineral)i;
+                    string sym = NameKey(Table[i].symbol);
+                    if (sym.Length > 1 && !d.ContainsKey(sym)) d[sym] = (Mineral)i;
+                }
+                foreach (var (word, mineral) in OtherNames) d[NameKey(word)] = mineral;
+                byName = d;
+            }
+            string k = NameKey(said);
+            m = Mineral.Silicates;
+            if (k.Length < 2) return false;
+            // (as said, or one more or one fewer "s": "diamond", "silicate", "golds")
+            return byName.TryGetValue(k, out m) || (k.EndsWith("s") && byName.TryGetValue(k.Substring(0, k.Length - 1), out m))
+                   || byName.TryGetValue(k + "s", out m);
+        }
+
+        /// <summary>How much of a mix (0..1) is the one mineral.</summary>
+        public static float FractionOf(Share[] mix, Mineral m)
+        {
+            float f = 0f;
+            if (mix != null) foreach (var s in mix) if (s.mineral == m) f += s.fraction;
+            return f;
+        }
+
         /// <summary>The most valuable mineral making up at least `minFraction` of a mix.</summary>
         public static Mineral Prize(Share[] mix, float minFraction = 0.003f)
         {

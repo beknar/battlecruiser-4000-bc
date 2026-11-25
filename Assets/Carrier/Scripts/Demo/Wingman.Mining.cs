@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -7,9 +8,10 @@ namespace CarrierGame.Demo
     /// The wingman's Mine order: it mines asteroids and sells what it cuts, over and over.
     ///   - to an asteroid field (the one asked for, else the one it is at, else the nearest),
     ///     warping there if it isn't at one;
-    ///   - scans (V) for deposits, chooses the nearest, flies to it (mining mode's own approach,
-    ///     which cuts the engines within 100 m of the rock) and cuts it with the laser until the
-    ///     hold is full, going on to the next deposit when one is mined out;
+    ///   - scans (V) for deposits, chooses one (the nearest; or, told what to go after, the
+    ///     richest in that mineral, or the one worth most a tonne: OreChoice), flies to it (mining
+    ///     mode's own approach, which cuts the engines within 100 m of the rock) and cuts it with
+    ///     the laser until the hold is full, going on to the next deposit when one is mined out;
     ///   - with the hold full (or told to sell), to the nearest place that buys ore (a market:
     ///     the Thalassa Highport, Deepcut Station, the Jovara L5 Depot, or a place where people
     ///     live), warping there, docks (flying in to the berth), sells the ore, undocks;
@@ -24,6 +26,12 @@ namespace CarrierGame.Demo
         public MineStep Step { get; private set; }
         /// <summary>The field it mines (null: the nearest).</summary>
         public WarpPoint MineField { get; private set; }
+        /// <summary>Which rocks it goes for there: the nearest, the richest in a mineral, or the
+        /// most valuable.</summary>
+        public OreChoice MineChoice { get; private set; }
+        /// <summary>Told to go after a mineral the rocks in sensor range have none of: it mines
+        /// the most valuable instead (and has said so).</summary>
+        public bool OreMissing { get; private set; }
         /// <summary>The place it sells at, on the way there.</summary>
         public Installation Market { get; private set; }
         /// <summary>Ore sold, and what it fetched, since the order was given (for the status).</summary>
@@ -38,21 +46,28 @@ namespace CarrierGame.Demo
         // rocks it couldn't get to or cut (passed over till it goes to a field again)
         readonly System.Collections.Generic.HashSet<IMineralSource> skipped = new System.Collections.Generic.HashSet<IMineralSource>();
 
-        /// <summary>Mine (at a field by name, or the nearest), and sell when the hold is full.</summary>
-        public void Mine(WarpPoint field = null)
+        /// <summary>Mine (at a field by name, or the nearest; the rocks `choice` says, or the
+        /// nearest), and sell when the hold is full.</summary>
+        public void Mine(WarpPoint field = null, OreChoice choice = default)
         {
             // (the same order again, as when it's given twice: carried on with, not started over,
             // so the run isn't sent back to the field and its sales aren't forgotten; but the rocks
             // it passed over get another look, and a sale under way goes back to mining after)
-            if (Current == Order.Mine && MineField == field)
+            if (Current == Order.Mine && MineField == field && MineChoice.Equals(choice))
             {
                 afterSale = null;
                 skipped.Clear();
                 nextScan = 0f;
                 return;
             }
+            // (other rocks asked for while it cuts one: the laser off, to choose again)
+            if (Current == Order.Mine && (Step == MineStep.Approach || Step == MineStep.Cut)) StopMiningGear();
             LeaveLeader();
             MineField = field;
+            MineChoice = choice;
+            OreMissing = false;
+            saidMissing = false;
+            resumeRock = null;
             Set(Order.Mine);
             afterSale = null;
             TonnesSold = CreditsEarned = 0f;
@@ -71,6 +86,8 @@ namespace CarrierGame.Demo
                 LeaveLeader();
                 Set(Order.Mine);
                 MineField = null;
+                MineChoice = default;
+                OreMissing = false;
             }
             Go(MineStep.ToMarket);
         }
@@ -108,6 +125,64 @@ namespace CarrierGame.Demo
         // the rock it was flying to or cutting when a fight broke in: back to it afterwards
         IMineralSource resumeRock;
         float skippedCleared;
+        // "no platinum in the rocks here" said (once a visit to a field)
+        bool saidMissing;
+
+        /// <summary>The rock it is flying to or cutting (null: none now).</summary>
+        public IMineralSource Rock
+        {
+            get
+            {
+                if (Current != Order.Mine || (Step != MineStep.Approach && Step != MineStep.Cut)) return null;
+                var mm = MiningMode;
+                return mm != null ? mm.Chosen : null;
+            }
+        }
+
+        /// <summary>Which rocks it is to go for: the nearest (the default), the richest in one
+        /// mineral, or the most valuable (credits a tonne of the whole mix, as the laser takes the
+        /// whole mix).</summary>
+        public struct OreChoice : System.IEquatable<OreChoice>
+        {
+            public enum Kind { Nearest, Mineral, MostValuable }
+            public Kind kind;
+            /// <summary>The mineral (Kind.Mineral only).</summary>
+            public Mineral mineral;
+
+            public static OreChoice Nearest => default;
+            public static OreChoice MostValuable => new OreChoice { kind = Kind.MostValuable };
+            public static OreChoice For(Mineral m) => new OreChoice { kind = Kind.Mineral, mineral = m };
+
+            /// <summary>The mineral's name as said ("platinum", "helium-3"); "" for the others.</summary>
+            public string MineralName => kind == Kind.Mineral ? Minerals.Name(mineral).ToLowerInvariant() : "";
+
+            /// <summary>For the status: "", "most valuable", or the mineral's name.</summary>
+            public string Key => kind == Kind.Mineral ? MineralName : kind == Kind.MostValuable ? "most valuable" : "";
+
+            public bool Equals(OreChoice o) => kind == o.kind && (kind != Kind.Mineral || mineral == o.mineral);
+            public override bool Equals(object o) => o is OreChoice c && Equals(c);
+            public override int GetHashCode() => kind == Kind.Mineral ? 100 + (int)mineral : (int)kind;
+        }
+
+        /// <summary>The rocks as the choice ranks them, best first. The richest in a mineral: by
+        /// its share of the mix, then the most tonnes left, then the nearest. The most valuable:
+        /// by credits a tonne of the mix (Minerals.ValuePerTonne), then tonnes, then distance.
+        /// The nearest: by distance. `missing`: a mineral was asked for and none of the rocks has
+        /// any of it, so they are ranked as the most valuable instead.</summary>
+        public static List<IMineralSource> Ranked(IEnumerable<IMineralSource> rocks, OreChoice choice, System.Func<IMineralSource, float> distance, out bool missing)
+        {
+            var list = rocks.Where(r => r != null).Distinct().ToList();
+            missing = false;
+            if (choice.kind == OreChoice.Kind.Mineral)
+            {
+                var m = choice.mineral;
+                if (list.Count > 0 && list.All(r => Minerals.FractionOf(r.Mix, m) <= 0f)) { missing = true; choice = OreChoice.MostValuable; }
+                else return list.OrderByDescending(r => Minerals.FractionOf(r.Mix, m)).ThenByDescending(r => r.Remaining).ThenBy(distance).ToList();
+            }
+            if (choice.kind == OreChoice.Kind.MostValuable)
+                return list.OrderByDescending(r => Minerals.ValuePerTonne(r.Mix ?? new Share[0])).ThenByDescending(r => r.Remaining).ThenBy(distance).ToList();
+            return list.OrderBy(distance).ToList();
+        }
 
         /// <summary>A fight: the laser off and the approach called off; afterwards it goes back
         /// to the same rock (if it's still there), else looks again.</summary>
@@ -161,7 +236,7 @@ namespace CarrierGame.Demo
                     if (Undocking()) { Doing = "undocking to go mining"; return; }
                     var field = FieldFor(me);
                     if (field == null) { Doing = "can't mine: no asteroid field"; Current = Order.Hold; return; }
-                    if (AtField(field, me)) { skipped.Clear(); resumeRock = null; nextScan = 0f; Go(MineStep.Scan); return; }
+                    if (AtField(field, me)) { skipped.Clear(); resumeRock = null; nextScan = 0f; saidMissing = false; Go(MineStep.Scan); return; }
                     // (a warp refused, under fire say: it tries again in a while, still mining)
                     TryWarp(field, $"warping to {field.displayName} to mine");
                     return;
@@ -172,13 +247,28 @@ namespace CarrierGame.Demo
                     cc.throttle = 0f;
                     if (!Modes.Is(ModeOfPlay.Mining)) Modes.Set(ModeOfPlay.Mining);
                     if (sensor.Sweeping) { Doing = "scanning for deposits"; return; }
-                    // (the rock a fight took it off, if it's still there; else the nearest the last
-                    // scan found here, not what an earlier one found at another field)
-                    var found = resumeRock != null && resumeRock.Valid && !resumeRock.Depleted && !skipped.Contains(resumeRock)
-                                && laser.Reach(resumeRock) < sensor.spaceRange ? resumeRock
-                              : sensor.Finds.Select(f => f.source)
-                                    .Where(s => s != null && s.Valid && !s.Depleted && !(s is SurfaceVein) && !skipped.Contains(s) && laser.Reach(s) < sensor.spaceRange)
-                                    .OrderBy(s => laser.Reach(s)).FirstOrDefault();
+                    // (the rock a fight took it off, if it's still there; else the best by its
+                    // choice (the nearest, unless told otherwise) that the last scan found here,
+                    // not what an earlier one found at another field)
+                    IMineralSource found;
+                    if (resumeRock != null && resumeRock.Valid && !resumeRock.Depleted && !skipped.Contains(resumeRock)
+                        && laser.Reach(resumeRock) < sensor.spaceRange) found = resumeRock;
+                    else
+                    {
+                        var rocks = sensor.Finds.Select(f => f.source)
+                            .Where(s => s != null && s.Valid && !s.Depleted && !(s is SurfaceVein) && !skipped.Contains(s) && laser.Reach(s) < sensor.spaceRange);
+                        found = Ranked(rocks, MineChoice, s => laser.Reach(s), out bool missing).FirstOrDefault();
+                        if (found != null)
+                        {
+                            OreMissing = missing;
+                            // (none of what it was told to go after here: said once a visit to a field)
+                            if (missing && !saidMissing)
+                            {
+                                saidMissing = true;
+                                Remark?.Invoke($"no {MineChoice.MineralName} in the rocks here; mining what's worth most");
+                            }
+                        }
+                    }
                     resumeRock = null;
                     if (found != null)
                     {
@@ -355,5 +445,8 @@ namespace CarrierGame.Demo
 
         /// <summary>Said on the comms when it has sold a load (CoopBot passes it on).</summary>
         public event System.Action<string> Sold;
+        /// <summary>Said on the comms about its mining ("no platinum in the rocks here"; CoopBot
+        /// passes it on).</summary>
+        public event System.Action<string> Remark;
     }
 }

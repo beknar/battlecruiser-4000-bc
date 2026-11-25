@@ -338,7 +338,11 @@ namespace CarrierGame.Demo
 
         static readonly string[] Orders = { "follow me", "hold", "stop", "attack", "dock", "mine", "start mining", "sell", "sell the ore",
                                             "cargo", "status", "report", "regroup", "form up", "help", "what's in your hold",
-                                            "attack my target", "my target", "defend me", "cover me", "help me", "I'm under attack", "where are you" };
+                                            "attack my target", "my target", "defend me", "cover me", "help me", "I'm under attack", "where are you",
+                                            // (the rocks to go for: the minerals worth going after, and the most valuable)
+                                            "mine platinum", "mine gold", "mine silver", "mine iron", "mine palladium", "mine iridium",
+                                            "mine diamonds", "mine helium three", "mine deuterium", "mine uranium", "mine water",
+                                            "mine the most valuable ore", "mine the best rocks" };
 
         /// <summary>Phrases for an offline keyword recogniser (Windows without dictation): each
         /// order, alone and after each wingman's name (and "all ships"), and "mine at", "warp to"

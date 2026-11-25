@@ -2327,7 +2327,9 @@ every bot. Politeness is left off an order: `Wingman, can you mine some asteroid
 | `where are you` | Says where it is (the nearest place), how far from whoever asked, and what it's doing. `what's your position` does the same. |
 | `warp to <place>` | Warps there, then holds. |
 | `dock` | Docks at the station it is at. |
-| `mine` or `mine at <field>` | Mines asteroids: warps to the field (the one it is at, or the nearest), scans, flies to the nearest deposit and cuts it until the hold is full, then warps to the nearest market (a station or base that buys ore), docks, sells the ore and goes back for more, over and over. `start mining` and `mine asteroids` do the same, and words after `mine` that don't name a field (`mine some rocks`, `mine the nearest asteroids`) mean the nearest. Given again while it's already mining there, it carries on rather than starting the run over. |
+| `mine` or `mine at <field>` | Mines asteroids: warps to the field (the one it is at, or the nearest), scans, flies to the nearest deposit and cuts it until the hold is full, then warps to the nearest market (a station or base that buys ore), docks, sells the ore and goes back for more, over and over. `start mining` and `mine asteroids` do the same, and words after `mine` that don't name a field (`mine some rocks`, `mine the nearest asteroids`) mean the nearest. Given again while it's already mining there (for the same rocks), it carries on rather than starting the run over. |
+| `mine <mineral>` | Mines the rocks richest in that mineral, in the field it's at or the nearest (`mine gold at the Inner Belt` names one). The laser takes a rock's whole mix, so it's the rocks with the biggest share of it in sensor range (12 km); rocks as rich are taken biggest first, then nearest. A mineral is known by its name or symbol, in any case, singular or plural (`platinum`, `Pt`, `He-3`, `helium 3`, `rare earths`, `diamond`, `ice` for water), and is matched before a field's name. `mine for gold`, `go after helium-3`, `go for gold`, `look for platinum` and `mine at the Inner Belt for gold` do the same. With none of it in the rocks in range it says "no platinum in the rocks here; mining what's worth most" (once each time it reaches a field) and mines the most valuable instead. The answer, the HUD's line and `/status` say what it's after ("mining for platinum in Inner Belt"). |
+| `mine the most valuable ore` | Mines the rocks worth most a tonne (the whole mix, at the market's prices) in sensor range, the biggest first among those worth the same. `mine the best rocks`, `mine the richest asteroids`, `go after the most valuable ore` and `hunt for the best rocks at the Outer Drift` do the same. |
 | `sell` | Takes the ore aboard to the nearest market now, sells it, then goes back to mining. |
 | `cargo` | Reports what is in its hold (ore and goods by weight, the most first, then parts), how full the hold is, and its credits. `what's in your hold?`, `how full is your hold?`, `inventory` and `manifest` do the same. |
 | `give [N] credits [to <name>]` | Transfers credits from its hold to that player (whoever asked, if no name is given): N (`give me 500 credits`, `transfer 2k credits to Ann`, `give Ann 500 credits`, `pay me 300`), half (`give me half your credits`) or all (`give me all your credits`). Without an amount it asks how many. The player's game adds them to the ship's hold and says so. Credits go only to human players in the same level, and only from a player the server let in with an AI key (on an open server, one that says it is a bot). They come back to the wingman if the player's game doesn't confirm them within 10 s, and a game that only sees them after 6 s refuses them. |
@@ -2370,8 +2372,8 @@ several wingmen it goes to the one last spoken to. A mark shows on the HUD while
 - **Windows:** the speech recognition built into Windows, so nothing is added to the download.
   Dictation hears anything said, but it sends the audio to Microsoft to recognise it, and needs
   Settings > Privacy > Speech: Online speech recognition. Without it, a short list of orders is
-  heard offline (each order, alone or after a wingman's name, and "warp to" or "mine at" each
-  place).
+  heard offline (each order, alone or after a wingman's name, "mine" the common minerals and the
+  most valuable ore, and "warp to" or "mine at" each place).
 - **The web:** the browser's speech recognition, in Chrome, Edge or Safari, on an https page. It sends
   the audio to the browser's maker, and the browser asks for the microphone the first time.
   Firefox has none.
@@ -2454,7 +2456,11 @@ changes later answers. Each player's conversation is forgotten after 2 minutes o
 - `POST /order {"order","target"}`: gives an order (`give` takes the target `<N|all|half>[ to <name>]`;
   `defend` and `assist`, attacking what a player has locked, take a player's name, or none for the
   last player to speak; `rename` takes the new name, and the API may always rename it: the server's
-  answer is said on the comms, in the new name).
+  answer is said on the comms, in the new name; `mine` takes the rocks and the field as they'd be
+  said, `platinum`, `gold at Inner Belt`, `the most valuable ore`, or a field's name alone).
+  While it mines, `/status`'s order has `ore` (the mineral's name, `most valuable`, or empty for
+  the nearest rocks), `ore_missing` (none of that mineral in range), and the rock it's at
+  (`rock`, `rock_mix`, `rock_t`). Every order has `line`, what the HUD shows it doing.
 - `GET /chatmode`: the chat mode, and `listener_seen_s`, the seconds since a listener last read
   the channel. `POST /chatmode {"mode"}` switches it (`llm`, `personality`, `paused`, or `on`,
   `off`, `pause`, `resume`). `/status` and `/messages` say the mode too, as `chat_mode`.
@@ -2510,6 +2516,9 @@ tokens.
     still work;
   - that told to mine it mines a field, and told to sell it docks at a market, sells the ore
     and goes back to mining;
+  - that told to mine platinum it says so in its answer, its status and its line, then goes for
+    a rock with platinum in it (or says there's none in the rocks there and mines the most
+    valuable), and that the API's `mine` takes `the most valuable ore`;
   - that it reports its cargo, and that `give` moves its credits to the test player (with the
     receipt) and refuses more than it has;
   - that `your name is <name>` renames it (the roster and its answer have the new name), that it

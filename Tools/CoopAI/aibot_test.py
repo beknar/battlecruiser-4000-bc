@@ -16,6 +16,9 @@ its HTTP API, and through the MCP server (coop_ai_mcp.py):
     picked by number), paused answers talk with "standing by" while orders still work, resume
     goes back to the mode before the pause
   - the MCP server's status and say tools work against the live bot
+  - told to mine platinum: its answer, /status (ore) and its line say so, and it goes for a rock
+    with platinum in it, or says there's none in range and mines the most valuable; the API's
+    mine order takes 'the most valuable ore'
   - after selling ore: 'cargo' reports the hold, 'give me N credits' sends a gift the player's game
     acknowledges, a gift with no receipt comes back to the bot, and it won't give more than it has
   - the fights, with a ship of the test player's beside the bot's: 'attack my target' from an older
@@ -375,6 +378,26 @@ async def main():
             # and back to mining
             s = await wait_status(lambda s: s.get("order", {}).get("step") in ("tofield", "scan", "approach", "cut") and not s.get("ship", {}).get("docked"), 120)
             check(s.get("order", {}).get("step") in ("tofield", "scan", "approach", "cut"), "then it goes back to mining", s.get("order", {}).get("doing", ""))
+
+            # a mineral asked for: the rocks richest in platinum (or, with none in range, the most
+            # valuable, and it says so)
+            n = len(me.heard)
+            await me.say(f"{BOT}, mine platinum")
+            r = await me.hear("for platinum", 15, n)
+            s = await wait_status(lambda s: s.get("order", {}).get("ore") == "platinum", 10)
+            o = s.get("order", {})
+            check(r is not None and o.get("order") == "mine" and o.get("ore") == "platinum" and "platinum" in o.get("line", ""),
+                  "'mine platinum' is answered, and its status and line say what it's after", f"{r or 'no answer'}; {o.get('line')}")
+            s = await wait_status(lambda s: s.get("order", {}).get("rock_mix") or s.get("order", {}).get("ore_missing"), 150)
+            o = s.get("order", {})
+            none_here = await me.hear("no platinum in the rocks here", 5, n)
+            check("Pt " in o.get("rock_mix", "") or (o.get("ore_missing") is True and none_here is not None),
+                  "it goes for a rock with platinum in it, or says there's none here and mines the most valuable",
+                  f"{o.get('rock')}: {o.get('rock_mix')}; missing {o.get('ore_missing')}; {o.get('line')}")
+            r = await api("/order", {"order": "mine", "target": "the most valuable ore"})
+            s = await wait_status(lambda s: s.get("order", {}).get("ore") == "most valuable", 10)
+            check(r.get("ok") is True and "most valuable" in r.get("answer", "") and s.get("order", {}).get("ore") == "most valuable",
+                  "the API's mine order takes 'the most valuable ore'", json.dumps(r))
             await me.say(f"{BOT}, hold")
 
             # the hold and its credits

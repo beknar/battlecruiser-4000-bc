@@ -115,6 +115,41 @@ namespace CarrierGame.Tests
         }
 
         [Test]
+        public void AMineralIsKnownByItsNameItsSymbolAndItsOtherNames()
+        {
+            // (every mineral by its name, and by its symbol when that's more than a letter)
+            foreach (Mineral m in Enum.GetValues(typeof(Mineral)))
+            {
+                Assert.That(Minerals.TryParse(Minerals.Name(m), out var byName) && byName == m, Is.True, Minerals.Name(m));
+                Assert.That(Minerals.TryParse(Minerals.Name(m).ToUpperInvariant(), out byName) && byName == m, Is.True, "any case");
+                if (Minerals.Symbol(m).Length > 1)
+                    Assert.That(Minerals.TryParse(Minerals.Symbol(m), out var bySymbol) && bySymbol == m, Is.True, Minerals.Symbol(m));
+            }
+            foreach (var (said, m) in new[]
+                     {
+                         ("platinum", Mineral.Platinum), ("Pt", Mineral.Platinum), ("gold", Mineral.Gold), ("AU", Mineral.Gold),
+                         ("He-3", Mineral.Helium3), ("he3", Mineral.Helium3), ("helium-3", Mineral.Helium3), ("helium 3", Mineral.Helium3),
+                         ("Helium three", Mineral.Helium3), ("helium", Mineral.Helium), ("diamond", Mineral.Diamonds), ("silicate", Mineral.Silicates),
+                         ("rare earth", Mineral.RareEarths), ("rare-earths", Mineral.RareEarths), ("ice", Mineral.Water), ("H2O", Mineral.Water),
+                         ("aluminum", Mineral.Aluminium), ("sulphur", Mineral.Sulfur), ("carbon dioxide", Mineral.CarbonDioxide),
+                         ("deuterium", Mineral.Deuterium), ("irons", Mineral.Iron),
+                     })
+                Assert.That(Minerals.TryParse(said, out var got) && got == m, Is.True, said);
+            // (not a mineral: the words round one, field names, and a lone letter)
+            foreach (var said in new[] { "ore", "rocks", "asteroids", "the", "it", "at", "in", "Inner Belt", "Skink", "C", "U", "D", "", null })
+                Assert.That(Minerals.TryParse(said, out _), Is.False, said ?? "null");
+        }
+
+        [Test]
+        public void AMixIsMeasuredForOneMineral()
+        {
+            var mix = new[] { new Share(Mineral.Iron, 0.6f), new Share(Mineral.Platinum, 0.012f) };
+            Assert.That(Minerals.FractionOf(mix, Mineral.Platinum), Is.EqualTo(0.012f).Within(1e-6f));
+            Assert.That(Minerals.FractionOf(mix, Mineral.Gold), Is.Zero);
+            Assert.That(Minerals.FractionOf(null, Mineral.Gold), Is.Zero);
+        }
+
+        [Test]
         public void TheSummaryShowsTheBiggestSharesThenThePreciousOnes()
         {
             var mix = new[] { new Share(Mineral.Iron, 0.55f), new Share(Mineral.Nickel, 0.3f), new Share(Mineral.Silicates, 0.144f), new Share(Mineral.Platinum, 0.006f) };

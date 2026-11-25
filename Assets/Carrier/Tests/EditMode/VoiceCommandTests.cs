@@ -55,6 +55,22 @@ namespace CarrierGame.Tests
         }
 
         [Test]
+        public void TheOreOrdersAreOrdersAndInTheKeywordList()
+        {
+            var phrases = VoiceCommand.Phrases(One, new string[0]);
+            foreach (var said in new[] { "mine platinum", "mine gold", "mine helium three", "mine the most valuable ore", "mine the best rocks" })
+            {
+                string sent = VoiceCommand.ToChat(said, One);
+                Assert.That(VoiceCommand.IsOrder(sent, One), Is.True, said);
+                var p = CoopBot.ParseOrder(CoopBot.AddressedPart(sent, "Wingman"));
+                Assert.That(p.HasValue && p.Value.kind == "mine", Is.True, sent);
+                CoopBot.MineTarget(p.Value.arg, out var choice);
+                Assert.That(choice.kind, Is.Not.EqualTo(Wingman.OreChoice.Kind.Nearest), $"\"{said}\": rocks chosen");
+                Assert.That(phrases, Does.Contain("Wingman " + said));
+            }
+        }
+
+        [Test]
         public void NothingHeardOrNoWingmanSendsNothing()
         {
             Assert.That(VoiceCommand.ToChat("", One), Is.Null);

@@ -195,6 +195,102 @@ namespace CarrierGame.Tests
             Assert.That(CoopBot.MineFieldName(p.Value.arg), Is.EqualTo(field));
         }
 
+        // (the rocks: a mineral's name, "most valuable", or "" for the nearest; and the field)
+        [TestCase("mine platinum", "platinum", "")]
+        [TestCase("mine for gold", "gold", "")]
+        [TestCase("mine Pt", "platinum", "")]
+        [TestCase("mine some Au at the Inner Belt", "gold", "Inner Belt")]
+        [TestCase("mine gold at the Inner Belt", "gold", "Inner Belt")]
+        [TestCase("mine at the Inner Belt for platinum", "platinum", "Inner Belt")]
+        [TestCase("mine the Outer Drift for the most valuable ore", "most valuable", "Outer Drift")]
+        [TestCase("start mining iron ore in the Outer Drift", "iron", "Outer Drift")]
+        [TestCase("go mining for deuterium", "deuterium", "")]
+        [TestCase("go after helium-3", "helium-3", "")]
+        [TestCase("go after He-3", "helium-3", "")]
+        [TestCase("mine helium 3", "helium-3", "")]
+        [TestCase("mine helium three", "helium-3", "")]
+        [TestCase("go for gold", "gold", "")]
+        [TestCase("look for rare earths", "rare earths", "")]
+        [TestCase("mine diamond", "diamonds", "")]
+        [TestCase("mine the platinum-rich rocks", "platinum", "")]
+        [TestCase("mine ice", "water", "")]
+        [TestCase("mine the most valuable ore", "most valuable", "")]
+        [TestCase("mine the most valuable ore in range", "most valuable", "")]
+        [TestCase("mine the best rocks", "most valuable", "")]
+        [TestCase("mine the richest", "most valuable", "")]
+        [TestCase("mine the richest asteroids nearby", "most valuable", "")]
+        [TestCase("hunt for the most valuable rocks at the Outer Drift", "most valuable", "Outer Drift")]
+        [TestCase("can you go after the best rocks please", "most valuable", "")]
+        [TestCase("mine", "", "")]
+        [TestCase("mine the nearest rocks", "", "")]
+        [TestCase("mine at the Inner Belt", "", "Inner Belt")]
+        [TestCase("mine for ore at the Inner Belt", "", "Inner Belt")]
+        [TestCase("mine some asteroids in the Outer Drift", "", "Outer Drift")]
+        public void AMineOrderSaysWhichRocks(string said, string ore, string field)
+        {
+            var p = CoopBot.ParseOrder(said);
+            Assert.That(p.HasValue, Is.True, said);
+            Assert.That(p.Value.kind, Is.EqualTo("mine"), said);
+            Assert.That(CoopBot.MineTarget(p.Value.arg, out var choice), Is.EqualTo(field), said);
+            Assert.That(choice.Key, Is.EqualTo(ore), said);
+            Assert.That(CoopBot.MineFieldName(p.Value.arg), Is.EqualTo(field), "the field alone, the same");
+        }
+
+        [Test]
+        public void GoingAfterSomethingThatIsntOreIsntMining()
+        {
+            Assert.That(CoopBot.ParseOrder("go after the Skink"), Is.Null);
+            Assert.That(CoopBot.ParseOrder("go for it"), Is.Null);
+            Assert.That(CoopBot.ParseOrder("look for trouble"), Is.Null);
+            Assert.That(CoopBot.Plain("go after helium-3"), Is.EqualTo("go after helium-3"), "\"go after\" is the order, not politeness");
+            // (the field asked for, by a name that's neither a field's nor a mineral's: refused by the bot, not taken for one)
+            Assert.That(CoopBot.MineTarget("unobtainium", out var c), Is.EqualTo("unobtainium"));
+            Assert.That(c.kind, Is.EqualTo(Wingman.OreChoice.Kind.Nearest));
+        }
+
+        [Test]
+        public void TheChoiceOfRocksIsSaid()
+        {
+            var plat = Wingman.OreChoice.For(Mineral.Platinum);
+            Assert.That(CoopBot.MineLine(Wingman.MineStep.Cut, "Inner Belt", null, 34.4f, plat), Is.EqualTo("mining for platinum in Inner Belt: 34 t of ore aboard"));
+            Assert.That(CoopBot.MineLine(Wingman.MineStep.Scan, null, null, -1f, Wingman.OreChoice.MostValuable),
+                        Is.EqualTo("mining the most valuable ore at the nearest asteroid field"));
+            Assert.That(CoopBot.MineLine(Wingman.MineStep.Cut, "Inner Belt", null, -1f, plat, true),
+                        Is.EqualTo("mining the most valuable ore in Inner Belt (no platinum here)"), "none of it in range: what it does instead");
+            Assert.That(CoopBot.MineLine(Wingman.MineStep.Leave, "Inner Belt", "Deepcut Station", -1f, Wingman.OreChoice.For(Mineral.Gold)),
+                        Is.EqualTo("heading back to Inner Belt for gold"));
+            Assert.That(CoopBot.MineLine(Wingman.MineStep.Sell, "Inner Belt", "Deepcut Station", 600f, plat),
+                        Is.EqualTo("selling ore at Deepcut Station: 600 t of ore aboard"));
+            Assert.That(CoopBot.MineReply(plat, "Inner Belt"), Is.EqualTo("mining for platinum in Inner Belt, the rocks richest in it; I'll sell the ore when the hold is full."));
+            Assert.That(CoopBot.MineReply(Wingman.OreChoice.MostValuable, null), Does.StartWith("mining the most valuable ore at the nearest asteroid field;"));
+            // (in a chain, as it says what's to come)
+            string Kinds(string said) => string.Join(" | ", CoopBot.Clauses(said).Select(c => c.arg.Length > 0 ? $"{c.kind} {c.arg}" : c.kind));
+            Assert.That(Kinds("mine gold at the Inner Belt, then status"), Is.EqualTo("mine gold at the Inner Belt | status"));
+        }
+
+        [Test]
+        public void AMineOrderForOtherRocksIsANewRun()
+        {
+            var go = new GameObject("wingman");
+            made.Add(go);
+            var w = go.AddComponent<Wingman>();
+            w.Mine(null, Wingman.OreChoice.For(Mineral.Platinum));
+            Assert.That(w.MineChoice.Key, Is.EqualTo("platinum"));
+            typeof(Wingman).GetProperty(nameof(Wingman.Step)).SetValue(w, Wingman.MineStep.Cut);
+            typeof(Wingman).GetProperty(nameof(Wingman.Sales)).SetValue(w, 2);
+            w.Mine(null, Wingman.OreChoice.For(Mineral.Platinum));
+            Assert.That(w.Step, Is.EqualTo(Wingman.MineStep.Cut), "the same rocks asked for again: carried on");
+            Assert.That(w.Sales, Is.EqualTo(2));
+            w.Mine(null, Wingman.OreChoice.MostValuable);
+            Assert.That(w.Step, Is.EqualTo(Wingman.MineStep.ToField), "other rocks: a new run");
+            Assert.That(w.Sales, Is.Zero);
+            Assert.That(w.MineChoice.Key, Is.EqualTo("most valuable"));
+            w.Mine();
+            Assert.That(w.MineChoice.kind, Is.EqualTo(Wingman.OreChoice.Kind.Nearest), "a plain 'mine': the nearest rocks again");
+            Assert.That(Wingman.OreChoice.For(Mineral.Gold), Is.EqualTo(Wingman.OreChoice.For(Mineral.Gold)));
+            Assert.That(Wingman.OreChoice.For(Mineral.Gold), Is.Not.EqualTo(Wingman.OreChoice.For(Mineral.Silver)));
+        }
+
         [Test]
         public void TheSameMineOrderTwiceCarriesOn()
         {

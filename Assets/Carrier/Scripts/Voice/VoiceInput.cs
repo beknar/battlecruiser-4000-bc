@@ -17,7 +17,9 @@ namespace CarrierGame.Demo
     ///     Windows' "Online speech recognition" on); without it, offline keywords: the orders,
     ///     the wingmen's names and the places of the system.
     ///   - The web: the browser's SpeechRecognition (Chrome and Edge; it sends the audio to the
-    ///     browser maker's servers), on a secure (https) page only.
+    ///     browser maker's servers), on a secure (https) page only. Its best few guesses come in,
+    ///     and the first that reads as an order is sent (VoiceCommand.Choose). On Chrome and Edge
+    ///     135 and later the microphone can be chosen in the pause menu (Microphone).
     ///   - Linux: none.
     /// Off until turned on in the pause menu (Voice commands), and remembered. A HUD mark shows
     /// while it listens. -voicetest (?voicetest) feeds it phrases instead of a microphone.
@@ -33,7 +35,7 @@ namespace CarrierGame.Demo
         public static string LastSent { get; private set; }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { Instance = null; Now = State.Idle; LastSent = null; }
+        static void ResetStatics() { Instance = null; Now = State.Idle; LastSent = null; LastCorrected = null; }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
@@ -99,6 +101,9 @@ namespace CarrierGame.Demo
         void Start()
         {
             if (LaunchArgs.Switch("voicetest")) StartCoroutine(SelfTest());
+#if UNITY_WEBGL && !UNITY_EDITOR
+            if (MicChoice && Mic.Length > 0) CarrierVoiceSetMic(Mic);
+#endif
         }
 
         void OnDestroy()
@@ -145,18 +150,30 @@ namespace CarrierGame.Demo
         }
 
         /// <summary>What was heard: sent as an order to a wingman (or, not sure of it, not).</summary>
-        public void Heard(string text, bool sure, IList<string> botsForTest = null)
+        public void Heard(string text, bool sure, IList<string> botsForTest = null) => Heard(new[] { text }, sure, botsForTest);
+
+        /// <summary>What was heard, as the recogniser's best guesses (best first): the first that
+        /// reads as an order is sent (or, not sure of them, none). What was put right on the way
+        /// (a misheard name or order) is said in the notices.</summary>
+        public void Heard(IList<string> guesses, bool sure, IList<string> botsForTest = null)
         {
-            if (string.IsNullOrWhiteSpace(text)) return;
-            if (!sure) { Notices.Post($"Didn't catch that (heard \"{text.Trim()}\")"); return; }
+            var heard = (guesses ?? new string[0]).Where(g => !string.IsNullOrWhiteSpace(g)).ToList();
+            if (heard.Count == 0) return;
+            string text = heard[0].Trim();
+            if (!sure) { Notices.Post($"Didn't catch that (heard \"{text}\")"); return; }
             var bots = botsForTest ?? Bots();
-            if (bots.Count == 0) { Notices.Post($"Heard \"{text.Trim()}\": no AI wingman in the game to give it to"); return; }
-            string msg = VoiceCommand.ToChat(text, bots, lastBot, out string to, botsForTest == null ? People() : null);
+            if (bots.Count == 0) { Notices.Post($"Heard \"{text}\": no AI wingman in the game to give it to"); return; }
+            string msg = VoiceCommand.Choose(heard, bots, lastBot, out string to, out string corrected, botsForTest == null ? People() : null);
             if (msg == null) return;
             if (to != null) lastBot = to;
             LastSent = msg;
+            LastCorrected = corrected;
+            if (corrected != null) Notices.Post($"Heard {corrected}: sent \"{msg}\"");
             if (botsForTest == null) CoopChat.Say(msg, Via.Voice);
         }
+
+        /// <summary>What the last message had put right (for the tests; null: nothing).</summary>
+        public static string LastCorrected { get; private set; }
 
         /// <summary>The other players (not AI wingmen) in the game, by name.</summary>
         static List<string> People()
@@ -183,7 +200,9 @@ namespace CarrierGame.Demo
                                                  ("warp to Heaven then dock", "Wingman, warp to Heaven then dock"),
                                                  ("give me two thousand five hundred credits", "Wingman, give me 2500 credits"),
                                                  ("hey wingman follow me", "Hey wingman follow me"),
-                                                 ("all ships regroup", "All ships regroup") })
+                                                 ("all ships regroup", "All ships regroup"),
+                                                 ("women mine", "Wingman, mine"),
+                                                 ("wingman cellar", "Wingman sell ore") })
             {
                 Heard(said, true, bots);
                 bool ok = LastSent == want;
@@ -236,8 +255,8 @@ namespace CarrierGame.Demo
                 if (parts[0] == "ok")
                 {
                     float.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float conf);
-                    // (0: the browser gave no confidence)
-                    Heard(parts[2], conf == 0f || conf >= 0.45f);
+                    // (0: the browser gave no confidence; the best guess's; the guesses tab-separated)
+                    Heard(parts[2].Split('\t'), conf == 0f || conf >= 0.45f);
                 }
                 else if (parts[0] == "error" && parts[2] != "no-speech" && parts[2] != "aborted")
                     Notices.Post(parts[2] == "not-allowed" ? "Voice commands: the browser won't let the game have the microphone" : $"Voice commands: {parts[2]}");
@@ -251,7 +270,105 @@ namespace CarrierGame.Demo
         [System.Runtime.InteropServices.DllImport("__Internal")] static extern void CarrierVoiceStart();
         [System.Runtime.InteropServices.DllImport("__Internal")] static extern void CarrierVoiceStop();
         [System.Runtime.InteropServices.DllImport("__Internal")] static extern string CarrierVoicePoll();
+        [System.Runtime.InteropServices.DllImport("__Internal")] static extern int CarrierVoiceMicChoice();
+        [System.Runtime.InteropServices.DllImport("__Internal")] static extern void CarrierVoiceListMics();
+        [System.Runtime.InteropServices.DllImport("__Internal")] static extern string CarrierVoiceMics();
+        [System.Runtime.InteropServices.DllImport("__Internal")] static extern void CarrierVoiceSetMic(string id);
 #endif
+
+        // ------------------------------------------------------------ the microphone (the web)
+
+        const string MicKey = "voice.mic";
+        /// <summary>The microphones to choose from (device id, name), as the browser last listed them.</summary>
+        static List<(string id, string name)> mics = new List<(string id, string name)>();
+        static bool micsAsked;
+
+        /// <summary>Does the pause menu have a Microphone line? On the web, yes: a choice where the
+        /// browser can take one (Chrome and Edge 135 and later), else "browser default".</summary>
+        public static bool MicMenu => LaunchArgs.OnWeb;
+
+        /// <summary>Can the microphone be chosen here?</summary>
+        public static bool MicChoice
+        {
+            get
+            {
+#if UNITY_WEBGL && !UNITY_EDITOR
+                return CarrierVoiceMicChoice() == 1;
+#else
+                return false;
+#endif
+            }
+        }
+
+        /// <summary>The chosen microphone's device id ("": the default).</summary>
+        public static string Mic
+        {
+            get => PlayerPrefs.GetString(MicKey, "");
+            set
+            {
+                PlayerPrefs.SetString(MicKey, value ?? "");
+                PlayerPrefs.Save();
+#if UNITY_WEBGL && !UNITY_EDITOR
+                CarrierVoiceSetMic(value ?? "");
+#endif
+            }
+        }
+
+        /// <summary>The pause menu's line for the microphone.</summary>
+        public static string MicLine
+        {
+            get
+            {
+                if (!MicChoice) return "Microphone: browser default";
+                AskForMics();
+                string id = Mic;
+                if (id.Length == 0) return "Microphone:  <   default   >";
+                var m = mics.FirstOrDefault(x => x.id == id);
+                return $"Microphone:  <   {(m.id == null ? "(not plugged in)" : MicName(m))}   >";
+            }
+        }
+
+        static string MicName((string id, string name) m) => string.IsNullOrEmpty(m.name) ? "allow the microphone first (hold ` once)" : m.name;
+
+        /// <summary>The next microphone (dir +1) or the one before (-1), the default among them.</summary>
+        public static void StepMic(int dir)
+        {
+            if (!MicChoice) return;
+            AskForMics(again: true);
+            Mic = NextMic(mics.Select(m => m.id).ToList(), Mic, dir);
+        }
+
+        /// <summary>Of `ids` (with "", the default, before them), the one `dir` steps from `current`.</summary>
+        public static string NextMic(IList<string> ids, string current, int dir)
+        {
+            var all = new List<string> { "" };
+            all.AddRange(ids.Where(x => !string.IsNullOrEmpty(x)));
+            int i = Mathf.Max(0, all.IndexOf(current ?? ""));
+            return all[((i + dir) % all.Count + all.Count) % all.Count];
+        }
+
+        static void AskForMics(bool again = false)
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            string got = CarrierVoiceMics();
+            if (!string.IsNullOrEmpty(got)) mics = ParseMics(got);
+            if (!micsAsked || again) { micsAsked = true; CarrierVoiceListMics(); }
+#endif
+        }
+
+        /// <summary>The browser's list: a line a microphone: its device id, a tab, its name.</summary>
+        public static List<(string id, string name)> ParseMics(string list)
+        {
+            var found = new List<(string id, string name)>();
+            foreach (var line in (list ?? "").Split('\n'))
+            {
+                var p = line.Split(new[] { '\t' }, 2);
+                // (Chrome's own aliases for the default devices: the default is its own choice here)
+                if (p[0].Length == 0 || p[0] == "default" || p[0] == "communications") continue;
+                found.Add((p[0], p.Length > 1 ? p[1] : ""));
+            }
+            return found;
+        }
 
 #if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
         DictationRecognizer dictation;

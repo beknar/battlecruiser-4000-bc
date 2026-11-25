@@ -2300,6 +2300,24 @@ several wingmen it goes to the one last spoken to. A mark shows on the HUD while
 - **The web:** the browser's speech recognition, in Chrome, Edge or Safari, on an https page. It sends
   the audio to the browser's maker, and the browser asks for the microphone the first time.
   Firefox has none.
+  - **The best guesses:** the browser's best five guesses come in, and the first that reads as an
+    order is sent.
+  - **The microphone:** on Chrome and Edge 135 and later, the pause menu's Microphone line picks
+    which one to listen with (left and right, or click either side). It shows their names once the
+    browser has been allowed the microphone. Other browsers use their default one, and the line
+    says so.
+- **Mishearings put right.** What a recogniser hears wrong is put right before it's sent, and a
+  notice says what was changed ("Heard "women" as Wingman: sent "Wingman, mine"").
+  - **A misheard name:** a wingman's name heard as something that sounds like it ("women", "amen",
+    "only man", "wing man", or "hey man") is put back. It goes by sound, so other names work too.
+    An order's own word ("mine") is never taken for a name.
+  - **A misheard order:**
+    - Known mishearings of the orders' words are put right, but only when what was heard isn't
+      an order already: "cellar" or "cell or" is "sell ore", "pack my target" is "attack my
+      target", "duck" is "dock", "statues" is "status".
+    - "morning" and "mind" are "mine" only with words after them ("morning at the Inner Belt"),
+      so "Wingman, morning" stays talk.
+    - Talk is never changed.
 - **Linux:** not supported.
 - **Off by default.** The pad has no free button for push-to-talk, so it's the keyboard or the
   mouse. `-voicetest` (`?voicetest`) feeds it phrases instead of a microphone and logs what it

@@ -101,5 +101,84 @@ namespace CarrierGame.Tests
                 Assert.That(phrases, Does.Contain(want));
             Assert.That(phrases.All(p => p.Trim().Length > 0), Is.True, "no empty phrase");
         }
+
+        // (every one of these was heard in the co-op session of 24-25 Nov 2026: docs/coop-session-2026-11-24.md)
+        [TestCase("only man mine", "Wingman, mine")]
+        [TestCase("women mine", "Wingman, mine")]
+        [TestCase("women status", "Wingman, status")]
+        [TestCase("amen scavenge", "Wingman, scavenge")]
+        [TestCase("hey man mine", "Wingman, mine")]
+        [TestCase("hey man I'm under attack", "Wingman, I'm under attack")]
+        [TestCase("wing man follow me", "Wingman, follow me")]
+        [TestCase("cellar", "Wingman, sell ore")]
+        [TestCase("cell or", "Wingman, sell ore")]
+        [TestCase("pack my target", "Wingman, attack my target")]
+        [TestCase("morning at the Inner Belt", "Wingman, mine at the Inner Belt")]
+        [TestCase("Wingman, cellar", "Wingman, sell ore")]
+        public void TheSessionsMishearingsArePutRight(string heard, string sent)
+        {
+            Assert.That(VoiceCommand.ToChat(heard, One, null, out string to, out string corrected), Is.EqualTo(sent));
+            Assert.That(to, Is.EqualTo("Wingman"));
+            Assert.That(corrected, Is.Not.Null, "what was put right is said");
+        }
+
+        [TestCase("morning")]                         // (a greeting, alone)
+        [TestCase("how are you holding up")]
+        [TestCase("where are you")]
+        [TestCase("nice shooting")]
+        [TestCase("mine at the Inner Belt")]           // (already an order)
+        public void TalkAndOrdersAreLeftAsTheyWere(string heard)
+        {
+            Assert.That(VoiceCommand.ToChat(heard, One, null, out _, out string corrected), Is.EqualTo("Wingman, " + heard));
+            Assert.That(corrected, Is.Null);
+        }
+
+        [Test]
+        public void AnOrdersOwnWordIsNeverTakenForTheName()
+        {
+            // ("mine" sounds like the end of "Wingman"; it's still the order)
+            Assert.That(VoiceCommand.NameHeardAs("mine at the Inner Belt", One, out _, out _), Is.Null);
+            Assert.That(VoiceCommand.NameHeardAs("main", One, out _, out _), Is.Null, "nothing after it");
+            Assert.That(VoiceCommand.ToChat("mine", One), Is.EqualTo("Wingman, mine"));
+        }
+
+        [Test]
+        public void NamesAreMatchedBySound()
+        {
+            Assert.That(VoiceCommand.SoundKey("Wingman"), Is.EqualTo("WNKMN"));
+            Assert.That(VoiceCommand.SoundKey("women"), Is.EqualTo("WMN"));
+            foreach (var heard in new[] { "women", "amen", "onlyman", "wingmen", "wingman" })
+                Assert.That(VoiceCommand.SoundsLike(heard, "Wingman"), Is.True, heard);
+            foreach (var heard in new[] { "mine", "status", "follow", "Ann", "dock" })
+                Assert.That(VoiceCommand.SoundsLike(heard, "Wingman"), Is.False, heard);
+            // (another name works the same way, without a list)
+            Assert.That(VoiceCommand.SoundsLike("ace", "Ace"), Is.True);
+            Assert.That(VoiceCommand.ToChat("maverik dock", new List<string> { "Maverick" }), Is.EqualTo("Maverick, dock"));
+        }
+
+        [Test]
+        public void OfTheBrowsersGuessesTheFirstOrderIsSent()
+        {
+            var guesses = new List<string> { "Wingman morning", "Wingman mining", "Wingman mine" };
+            Assert.That(VoiceCommand.Choose(guesses, One, null, out string to, out string corrected), Is.EqualTo("Wingman mine"));
+            Assert.That(to, Is.EqualTo("Wingman"));
+            Assert.That(corrected, Does.Contain("Wingman morning"));
+            // (none an order: the first, as it was heard)
+            Assert.That(VoiceCommand.Choose(new List<string> { "how's it going", "house it going" }, One, null, out _, out corrected), Is.EqualTo("Wingman, how's it going"));
+            Assert.That(corrected, Is.Null);
+        }
+
+        [Test]
+        public void TheMicrophonesStepRoundWithTheDefaultFirst()
+        {
+            var ids = new List<string> { "a1", "b2" };
+            Assert.That(VoiceInput.NextMic(ids, "", +1), Is.EqualTo("a1"));
+            Assert.That(VoiceInput.NextMic(ids, "b2", +1), Is.EqualTo(""));
+            Assert.That(VoiceInput.NextMic(ids, "", -1), Is.EqualTo("b2"));
+            Assert.That(VoiceInput.NextMic(ids, "gone", +1), Is.EqualTo("a1"), "one unplugged: from the default");
+            var mics = VoiceInput.ParseMics("default\tDefault\na1\tHeadset (USB)\nb2\t");
+            Assert.That(mics.Select(m => m.id), Is.EqualTo(new[] { "a1", "b2" }));
+            Assert.That(mics[0].name, Is.EqualTo("Headset (USB)"));
+        }
     }
 }

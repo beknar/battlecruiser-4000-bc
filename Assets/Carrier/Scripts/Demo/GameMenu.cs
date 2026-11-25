@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -32,8 +33,10 @@ namespace CarrierGame.Demo
         // and kept for the game: its crew, parts and hold go with it)
         // (nor the captain: she is chosen on the start menu too, and stays for the game)
         // (the ship's paint can be changed, though: Paint opens the start menu's Customise step for it)
-        enum Item { Resume, Restart, Sound, Music, Song, Coop, Paint, HudCaptain, HudSize, HudFleet, Voice, WingmanVoice, Quit }
-        static readonly Item[] Items = { Item.Resume, Item.Restart, Item.Sound, Item.Music, Item.Song, Item.Coop, Item.Paint, Item.HudCaptain, Item.HudSize, Item.HudFleet, Item.Voice, Item.WingmanVoice, Item.Quit };
+        enum Item { Resume, Restart, Sound, Music, Song, Coop, Paint, HudCaptain, HudSize, HudFleet, Voice, Microphone, WingmanVoice, Quit }
+        // (the microphone's line only where one can be chosen, or the browser's default said: the web)
+        static readonly Item[] Items = new[] { Item.Resume, Item.Restart, Item.Sound, Item.Music, Item.Song, Item.Coop, Item.Paint, Item.HudCaptain, Item.HudSize, Item.HudFleet, Item.Voice, Item.Microphone, Item.WingmanVoice, Item.Quit }
+            .Where(i => i != Item.Microphone || VoiceInput.MicMenu).ToArray();
 
         int selected;
         Item? confirming;
@@ -93,6 +96,7 @@ namespace CarrierGame.Demo
                 case Item.HudSize: return $"HUD size:  <   {Mathf.RoundToInt(HudSettings.Size * 100f)}%   >";
                 case Item.HudFleet: return HudSettings.FleetPanels ? "HUD: the fleet's panels shown" : "HUD: the fleet's panels hidden";
                 case Item.Voice: return VoiceInput.MenuLine;
+                case Item.Microphone: return VoiceInput.MicLine;
                 case Item.WingmanVoice: return CarrierGame.Demo.WingmanVoice.MenuLine;
                 default: return sure ? "Quit: press again to confirm" : "Quit";
             }
@@ -114,6 +118,7 @@ namespace CarrierGame.Demo
                 case Item.HudCaptain: HudSettings.ShowCaptain = !HudSettings.ShowCaptain; return;
                 case Item.HudFleet: HudSettings.FleetPanels = !HudSettings.FleetPanels; return;
                 case Item.Voice: VoiceInput.Toggle(); return;
+                case Item.Microphone: VoiceInput.StepMic(+1); return;
                 case Item.WingmanVoice: CarrierGame.Demo.WingmanVoice.Enabled = !CarrierGame.Demo.WingmanVoice.Enabled; return;
                 case Item.HudSize: HudSettings.NextSize(); return;   // (Enter: a step bigger, round to the smallest)
                 case Item.Resume: Close(); break;
@@ -207,6 +212,11 @@ namespace CarrierGame.Demo
                     if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame) MusicDirector.Previous();
                     if (k.rightArrowKey.wasPressedThisFrame || k.dKey.wasPressedThisFrame) MusicDirector.Next();
                 }
+                if (Items[selected] == Item.Microphone)
+                {
+                    if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame) VoiceInput.StepMic(-1);
+                    if (k.rightArrowKey.wasPressedThisFrame || k.dKey.wasPressedThisFrame) VoiceInput.StepMic(+1);
+                }
                 if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame || k.spaceKey.wasPressedThisFrame) { Activate(selected); return; }
             }
             if (pad != null)
@@ -223,6 +233,11 @@ namespace CarrierGame.Demo
                 {
                     if (pad.dpad.left.wasPressedThisFrame) MusicDirector.Previous();
                     if (pad.dpad.right.wasPressedThisFrame) MusicDirector.Next();
+                }
+                if (Items[selected] == Item.Microphone)
+                {
+                    if (pad.dpad.left.wasPressedThisFrame) VoiceInput.StepMic(-1);
+                    if (pad.dpad.right.wasPressedThisFrame) VoiceInput.StepMic(+1);
                 }
                 // the left stick steps through the items, repeating while held
                 float y = pad.leftStick.y.ReadValue();
@@ -246,12 +261,13 @@ namespace CarrierGame.Demo
                         if (!mouse.leftButton.wasPressedThisFrame) continue;
                         // the HUD size: the < side of the row smaller, the > side bigger; the song:
                         // the < side the one before, the > side the next
-                        if (Items[i] == Item.HudSize || Items[i] == Item.Song)
+                        if (Items[i] == Item.HudSize || Items[i] == Item.Song || Items[i] == Item.Microphone)
                         {
                             selected = i;
                             confirming = null;
                             bool back = gui.x < itemRects[i].center.x;
                             if (Items[i] == Item.HudSize) HudSettings.ChangeSize(back ? -1 : +1);
+                            else if (Items[i] == Item.Microphone) VoiceInput.StepMic(back ? -1 : +1);
                             else if (back) MusicDirector.Previous();
                             else MusicDirector.Next();
                             return;

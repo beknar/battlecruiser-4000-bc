@@ -8,7 +8,8 @@ namespace CarrierGame.Demo
     /// <summary>
     /// The services screen (services mode): open while the ship is docked at a station or base
     /// (in space, or on an asteroid's pad) or landed on a site's pad (on a planet or moon). Tab or
-    /// U opens and closes it (A on the pad, in services mode); it opens by itself on arrival.
+    /// U opens and closes it (A on the pad, in services mode), as do Esc and its CLOSE button; it
+    /// opens by itself on arrival.
     /// What a place offers depends on what it is, page by page:
     ///   STORAGE  (an industrial site) move ore, refined materials and parts between the hold and
     ///            the site's storage;
@@ -21,10 +22,10 @@ namespace CarrierGame.Demo
     ///   CREW     (a place with people) recruit, or drop crew off;
     ///   SHIPYARD (a shipyard) build a ship from parts, take command of one.
     /// The game goes on while it is open (the jobs run in game time). Keyboard: up/down (W/S) to
-    /// choose, Tab or Q/E for the pages, left/right (A/D) to load or store, Shift for all, Enter
-    /// to act, Backspace to cancel the last job, Esc or U to close. Pad: D-pad, LB/RB pages, A act,
-    /// X store all (or queue five), Y load all (or cancel), B close. Mouse: click a row, a tab or a
-    /// row's buttons.
+    /// choose, Q/E for the pages, left/right (A/D) to load or store, Shift for all, Enter to act,
+    /// Backspace to cancel the last job, Tab, U or Esc to close. Pad: D-pad, LB/RB pages, A act,
+    /// X store all (or queue five), Y load all (or cancel), B close. Mouse: click a row, a tab, a
+    /// row's buttons or CLOSE; the wheel chooses.
     /// </summary>
     public class IndustryPanel : MonoBehaviour
     {
@@ -60,6 +61,9 @@ namespace CarrierGame.Demo
         readonly List<string> rows = new List<string>();
         readonly List<Rect> rowRects = new List<Rect>();
         readonly Rect[] tabRects = new Rect[Pages.Length];
+        // the CLOSE button in the top right corner (for the mouse; on the web the first Esc only
+        // leaves full screen)
+        Rect closeRect;
         readonly List<(Rect r, string id, int action)> buttons = new List<(Rect, string, int)>();
 
         // a row's actions (for the mouse's buttons too)
@@ -631,10 +635,10 @@ namespace CarrierGame.Demo
             string id = SelectedId;
             if (k != null)
             {
-                if (k.escapeKey.wasPressedThisFrame || k.uKey.wasPressedThisFrame) { Close(); return; }
+                // (Tab closes it as it opened it, as it closes a mode's menu: Q/E turn the pages)
+                if (k.escapeKey.wasPressedThisFrame || k.uKey.wasPressedThisFrame || k.tabKey.wasPressedThisFrame) { Close(); return; }
                 // K leaves as it would with the screen closed: undock, or take off
                 if (k.kKey.wasPressedThisFrame) { Close(); Leave(); return; }
-                if (k.tabKey.wasPressedThisFrame) NextPage(shift ? -1 : 1);
                 if (k.qKey.wasPressedThisFrame) NextPage(-1);
                 if (k.eKey.wasPressedThisFrame) NextPage(1);
                 if (k.upArrowKey.wasPressedThisFrame || k.wKey.wasPressedThisFrame) Move(-1);
@@ -695,6 +699,7 @@ namespace CarrierGame.Demo
             {
                 Vector2 mp = mouse.position.ReadValue();
                 Vector2 gui = new Vector2(mp.x, Screen.height - mp.y);
+                if (closeRect.Contains(gui)) { Close(); return; }
                 for (int i = 0; i < tabRects.Length; i++)
                     if (tabRects[i].Contains(gui) && PageAvailable(Pages[i])) { Show(Pages[i]); return; }
                 foreach (var (r, bid, action) in buttons)
@@ -785,16 +790,25 @@ namespace CarrierGame.Demo
             var spec = Site.Spec;
             var hold = Hold;
 
-            // the heading: where, what it does, the credits and the hold
-            GUI.Label(new Rect(panel.x + pad, panel.y + pad * 0.6f, W * 0.6f, 34f * s), Site.siteName.ToUpper(), Hud.Text(24, true, TextAnchor.MiddleLeft));
+            // CLOSE, in the top right corner
+            float closeW = 84f * s;
+            closeRect = new Rect(panel.xMax - pad - closeW, panel.y + pad * 0.6f, closeW, 30f * s);
+            Hud.Fill(closeRect, new Color(1f, 1f, 1f, 0.08f));
+            Hud.Outline(closeRect, Mathf.Max(1f, s), new Color(1f, 1f, 1f, 0.3f));
+            GUI.Label(closeRect, "CLOSE", Hud.Text(14, true, TextAnchor.MiddleCenter));
+
+            // the heading: where, what it does, the credits and the hold (left of CLOSE)
+            float right = closeRect.x - 12f * s;
+            float headW = Mathf.Min(W * 0.6f, (hold != null ? right - 360f * s : right) - panel.x - pad * 2f);
+            GUI.Label(new Rect(panel.x + pad, panel.y + pad * 0.6f, headW, 34f * s), Site.siteName.ToUpper(), Hud.Text(24, true, TextAnchor.MiddleLeft));
             var place = CrewTable.Get().Place(Site.siteName);
             string what = spec != null ? $"{IndustrySite.Services(spec)}  ·  {spec.description}" : place != null ? place.kind : "";
             if (Site.Recruits) what += "  ·  recruits crew";
-            GUI.Label(new Rect(panel.x + pad, panel.y + pad * 0.6f + 30f * s, W * 0.6f, 22f * s),
+            GUI.Label(new Rect(panel.x + pad, panel.y + pad * 0.6f + 30f * s, headW, 22f * s),
                       $"<color=#9aa4b0>{what}</color>", Hud.Text(13, false, TextAnchor.MiddleLeft));
             if (hold != null)
             {
-                var hr = new Rect(panel.xMax - pad - 360f * s, panel.y + pad * 0.6f, 360f * s, 24f * s);
+                var hr = new Rect(right - 360f * s, panel.y + pad * 0.6f, 360f * s, 24f * s);
                 GUI.Label(hr, $"Credits  <color=#ffc04d>{hold.Credits:N0} cr</color>", Hud.Text(15, true, TextAnchor.MiddleRight));
                 var bar = new Rect(hr.x, hr.yMax + 8f * s, hr.width, 12f * s);
                 Hud.Fill(bar, new Color(1f, 1f, 1f, 0.08f));
@@ -815,7 +829,7 @@ namespace CarrierGame.Demo
                 // (smaller in a narrow window, so SHIPYARD still fits its tab)
                 GUI.Label(r, can ? name : $"<color=#5a6470>{name}</color>", Hud.Text(tw < 100f * s ? 12 : 15, on, TextAnchor.MiddleCenter));
             }
-            string tabsHint = Gamepad.current != null && PadSupport.UsingPad ? "LB / RB" : "Tab or Q / E";
+            string tabsHint = Gamepad.current != null && PadSupport.UsingPad ? "LB / RB" : "Q / E";
             GUI.Label(new Rect(panel.x + pad + Pages.Length * (tw + 6f * s), ty, 200f * s, 34f * s), $"<color=#7a8490>{tabsHint}</color>", Hud.Text(12, false, TextAnchor.MiddleLeft));
 
             // the list on the left, the selected row's details on the right
@@ -839,15 +853,15 @@ namespace CarrierGame.Demo
             bool padUsed = Gamepad.current != null && PadSupport.UsingPad;
             switch (Current)
             {
-                case Page.Storage: return padUsed ? "D-pad ← load  → store   X store all   Y load all   B close" : "← load  → store   Shift for all   Enter all   U / Esc close";
+                case Page.Storage: return padUsed ? "D-pad ← load  → store   X store all   Y load all   B close" : "← load  → store   Shift for all   Enter all   Tab / U / Esc close";
                 case Page.Refine:
-                case Page.Build: return padUsed ? "A queue one   X queue five   Y cancel last   B close" : "Enter queue one   Shift+Enter five   Backspace cancel   U / Esc close";
-                case Page.Crew: return padUsed ? "A recruit / drop off   B close" : "Enter recruit / drop off   U / Esc close   K leave";
-                case Page.Sell: return padUsed ? "A sell   X sell all   B close" : "Enter sell   Shift+Enter sell all   U / Esc close";
-                case Page.Buy: return padUsed ? "A buy   X buy ten   B close" : "Enter buy   Shift+Enter buy ten   U / Esc close";
+                case Page.Build: return padUsed ? "A queue one   X queue five   Y cancel last   B close" : "Enter queue one   Shift+Enter five   Backspace cancel   Tab / U / Esc close";
+                case Page.Crew: return padUsed ? "A recruit / drop off   B close" : "Enter recruit / drop off   Tab / U / Esc close   K leave";
+                case Page.Sell: return padUsed ? "A sell   X sell all   B close" : "Enter sell   Shift+Enter sell all   Tab / U / Esc close";
+                case Page.Buy: return padUsed ? "A buy   X buy ten   B close" : "Enter buy   Shift+Enter buy ten   Tab / U / Esc close";
                 case Page.Shipyard: return padUsed ? "A build / take command   X join the fleet   Y tow / stop building   B close"
-                                                   : "Enter build / take command   J join the fleet   T tow   Backspace stop building   U / Esc close";
-                default: return padUsed ? "A fit / take off   B close" : "Enter fit / take off   U / Esc close";
+                                                   : "Enter build / take command   J join the fleet   T tow   Backspace stop building   Tab / U / Esc close";
+                default: return padUsed ? "A fit / take off   B close" : "Enter fit / take off   Tab / U / Esc close";
             }
         }
 

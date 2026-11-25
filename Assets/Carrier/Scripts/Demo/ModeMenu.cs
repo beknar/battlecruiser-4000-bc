@@ -42,10 +42,10 @@ namespace CarrierGame.Demo
     /// and D-pad choose in the list), and the mode's own direct keys still work (the guns, the
     /// targets, the scan...); what opens or does something else (landing and docking, the map,
     /// cruise, a strike, a site's screen, the comms line) waits till it is closed, as some of
-    /// those keys are the menu's own (K lands at a point of interest). Up/down choose, Enter (A)
-    /// acts on the row, a click picks and acts, Tab or Esc (B) closes it; P (Start) closes it and
-    /// pauses. Its rows are looked at again a few times a second, so distances and states stay
-    /// current.
+    /// those keys are the menu's own (K lands at a point of interest). Up/down (or the wheel, with
+    /// the pointer over the menu) choose, Enter (A) acts on the row, a click picks and acts, Tab
+    /// or Esc (B) closes it; P (Start) closes it and pauses. Its rows are looked at again a few
+    /// times a second, so distances and states stay current.
     /// </summary>
     public class ModeMenu : MonoBehaviour
     {
@@ -54,11 +54,26 @@ namespace CarrierGame.Demo
         public static bool JustClosed => InputFocus.JustReleased(InputFocus.Panel.ModeMenu);
         /// <summary>Its screen area while open (GUI coordinates): a click there isn't on a ship.</summary>
         public static Rect Area { get; private set; }
+        // (where it was last, kept after it closes, for WheelHeld)
+        static Rect lastArea;
+
+        /// <summary>The wheel is the menu's, not the camera's: it is open (or has only just
+        /// closed) and the pointer is over it. (Elsewhere the wheel still zooms.)</summary>
+        public static bool WheelHeld => (IsOpen || JustClosed) && PointerGui() is Vector2 p && lastArea.Contains(p);
+
+        /// <summary>The mouse pointer in GUI coordinates (y down), or null with no mouse.</summary>
+        static Vector2? PointerGui()
+        {
+            var mouse = Mouse.current;
+            if (mouse == null) return null;
+            Vector2 m = mouse.position.ReadValue();
+            return new Vector2(m.x, Screen.height - m.y);
+        }
 
         public static IMenuSource Source => Instance != null && IsOpen ? Instance.source : null;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { Instance = null; Area = Rect.zero; }
+        static void ResetStatics() { Instance = null; Area = Rect.zero; lastArea = Rect.zero; }
 
         IMenuSource source;
         readonly List<MenuRow> rows = new List<MenuRow>();
@@ -85,6 +100,7 @@ namespace CarrierGame.Demo
             m.scroll = 0;
             m.openedFrame = Time.frameCount;
             m.Refresh((s as IMenuStart)?.StartAt);
+            m.Layout(out _, out _);
             SoundFX.Ui(Sfx.UiClear);
         }
 
@@ -142,6 +158,37 @@ namespace CarrierGame.Demo
             }
         }
 
+        /// <summary>The wheel: to the next row that isn't a heading, stopping at the ends (not
+        /// round to the other end, as the keys go).</summary>
+        void Nudge(int dir)
+        {
+            for (int i = selected + dir; i >= 0 && i < rows.Count; i += dir)
+                if (!rows[i].header) { selected = i; return; }
+        }
+
+        /// <summary>Where the menu is on the screen (GUI coordinates), with the selected row
+        /// kept in view: the rows that fit, and how many are shown from `scroll` on. It sets
+        /// Area, in Update as well as OnGUI, so the wheel knows where the menu is even in a frame
+        /// with no OnGUI (the self-tests run with no graphics).</summary>
+        Rect Layout(out int visible, out int shown)
+        {
+            float s = Hud.S;
+            float w = Mathf.Min(640f * s, Screen.width * 0.6f), pad = 12f * s, rowH = 26f * s;
+            visible = Mathf.Max(4, Mathf.FloorToInt((Screen.height * 0.55f - 90f * s) / rowH));
+            if (selected >= 0)
+            {
+                if (selected < scroll) scroll = selected;
+                if (selected >= scroll + visible) scroll = selected - visible + 1;
+            }
+            scroll = Mathf.Clamp(scroll, 0, Mathf.Max(0, rows.Count - visible));
+            shown = Mathf.Min(visible, rows.Count - scroll);
+            float h = pad * 2f + 34f * s + Mathf.Max(1, shown) * rowH + 30f * s;
+            var r = new Rect((Screen.width - w) * 0.5f, 70f * s, w, h);
+            Area = r;
+            lastArea = r;
+            return r;
+        }
+
         void Act()
         {
             var row = Selected;
@@ -191,13 +238,23 @@ namespace CarrierGame.Demo
                 }
             }
             if (source != null && source.Keys(k, pad, Selected) && IsOpen) Refresh();
+            if (!IsOpen) return;
             var mouse = Mouse.current;
-            if (mouse != null && mouse.leftButton.wasPressedThisFrame)
-            {
-                Vector2 m = mouse.position.ReadValue();
-                Vector2 gui = new Vector2(m.x, Screen.height - m.y);
+            if (mouse == null) return;
+            Vector2 m = mouse.position.ReadValue();
+            Vector2 gui = new Vector2(m.x, Screen.height - m.y);
+            if (mouse.leftButton.wasPressedThisFrame)
                 for (int i = 0; i < rowRects.Count && i + scroll < rows.Count; i++)
                     if (rowRects[i].Contains(gui) && !rows[i + scroll].header) { selected = i + scroll; Act(); return; }
+            // the wheel chooses, with the pointer over the menu, as it does in the services
+            // screen (the camera leaves it alone there: WheelHeld); elsewhere it zooms. (It moves
+            // the selection, not the list: the list follows the selection.)
+            Layout(out _, out _);
+            if (Area.Contains(gui))
+            {
+                float wheel = mouse.scroll.ReadValue().y;
+                if (wheel > 0.1f) Nudge(-1);
+                else if (wheel < -0.1f) Nudge(+1);
             }
         }
 
@@ -206,18 +263,9 @@ namespace CarrierGame.Demo
             if (!IsOpen || source == null) { rowRects.Clear(); return; }
             GUI.depth = -50;
             float s = Hud.S;
-            float w = Mathf.Min(640f * s, Screen.width * 0.6f), pad = 12f * s, rowH = 26f * s;
-            int visible = Mathf.Max(4, Mathf.FloorToInt((Screen.height * 0.55f - 90f * s) / rowH));
-            if (selected >= 0)
-            {
-                if (selected < scroll) scroll = selected;
-                if (selected >= scroll + visible) scroll = selected - visible + 1;
-            }
-            scroll = Mathf.Clamp(scroll, 0, Mathf.Max(0, rows.Count - visible));
-            int shown = Mathf.Min(visible, rows.Count - scroll);
-            float h = pad * 2f + 34f * s + Mathf.Max(1, shown) * rowH + 30f * s;
-            var r = new Rect((Screen.width - w) * 0.5f, 70f * s, w, h);
-            Area = r;
+            float pad = 12f * s, rowH = 26f * s;
+            var r = Layout(out _, out int shown);
+            float w = r.width;
             Hud.Panel(r);
             Hud.Fill(new Rect(r.x, r.y, r.width, Mathf.Max(2f, 3f * s)), new Color(1f, 0.72f, 0.3f));
             float y = r.y + pad;

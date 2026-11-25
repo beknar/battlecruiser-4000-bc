@@ -183,11 +183,13 @@ namespace CarrierGame.Demo
                         if (demo.Laser == null) { r.Add(HelpRow.Note("No mining gear on this ship")); break; }
                         K("Z", "mining laser on/off");
                         K("V", "mineral scan");
-                        K("T / Shift+T", "next / previous deposit");
+                        K("T / Shift+T", "next / previous deposit (in the list's order)");
+                        K("O", "list the deposits nearest, most valuable or richest first");
+                        K("F", "list the deposits with one mineral in them (or all)");
                         K("C", "fly to it");
                         K("I", "cargo hold");
                         K("J", "jettison cheapest ore");
-                        K("Tab", "the deposits found, and the ore aboard");
+                        K("Tab", "the deposits found, and the ore aboard (the wheel chooses in it)");
                         break;
                     case ModeOfPlay.Navigation:
                         if (demo.Warp != null) K("M", "system map: warp to a planet, moon, field...");
@@ -196,7 +198,7 @@ namespace CarrierGame.Demo
                         if (PlanetFlight.Instance != null) K("O", "cruise on/off (the higher, the faster)");
                         break;
                     case ModeOfPlay.Services:
-                        K("Tab or U", "the station's or base's services, docked or landed on its pad: storage, refining, building, fitting, trade, crew, the shipyard (what the place offers)");
+                        K("Tab or U", "the station's or base's services, docked or landed on its pad: storage, refining, building, fitting, trade, crew, the shipyard (what the place offers); Tab, U or Esc closes it, Q / E turn its pages");
                         break;
                     case ModeOfPlay.Fleet:
                         if (FleetDirector.Instance == null || FleetDirector.Instance.Ships.Count == 0) { r.Add(HelpRow.Note("No fleet yet: build a ship at a shipyard, and have her join you there (services)")); break; }

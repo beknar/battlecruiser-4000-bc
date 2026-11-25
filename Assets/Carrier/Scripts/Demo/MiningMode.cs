@@ -5,9 +5,24 @@ using UnityEngine.InputSystem;
 
 namespace CarrierGame.Demo
 {
+    /// <summary>How the mining list orders the deposits found (O turns through them).</summary>
+    public enum DepositOrder
+    {
+        /// <summary>The nearest the laser first.</summary>
+        Nearest,
+        /// <summary>The most worth first: credits a tonne times the tonnes the rock started with
+        /// (not what is left, so the rows don't move while the laser cuts).</summary>
+        MostValuable,
+        /// <summary>The most credits a tonne first.</summary>
+        Richest,
+    }
+
     /// <summary>
-    /// The mining mode's menu (Tab): the deposits the scan found (nearest first: what they are,
-    /// their best minerals, the tonnes left, how far, in reach or not), then the ore in the hold.
+    /// The mining mode's menu (Tab): the deposits the scan found (what they are, their best
+    /// minerals, the tonnes left, how far, in reach or not), then the ore in the hold. O orders
+    /// the deposits (nearest, most valuable or richest first) and F lists only those with one
+    /// mineral in them (each mineral found in turn, the most valuable first, then all again); both
+    /// are kept between sessions, and T / Shift+T go through the deposits in the same order.
     /// Choosing a deposit makes it the laser's (it cuts that one first, while in reach); C (X on
     /// the pad) flies the ship to it, until it is in reach of the laser; Z on a deposit chooses it
     /// and switches the laser on. On the ore, J (or Enter) ejects that mineral.
@@ -30,9 +45,9 @@ namespace CarrierGame.Demo
         public string Title => "MINING: DEPOSITS AND THE HOLD";
 
         public string Hint(bool pad) => pad ? "D-pad choose   A choose the deposit / eject the ore   X fly to it   B close"
-                                            : "Up/Down choose   Enter choose / eject   C fly to it   Z cut it   J eject   Tab close";
+                                            : "Up/Down choose   Enter choose / eject   C fly there   Z cut   J eject   O order   F mineral   Tab close";
 
-        /// <summary>The most deposits the menu lists, the nearest first.</summary>
+        /// <summary>The most deposits the menu lists, the first in its order (and its filter).</summary>
         public const int MaxListed = 20;
 
         public void Rows(List<MenuRow> rows)
@@ -42,23 +57,37 @@ namespace CarrierGame.Demo
             var laser = demo != null ? demo.Laser : null;
             var hold = demo != null ? demo.Cargo : null;
             if (ship == null || laser == null || sensor == null) { rows.Add(new MenuRow { header = true, text = "NO MINING GEAR ON THIS SHIP" }); return; }
-            var found = sensor.Finds.Select(f => f.source).Where(s => s != null && s.Valid && !s.Depleted).Distinct()
-                              .OrderBy(s => laser.Reach(s)).ToList();
-            // (the nearest only: a field can give a hundred finds, and the hold's ore is listed below)
-            int total = found.Count;
+            var by = Order;
+            var only = Filter;
+            // (ordered and filtered before the cut, so the first listed are the most valuable of
+            // all the finds, not of the nearest)
+            var found = Arrange(Finds(sensor), laser.Reach, by, only);
+            int total = found.Count, all = only == null ? total : Arrange(Finds(sensor), laser.Reach, DepositOrder.Nearest, null).Count;
+            // (the first so many only: a field can give a hundred finds, and the hold's ore is listed below)
             if (found.Count > MaxListed) found = found.Take(MaxListed).ToList();
             if (Chosen != null && Chosen.Valid && !Chosen.Depleted && !found.Contains(Chosen)) found.Insert(0, Chosen);
-            rows.Add(new MenuRow { header = true, text = total == 0 ? (sensor.Sweeping ? "SCANNING..." : "NO DEPOSITS FOUND: V TO SCAN")
-                                                     : total > MaxListed ? $"DEPOSITS FOUND ({total}, THE NEAREST {MaxListed})" : $"DEPOSITS FOUND ({total})" });
+            string noun = only == null ? "DEPOSITS FOUND" : $"{Minerals.Name(only.Value).ToUpper()} DEPOSITS";
+            rows.Add(new MenuRow
+            {
+                header = true,
+                text = all == 0 ? (sensor.Sweeping ? "SCANNING..." : "NO DEPOSITS FOUND: V TO SCAN")
+                     : total == 0 ? $"NO {noun} ({all} OTHERS: F)"
+                     : total > MaxListed ? $"{noun} ({total}, THE FIRST {MaxListed})" : $"{noun} ({total})",
+                // (the order and the filter, with their keys)
+                detail = all == 0 ? "" : $"O: {OrderName(by)}   F: {(only == null ? "all" : Minerals.Name(only.Value))}",
+            });
             foreach (var s in found)
             {
                 float reach = laser.Reach(s);
                 bool inReach = reach <= laser.range;
                 string mark = s == Chosen ? "<color=#ffc070>> </color>" : "";
+                // (ordered by worth: what each is worth, so the order can be seen)
+                string worth = by == DepositOrder.MostValuable ? $"{Credits(PerTonne(s.Mix, only) * s.Initial)} cr   "
+                             : by == DepositOrder.Richest ? $"{Credits(PerTonne(s.Mix, only))} cr/t   " : "";
                 rows.Add(new MenuRow
                 {
-                    text = $"{mark}{s.Label}  <color=#9aa4b0>{Best(s)}</color>",
-                    detail = $"{s.Remaining:F0} t   {CombatMode.Distance(reach)}{(inReach ? "   in reach" : "")}",
+                    text = $"{mark}{s.Label}  <color=#9aa4b0>{Best(s, only)}</color>",
+                    detail = $"{worth}{s.Remaining:F0} t   {CombatMode.Distance(reach)}{(inReach ? "   in reach" : "")}",
                     tag = s,
                 });
             }
@@ -74,12 +103,139 @@ namespace CarrierGame.Demo
                 });
         }
 
-        static string Best(IMineralSource s)
+        /// <summary>Its two most valuable minerals (by their share of its worth); with a filter,
+        /// that mineral first.</summary>
+        static string Best(IMineralSource s, Mineral? only)
         {
             var mix = s.Mix;
             if (mix == null || mix.Length == 0) return "";
-            return string.Join(", ", mix.OrderByDescending(x => x.fraction * Minerals.Value(x.mineral)).Take(2)
-                                        .Select(x => $"{Minerals.Name(x.mineral)} {x.fraction * 100f:F0}%"));
+            var best = mix.OrderByDescending(x => only != null && x.mineral == only.Value).ThenByDescending(x => x.fraction * Minerals.Value(x.mineral)).Take(2);
+            // (a trace as a trace: 0.3%, not 0%)
+            return string.Join(", ", best.Select(x => $"{Minerals.Name(x.mineral)} {Percent(x.fraction)}%"));
+        }
+
+        static string Percent(float fraction) => fraction >= 0.095f ? (fraction * 100f).ToString("F0") : (fraction * 100f).ToString("0.0#");
+
+        /// <summary>Credits, short: 950, 12k, 1.4M.</summary>
+        static string Credits(float cr) => cr >= 1e6f ? $"{cr / 1e6f:0.#}M" : cr >= 1e4f ? $"{cr / 1e3f:F0}k" : $"{cr:N0}";
+
+        // ------------------------------------------------------------ the list's order and filter
+
+        /// <summary>What an order is called in the list's heading and the messages.</summary>
+        public static string OrderName(DepositOrder o) =>
+            o == DepositOrder.MostValuable ? "most valuable first" : o == DepositOrder.Richest ? "richest first" : "nearest first";
+
+        /// <summary>Credits a tonne of a mix as a whole, or (`only`) of that one mineral in it.</summary>
+        public static float PerTonne(Share[] mix, Mineral? only)
+        {
+            if (mix == null) return 0f;
+            if (only == null) return Minerals.ValuePerTonne(mix);
+            foreach (var x in mix) if (x.mineral == only.Value) return x.fraction * Minerals.Value(x.mineral);
+            return 0f;
+        }
+
+        /// <summary>Is there any of a mineral in it?</summary>
+        public static bool Holds(IMineralSource s, Mineral m)
+        {
+            var mix = s.Mix;
+            if (mix == null) return false;
+            foreach (var x in mix) if (x.mineral == m && x.fraction > 0f) return true;
+            return false;
+        }
+
+        /// <summary>The deposits as the list has them: those still there and not mined out (each
+        /// once), only those with `only` in them (null: all), in `order`, the nearest by `reach`
+        /// breaking ties. With a filter, worth is that mineral's alone (the most platinum, not the
+        /// most valuable rock with a little platinum in it). The menu cuts this to MaxListed; T
+        /// and Shift+T go through all of it.</summary>
+        public static List<IMineralSource> Arrange(IEnumerable<IMineralSource> finds, System.Func<IMineralSource, float> reach, DepositOrder order, Mineral? only)
+        {
+            var list = finds.Where(s => s != null && s.Valid && !s.Depleted && (only == null || Holds(s, only.Value))).Distinct();
+            switch (order)
+            {
+                case DepositOrder.MostValuable: return list.OrderByDescending(s => PerTonne(s.Mix, only) * s.Initial).ThenBy(reach).ToList();
+                case DepositOrder.Richest: return list.OrderByDescending(s => PerTonne(s.Mix, only)).ThenBy(reach).ToList();
+                default: return list.OrderBy(reach).ToList();
+            }
+        }
+
+        /// <summary>The minerals in the deposits (any share of them), the most valuable first:
+        /// what F goes through.</summary>
+        public static List<Mineral> MineralsIn(IEnumerable<IMineralSource> finds) =>
+            finds.Where(s => s != null && s.Valid && !s.Depleted && s.Mix != null)
+                 .SelectMany(s => s.Mix).Where(x => x.fraction > 0f).Select(x => x.mineral).Distinct()
+                 .OrderByDescending(m => Minerals.Value(m)).ThenBy(m => (int)m).ToList();
+
+        static IEnumerable<IMineralSource> Finds(MineralSensor sensor) => sensor.Finds.Select(f => f.source);
+
+        /// <summary>Where the order and the filter are kept: the player's, or for the tests, reels
+        /// and AI players keys of their own (as Captain.PrefKey), which leaves the player's alone;
+        /// they always start from the nearest first, all minerals.</summary>
+        public static string OrderKey => LaunchArgs.Automated ? "mining.order (automated)" : "mining.order";
+        public static string FilterKey => LaunchArgs.Automated ? "mining.filter (automated)" : "mining.filter";
+
+        DepositOrder listOrder;
+        Mineral? listFilter;
+        bool settingsRead;
+
+        void ReadSettings()
+        {
+            if (settingsRead) return;
+            settingsRead = true;
+            if (LaunchArgs.Automated) return;
+            try
+            {
+                int o = PlayerPrefs.GetInt(OrderKey, 0);
+                if (System.Enum.IsDefined(typeof(DepositOrder), o)) listOrder = (DepositOrder)o;
+                string f = PlayerPrefs.GetString(FilterKey, "");
+                if (System.Enum.TryParse(f, out Mineral m) && System.Enum.IsDefined(typeof(Mineral), m)) listFilter = m;
+            }
+            catch { }
+        }
+
+        void SaveSettings()
+        {
+            try
+            {
+                PlayerPrefs.SetInt(OrderKey, (int)listOrder);
+                PlayerPrefs.SetString(FilterKey, listFilter != null ? listFilter.Value.ToString() : "");
+                PlayerPrefs.Save();
+            }
+            catch { }
+        }
+
+        /// <summary>The list's order (O).</summary>
+        public DepositOrder Order { get { ReadSettings(); return listOrder; } }
+        /// <summary>The list's mineral (F): only the deposits with it in them; null, all of them.</summary>
+        public Mineral? Filter { get { ReadSettings(); return listFilter; } }
+
+        /// <summary>O: the next order (nearest, most valuable, richest first, and round again).</summary>
+        public void CycleOrder()
+        {
+            ReadSettings();
+            listOrder = (DepositOrder)(((int)listOrder + 1) % 3);
+            SaveSettings();
+            SoundFX.Ui(Sfx.UiLock);
+            Notices.Post($"Deposits listed {OrderName(listOrder)} (O)");
+        }
+
+        /// <summary>F: list only the deposits with the next mineral found in them (the most
+        /// valuable first), and after the last, all of them again.</summary>
+        public void CycleFilter()
+        {
+            ReadSettings();
+            var sensor = demo != null ? demo.Sensor : null;
+            var kinds = sensor != null ? MineralsIn(Finds(sensor)) : new List<Mineral>();
+            if (kinds.Count == 0 && listFilter == null) { SoundFX.Ui(Sfx.UiError); Notices.Post("No deposits found to choose a mineral from: V scans"); return; }
+            // (one not among the finds now, kept from another field or an earlier session: the first)
+            int i = listFilter != null ? kinds.IndexOf(listFilter.Value) : -1;
+            listFilter = i + 1 < kinds.Count ? kinds[i + 1] : (Mineral?)null;
+            SaveSettings();
+            SoundFX.Ui(Sfx.UiLock);
+            if (listFilter == null) { Notices.Post("All the deposits listed (F)"); return; }
+            var laser = demo.Laser;
+            int n = laser != null ? Arrange(Finds(sensor), laser.Reach, DepositOrder.Nearest, listFilter).Count : 0;
+            Notices.Post($"Only the deposits with {Minerals.Name(listFilter.Value).ToLower()} in them listed: {n} found (F)");
         }
 
         public void Act(MenuRow row)
@@ -102,6 +258,9 @@ namespace CarrierGame.Demo
                 return true;
             }
             if (k != null && k.jKey.wasPressedThisFrame && row?.tag is Mineral m) { Eject(m); return true; }
+            // (the list's order and filter: CarrierDemoInput has these keys with the menu shut)
+            if (k != null && k.oKey.wasPressedThisFrame) { CycleOrder(); return true; }
+            if (k != null && k.fKey.wasPressedThisFrame) { CycleFilter(); return true; }
             return false;
         }
 
@@ -132,21 +291,29 @@ namespace CarrierGame.Demo
             StartApproach();
         }
 
-        /// <summary>The deposits found, nearest the laser first (what the menu lists).</summary>
-        System.Collections.Generic.List<IMineralSource> Found()
+        /// <summary>The deposits found, in the list's filter and (`nearest` false) its order, or
+        /// nearest the laser first: what the menu lists, before its cut.</summary>
+        List<IMineralSource> Found(bool nearest = false)
         {
             var sensor = demo != null ? demo.Sensor : null;
             var laser = demo != null ? demo.Laser : null;
-            if (sensor == null || laser == null) return new System.Collections.Generic.List<IMineralSource>();
-            return sensor.Finds.Select(f => f.source).Where(s => s != null && s.Valid && !s.Depleted).Distinct()
-                         .OrderBy(s => laser.Reach(s)).ToList();
+            if (sensor == null || laser == null) return new List<IMineralSource>();
+            return Arrange(Finds(sensor), laser.Reach, nearest ? DepositOrder.Nearest : Order, Filter);
         }
 
-        /// <summary>T (Shift+T back): choose the next deposit found, nearest first.</summary>
+        /// <summary>T (Shift+T back): choose the next deposit found, in the list's order.</summary>
         public void CycleDeposit(int dir)
         {
             var found = Found();
-            if (found.Count == 0) { SoundFX.Ui(Sfx.UiError); Notices.Post("No deposits found: V scans"); return; }
+            if (found.Count == 0)
+            {
+                SoundFX.Ui(Sfx.UiError);
+                // (none with the list's mineral in them, but others found)
+                var sensor = demo != null ? demo.Sensor : null;
+                bool others = Filter != null && sensor != null && MineralsIn(Finds(sensor)).Count > 0;
+                Notices.Post(others ? $"No deposits with {Minerals.Name(Filter.Value).ToLower()} in them found: F lists others" : "No deposits found: V scans");
+                return;
+            }
             int i = Chosen != null ? found.IndexOf(Chosen) : -1;
             i = i < 0 ? (dir > 0 ? 0 : found.Count - 1) : (i + dir + found.Count) % found.Count;
             Choose(found[i]);
@@ -160,8 +327,8 @@ namespace CarrierGame.Demo
         {
             var laser = demo != null ? demo.Laser : null;
             if (laser == null) return;
-            // (none chosen yet: the nearest found)
-            if ((Chosen == null || !Chosen.Valid || Chosen.Depleted) && Found().FirstOrDefault() is IMineralSource nearest) Choose(nearest);
+            // (none chosen yet: the nearest found, of those the list has)
+            if ((Chosen == null || !Chosen.Valid || Chosen.Depleted) && Found(nearest: true).FirstOrDefault() is IMineralSource first) Choose(first);
             if (Chosen == null || !Chosen.Valid || Chosen.Depleted)
             {
                 SoundFX.Ui(Sfx.UiError);

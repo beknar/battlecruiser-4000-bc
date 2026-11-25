@@ -260,13 +260,17 @@ namespace CarrierGame.Demo
         {
             if (k.vKey.wasPressedThisFrame) MineralScan();
             if (k.iKey.wasPressedThisFrame) ToggleManifest();
-            // (with the menu open, Z, C and J act on the row chosen: MiningMode.Keys)
+            // (with the menu open, Z, C and J act on the row chosen, and O and F are its own too:
+            // MiningMode.Keys)
             if (ModeMenu.IsOpen || ModeMenu.JustClosed) return;
             if (k.zKey.wasPressedThisFrame) ToggleMiningLaser();
             if (k.jKey.wasPressedThisFrame) Jettison();
             if (k.cKey.wasPressedThisFrame) Mining?.ToggleApproach();
-            // T (Shift+T back): choose the next deposit found, nearest first (C then flies there)
+            // T (Shift+T back): choose the next deposit found, in the list's order (C then flies there)
             if (k.tKey.wasPressedThisFrame) Mining?.CycleDeposit(k.shiftKey.isPressed ? -1 : 1);
+            // O: the list's order (nearest, most valuable, richest first); F: its mineral
+            if (k.oKey.wasPressedThisFrame) Mining?.CycleOrder();
+            if (k.fKey.wasPressedThisFrame) Mining?.CycleFilter();
         }
 
         MiningMode mining;

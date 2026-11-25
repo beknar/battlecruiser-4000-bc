@@ -776,7 +776,20 @@ system to travel around.
     to the rock, easing off over the last few hundred metres and cutting every engine within
     100 m of it (or as close as the hull lets her); over a planet's surface to within the laser's
     reach, climbing clear of the ground first. The chosen deposit is marked on
-    screen.
+    screen. The wheel chooses in the menu too, with the pointer over it (it zooms the camera
+    elsewhere).
+  - **Ordering and filtering the deposits.** O orders the menu's deposits nearest first, most
+    valuable first (credits a tonne times the tonnes the rock started with, not what is left,
+    so the rows don't move while the laser cuts) or richest first (credits a tonne). F lists
+    only the deposits with one mineral in them: each mineral the scan found in turn, the most
+    valuable first, then all of them again; with a mineral chosen, "most valuable" and
+    "richest" count that mineral alone. The menu's heading shows both, and a deposit's row its
+    worth when ordered by it. Both apply before the menu is cut to its first 20, so the most
+    valuable rock in a field of a hundred is listed however far off it is, and T / Shift+T go
+    through the deposits in the same order. Both are kept between sessions (the self-tests
+    and AI players keep their own, and always start nearest first, all minerals). O and F
+    work with the menu open or shut, in mining mode. Tests: `MiningListTests` (the order and
+    the filter), `ModeMenuWheelTests` (the wheel) and the `system` stage's mining section.
   - **Cargo hold.** It holds 600 tonnes. I lists what is aboard and what it is worth; J
     jettisons the cheapest mineral to make room for better. The menu lists the ore aboard too,
     and ejects whichever is chosen (Enter, or J). The cargo is lost if the frigate is
@@ -1168,6 +1181,8 @@ fitted to the frigate to make it better. All of it is in
     on the pad.
 - **The site's screen** opens by itself on arriving (docked, or landed on the pad), which puts
   the game in services mode, and Tab or U (A on the pad) in services mode opens it again.
+  Tab, U or Esc (B) closes it, as does its CLOSE button in the top right corner (in a browser
+  at full screen the first Esc only leaves full screen); Q and E (LB and RB) turn its pages.
   What it offers depends on what the place is, page by page. It has up to seven pages:
   - **Storage**: move ore, refined materials and parts between the hold and the site's
     storage. Each site keeps its own storage, with no limit; the frigate's hold is what is
@@ -1790,8 +1805,9 @@ menu (only the pause menu stops it).
 - **Changing mode.** 1 to 5 on the keyboard (Back + LB / RB on the pad). The controls box in the
   top-left corner shows the mode, its keys, and the keys every mode shares (H, or Back, hides it).
 - **The mode's menu.** Tab (Back + Y) opens a list over the game: the combat mode's targets,
-  and in later modes their own lists. Choose with ↑/↓ (D-pad), act with Enter (A) or a
-  click, close with Tab or Esc (B). The ship can still be flown while it is open.
+  and in later modes their own lists. Choose with ↑/↓ (D-pad) or the wheel (with the pointer
+  over the list), act with Enter (A) or a click, close with Tab or Esc (B). The ship can still
+  be flown while it is open.
 - **Modes taken up by themselves.** The system map is navigation while it is open, and closing
   it (or warping from it) goes back to the mode before. Docking at a station or landing on a
   site's pad is services, and leaving it goes back to the mode before.
@@ -1809,7 +1825,7 @@ menu (only the pause menu stops it).
 | The mode's menu | Tab | Back + Y |
 | System map (opens in navigation mode) | M | R3 |
 | Land / take off, dock / undock | K | Back + B |
-| Orbit camera / zoom (with a station's screen up, the wheel scrolls its list instead) | Right-drag / mouse wheel | Right stick / Back + D-pad ← → |
+| Orbit camera / zoom (with a station's screen up, or the pointer over a mode's menu, the wheel chooses in its list instead) | Right-drag / mouse wheel | Right stick / Back + D-pad ← → |
 | Help / text size | H / + − | Back / Back + D-pad ↑↓ |
 | Sound on/off | N | (pause menu) |
 | Next song (the music on or off, and the song before: the pause menu) | Shift+N | (pause menu) |
@@ -1840,10 +1856,12 @@ menu (only the pause menu stops it).
 |---|---|---|
 | Mining laser on/off | Z | A |
 | Mineral scan | V | Y |
-| Choose the next / previous deposit found, nearest first | T / Shift+T | |
+| Choose the next / previous deposit found, in the menu's order | T / Shift+T | |
+| Order the menu's deposits: nearest, most valuable, richest first | O | |
+| List only the deposits with one mineral in them (each found in turn, the most valuable first, then all) | F | |
 | Fly to the chosen deposit (or the nearest found), until the laser reaches it (again, steer or move the throttle to stop) | C | X |
 | Cargo hold list / jettison the cheapest ore | I / J | RB / B |
-| Menu: the 20 nearest deposits found, then the ore aboard (Enter chooses a deposit for the laser or ejects that ore; C flies to the deposit; Z chooses it and cuts it, or, out of reach, chooses it to fly to; J ejects the ore) | Tab | Back + Y |
+| Menu: the first 20 deposits found in its order (O) and filter (F), then the ore aboard (the wheel or ↑↓ chooses; Enter chooses a deposit for the laser or ejects that ore; C flies to the deposit; Z chooses it and cuts it, or, out of reach, chooses it to fly to; J ejects the ore) | Tab | Back + Y |
 
 **Navigation mode (3)**
 
@@ -1862,7 +1880,7 @@ menu (only the pause menu stops it).
 | Action | Keyboard / mouse | Xbox 360 pad |
 |---|---|---|
 | The services screen (docked, or on its pad; it opens by itself on arriving): storage, refining, building, fitting, selling, buying, crew, the shipyard, as the place offers | Tab or U | A |
-| In the site's screen: pages / choose / load, store / act / cancel a job / close | Tab or Q E / ↑↓ / ← → (Shift for all) / Enter / Backspace / U or Esc | LB RB / D-pad ↑↓ / D-pad ← →, X, Y / A / Y / B |
+| In the site's screen: pages / choose / load, store / act / cancel a job / close | Q E / ↑↓ or the wheel / ← → (Shift for all) / Enter / Backspace / Tab, U, Esc or CLOSE | LB RB / D-pad ↑↓ / D-pad ← →, X, Y / A / Y / B |
 
 **Fleet mode (5)**: the player's other ships (see [Fleets](#fleets)). Orders go to the ship chosen in the menu, or all of them.
 

@@ -29,8 +29,9 @@ namespace CarrierGame.Demo
             // itself with the same controls (it still follows its target)
             bool held = GameMenu.IsOpen || SystemMap.IsOpen;
             // the station panel scrolls its list with the wheel, so the wheel doesn't zoom under it
-            // (the right button still orbits, to look the ship over)
-            bool wheelHeld = IndustryPanel.IsOpen || IndustryPanel.JustClosed;
+            // (the right button still orbits, to look the ship over); nor over a mode's menu, where
+            // it chooses (with the pointer elsewhere, it still zooms)
+            bool wheelHeld = IndustryPanel.IsOpen || IndustryPanel.JustClosed || ModeMenu.WheelHeld;
             var mouse = held ? null : Mouse.current;
             if (mouse != null)
             {

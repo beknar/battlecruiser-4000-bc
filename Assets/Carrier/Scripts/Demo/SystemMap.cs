@@ -26,13 +26,21 @@ namespace CarrierGame.Demo
     /// Keyboard and mouse: M opens and closes it; click a place (or use the arrow keys / WASD,
     /// Tab to step through), then click WARP, double-click, or press Enter. Esc closes it.
     /// Gamepad: R3 (press the right stick) opens it; the left stick or D-pad moves between places,
-    /// LB/RB step through them, A warps, B closes.
+    /// LB/RB step through them, A warps, B closes. It opens on the place the ship is at.
     ///
     /// The view can be moved and zoomed, from the whole system down to a planet and its moons:
-    /// the mouse wheel zooms about the pointer, dragging with the right or middle button moves
-    /// the map, + and - zoom about the middle, and Home shows the whole system again; on the pad
-    /// the right stick moves it and the triggers zoom. Choosing a place off the view brings it in.
-    /// Everything is drawn relative to the view's middle and kept inside the map's square.
+    /// the mouse wheel zooms about the pointer, dragging (with the left button once the pointer
+    /// has moved a few pixels, or with the right or middle) moves the map, and so do Shift and the
+    /// arrows or WASD; + and - zoom about the middle, and Home shows the whole system again; on the
+    /// pad the right stick moves it and the triggers zoom. Choosing a place off the view brings it
+    /// in. Everything is drawn relative to the view's middle and kept inside the map's square. A
+    /// click is taken on the release, so a drag doesn't choose what it started on.
+    ///
+    /// Moons are a planet's (PassedOver): at the whole system's view a moon is drawn within a
+    /// fraction of a pixel of its planet, so until the view is close enough to draw it apart, a
+    /// click there, the hover, Tab and the arrows take the planet, and the moon's name is left
+    /// off. The info panel lists a planet's moons and every point of interest round it
+    /// (Places.Around).
     /// </summary>
     public class SystemMap : MonoBehaviour
     {
@@ -74,6 +82,20 @@ namespace CarrierGame.Demo
         Vector2 view;
         bool dragging;
         Vector2 dragLast;
+        // the left button: held since it went down on the map (or the panel), where, and whether
+        // it has moved far enough to be a drag (not a click)
+        bool leftDown, leftDrag;
+        Vector2 leftFrom, leftLast;
+
+        /// <summary>How far the pointer moves with the left button held before it drags the view
+        /// (less, and letting go is a click).</summary>
+        public const float DragPx = 6f;
+        /// <summary>How far apart (in pixels, times the text scale) a moon and its planet have to
+        /// be drawn before the moon can be chosen on its own.</summary>
+        public const float MoonApartPx = 16f;
+
+        /// <summary>(For the tests: lay the map out for a screen this size, not the real one.)</summary>
+        [System.NonSerialized] public Vector2 screenSize;
 
         /// <summary>How far the view is zoomed in (1: the whole system).</summary>
         public float Zoom => zoom;
@@ -102,8 +124,13 @@ namespace CarrierGame.Demo
             SelectedAlly = null;
             RefreshOrder();
             ResetView();
-            if (Selected == null || IsHere(Selected))
-                Selected = order.Where(p => !IsHere(p)).OrderBy(p => Vector3.Distance(p.Position, carrier.transform.position)).FirstOrDefault();
+            Layout();
+            // it opens on where the ship is (at a moon, drawn on its planet at this view: the
+            // planet); out in open space, on the place chosen last time, or the nearest
+            var here = HerePlace;
+            if (here != null && order.Contains(here)) Selected = PassedOver(here) ? here.orbitParent : here;
+            else if (Selected == null || !order.Contains(Selected) || PassedOver(Selected))
+                Selected = order.Where(p => !PassedOver(p)).OrderBy(p => Vector3.Distance(p.Position, carrier.transform.position)).FirstOrDefault();
             SoundFX.Ui(Sfx.UiLock);
         }
 
@@ -227,18 +254,34 @@ namespace CarrierGame.Demo
         WarpPoint herePlace;
         int hereFrame = -1;
 
-        bool IsHere(WarpPoint p)
+        bool IsHere(WarpPoint p) => p != null && p == HerePlace;
+
+        WarpPoint HerePlace
         {
-            if (carrier == null || p == null) return false;
-            if (hereFrame != Time.frameCount)
+            get
             {
-                hereFrame = Time.frameCount;
-                herePlace = Places.At(carrier.transform.position);
+                if (carrier == null) return null;
+                if (hereFrame != Time.frameCount)
+                {
+                    hereFrame = Time.frameCount;
+                    herePlace = Places.At(carrier.transform.position);
+                }
+                return herePlace;
             }
-            return p == herePlace;
         }
 
-        void RefreshOrder()
+        /// <summary>A moon drawn on top of its planet at the view's zoom (nearer it on the map than
+        /// MoonApartPx): it counts as part of the planet, so a click, the hover, Tab and the arrows
+        /// pass over it, and its name is left off, until the view is close enough to draw it apart.</summary>
+        public bool PassedOver(WarpPoint w) => PassedOver(w, pxPerM);
+
+        /// <summary>The same, at a scale of `pixelsPerMetre`.</summary>
+        public static bool PassedOver(WarpPoint w, float pixelsPerMetre) =>
+            w != null && w.kind == WarpPoint.Kind.Moon && w.orbitParent != null
+            && Flat(w.Position - w.orbitParent.Position).magnitude * Mathf.Abs(pixelsPerMetre) < MoonApartPx * Hud.S;
+
+        /// <summary>The places on the map, in their reading order (worked out again).</summary>
+        public void RefreshOrder()
         {
             // a sensible reading order: the star, then outward by distance from it, moons after their planet
             Vector3 star = WarpPoint.All.FirstOrDefault(w => w.kind == WarpPoint.Kind.Star)?.Position ?? Vector3.zero;
@@ -250,12 +293,18 @@ namespace CarrierGame.Demo
             foreach (var w in order) extent = Mathf.Max(extent, Flat(w.Position - star).magnitude + w.arrivalDistance);
         }
 
+        /// <summary>Choose the next place in the reading order (`dir` -1: the one before),
+        /// passing over a moon drawn on its planet.</summary>
         public void Step(int dir)
         {
             if (order.Count == 0) RefreshOrder();
+            if (order.Count == 0) return;
             int i = Selected != null ? order.IndexOf(Selected) : -1;
-            i = (i + dir + order.Count) % order.Count;
-            Select(order[i]);
+            for (int n = 0; n < order.Count; n++)
+            {
+                i = ((i + dir) % order.Count + order.Count) % order.Count;
+                if (!PassedOver(order[i])) { Select(order[i]); return; }
+            }
         }
 
         /// <summary>Move the choice to the nearest place lying in a direction on the map (GUI space, y down).</summary>
@@ -268,7 +317,7 @@ namespace CarrierGame.Demo
             float bestScore = float.MaxValue;
             foreach (var w in order)
             {
-                if (w == Selected) continue;
+                if (w == Selected || PassedOver(w)) continue;
                 Vector2 d = ScreenPosOf(w) - from;
                 float dist = d.magnitude;
                 if (dist < 1f) continue;
@@ -313,10 +362,24 @@ namespace CarrierGame.Demo
                 if (k.homeKey.wasPressedThisFrame) ResetView();
                 if (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame || k.spaceKey.wasPressedThisFrame) { WarpToSelected(); return; }
                 if (k.tabKey.wasPressedThisFrame) Step(k.shiftKey.isPressed ? -1 : 1);
-                if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame) StepToward(Vector2.left);
-                if (k.rightArrowKey.wasPressedThisFrame || k.dKey.wasPressedThisFrame) StepToward(Vector2.right);
-                if (k.upArrowKey.wasPressedThisFrame || k.wKey.wasPressedThisFrame) StepToward(Vector2.down);
-                if (k.downArrowKey.wasPressedThisFrame || k.sKey.wasPressedThisFrame) StepToward(Vector2.up);
+                if (k.shiftKey.isPressed)
+                {
+                    // Shift and the arrows (or WASD) move the view, for as long as they are held
+                    // (a way, in GUI space, y down; the view goes that way, as the right stick's does)
+                    Vector2 way = Vector2.zero;
+                    if (k.leftArrowKey.isPressed || k.aKey.isPressed) way.x -= 1f;
+                    if (k.rightArrowKey.isPressed || k.dKey.isPressed) way.x += 1f;
+                    if (k.upArrowKey.isPressed || k.wKey.isPressed) way.y -= 1f;
+                    if (k.downArrowKey.isPressed || k.sKey.isPressed) way.y += 1f;
+                    if (way.sqrMagnitude > 0f) Pan(-way.normalized * mapRect.width * 0.8f * Time.unscaledDeltaTime);
+                }
+                else
+                {
+                    if (k.leftArrowKey.wasPressedThisFrame || k.aKey.wasPressedThisFrame) StepToward(Vector2.left);
+                    if (k.rightArrowKey.wasPressedThisFrame || k.dKey.wasPressedThisFrame) StepToward(Vector2.right);
+                    if (k.upArrowKey.wasPressedThisFrame || k.wKey.wasPressedThisFrame) StepToward(Vector2.down);
+                    if (k.downArrowKey.wasPressedThisFrame || k.sKey.wasPressedThisFrame) StepToward(Vector2.up);
+                }
             }
             if (pad != null)
             {
@@ -345,7 +408,18 @@ namespace CarrierGame.Demo
                 Vector2 mp = mouse.position.ReadValue();
                 Vector2 gui = new Vector2(mp.x, Screen.height - mp.y);
                 Hover = mapRect.Contains(gui) ? PointAt(gui) : null;
-                if (mouse.leftButton.wasPressedThisFrame) Click(gui);
+                // the left button: a click when it is let go within DragPx of where it went down
+                // (on WARP, or a place: chosen, or warped to on a double click); moved further on
+                // the map, it drags the view instead, and chooses nothing
+                if (mouse.leftButton.wasPressedThisFrame) { leftDown = true; leftDrag = false; leftFrom = leftLast = gui; }
+                if (leftDown && !leftDrag && mapRect.Contains(leftFrom) && Vector2.Distance(gui, leftFrom) >= DragPx) leftDrag = true;
+                if (leftDrag) { Pan(gui - leftLast); leftLast = gui; }
+                if (leftDown && !mouse.leftButton.isPressed)
+                {
+                    bool click = !leftDrag && Vector2.Distance(gui, leftFrom) < DragPx;
+                    leftDown = leftDrag = false;
+                    if (click) Click(leftFrom);
+                }
                 // the wheel zooms about the pointer; a right or middle drag moves the view
                 float wheel = mouse.scroll.ReadValue().y;
                 if (Mathf.Abs(wheel) > 0.01f && mapRect.Contains(gui)) ZoomAt(gui, wheel > 0f ? 1.25f : 0.8f);
@@ -417,12 +491,15 @@ namespace CarrierGame.Demo
             return null;
         }
 
+        /// <summary>The place drawn nearest a GUI position, within `maxPx` (times the text scale),
+        /// or null. A moon drawn on its planet is passed over: the planet is what is there.</summary>
         public WarpPoint PointAt(Vector2 gui, float maxPx = 26f)
         {
             WarpPoint best = null;
             float bestD = maxPx * Hud.S;
             foreach (var w in order)
             {
+                if (PassedOver(w)) continue;
                 float d = Vector2.Distance(ScreenPosOf(w), gui);
                 if (d < bestD) { bestD = d; best = w; }
             }
@@ -470,6 +547,7 @@ namespace CarrierGame.Demo
             zoom = 1f;
             view = Vector2.zero;
             dragging = false;
+            leftDown = leftDrag = false;
         }
 
         /// <summary>Move the view, if need be, so a place is on it (well inside the edge).</summary>
@@ -499,14 +577,16 @@ namespace CarrierGame.Demo
             p.x > mapRect.xMin - margin && p.x < mapRect.xMax + margin && p.y > mapRect.yMin - margin && p.y < mapRect.yMax + margin;
         public Rect WarpButtonRect => warpButton;
 
-        void Layout()
+        /// <summary>Where the map's square and its panel go on screen, and the view's scale and middle.</summary>
+        public void Layout()
         {
             float s = Hud.S;
+            float sw = screenSize.x > 0f ? screenSize.x : Screen.width, sh = screenSize.y > 0f ? screenSize.y : Screen.height;
             float margin = 30f * s;
             float infoW = 340f * s;
-            float side = Mathf.Min(Screen.height - margin * 2f, Screen.width - infoW - margin * 3f);
-            float x0 = (Screen.width - side - infoW - margin) * 0.5f;
-            mapRect = new Rect(x0, (Screen.height - side) * 0.5f, side, side);
+            float side = Mathf.Min(sh - margin * 2f, sw - infoW - margin * 3f);
+            float x0 = (sw - side - infoW - margin) * 0.5f;
+            mapRect = new Rect(x0, (sh - side) * 0.5f, side, side);
             infoRect = new Rect(mapRect.xMax + margin, mapRect.y, infoW, side);
             Vector3 star = WarpPoint.All.FirstOrDefault(w => w != null && w.kind == WarpPoint.Kind.Star)?.Position ?? Vector3.zero;
             starFlat = new Vector2(star.x, star.z);
@@ -604,14 +684,19 @@ namespace CarrierGame.Demo
             // first, then the bodies, then what is built; one that would overlap another is left off
             placed.Clear();
             hereNow = order.FirstOrDefault(IsHere);
+            // (at a moon drawn on its planet: the planet's name says so)
+            var hereMoon = hereNow != null && PassedOver(hereNow) ? hereNow : null;
             ranked.Clear();
             ranked.AddRange(order);
             ranked.Sort((a, b) => LabelRank(a).CompareTo(LabelRank(b)));
             foreach (var w in ranked)
             {
+                // (a moon drawn on its planet has no name of its own, unless it is the one chosen)
+                if (w != Selected && PassedOver(w)) continue;
                 Vector2 p = ScreenPosOf(w);
-                bool here = w == hereNow;
-                string name = w.displayName + (here ? "  <color=#7ee08a>(here)</color>" : "") + (w.Threatened ? "  <color=#ff6050>!</color>" : "");
+                bool here = w == hereNow || (hereMoon != null && w == hereMoon.orbitParent);
+                string where = w == hereNow ? "(here)" : $"(at {hereMoon?.displayName})";
+                string name = w.displayName + (here ? $"  <color=#7ee08a>{where}</color>" : "") + (w.Threatened ? "  <color=#ff6050>!</color>" : "");
                 var content = new GUIContent(name);
                 Vector2 size = label.CalcSize(content);
                 var r = new Rect(p.x + 12f * s, p.y - 9f * s, size.x, size.y);
@@ -784,8 +869,7 @@ namespace CarrierGame.Demo
                     GUI.Label(new Rect(x, y, w, oh), oc, body);
                     y += oh + 8f * s;
                 }
-                var pois = Places.PointsOfInterest(Selected, Selected.Position);
-                string there = pois.Count == 0 ? "" : $"\n<color=#9aa4b0>Points of interest: {string.Join(", ", pois.Select(p => p.displayName + (p.Threatened ? " (hostile)" : "")))}</color>";
+                string there = AroundText(Selected);
                 var desc = new GUIContent(Selected.description + (Selected.Threatened ? "\n<color=#ff6050>Hostile contacts reported.</color>" : "") + there);
                 float h = body.CalcHeight(desc, w);
                 GUI.Label(new Rect(x, y, w, h), desc, body);
@@ -805,9 +889,45 @@ namespace CarrierGame.Demo
             GUI.Label(warpButton, usable ? "<b>WARP</b>" : "<color=#9aa4b0><b>WARP</b></color>", Hud.Text(24, true, TextAnchor.MiddleCenter));
             bool pad = PadSupport.UsingPad && Gamepad.current != null;
             string help = pad ? "Stick / D-pad: choose   LB/RB: step\nA: warp   B or R3: close\nRight stick: move   LT/RT: zoom"
-                              : "Click, arrows or WASD: choose   Tab: step\nWARP, double-click or Enter: warp   M/Esc: close\nWheel or +/-: zoom   right-drag: move   Home: all";
+                              : "Click, arrows or WASD: choose   Tab: step\nWARP, double-click or Enter: warp   M/Esc: close\nWheel or +/-: zoom   drag or Shift+arrows: move   Home: all";
             var helpStyle = Wrapped(ref helpTextStyle, 13);
             GUI.Label(new Rect(x, warpButton.yMax + 10f * s, w, Mathf.Max(20f * s, Screen.height - warpButton.yMax - 14f * s)), $"<color=#9aa4b0>{help}</color>", helpStyle);
+        }
+
+        // what is round the place chosen, as the info panel puts it (worked out once a frame:
+        // OnGUI runs several times a frame)
+        string aroundText = "";
+        WarpPoint aroundOf;
+        int aroundFrame = -1;
+
+        /// <summary>The info panel's lines on what is round a place (Places.Around): a planet's
+        /// moons, then its own points of interest, then each moon's. A name that starts with its
+        /// place's is shortened under it ("Selene High Orbit" is "High Orbit", at Selene).</summary>
+        string AroundText(WarpPoint place)
+        {
+            if (place == aroundOf && aroundFrame == Time.frameCount) return aroundText;
+            aroundOf = place;
+            aroundFrame = Time.frameCount;
+            aroundText = "";
+            var around = Places.Around(place);
+            if (around.Count == 0) return aroundText;
+            string Name(WarpPoint p, WarpPoint at)
+            {
+                string n = at != null && p.displayName.StartsWith(at.displayName + " ") ? p.displayName.Substring(at.displayName.Length + 1) : p.displayName;
+                return n + (p.Threatened ? " (hostile)" : "");
+            }
+            var moons = around.Where(p => p.kind == WarpPoint.Kind.Moon && p.orbitParent == place).ToList();
+            var own = around.Where(p => !moons.Contains(p) && Places.PlaceOf(p) == place).ToList();
+            var sb = new System.Text.StringBuilder();
+            if (moons.Count > 0) sb.Append($"\nMoons: {string.Join(", ", moons.Select(m => Name(m, null)))}");
+            if (own.Count > 0) sb.Append($"\nPoints of interest: {string.Join(", ", own.Select(p => Name(p, place)))}");
+            foreach (var m in moons)
+            {
+                var atMoon = around.Where(p => Places.PlaceOf(p) == m).ToList();
+                if (atMoon.Count > 0) sb.Append($"\nAt {m.displayName}: {string.Join(", ", atMoon.Select(p => Name(p, m)))}");
+            }
+            aroundText = $"<color=#9aa4b0>{sb}</color>";
+            return aroundText;
         }
 
         GUIStyle bodyStyle, helpTextStyle;

@@ -895,6 +895,19 @@ system to travel around.
   with their orbits and the frigate's own position and heading. Stations and installations are
   small squares, bases and Lagrange points diamonds. For the chosen destination it shows what
   it is, the distance and how long the trip will take. Pick a place and warp from the map.
+  It opens on the place the ship is at.
+  - **Moving round it.** The wheel zooms about the pointer, and + and − about the middle. A drag
+    moves the view: with the left button once the pointer has moved 6 pixels, or with the right
+    or middle button. Shift and the arrows (or WASD) move it too, for as long as they're held.
+    Home shows the whole system again. A click counts when the button is let go, so a drag never
+    chooses what it started on. On the pad the right stick moves the view and the triggers zoom.
+  - **Planets and their moons.** The moons are a few thousand kilometres from their planets, and
+    the planets millions of kilometres from the star, so at the whole system's view a moon is
+    drawn on its planet. Until the view is zoomed in far enough to draw it apart, a click there,
+    the pointer, Tab and the arrows all take the planet, and the moon's name is left off. At a
+    moon, the map opens on its planet. For a planet, the panel lists its moons, then its own
+    points of interest, then each moon's ("At Selene: Northern Reach, Southern Reach, High
+    Orbit").
   - **Your side's ships.** The other players' ships (cyan), the AI wingmen (orange) and the
     fleet's ships (green) are on it too, each with its heading and name. Click another player or
     a wingman (its arrow or its name: in formation the arrow is under the frigate's own), then
@@ -1873,6 +1886,7 @@ menu (only the pause menu stops it).
 | Stop the auto-travel (or just steer) | X | B |
 | Cruise on/off | O | X |
 | On the map: choose a place / warp / close | Click, arrows or Tab / WARP, double-click or Enter / M or Esc | Left stick, D-pad or LB/RB / A / B |
+| On the map: move / zoom / the whole system | Drag, or Shift + arrows or WASD / wheel or + − / Home | Right stick / LT, RT / |
 | On the map: a mini-warp to another player or a wingman | Click their ship, then WARP (or double-click it) | |
 
 **Services mode (4)**

@@ -188,6 +188,7 @@ namespace CarrierGame.Demo
                         K("F", "list the deposits with one mineral in them (or all)");
                         K("C", "fly to it");
                         K("I", "cargo hold");
+                        K("G", "co-op, on ore in the Tab list: give it to an AI wingman within 50 km");
                         K("J", "jettison cheapest ore");
                         K("Tab", "the deposits found, and the ore aboard (the wheel chooses in it)");
                         break;

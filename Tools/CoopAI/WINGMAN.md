@@ -41,6 +41,10 @@ the talk around it. It also takes these by itself, so they come to you marked ha
   the rocks richest in that mineral. With none of it in range it says so ("no platinum in the
   rocks here") and mines the most valuable instead. "mine the most valuable ore", "the best rocks":
   the rocks worth most a tonne. `status` has what it's after (`ore`) and the rock it's on.
+- "give me your ore", "give me the platinum", "give me 100 t of iron": it hands the ore from its
+  hold to theirs (within 50 km, in the same level). Their game loads what fits, and it says what
+  came back aboard. "take my ore", "take the iron": their own game sends the ore, and it says what
+  came. Ore goes only between a person and an AI wingman.
 - "your name is Ace", "call yourself Ace", "rename to Ace" (from its leader or the game's host):
   it asks the server for the name and says, in its new name, whether it has it. From then on,
   answer as that name, and only messages to that name are to it.
@@ -54,6 +58,8 @@ the talk around it. It also takes these by itself, so they come to you marked ha
 | "get us some of that platinum", "find me something worth selling" | `order mine` (`platinum`, or `the most valuable ore`) |
 | "what have you got aboard?" | `cargo`, then say it |
 | "send me some money", "I'm short 2k" | `give_credits` (the amount, to them) |
+| "I need that platinum", "pass me some iron, 50 t" | `give_ore` (the mineral and the tonnes, to them) |
+| "can you hold some of my ore?" | tell them to say "take my ore" (or press G in the mining menu): their game sends it |
 | "how are you holding up?" | `status`, then say it |
 | "I'll call you Ace from now on", "you're Ace now" | `order rename` (Ace), if that player is its leader or the host |
 | small talk | a short reply in character |

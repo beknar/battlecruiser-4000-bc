@@ -28,7 +28,10 @@ namespace CarrierGame.Demo
     /// ("Wingman, Fang Hunter"). It answers, and says when it starts a fight, finishes one,
     /// arrives or can't do what it was told. "Wingman, your name is Ace" (or "call yourself Ace",
     /// "rename to Ace"), from its leader or the room's host, renames it on the server: it answers
-    /// in its new name, and keeps it for its next start (a kept name wins over -name).
+    /// in its new name, and keeps it for its next start (a kept name wins over -name). "Wingman,
+    /// give me your ore" (the platinum, 100 t of iron) hands ore from its hold to the speaker's,
+    /// and "Wingman, take my ore" is sent with the ore by the speaker's own game (CoopCargo): it
+    /// says what came, and what there was no room for.
     ///
     /// It also answers on a small HTTP API on this machine only (127.0.0.1, -botport, 7781 by
     /// default), for an AI to fly it (Tools/CoopAI/coop_ai_mcp.py makes it an MCP server):
@@ -36,9 +39,10 @@ namespace CarrierGame.Demo
     ///   GET  /messages?after=N  the comms channel after message N
     ///   GET  /destinations      the places to warp to, nearest first
     ///   POST /say   {text}      say something on the comms channel
-    ///   POST /order {order, target}  follow|hold|attack|goto|regroup|dock|mine|sell|defend|assist|rename
+    ///   POST /order {order, target}  follow|hold|attack|goto|regroup|dock|mine|sell|defend|assist|rename|giveore
     ///                           (defend and assist: a player's name, or the last to speak;
-    ///                           rename: the new name, answered on the comms)
+    ///                           rename: the new name, answered on the comms; giveore:
+    ///                           "&lt;N|all|half&gt; &lt;ore|mineral&gt;[ to &lt;name&gt;]")
     ///   GET  /chatmode          who answers talk that isn't an order: {mode, listener_seen_s}
     ///   POST /chatmode {mode}   llm|personality|paused (or on|off|pause|resume)
     ///   POST /quit              close the game
@@ -119,6 +123,8 @@ namespace CarrierGame.Demo
             CoopChat.Received += Heard;
             CoopClient.Message += OnMessage;
             CoopClient.Renamed += OnRenamed;
+            CoopCargo.Arrived += OnCargoArrived;
+            CoopCargo.Returned += OnCargoReturned;
             StartApi();
         }
 
@@ -127,6 +133,8 @@ namespace CarrierGame.Demo
             CoopChat.Received -= Heard;
             CoopClient.Message -= OnMessage;
             CoopClient.Renamed -= OnRenamed;
+            CoopCargo.Arrived -= OnCargoArrived;
+            CoopCargo.Returned -= OnCargoReturned;
             StopApi();
             if (Instance == this) Instance = null;
         }
@@ -159,7 +167,7 @@ namespace CarrierGame.Demo
                 greeted = true;
                 var human = Humans().FirstOrDefault();
                 if (human != null) { CallOffChain(); Pilot.Follow(human.id); lastLeader = lastSpeaker = human.id; }
-                CoopChat.Say($"{Me} on station{(human != null ? $", forming up on {human.name}" : "")}. Orders by name: \"{Me}, follow me / defend me / hold / attack [my target] / warp to <place> / dock / mine / sell / cargo / give credits / where are you / status\".", Via.Event);
+                CoopChat.Say($"{Me} on station{(human != null ? $", forming up on {human.name}" : "")}. Orders by name: \"{Me}, follow me / defend me / hold / attack [my target] / warp to <place> / dock / mine / sell / cargo / give credits / give me your ore / take my ore / where are you / status\".", Via.Event);
             }
             if (!CoopClient.Active) greeted = false;
             // says what it starts doing, when it's worth saying
@@ -239,8 +247,9 @@ namespace CarrierGame.Demo
             string rest = AddressedPart(line.text, Me) ?? UnnamedCall(line);
             if (rest == null) return;
             string reply = Take(rest, line.from, line.seq);
-            // (a new name asked for: it answers when the server does, in its new name)
-            if (reply == RenameAsked) return;
+            // (a new name asked for: it answers when the server does, in its new name; cargo to
+            // take: when it comes, from the speaker's game)
+            if (reply == RenameAsked || reply == CargoComing) return;
             if (!string.IsNullOrEmpty(reply)) { CoopChat.Say($"{Me}: {reply}", Via.Order); return; }
             // talk, not an order: by the chat mode
             float now = Time.realtimeSinceStartup;
@@ -633,7 +642,9 @@ namespace CarrierGame.Demo
             if (string.IsNullOrEmpty(reply)) return reply;
             var chain = Clauses(Plain(words));
             var one = chain == null ? ParseOrder(words) : null;
-            bool answered = one.HasValue && (one.Value.kind == "status" || one.Value.kind == "cargo" || one.Value.kind == "help" || one.Value.kind == "where")
+            // ("take my ore": carried out by the speaker's game, which sends it)
+            bool answered = one.HasValue && (one.Value.kind == "status" || one.Value.kind == "cargo" || one.Value.kind == "help" || one.Value.kind == "where"
+                                             || one.Value.kind == "take")
                             && reply != WingmanReplies.Get("not_ready");
             if (Orders > orders || answered) Handled(seq);
             return reply;
@@ -861,9 +872,10 @@ namespace CarrierGame.Demo
 
         /// <summary>An order in words, parsed (none: talk): its kind ("chat", "follow", "regroup",
         /// "cargo", "give", "hold", "attack", "assist" (what the speaker has locked), "defend",
-        /// "where", "goto", "dock", "mine", "sell", "status", "help", "rename" (a new name for it))
-        /// and what it is to (a name, a place, an amount; for "mine", the rocks and the field as
-        /// said, "gold at Inner Belt", which MineTarget takes apart).</summary>
+        /// "where", "goto", "dock", "mine", "sell", "status", "help", "rename" (a new name for it),
+        /// "giveore" (cargo out of its hold, CargoArgs), "take" (the speaker's game hands its own
+        /// over)) and what it is to (a name, a place, an amount; for "mine", the rocks and the
+        /// field as said, "gold at Inner Belt", which MineTarget takes apart).</summary>
         public static (string kind, string arg)? ParseOrder(string words)
         {
             // ("can you mine please": "mine")
@@ -896,6 +908,9 @@ namespace CarrierGame.Demo
                     "what are you carrying", "check your hold", "check the hold") != null)
                 return ("cargo", "");
             if ((a = GiveArgs(w.TrimEnd('?', '.', '!'))) != null) return ("give", a);
+            // ("give me your ore", "take my ore"; before "attack", whose "take out" isn't cargo)
+            if ((a = CargoArgs(w, false)) != null) return ("giveore", a);
+            if ((a = CargoArgs(w, true)) != null) return ("take", a);
             if (Arg("hold", "stop", "wait", "stay") != null) return ("hold", "");
             if ((a = Arg("attack", "engage", "fire on", "kill", "shoot", "take out")) != null) return ("attack", NoThe(a));
             if ((a = Arg("warp to", "go to", "goto", "jump to", "warp")) != null) return ("goto", a);
@@ -953,7 +968,8 @@ namespace CarrierGame.Demo
 
         /// <summary>Orders that are over at once (said, or handed over), and those that are never
         /// over till another order comes (nothing can come after them).</summary>
-        static bool Instant(string kind) => kind == "chat" || kind == "cargo" || kind == "give" || kind == "status" || kind == "where" || kind == "help" || kind == "rename";
+        static bool Instant(string kind) => kind == "chat" || kind == "cargo" || kind == "give" || kind == "giveore" || kind == "take" || kind == "status"
+                                            || kind == "where" || kind == "help" || kind == "rename";
         static bool Standing(string kind) => kind == "follow" || kind == "regroup" || kind == "hold" || kind == "defend";
 
         // the orders still to come of a message's chain, and how the one being carried out is
@@ -1009,6 +1025,8 @@ namespace CarrierGame.Demo
             string answer = Run(o, fromId);
             // (among other orders, a new name asked for is said now: its answer comes later)
             if (answer == RenameAsked) answer = $"asking for the name {NameIn(o.arg)}";
+            // (and cargo to take is said when it comes)
+            if (answer == CargoComing) answer = "taking what your game sends";
             stepDone = null;
             stepWords = Words(o);
             ok = true;
@@ -1074,6 +1092,8 @@ namespace CarrierGame.Demo
                 case "defend": return o.arg.Length > 0 ? $"defend {o.arg}" : "defend you";
                 case "where": return "say where I am";
                 case "give": return "give credits";
+                case "giveore": return "hand the cargo over";
+                case "take": return "take your cargo";
                 case "rename": return $"take the name {o.arg}";
                 default: return o.kind;
             }
@@ -1127,6 +1147,91 @@ namespace CarrierGame.Demo
             else if (HalfRx.IsMatch(rest)) amount = "half";
             else if (AllRx.IsMatch(rest)) amount = "all";
             return to.Length > 0 ? $"{amount} to {to}" : amount;
+        }
+
+        // ore handed over: "give me your ore", "hand over the iron", "send Ann 100 t of gold"; and
+        // taken, "take my ore" ("take out the Skink" is an attack: "out" isn't cargo)
+        static readonly Regex HandRx = new Regex(@"^(?:please\s+)?(?:give|transfer|send|hand\s+over|hand|pass)\b(?<rest>.*)$", RxOpt);
+        static readonly Regex TakeRx = new Regex(@"^(?:please\s+)?take\b(?<rest>.*)$", RxOpt);
+        // ("100", "1,500", "2k", "100t")
+        static readonly Regex TonnesRx = new Regex(@"^(?<n>\d[\d,]*(?:\.\d+)?)(?<k>k)?t?$", RxOpt);
+        static readonly HashSet<string> CargoLead = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "the", "your", "my", "our", "of", "that", "this", "those", "these", "t", "tonne", "tonnes", "ton", "tons",
+        };
+        static readonly HashSet<string> CargoOre = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "ore", "ores", "cargo", "minerals", "mineral", "rocks", "load", "haul",
+        };
+
+        static bool CargoWord(string w) => CargoLead.Contains(w) || CargoOre.Contains(w) || TonnesRx.IsMatch(w) || Minerals.TryParse(w, out _)
+                                           || w.Equals("all", StringComparison.OrdinalIgnoreCase) || w.Equals("half", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>An order to hand cargo over (`take` false: "give me your ore", "give me the
+        /// platinum", "give me 100 t of iron", "hand over half your gold", "give Ann the iron") or
+        /// to take it ("take my ore", "take the iron", "take 50 t of nickel"), as the order's
+        /// target: "&lt;amount&gt; &lt;item&gt;[ to &lt;name&gt;]", the amount tonnes, "all",
+        /// "half" or "?" (not said: "give me some iron"), the item "ore" (all the ore) or a
+        /// mineral's id ("Iron"). Null if it isn't one (credits are GiveArgs').</summary>
+        public static string CargoArgs(string words, bool take)
+        {
+            var m = (take ? TakeRx : HandRx).Match((words ?? "").Trim().TrimEnd('?', '!', '.').Trim());
+            if (!m.Success) return null;
+            string rest = m.Groups["rest"].Value.Trim();
+            string to = "";
+            if (!take)
+            {
+                var tm = ToRx.Match(rest);
+                if (tm.Success) { to = tm.Groups["to"].Value.Trim(); rest = rest.Substring(0, tm.Index).Trim(); }
+            }
+            var w = rest.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim(',', ';')).Where(x => x.Length > 0).ToList();
+            if (!take && w.Count > 0)
+            {
+                // ("give me ...", or a name first: "give Ann the iron")
+                if (w[0].Equals("me", StringComparison.OrdinalIgnoreCase) || w[0].Equals("us", StringComparison.OrdinalIgnoreCase)) w.RemoveAt(0);
+                else if (w.Count > 1 && Array.IndexOf(NotNames, w[0].ToLowerInvariant()) < 0 && !CargoWord(w[0]) && CargoWord(w[1]))
+                {
+                    to = w[0];
+                    w.RemoveAt(0);
+                }
+            }
+            if (Array.IndexOf(NotNames, to.ToLowerInvariant()) >= 0) to = "";
+            string amount = "all";
+            bool said = false, everything = false;
+            int i = 0;
+            for (; i < w.Count; i++)
+            {
+                string x = w[i].ToLowerInvariant();
+                var tn = TonnesRx.Match(x);
+                if (tn.Success && double.TryParse(tn.Groups["n"].Value.Replace(",", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out double n))
+                {
+                    amount = (tn.Groups["k"].Success ? n * 1000.0 : n).ToString("0.##", CultureInfo.InvariantCulture);
+                    said = true;
+                    continue;
+                }
+                if (x == "all") { amount = "all"; said = true; continue; }
+                if (x == "everything") { amount = "all"; said = everything = true; continue; }
+                if (x == "half") { amount = "half"; said = true; continue; }
+                if (x == "some" || x == "any") { if (!said) amount = "?"; continue; }
+                if (CargoLead.Contains(x)) continue;
+                break;
+            }
+            var what = w.Skip(i).ToList();
+            string item;
+            if (what.Count == 0)
+            {
+                if (!everything) return null;
+                item = "ore";
+            }
+            else if (what.All(x => CargoOre.Contains(x))) item = "ore";
+            else
+            {
+                // ("iron ore", "platinum rocks")
+                while (what.Count > 1 && CargoOre.Contains(what[what.Count - 1])) what.RemoveAt(what.Count - 1);
+                if (!Minerals.TryParse(string.Join(" ", what), out var mineral)) return null;
+                item = mineral.ToString();
+            }
+            return $"{amount} {item}{(to.Length > 0 ? $" to {to}" : "")}";
         }
 
         /// <summary>What a hold has aboard, in a line: how full, the cargo (largest first), the credits.</summary>
@@ -1292,9 +1397,83 @@ namespace CarrierGame.Demo
                     Orders++;
                     return $"transferred {amount:N0} cr to {who.name}; {hold.Credits:N0} cr left.";
                 }
+                case "giveore":
+                    return GiveCargo(cc, target, fromId);
+                case "take":
+                    // (the speaker's game sends it, with the order; it's said when it comes)
+                    return fromId == 0 ? $"a player's own game hands its cargo over: \"{Me}, take my ore\" on the comms." : CargoComing;
                 default:
                     return $"don't understand '{order}'.";
             }
+        }
+
+        // ------------------------------------------------------------ cargo handed over
+
+        /// <summary>What a "take my ore" answers at once: nothing yet (the speaker's game sends the
+        /// cargo with its order, and it's said when it comes: OnCargoArrived).</summary>
+        public const string CargoComing = "(cargo coming)";
+
+        /// <summary>"give me your ore", "give Ann the platinum": out of its hold to that player
+        /// (whoever asked, if none is named), a person in this level within 50 km (CoopCargo).
+        /// `target`: "&lt;amount&gt; &lt;item&gt;[ to &lt;name&gt;]" (CargoArgs).</summary>
+        string GiveCargo(CarrierController cc, string target, int fromId)
+        {
+            var hold = cc.GetComponentInChildren<CargoHold>();
+            if (hold == null) return WingmanReplies.Get("no_hold");
+            var c = CoopClient.Instance;
+            if (c == null || !CoopClient.Active) return "not connected to a co-op server.";
+            CoopCargo.SplitCargo(target, out string amountWord, out string item, out string name);
+            CoopPlayer who;
+            if (name.Length > 0 && !name.Equals("me", StringComparison.OrdinalIgnoreCase) && !name.Equals("us", StringComparison.OrdinalIgnoreCase))
+            {
+                who = c.Players.FirstOrDefault(p => p != null && p.id != c.MyId && p.name.ToLowerInvariant().Contains(name.ToLowerInvariant()));
+                if (who == null) return $"there's no player called {name}.";
+            }
+            else who = c.Players.FirstOrDefault(p => p != null && p.id != c.MyId && !IsBot(p) && p.id == Asker(fromId))
+                       ?? NearestHuman(cc.transform.position);
+            if (who == null) return "there's nobody to hand cargo to.";
+            if (IsBot(who) || CoopCargo.IsAi(who, c.Players)) return $"{who.name} is a bot: cargo goes to players.";
+            var mine = c.Players.FirstOrDefault(p => p != null && p.id == c.MyId);
+            if (mine != null && who.level != mine.level) return $"{who.name} isn't in this part of space: cargo goes to players here.";
+            var want = CoopCargo.Wanted(hold, amountWord, item, out string why);
+            if (want == null)
+            {
+                if (why != "how much?") return why + ".";
+                bool ore = item.Equals("ore", StringComparison.OrdinalIgnoreCase);
+                string what = ore ? "ore" : Minerals.TryParse(item, out var m) ? Minerals.Name(m).ToLowerInvariant() : item;
+                float have = ore ? hold.OreTonnes : Minerals.TryParse(item, out var m2) ? hold[m2] : hold.Amount(item);
+                if (have < 0.005f) return $"no {what} aboard.";
+                return $"how much? I've {have.ToString(have >= 9.95f ? "F0" : "0.#", CultureInfo.InvariantCulture)} t of {what} " +
+                       $"(\"give me 50 t of {what}\", or \"give me all your {what}\").";
+            }
+            string refused = CoopCargo.Send(hold, who.id, want, out var sent);
+            if (refused.Length > 0) return $"can't hand it to {who.name}: {refused}.";
+            Orders++;
+            return $"sending {CoopCargo.Describe(sent)} to {who.name}; hold {hold.Used:F0} of {hold.capacity:F0} t now.";
+        }
+
+        /// <summary>Cargo from a player has come (or been refused): said on the comms.</summary>
+        void OnCargoArrived(CoopPlayer from, List<CoopItem> loaded, List<CoopItem> left, string why)
+        {
+            if (!CoopClient.Active || from == null) return;
+            var cc = Pilot != null && Pilot.demo != null ? Pilot.demo.carrier : null;
+            var hold = cc != null ? cc.GetComponentInChildren<CargoHold>() : null;
+            string now = hold != null ? $"; hold {hold.Used:F0} of {hold.capacity:F0} t" : "";
+            string line = why.Length > 0 ? $"couldn't take your cargo, {from.name}: {why}. It goes back to you."
+                        : loaded.Count == 0 ? $"no room for {CoopCargo.Describe(left)}, {from.name}: it goes back to you."
+                        : $"took {CoopCargo.Describe(loaded)} from {from.name}{(left.Count > 0 ? $"; no room for {CoopCargo.Describe(left)}, it goes back to you" : "")}{now}.";
+            CoopChat.Say($"{Me}: {line}", Via.Event);
+        }
+
+        /// <summary>Cargo it sent has been answered: said on the comms when any came back.</summary>
+        void OnCargoReturned(int to, List<CoopItem> taken, List<CoopItem> back, string why)
+        {
+            if (!CoopClient.Active || (back.Count == 0 && why.Length == 0)) return;
+            string name = CoopClient.Instance.NameOf(to);
+            string line = why == "no answer" ? $"no answer from {name}'s game: {CoopCargo.Describe(back)} back aboard."
+                        : why.Length > 0 ? $"{name}'s game {why}: {CoopCargo.Describe(back)} back aboard."
+                        : $"{name}'s hold took {CoopCargo.Describe(taken)}; no room for the rest: {CoopCargo.Describe(back)} back aboard.";
+            CoopChat.Say($"{Me}: {line}", Via.Event);
         }
 
         /// <summary>The nearest player who isn't a bot (seen in this level first), or null.</summary>

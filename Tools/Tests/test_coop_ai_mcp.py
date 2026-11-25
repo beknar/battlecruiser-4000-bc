@@ -87,7 +87,7 @@ class Protocol(unittest.TestCase):
     def test_tools_are_listed_with_schemas(self):
         tools = M.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})["result"]["tools"]
         names = [t["name"] for t in tools]
-        self.assertEqual(names, ["status", "read_messages", "wait_messages", "cargo", "give_credits", "say", "order", "destinations",
+        self.assertEqual(names, ["status", "read_messages", "wait_messages", "cargo", "give_credits", "give_ore", "say", "order", "destinations",
                                  "get_chat_mode", "set_chat_mode", "launch_bot", "stop_bot"])
         order = next(t for t in tools if t["name"] == "order")
         self.assertEqual(order["inputSchema"]["required"], ["order"])
@@ -192,6 +192,19 @@ class Tools(unittest.TestCase):
         self.assertTrue(call("give_credits", {"amount": "inf"})["result"]["isError"])
         self.assertFalse(call("give_credits", {"amount": "1,500"})["result"]["isError"])
         self.assertEqual(FakeBot.orders[-1], {"order": "give", "target": "1500"})
+
+    def test_give_ore_is_the_giveore_order(self):
+        self.assertFalse(call("give_ore", {})["result"]["isError"])
+        self.assertFalse(call("give_ore", {"item": "platinum", "amount": "100", "to": "Ann"})["result"]["isError"])
+        self.assertFalse(call("give_ore", {"item": " helium  3 ", "amount": "half"})["result"]["isError"])
+        self.assertFalse(call("give_ore", {"item": "Fe", "amount": 12.5})["result"]["isError"])
+        self.assertEqual(FakeBot.orders, [{"order": "giveore", "target": "all ore"}, {"order": "giveore", "target": "100 platinum to Ann"},
+                                          {"order": "giveore", "target": "half helium 3"}, {"order": "giveore", "target": "12.5 Fe"}])
+        self.assertTrue(call("give_ore", {"amount": "lots"})["result"]["isError"])
+        self.assertTrue(call("give_ore", {"amount": "0"})["result"]["isError"])
+        self.assertTrue(call("give_ore", {"amount": "inf"})["result"]["isError"])
+        self.assertTrue(call("give_ore", {"item": "iron to Bob"})["result"]["isError"])
+        self.assertEqual(len(FakeBot.orders), 4)
 
     def test_a_restarted_bot_game_is_read_from_its_first_message(self):
         M.cursor = 50          # (the old game had got that far; the fake one is at 3)

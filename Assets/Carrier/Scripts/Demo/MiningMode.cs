@@ -25,7 +25,8 @@ namespace CarrierGame.Demo
     /// are kept between sessions, and T / Shift+T go through the deposits in the same order.
     /// Choosing a deposit makes it the laser's (it cuts that one first, while in reach); C (X on
     /// the pad) flies the ship to it, until it is in reach of the laser; Z on a deposit chooses it
-    /// and switches the laser on. On the ore, J (or Enter) ejects that mineral.
+    /// and switches the laser on. On the ore, J (or Enter) ejects that mineral, and in a co-op
+    /// game G hands all of it to the AI wingman nearest, within 50 km (CoopCargo).
     /// </summary>
     public class MiningMode : MonoBehaviour, IMenuSource
     {
@@ -93,7 +94,15 @@ namespace CarrierGame.Demo
             }
             if (hold == null) return;
             var ore = hold.Manifest();
-            rows.Add(new MenuRow { header = true, text = ore.Count == 0 ? $"THE HOLD: NO ORE ({hold.Used:F0} of {hold.capacity:F0} t)" : $"THE HOLD: ORE ({hold.Used:F0} of {hold.capacity:F0} t)" });
+            // (an AI wingman near: G hands it the ore chosen)
+            float off = -1f;
+            var wingman = ore.Count > 0 ? CoopCargo.WingmanNear(ship.transform.position, out off) : null;
+            rows.Add(new MenuRow
+            {
+                header = true,
+                text = ore.Count == 0 ? $"THE HOLD: NO ORE ({hold.Used:F0} of {hold.capacity:F0} t)" : $"THE HOLD: ORE ({hold.Used:F0} of {hold.capacity:F0} t)",
+                detail = wingman != null ? $"G: give to {wingman.name}, {CoopBot.HowFar(off)} off" : "",
+            });
             foreach (var (m, t) in ore)
                 rows.Add(new MenuRow
                 {
@@ -257,6 +266,8 @@ namespace CarrierGame.Demo
                 if (laser.Reach(z) <= laser.range && !laser.On) demo.ToggleMiningLaser();
                 return true;
             }
+            // (G on the ore: to the AI wingman near, in a co-op game)
+            if (k != null && k.gKey.wasPressedThisFrame && row?.tag is Mineral g) { Give(g); return true; }
             if (k != null && k.jKey.wasPressedThisFrame && row?.tag is Mineral m) { Eject(m); return true; }
             // (the list's order and filter: CarrierDemoInput has these keys with the menu shut)
             if (k != null && k.oKey.wasPressedThisFrame) { CycleOrder(); return true; }
@@ -281,6 +292,14 @@ namespace CarrierGame.Demo
 
         /// <summary>Put a whole mineral over the side.</summary>
         public void Eject(Mineral m) => demo?.Jettison(m);
+
+        /// <summary>Hand a whole mineral to the AI wingman nearest (G): CoopCargo says how it went.</summary>
+        public void Give(Mineral m)
+        {
+            var hold = demo != null ? demo.Cargo : null;
+            if (hold == null || hold[m] <= 0f) return;
+            CoopCargo.GiveToWingman(hold, new List<CoopItem> { new CoopItem { id = m.ToString(), a = hold[m] } });
+        }
 
         // ------------------------------------------------------------ flying to a deposit
 

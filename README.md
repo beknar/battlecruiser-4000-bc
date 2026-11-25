@@ -811,8 +811,9 @@ system to travel around.
     the filter), `ModeMenuWheelTests` (the wheel) and the `system` stage's mining section.
   - **Cargo hold.** It holds 600 tonnes. I lists what is aboard and what it is worth; J
     jettisons the cheapest mineral to make room for better. The menu lists the ore aboard too,
-    and ejects whichever is chosen (Enter, or J). The cargo is lost if the frigate is
-    destroyed.
+    and ejects whichever is chosen (Enter, or J). In a co-op game, G hands the one chosen to
+    the nearest AI wingman within 50 km (see ore between ships, in [Co-op comms and AI wingman](#co-op-comms-and-ai-wingman)). The cargo is
+    lost if the frigate is destroyed.
   - **What there is to mine.** Every rock, moon and comet has minerals in it, and so does the
     ground of every world the frigate can land on: one to three veins in each 5 km area.
 
@@ -1902,6 +1903,7 @@ menu (only the pause menu stops it).
 | Order the menu's deposits: nearest, most valuable, richest first | O | |
 | List only the deposits with one mineral in them (each found in turn, the most valuable first, then all) | F | |
 | Fly to the chosen deposit (or the nearest found), until the laser reaches it (again, steer or move the throttle to stop) | C | X |
+| Co-op, on ore in the menu: give all of it to the nearest AI wingman within 50 km | G | |
 | Cargo hold list / jettison the cheapest ore | I / J | RB / B |
 | Menu: the first 20 deposits found in its order (O) and filter (F), then the ore aboard (the wheel or ↑↓ chooses; Enter chooses a deposit for the laser or ejects that ore; C flies to the deposit; Z chooses it and cuts it, or, out of reach, chooses it to fly to; J ejects the ore) | Tab | Back + Y |
 
@@ -2333,10 +2335,33 @@ every bot. Politeness is left off an order: `Wingman, can you mine some asteroid
 | `sell` | Takes the ore aboard to the nearest market now, sells it, then goes back to mining. |
 | `cargo` | Reports what is in its hold (ore and goods by weight, the most first, then parts), how full the hold is, and its credits. `what's in your hold?`, `how full is your hold?`, `inventory` and `manifest` do the same. |
 | `give [N] credits [to <name>]` | Transfers credits from its hold to that player (whoever asked, if no name is given): N (`give me 500 credits`, `transfer 2k credits to Ann`, `give Ann 500 credits`, `pay me 300`), half (`give me half your credits`) or all (`give me all your credits`). Without an amount it asks how many. The player's game adds them to the ship's hold and says so. Credits go only to human players in the same level, and only from a player the server let in with an AI key (on an open server, one that says it is a bot). They come back to the wingman if the player's game doesn't confirm them within 10 s, and a game that only sees them after 6 s refuses them. |
+| `give me your ore` | Hands ore from its hold to that player's (whoever asked, unless it's `give <name> ...`): all of it (`give me your ore`, `give me everything`), one mineral (`give me the platinum`, `hand over the iron`), so many tonnes (`give me 100 t of iron`, `give me 50 t of ore`, the most valuable first) or half (`give me half your gold`). Without an amount (`give me some iron`) it asks how much. The player's game loads what fits and says so, and what there's no room for comes back aboard (it says so too). |
+| `take my ore` | The player's own game reads its own order as it goes out (typed or spoken) and sends the ore with it: all of it (`take my ore`), one mineral (`take the iron`) or so many tonnes (`take 50 t of nickel`). The wingman says what came, and what there was no room for goes back. With `all ships`, the nearest wingman takes it. Nothing a wingman sends can take ore out of a player's hold: only the player's game sends it. |
 | `status` | Reports its hull, shield, missiles, hold, credits, what it is doing and where it is. |
 | `chat on`, `chat off`, `chat pause`, `chat resume` | Switches its chat mode (see below) to `llm`, `personality`, `paused`, or back to the mode before the pause. Only its leader or the game's host may switch it. If it has neither, anyone may. `chat mode?` says the mode. |
 | `your name is <name>` | Renames it: it asks the server for the name and answers in it ("Ace: Ace it is. Orders by my new name: "Ace, help"."), and from then on answers only to it. `call yourself <name>`, `rename to <name>`, `rename yourself <name>` and `change your name to <name>` do the same. Only its leader or the game's host may, as with the chat mode. The server refuses a name another player has (whatever its capitals), `all ships`, `everyone` or `wingmen`, or one starting with a greeting word (`hey`, `hi`, `ok`, `okay`, `oi`, `right`), and it says why. It keeps the name for its next start, stored under the name it was launched with (as its chat mode is), and a kept name wins over `-name`. On a server too old to rename it says so after 6 s. |
 | `help` | Lists these orders. |
+
+**Ore between ships.** Ore goes from a player's hold to an AI wingman's and back, by the orders
+above, or with G on a mineral in the mining mode's menu (Tab), which hands all of it to the
+nearest AI wingman (the menu's hold heading says who, and how far, when one is near). It works
+as credits do, with new messages, `cargo` and `cargook` (`CoopCargo`), which carry the hold's
+own item ids, so refined goods and parts can go the same way later:
+- **Who.** Only between a person and an AI wingman (an AI player the server let in with an AI
+  key, or on an open server one that says it is a bot), in the same level, within 50 km.
+- **The sender** takes the items out of its hold and holds them 10 s for a receipt.
+- **The receiver** refuses a message older than 6 s, so cargo is never both refunded and
+  received. Otherwise it loads what fits and answers with a receipt of what it loaded. The rest
+  goes back into the sender's hold, and all of it when no receipt comes. Both games run the
+  refund.
+- **The save.** The player's game saves the hold at once when cargo goes out and when any comes
+  back or in (the hold is otherwise saved 3 s after a change), so closing the game can't keep
+  ore that has gone.
+- **Not caught.** A receipt that comes after the 10 s, or is lost when the connection drops,
+  leaves the cargo both refunded and kept, as with credits. It's rare and left as it is.
+- **Tests.** `CoopCargoTests` (EditMode): the orders read, what an order takes out of a hold, a
+  partial receipt, a refusal and a refund, who may and how near. The `aibot` stage moves ore
+  both ways (below).
 
 The co-op panel (the pause menu, Co-op), opened while connected, lists the AI wingmen, each with
 **RENAME**. Type the new name and press OK (or Enter): it goes out on the comms as the order
@@ -2350,7 +2375,7 @@ Several orders can go in one message, separated by `then`, `and`, `,` or `;`
 (`Wingman, warp to Heaven, then dock`, `Wingman, attack the Scavenger and then follow me`). It
 carries them out one after another, each once the one before it is over: a warp when it arrives,
 a dock when it is docked, an attack when the ship it went for is destroyed, mining when the
-first load is sold. Reports (`status`, `cargo`, `where are you`) and credits go at once. `mine and sell` is just
+first load is sold. Reports (`status`, `cargo`, `where are you`), credits and ore go at once. `mine and sell` is just
 mining, since mining sells when the hold is full. `follow`, `regroup`, `defend` and `hold` go on until told
 otherwise, so one of them before another order is dropped (`stop and dock` docks). An order it
 can't carry out (a warp refused, nowhere to dock or sell) calls off the rest, and says so. A new
@@ -2453,7 +2478,8 @@ changes later answers. Each player's conversation is forgotten after 2 minutes o
 - `GET /cargo`: what is in the hold, item by item, how full it is, and the credits.
 - `GET /destinations`: the places to warp to, nearest first.
 - `POST /say {"text"}`: sends a message on the channel.
-- `POST /order {"order","target"}`: gives an order (`give` takes the target `<N|all|half>[ to <name>]`;
+- `POST /order {"order","target"}`: gives an order (`give` takes the target `<N|all|half>[ to <name>]`,
+  and `giveore`, ore to a player, `<N|all|half> <ore|mineral>[ to <name>]`;
   `defend` and `assist`, attacking what a player has locked, take a player's name, or none for the
   last player to speak; `rename` takes the new name, and the API may always rename it: the server's
   answer is said on the comms, in the new name; `mine` takes the rocks and the field as they'd be
@@ -2468,7 +2494,7 @@ changes later answers. Each player's conversation is forgotten after 2 minutes o
 
 `Tools/CoopAI/coop_ai_mcp.py` turns that API into an MCP server over stdio. It needs no
 packages. Its tools are `status`, `read_messages`, `wait_messages` (waits for the next message),
-`cargo`, `give_credits`, `say`, `order`, `destinations`, `get_chat_mode`, `set_chat_mode`,
+`cargo`, `give_credits`, `give_ore`, `say`, `order`, `destinations`, `get_chat_mode`, `set_chat_mode`,
 `launch_bot` (starts the bot game headless and connects it) and `stop_bot`. Claude or any MCP client can then fly the wingman and talk to
 the players:
 
@@ -2521,6 +2547,11 @@ tokens.
     valuable), and that the API's `mine` takes `the most valuable ore`;
   - that it reports its cargo, and that `give` moves its credits to the test player (with the
     receipt) and refuses more than it has;
+  - ore both ways, the test player's ship beside the bot's: cargo it sends is loaded and
+    receipted, more than the hold takes is loaded as far as it fits (the receipt says how much),
+    cargo sent more than 6 s ago is refused; `give me 100 t of iron` sends it and a partial
+    receipt puts the rest back aboard, `give me your ore` hands it all over, and `take my ore`
+    is left to the player's game, which sends the ore with it;
   - that `your name is <name>` renames it (the roster and its answer have the new name), that it
     then takes orders by the new name and not the old, that a name another player has is refused,
     and that it takes its first name back (so the name it keeps for its next start is the one it

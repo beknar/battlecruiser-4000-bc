@@ -58,6 +58,12 @@ namespace CarrierGame.Demo
             var ophir = P("Comet Ophir");
             Check(patmos != null && patmos.kind == WarpPoint.Kind.Comet && ophir != null && ophir.kind == WarpPoint.Kind.Comet,
                   "the comets Patmos and Ophir");
+            // and the sky itself: its own (turned and tinted), with close-ups (SystemTest.Sky)
+            var skyMat = RenderSettings.skybox;
+            Check(skyMat != null && skyMat.name == "Space_Skybox_NineHells", $"the Nine Hells' own sky ({(skyMat != null ? skyMat.name : "none")})");
+            bool spaceSky = false;
+            yield return SkyShots("sky_ninehells", r => spaceSky = r);
+            Check(spaceSky, "the sky is the space sky's shader");
             Orbit O(WarpPoint w) => w != null ? w.GetComponent<Orbit>() : null;
             bool Follows(string stream, WarpPoint comet)
             {

@@ -703,6 +703,25 @@ system to travel around.
     camera (`ScaledSpace`), and is lit from where it really is.
   - The level is laid out small, about 6,500 km across, with every orbit 800 times its laid-out
     size (`StarSystemData.LayoutScale`, `CarrierBuilder.DistanceScale`).
+- **The sky.** One skybox material, drawn by the game's own shader (`Carrier/SpaceSky`), in
+  three layers:
+  - **The far nebula.** `TC_Space`, as before, but graded: darker between the stars and brighter
+    in the galaxy's band (exposure, a black level, a contrast curve and a soft ceiling, so bloom
+    is left to the stars). The shader picks its mip level itself, so the texture doesn't shimmer
+    and shows no seam where it wraps round.
+  - **The galaxy's masks.** OrbitalBase's night-sky masks (`T_StarsMasks01/02`): a band of
+    nebula clouds with its small stars and dark dust along the nebula's own band of the galaxy,
+    and a band of bright knots across it, each tinted and turning very slowly (about a
+    hundredth of a degree a second) so the layers drift apart.
+  - **Point stars.** Made in the shader, per cell of a cube round the sky, so there's no texture
+    to stretch: a few thousand bright ones and many faint ones. The brightest are HDR (up to 4)
+    so bloom makes them crisp points; they twinkle a little, and a few are red or blue. Each is
+    drawn about a pixel wide whatever the screen, and dims as its pixel grows, so ships'
+    reflections of the sky aren't blown out.
+
+  The Nine Hells has a sky of its own (`Space_Skybox_NineHells`): turned, so the galaxy crosses
+  it elsewhere, its nebula warmer, its clouds ember red, its knots gold and its stars different.
+  Without the masks staged, the sky is the nebula and the stars alone.
 - **Orbits.** Everything moves on its orbit, at real speeds: the planets take days to weeks to
   go round the star, the moons hours.
   - **Kepler orbits.** The planets go round the star, and the moons and the orbiting stations
@@ -2666,7 +2685,13 @@ Each part can also be run alone:
   - flying on across the planet (areas built ahead and thrown away behind), all the way round it
     east and over both poles, checking the ground comes back the same, then taking off;
   - mining an asteroid, a comet and a vein on a planet (see `-minetest` below);
-  - a capital ship battle, checking that both sides land hits.
+  - a capital ship battle, checking that both sides land hits;
+  - close-ups of the sky alone (`sky_testing_band`, `_along` and `_deep`: toward the galaxy's
+    band, along it and away from it), with the game's bloom, to compare by eye.
+
+  Add `-skytest` (or `?skytest` on the web) to take only the sky's close-ups, in whichever
+  system is open (with `-system ninehells`, `sky_ninehells_*`; the `-ninehellstest` run takes
+  those too).
 
   Add `-shiptest -frigate <id>` (`?shiptest&frigate=<id>` on the web) to test only the frigate:
   that the level put it in and pointed everything at it, that it has its turrets, a CIWS mount
@@ -2906,9 +2931,10 @@ the settlements are built with only the project's own pieces.
 Two sets of files are made from those packs, so they are left out too: the enemy cruiser's breakup
 meshes and `Models/ShieldHex.fbx`.
 
-Without the packs, these are missing: the cruiser model, the engine plumes, the skybox, some hull
-textures and the shield mesh. To restore them, put your own copies of the packs in
-`Assets/Carrier/Kit` and run **Tools > Carrier > Build Everything**.
+Without the packs, these are missing: the cruiser model, the engine plumes, the sky's nebula
+(CargoShip's `TC_Space`) and its galaxy (OrbitalBase's `T_StarsMasks01/02`: the sky is then the
+shader's own stars alone), some hull textures and the shield mesh. To restore them, put your own
+copies of the packs in `Assets/Carrier/Kit` and run **Tools > Carrier > Build Everything**.
 
 The guns' muzzle flashes and impacts come from the Unity Asset Store pack **Realistic Gun VFX**
 (Hivemind), in `Assets/Carrier/Kit/GunFX`. They are used on the turrets' rounds (every frigate,

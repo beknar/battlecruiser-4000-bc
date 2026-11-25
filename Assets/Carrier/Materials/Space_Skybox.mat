@@ -8,12 +8,12 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Space_Skybox
-  m_Shader: {fileID: 108, guid: 0000000000000000f000000000000000, type: 0}
+  m_Shader: {fileID: 4800000, guid: fc0ea3fd11c42ce4bae3f5d69ccea5f2, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
-  m_InvalidKeywords:
-  - _MAPPING_LATITUDE_LONGITUDE_LAYOUT
+  m_ValidKeywords:
+  - _SKY_MASKS
+  m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -25,19 +25,50 @@ Material:
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
-    - _MainTex:
+    - _CloudTex:
+        m_Texture: {fileID: 2800000, guid: 87869e3a876fb3b4ea3873f97cecde68, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _KnotTex:
+        m_Texture: {fileID: 2800000, guid: e3bd1abe118e9b346ad25bb24aa0950d, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NebulaTex:
         m_Texture: {fileID: 2800000, guid: 153d9e781bd320c4a8d4cf428eec9f2e, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Exposure: 1.1
-    - _ImageType: 0
-    - _Layout: 0
-    - _Mapping: 1
-    - _MirrorOnBack: 0
-    - _Rotation: 0
+    - _CloudDust: 0.6
+    - _CloudPower: 1.6
+    - _CloudSpin: 0.01
+    - _ColouredStars: 0.25
+    - _DustDarken: 0.3
+    - _KnotPower: 1.6
+    - _KnotSpin: -0.015
+    - _Masks: 1
+    - _NebulaBlack: 0.022
+    - _NebulaCeiling: 1.5
+    - _NebulaContrast: 1.5
+    - _NebulaExposure: 1.3
+    - _NebulaPivot: 0.12
+    - _NebulaSaturation: 1.2
+    - _StarFalloff: 6
+    - _StarSeed: 0
+    - _StarSize: 0.0006
+    - _Twinkle: 0.15
     m_Colors:
-    - _Tint: {r: 0.5, g: 0.5, b: 0.5, a: 0.5}
+    - _BandStarTint: {r: 1.0864043, g: 1.0864043, b: 1.1652573, a: 1}
+    - _CloudBand: {r: 28, g: 4, b: 0, a: 0.35}
+    - _CloudEuler: {r: 0, g: 0, b: 40, a: 0}
+    - _CloudTint: {r: 0.70141065, g: 0.7673756, b: 1.0864043, a: 1}
+    - _KnotBand: {r: 34, g: 3, b: 0.3, a: 0.35}
+    - _KnotEuler: {r: 6, g: 25, b: 46, a: 0}
+    - _KnotTint: {r: 0.95468706, g: 0.880825, b: 0.9776915, a: 1}
+    - _NebulaTint: {r: 1, g: 1, b: 1, a: 1}
+    - _SkyEuler: {r: 0, g: 0, b: 0, a: 0}
+    - _StarBrightness: {r: 4, g: 0.8, b: 0, a: 0}
+    - _StarCells: {r: 96, g: 220, b: 0, a: 0}
+    - _StarDensity: {r: 0.09, g: 0.04, b: 0, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

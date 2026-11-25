@@ -538,11 +538,12 @@ namespace Carrier.EditorTools
             Log("scene saved " + AsteroidScenePath);
         }
 
-        /// <summary>The lighting both levels share: the space sky, trilight ambient, a sun and the
-        /// post-processing volume (the sky material and volume profile are made by BuildScene).</summary>
-        static void SpaceLighting(Quaternion sunRotation, float sunIntensity, Color sunColor, Color ambientGround)
+        /// <summary>The lighting the space levels share: the space sky (Space_Skybox, or `sky` for a
+        /// system with its own), trilight ambient, a sun and the post-processing volume (the sky
+        /// material and volume profile are made by BuildScene).</summary>
+        static void SpaceLighting(Quaternion sunRotation, float sunIntensity, Color sunColor, Color ambientGround, Material sky = null)
         {
-            RenderSettings.skybox = Load<Material>(MatDir + "/Space_Skybox.mat");
+            RenderSettings.skybox = sky != null ? sky : Load<Material>(MatDir + "/Space_Skybox.mat");
             RenderSettings.ambientMode = AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = new Color(0.20f, 0.22f, 0.28f);
             RenderSettings.ambientEquatorColor = new Color(0.10f, 0.11f, 0.14f);

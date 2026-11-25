@@ -34,9 +34,17 @@ namespace CarrierGame.Demo
         /// command naming no one goes to; else the first); `people`, the other players' names (a
         /// message to one of them goes as it was said). `to`: the wingman it's for (null: all of
         /// them, or a person).</summary>
-        public static string ToChat(string heard, IList<string> bots, string lastSpokenTo, out string to, IList<string> people = null)
+        public static string ToChat(string heard, IList<string> bots, string lastSpokenTo, out string to, IList<string> people = null) =>
+            ToChat(heard, bots, lastSpokenTo, out to, out _, people);
+
+        /// <summary>As ToChat, saying what was heard wrong and put right (`corrected`, null if
+        /// nothing): a wingman's name misheard ("women mine": "Wingman, mine"), or an order's
+        /// words ("Wingman, cellar": "Wingman, sell ore"). A message to a person, or talk, is left
+        /// as it was said.</summary>
+        public static string ToChat(string heard, IList<string> bots, string lastSpokenTo, out string to, out string corrected, IList<string> people = null)
         {
             to = null;
+            corrected = null;
             string said = Clean(heard);
             if (said.Length == 0 || bots == null || bots.Count == 0) return null;
             // (already to someone by name, or to them all: as it was said; the longest name that
@@ -46,16 +54,213 @@ namespace CarrierGame.Demo
             {
                 string rest = CoopBot.AddressedPart(said, name);
                 if (rest == null) continue;
+                bool toBots = bots.Contains(name) || Everyone.Contains(name.ToLowerInvariant());
                 to = bots.Contains(name) ? name : null;
-                return Capital(MoneyFigures(said, rest));
+                // (a person's message goes as it was said; an order to a wingman, its words put right)
+                string fixedRest = toBots ? FixOrder(rest, out corrected) : rest;
+                string msg = fixedRest == rest ? said : said.Substring(0, said.Length - rest.Length) + fixedRest;
+                return Capital(MoneyFigures(msg, fixedRest));
+            }
+            // (a wingman's name misheard, first: "women mine", "hey man mine")
+            string bot = NameHeardAs(said, bots, out string after, out string asHeard);
+            if (bot != null)
+            {
+                to = bot;
+                string fixedAfter = FixOrder(after, out string orderFix);
+                corrected = $"\"{asHeard}\" as {bot}" + (orderFix != null ? $", {orderFix}" : "");
+                return $"{bot}, {MoneyFigures(fixedAfter, fixedAfter)}";
             }
             to = bots[0];
             foreach (var name in bots) if (name == lastSpokenTo) to = name;
-            return $"{to}, {MoneyFigures(said, said)}";
+            string order = FixOrder(said, out corrected);
+            return $"{to}, {MoneyFigures(order, order)}";
         }
 
         /// <summary>As ToChat, without the wingman it went to.</summary>
         public static string ToChat(string heard, IList<string> bots, string lastSpokenTo = null) => ToChat(heard, bots, lastSpokenTo, out _);
+
+        /// <summary>Of several guesses at what was said (the browser's best few, best first), the
+        /// message for the first that reads as an order to a wingman; with none, the first one's,
+        /// as ToChat makes it.</summary>
+        public static string Choose(IList<string> guesses, IList<string> bots, string lastSpokenTo, out string to, out string corrected, IList<string> people = null)
+        {
+            to = null;
+            corrected = null;
+            if (guesses == null || guesses.Count == 0) return null;
+            string first = null, firstTo = null, firstFix = null;
+            foreach (var g in guesses)
+            {
+                string msg = ToChat(g, bots, lastSpokenTo, out string t, out string fix, people);
+                if (msg == null) continue;
+                if (first == null) { first = msg; firstTo = t; firstFix = fix; }
+                if (IsOrder(msg, bots))
+                {
+                    to = t;
+                    // (a guess other than the first: said, as it was heard otherwise)
+                    corrected = fix ?? (g == guesses[0] ? null : $"\"{Clean(guesses[0])}\" as \"{Clean(g)}\"");
+                    return msg;
+                }
+            }
+            to = firstTo;
+            corrected = firstFix;
+            return first;
+        }
+
+        /// <summary>Is a message (as ToChat makes it) an order the wingman it's to understands?</summary>
+        public static bool IsOrder(string message, IList<string> bots)
+        {
+            if (string.IsNullOrEmpty(message) || bots == null) return false;
+            foreach (var name in bots.Concat(Everyone))
+            {
+                string rest = CoopBot.AddressedPart(message, name);
+                if (rest != null) return IsOrderWords(rest);
+            }
+            return false;
+        }
+
+        static bool IsOrderWords(string words) =>
+            !string.IsNullOrWhiteSpace(words) && (CoopBot.Clauses(CoopBot.Plain(words)) != null || CoopBot.ParseOrder(words) != null);
+
+        // ------------------------------------------------------------ mishearings
+
+        // What a recogniser has heard for the words of an order (from the co-op sessions), and the
+        // order meant. The longest first; whole words at the start of the order only. `more`: only
+        // with words after it ("Wingman, morning" alone is talk; "morning at the Inner Belt" isn't).
+        static readonly (string heard, string meant, bool more)[] Mishearings =
+        {
+            // ("sell the or" is an order already: "sell", the rest left)
+            ("cell or", "sell ore", false),
+            ("cell ore", "sell ore", false), ("cellar", "sell ore", false), ("seller", "sell ore", false),
+            ("at tack", "attack", false), ("a tack", "attack", false), ("attach", "attack", false), ("pack", "attack", false), ("tack", "attack", false),
+            ("morning", "mine", true), ("mourning", "mine", true), ("mind", "mine", true), ("main", "mine", true),
+            ("doc", "dock", false), ("duck", "dock", false),
+            ("state us", "status", false), ("statues", "status", false), ("stats", "status", false),
+            ("war to", "warp to", false), ("wharf to", "warp to", false), ("warp two", "warp to", false),
+            ("fallow me", "follow me", false), ("hollow me", "follow me", false),
+        };
+
+        /// <summary>An order's words with a known mishearing at the start put right, if what was
+        /// heard isn't an order as it is and is one put right; else as they were. `corrected`
+        /// says what was changed (null: nothing).</summary>
+        public static string FixOrder(string words, out string corrected)
+        {
+            corrected = null;
+            string w = (words ?? "").Trim();
+            if (w.Length == 0 || IsOrderWords(w)) return words;
+            string lw = w.ToLowerInvariant();
+            foreach (var (heard, meant, more) in Mishearings.OrderByDescending(m => m.heard.Length))
+            {
+                if (!(lw == heard || lw.StartsWith(heard + " ") || lw.StartsWith(heard + ","))) continue;
+                string rest = w.Substring(heard.Length);
+                if (more && rest.Trim(' ', ',').Length == 0) continue;
+                string put = meant + rest;
+                if (!IsOrderWords(put)) continue;
+                corrected = $"\"{w.Substring(0, heard.Length)}\" as \"{meant}\"";
+                return put;
+            }
+            return words;
+        }
+
+        static readonly HashSet<string> Greetings = new HashSet<string> { "hey", "hi", "ok", "okay", "oi", "right" };
+
+        /// <summary>The wingman a message starts with a mishearing of (null: none), by sound: its
+        /// first word or two after any greeting ("women", "amen", "only man", "wing man"), or after
+        /// a greeting the end of its name ("hey man"). `after`: the rest of the message; `asHeard`:
+        /// the words taken for the name. An order's own word ("mine") is never taken for a name, and
+        /// a name with nothing after it isn't either.</summary>
+        public static string NameHeardAs(string said, IList<string> bots, out string after, out string asHeard)
+        {
+            after = null;
+            asHeard = null;
+            var words = (said ?? "").Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries).ToList();
+            int i = 0;
+            bool greeted = words.Count > 0 && Greetings.Contains(words[0].Trim(',', '!').ToLowerInvariant());
+            if (greeted) i = 1;
+            // (one word first: "women mine at the Inner Belt" is "women", not "women mine")
+            foreach (int n in new[] { 1, 2 })
+            {
+                if (i + n >= words.Count) continue;          // (the name and something after it)
+                string heard = string.Join(" ", words.Skip(i).Take(n)).Trim(',', '!', ':');
+                string joined = heard.Replace(" ", "");
+                if (IsOrderWords(heard) || OrderWords.Contains(heard.ToLowerInvariant())) continue;
+                foreach (var bot in bots)
+                {
+                    if (string.IsNullOrWhiteSpace(bot)) continue;
+                    string name = bot.Replace(" ", "").ToLowerInvariant();
+                    bool tail = greeted && n == 1 && joined.Length >= 3 && name.Length > joined.Length && name.EndsWith(joined.ToLowerInvariant());
+                    if (!tail && !SoundsLike(joined, name)) continue;
+                    after = string.Join(" ", words.Skip(i + n)).TrimStart(',', ' ');
+                    asHeard = string.Join(" ", words.Take(i + n)).Trim(',', '!', ':');
+                    return bot;
+                }
+            }
+            return null;
+        }
+
+        // (the orders' own words: never a wingman's name, however they sound)
+        static readonly HashSet<string> OrderWords = new HashSet<string>
+        {
+            "mine", "mining", "sell", "dock", "attack", "follow", "hold", "stop", "status", "cargo", "help", "warp", "regroup", "report",
+            "give", "go", "come", "salvage", "scavenge", "defend", "cover", "engage", "kill", "wait", "stay", "please", "now",
+        };
+
+        /// <summary>Does a heard word sound like a name? Their sound keys (SoundKey) end alike and
+        /// differ by a few sounds at most, and the word has most of the name's sounds.</summary>
+        public static bool SoundsLike(string heard, string name)
+        {
+            string a = SoundKey(heard), b = SoundKey(name);
+            if (a.Length == 0 || b.Length == 0) return false;
+            if (a == b) return true;
+            if (a.Length < b.Length - 2 || a.Length < 2) return false;
+            int tail = System.Math.Min(2, System.Math.Min(a.Length, b.Length));
+            if (a.Substring(a.Length - tail) != b.Substring(b.Length - tail)) return false;
+            return Edits(a, b) <= (b.Length * 3 + 4) / 5;
+        }
+
+        /// <summary>A word's sounds, roughly (a small Metaphone): the consonants as they sound, the
+        /// vowels left out but for a first one (as "A"), doubles as one. "Wingman" is WNKMN,
+        /// "women" WMN, "amen" AMN.</summary>
+        public static string SoundKey(string word)
+        {
+            var w = new string((word ?? "").ToLowerInvariant().Where(char.IsLetter).ToArray());
+            if (w.Length == 0) return "";
+            if (w.StartsWith("kn") || w.StartsWith("gn") || w.StartsWith("wr") || w.StartsWith("ps")) w = w.Substring(1);
+            w = w.Replace("ph", "f").Replace("ck", "k").Replace("qu", "kw").Replace("tch", "ch").Replace("sch", "sk").Replace("dg", "j").Replace("wh", "w");
+            var sb = new StringBuilder();
+            for (int i = 0; i < w.Length; i++)
+            {
+                char c = w[i], next = i + 1 < w.Length ? w[i + 1] : '\0';
+                char s;
+                switch (c)
+                {
+                    case 'a': case 'e': case 'i': case 'o': case 'u': case 'y': s = i == 0 ? 'A' : '\0'; break;
+                    case 'c': s = next == 'e' || next == 'i' || next == 'y' ? 'S' : 'K'; break;
+                    case 'g': if (next == 'h') { i++; s = '\0'; } else s = 'K'; break;
+                    case 'q': s = 'K'; break;
+                    case 'x': sb.Append('K'); s = 'S'; break;
+                    case 'z': s = 'S'; break;
+                    case 'v': s = 'F'; break;
+                    case 'b': s = 'P'; break;
+                    case 'd': s = 'T'; break;
+                    case 'h': s = i == 0 ? 'H' : '\0'; break;
+                    case 'w': s = i == 0 ? 'W' : '\0'; break;
+                    default: s = char.ToUpperInvariant(c); break;
+                }
+                if (s != '\0' && (sb.Length == 0 || sb[sb.Length - 1] != s)) sb.Append(s);
+            }
+            return sb.ToString();
+        }
+
+        static int Edits(string a, string b)
+        {
+            var d = new int[a.Length + 1, b.Length + 1];
+            for (int i = 0; i <= a.Length; i++) d[i, 0] = i;
+            for (int j = 0; j <= b.Length; j++) d[0, j] = j;
+            for (int i = 1; i <= a.Length; i++)
+                for (int j = 1; j <= b.Length; j++)
+                    d[i, j] = System.Math.Min(System.Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1), d[i - 1, j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1));
+            return d[a.Length, b.Length];
+        }
 
         /// <summary>The words without the filler, the punctuation a recogniser adds at the end, or
         /// doubled spaces.</summary>

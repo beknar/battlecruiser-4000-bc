@@ -8,8 +8,8 @@ namespace CarrierGame.Demo
     /// What the player said, as a message on the comms channel (VoiceInput sends it with
     /// CoopChat.Say, as if it had been typed): the filler words left out ("um", "uh"), the
     /// wingman's name put first when no one was named ("mine at the Inner Belt": "Wingman, mine at
-    /// the Inner Belt"), and, in an order to hand over credits, the amount as figures ("give me
-    /// two thousand credits": "give me 2000 credits"; anywhere else a number word is left alone,
+    /// the Inner Belt"), and, in an order to hand over credits or ore, the amount as figures ("give
+    /// me two thousand credits": "give me 2000 credits"; anywhere else a number word is left alone,
     /// as in a ship's name, "Snare Two"). The bot reads the rest as it reads typed orders.
     /// </summary>
     public static class VoiceCommand
@@ -202,7 +202,7 @@ namespace CarrierGame.Demo
         {
             "mine", "mining", "sell", "dock", "attack", "follow", "hold", "stop", "status", "cargo", "help", "warp", "regroup", "report",
             "give", "go", "come", "salvage", "scavenge", "defend", "cover", "engage", "kill", "wait", "stay", "please", "now",
-            "where", "protect", "shoot",
+            "where", "protect", "shoot", "take",
         };
 
         /// <summary>Does a heard word sound like a name? Their sound keys (SoundKey) end alike and
@@ -283,12 +283,15 @@ namespace CarrierGame.Demo
             return string.Join(" ", words).TrimEnd('.', '!', '?', ',', ' ');
         }
 
-        /// <summary>In an order to hand over credits (`order`, the words after any name, starts
-        /// with give, transfer, pay ...), the spoken amount as figures; anything else as it is.</summary>
+        /// <summary>In an order to hand over credits or ore (`order`, the words after any name,
+        /// starts with give, transfer, pay ..., or take but for "take out", an attack), the spoken
+        /// amount as figures; anything else as it is.</summary>
         static string MoneyFigures(string said, string order)
         {
-            string first = (order ?? "").TrimStart().Split(' ').FirstOrDefault()?.ToLowerInvariant() ?? "";
-            return MoneyVerbs.Contains(first) ? Numbers(said) : said;
+            var words = (order ?? "").TrimStart().Split(' ');
+            string first = words.FirstOrDefault()?.ToLowerInvariant() ?? "";
+            bool take = first == "take" && !(words.Length > 1 && words[1].ToLowerInvariant().Trim(',') == "out");
+            return MoneyVerbs.Contains(first) || take ? Numbers(said) : said;
         }
 
         /// <summary>Spoken numbers as figures: "two thousand five hundred" is 2500, "a hundred"
@@ -342,7 +345,10 @@ namespace CarrierGame.Demo
                                             // (the rocks to go for: the minerals worth going after, and the most valuable)
                                             "mine platinum", "mine gold", "mine silver", "mine iron", "mine palladium", "mine iridium",
                                             "mine diamonds", "mine helium three", "mine deuterium", "mine uranium", "mine water",
-                                            "mine the most valuable ore", "mine the best rocks" };
+                                            "mine the most valuable ore", "mine the best rocks",
+                                            // (ore handed over, each way: CoopCargo)
+                                            "give me your ore", "give me all your ore", "give me the platinum", "give me the gold", "give me the iron",
+                                            "take my ore", "take all my ore", "take the iron" };
 
         /// <summary>Phrases for an offline keyword recogniser (Windows without dictation): each
         /// order, alone and after each wingman's name (and "all ships"), and "mine at", "warp to"

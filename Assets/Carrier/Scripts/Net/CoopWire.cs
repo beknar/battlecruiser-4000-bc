@@ -77,6 +77,10 @@ namespace CarrierGame
         public const string Doing = "doing";
         // credits handed to one player by an AI wingman: {to, a, gid}; and the receipt back: {to, a, gid}
         public const string Gift = "gift", GiftReceipt = "giftok";
+        // items handed from one hold to another, between a person and an AI wingman (CoopCargo):
+        // {to, gid, ts, items: [{id (the hold's item id: a mineral's name, a good's or a part's id), a}]};
+        // and the receipt back, {to, gid, items (what was loaded), why (when nothing was: refused)}
+        public const string Cargo = "cargo", CargoReceipt = "cargook";
         // the host's tractor beams on one player's ship: {to, on, x, y, z, rf, n, held}, sent as a
         // hold starts, changes or ends, and every half second while it lasts (CoopWorld.Tractor)
         public const string Tractor = "tr";

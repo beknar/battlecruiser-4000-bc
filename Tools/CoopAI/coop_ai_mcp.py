@@ -11,6 +11,7 @@ server turns that API into MCP tools, over stdio:
     wait_messages   the same, but waiting (up to a minute) for a new message if there is none yet
     cargo           what is in the bot's hold, how full it is, and its credits
     give_credits    hand the bot's credits to a player (their game adds them to their hold)
+    give_ore        hand ore from the bot's hold to a player's (all of it, a mineral, so many tonnes)
     say             send a message on the comms channel (every player in its level sees it)
     order           give the pilot an order: follow <player>, hold, attack [target], goto <place>,
                     regroup, dock, mine [mineral | the most valuable ore] [at field], sell,
@@ -138,6 +139,23 @@ def t_give_credits(args):
     return call("/order", {"order": "give", "target": f"{amount} to {to}" if to else amount})
 
 
+def t_give_ore(args):
+    amount = str(args.get("amount") if args.get("amount") is not None else "all").strip().lower().replace(",", "")
+    if amount not in ("all", "half"):
+        try:
+            n = float(amount)
+        except ValueError:
+            raise ValueError(f"amount must be a number of tonnes, 'all' or 'half', not '{amount}'")
+        if not (0 < n < 1e6):
+            raise ValueError("give more than 0 t (and a believable number of tonnes)")
+        amount = f"{n:g}"
+    item = " ".join(str(args.get("item") or "ore").split())
+    if " to " in f" {item} ":
+        raise ValueError("item is the ore or a mineral; say who it goes to with 'to'")
+    to = str(args.get("to", "") or "").strip()
+    return call("/order", {"order": "giveore", "target": f"{amount} {item}" + (f" to {to}" if to else "")})
+
+
 def t_say(args):
     msg = str(args.get("text", "")).strip()
     if not msg:
@@ -235,6 +253,13 @@ TOOLS = [
                      "last player to speak (or the nearest). The bot can't give more than it has.",
      {"amount": {"type": "string", "description": "a number of credits, 'all' (the default) or 'half'"},
       "to": {"type": "string", "description": "the player's name (or part of it)"}}, [], t_give_credits),
+    ("give_ore", "Hand ore from the bot's hold to a player's ship: their game loads what fits and sends the rest back, "
+                 "and the bot says on the comms what came back. With no 'to', the last player to speak (or the nearest). "
+                 "Only to a person in the bot's level, within 50 km of it. (A player hands their own ore to the bot "
+                 "themselves: 'Wingman, take my ore' on the comms, or G in their mining menu.)",
+     {"item": {"type": "string", "description": "'ore' (every mineral aboard, the default) or a mineral by name or symbol ('platinum', 'Pt', 'He-3')"},
+      "amount": {"type": "string", "description": "tonnes, 'all' (the default) or 'half'"},
+      "to": {"type": "string", "description": "the player's name (or part of it)"}}, [], t_give_ore),
     ("say", "Send a message on the co-op comms channel, as the bot. Every player in its level sees it.",
      {"text": {"type": "string", "description": "the message (400 characters at most)"}}, ["text"], t_say),
     ("order", "Order the bot's pilot. follow [player name] (no name: the last player to speak): fly in formation, "
@@ -308,7 +333,7 @@ def handle(msg):
                                             "answer the talk, but only while the "
                                             "chat_mode in read_messages/wait_messages is llm (personality: the bot answers "
                                             "talk itself; paused: nobody does). Carry out what they ask "
-                                            "with order or give_credits; facts come from status and cargo, never made up. "
+                                            "with order, give_credits or give_ore; facts come from status and cargo, never made up. "
                                             "Tools/CoopAI/WINGMAN.md has the voice."})
     if method == "ping":
         return result(id_, {})

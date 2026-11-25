@@ -71,6 +71,23 @@ namespace CarrierGame.Tests
         }
 
         [Test]
+        public void OreHandedOverEachWayIsAnOrderAndInTheKeywordList()
+        {
+            var phrases = VoiceCommand.Phrases(One, new string[0]);
+            foreach (var (said, kind) in new[] { ("give me your ore", "giveore"), ("give me the platinum", "giveore"), ("take my ore", "take"), ("take the iron", "take") })
+            {
+                string sent = VoiceCommand.ToChat(said, One);
+                Assert.That(VoiceCommand.IsOrder(sent, One), Is.True, said);
+                Assert.That(CoopBot.ParseOrder(CoopBot.AddressedPart(sent, "Wingman")).Value.kind, Is.EqualTo(kind), sent);
+                Assert.That(phrases, Does.Contain("Wingman " + said));
+            }
+            // (a spoken amount as figures, as for credits; "take out" is an attack, its words left alone)
+            Assert.That(VoiceCommand.ToChat("give me a hundred tonnes of iron", One), Is.EqualTo("Wingman, give me 100 tonnes of iron"));
+            Assert.That(VoiceCommand.ToChat("take fifty tonnes of nickel", One), Is.EqualTo("Wingman, take 50 tonnes of nickel"));
+            Assert.That(VoiceCommand.ToChat("take out Snare Two", One), Is.EqualTo("Wingman, take out Snare Two"));
+        }
+
+        [Test]
         public void NothingHeardOrNoWingmanSendsNothing()
         {
             Assert.That(VoiceCommand.ToChat("", One), Is.Null);

@@ -19,6 +19,16 @@ namespace CarrierGame.Demo
         public bool ai;
     }
 
+    /// <summary>An amount of one item in a hold, on the wire: its id as the hold has it
+    /// (CargoHold.Contents: a mineral's name, "Iron", or a refined good's or a part's id) and how
+    /// much (tonnes, or parts).</summary>
+    [Serializable]
+    public class CoopItem
+    {
+        public string id;
+        public float a;
+    }
+
     /// <summary>One enemy, as the host has it.</summary>
     [Serializable]
     public class CoopEntity
@@ -71,8 +81,10 @@ namespace CarrierGame.Demo
         // sent; cp: the component the shooter aimed at, a ShipSystem, 0 the hull)
         public float a;
         public int kd, kx, cp;
-        // a gift of credits (its number, for the receipt)
+        // a gift of credits (its number, for the receipt), or of cargo (the same)
         public int gid;
+        // cargo handed over (CoopWire.Cargo), or what of it was loaded (CoopWire.CargoReceipt)
+        public CoopItem[] items;
         // a tractor beam's hold on my ship, from the host: on or let go, how many beams, held fast
         public bool on, held;
         public int n;
@@ -188,6 +200,12 @@ namespace CarrierGame.Demo
     /// <summary>Credits for one player (from the AI wingman's hold to theirs).</summary>
     [Serializable]
     class GiftMsg { public string t = CoopWire.Gift; public int to, gid; public float a; public double ts; }
+
+    /// <summary>Cargo for one player (CoopWire.Cargo: from the hold of a person's ship to an AI
+    /// wingman's, or back), or its receipt (CoopWire.CargoReceipt: what was loaded; why, when
+    /// nothing was because it was refused).</summary>
+    [Serializable]
+    class CargoMsg { public string t = CoopWire.Cargo; public int to, gid; public double ts; public CoopItem[] items; public string why = ""; }
 
     /// <summary>For the self-test's bot: what this game can see (enemy ids and such).</summary>
     [Serializable]

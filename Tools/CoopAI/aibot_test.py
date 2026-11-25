@@ -21,6 +21,11 @@ its HTTP API, and through the MCP server (coop_ai_mcp.py):
     mine order takes 'the most valuable ore'
   - after selling ore: 'cargo' reports the hold, 'give me N credits' sends a gift the player's game
     acknowledges, a gift with no receipt comes back to the bot, and it won't give more than it has
+  - ore both ways, with a ship of the test player's beside the bot's: cargo from the player's game
+    is loaded and receipted, more than its hold takes is loaded as far as it fits (the receipt says
+    how much), a message sent more than 6 s ago is refused; 'give me 100 t of iron' sends it and a
+    partial receipt puts the rest back aboard, 'give me your ore' hands over all of it, and 'take my
+    ore' is left to the player's game, which sends the ore with it
   - the fights, with a ship of the test player's beside the bot's: 'attack my target' from an older
     game (no lock in its ship message) says the game doesn't say, with nothing locked says so, and
     with an enemy of the bot's own list locked attacks it; 'defend me' sends it to the player;
@@ -91,6 +96,9 @@ class Player:
         self.heard = []          # (who, text) of each chat message from someone else
         self.gifts = []          # credits received
         self.receipts = True     # answer a gift with a receipt, as a game does
+        self.cargo_in = []       # the items of each cargo the bot sent
+        self.cargo_load = None   # what to say was loaded of cargo that comes (None: all of it)
+        self.cargo_receipts = {} # the bot's receipts for cargo sent to it, by number
         self.clock0, self.local0 = 0.0, time.monotonic()   # the server's clock at the welcome
         self.bot_ship = None     # the bot's last ship message
         self.enemies = {}        # the host's (the bot game's) living enemies: id -> (rf, x, y, z)
@@ -145,6 +153,15 @@ class Player:
                     log(f"gift of {m.get('a')} cr from #{m.get('from')}{'' if self.receipts else ' (no receipt sent)'}")
                     if self.receipts:
                         await self.ws.send(json.dumps({"t": "giftok", "to": m.get("from"), "a": m.get("a"), "gid": m.get("gid")}))
+                elif m.get("t") == "cargo":
+                    # (as a game does: what fitted, by the receipt; here, as much as cargo_load says)
+                    items = m.get("items") or []
+                    self.cargo_in.append(items)
+                    loaded = items if self.cargo_load is None else self.cargo_load(items)
+                    log(f"cargo from #{m.get('from')}: {items}; loaded {loaded}")
+                    await self.ws.send(json.dumps({"t": "cargook", "to": m.get("from"), "gid": m.get("gid"), "items": loaded, "why": ""}))
+                elif m.get("t") == "cargook":
+                    self.cargo_receipts[m.get("gid")] = m
             except asyncio.TimeoutError:
                 pass
             # (my ship ten times a second, as a game sends it about: a ship quiet 3 s is gone)
@@ -158,6 +175,20 @@ class Player:
     async def say(self, text):
         log(f"say: {text}")
         await self.ws.send(json.dumps({"t": "chat", "text": text}))
+
+    async def send_cargo(self, to, gid, items, age=0.0):
+        """Cargo to the bot, as a player's game sends it (`age`: sent that many seconds ago)."""
+        log(f"cargo #{gid} to #{to}: {items}{f', {age:.0f} s old' if age else ''}")
+        await self.ws.send(json.dumps({"t": "cargo", "to": to, "gid": gid, "ts": self.now() - age, "items": items}))
+
+    async def receipt(self, gid, seconds=10.0):
+        """The bot's receipt for cargo number `gid`, or None."""
+        end = time.monotonic() + seconds
+        while time.monotonic() < end:
+            if gid in self.cargo_receipts:
+                return self.cargo_receipts[gid]
+            await asyncio.sleep(0.2)
+        return None
 
     async def hear(self, want, seconds=15.0, since=0):
         """The first message heard (after the first `since`) that has `want` in it, or None."""
@@ -441,6 +472,72 @@ async def main():
             await me.say(f"{BOT}, give me 99999999 credits")
             r = await me.hear("only", 10, n)
             check(r is not None, "it won't give more credits than it has", r or "no answer")
+
+            # ore both ways: my ship beside the bot's (cargo goes only within 50 km)
+            me.ship = {"cv": 3, "tg": ""}
+            await asyncio.sleep(2)
+            bot_id = next((p.get("id") for p in (await api("/status")).get("players", []) if p.get("me")), None)
+
+            def tonnes(items, mineral="Iron"):
+                return sum(i.get("amount", i.get("a", 0)) for i in items or [] if i.get("id") == mineral)
+
+            cargo = await api("/cargo")
+            iron0 = tonnes(cargo.get("items"))
+            n = len(me.heard)
+            await me.send_cargo(bot_id, 1, [{"id": "Iron", "a": 50}])
+            rc = await me.receipt(1)
+            took = await me.hear("took 50 t of iron", 10, n)
+            cargo = await api("/cargo")
+            check(rc is not None and abs(tonnes(rc.get("items")) - 50) < 0.01 and abs(tonnes(cargo.get("items")) - iron0 - 50) < 0.5 and took is not None,
+                  "cargo from a player's game is loaded, receipted and said", f"{took or 'not said'}; receipt {rc}; iron {iron0:.1f} -> {tonnes(cargo.get('items')):.1f} t")
+            # (more than its hold takes: what fits, and the receipt says how much, so the rest stays with the player)
+            free = cargo.get("free_t", 0)
+            n = len(me.heard)
+            await me.send_cargo(bot_id, 2, [{"id": "Iron", "a": round(free + 100, 1)}])
+            rc = await me.receipt(2)
+            full = await api("/cargo")
+            no_room = await me.hear("no room", 10, n)
+            check(rc is not None and abs(tonnes(rc.get("items")) - free) < 0.5 and full.get("free_t", 1) < 0.5 and no_room is not None,
+                  "more than its hold takes: it loads what fits, and the receipt says how much", f"{free:.1f} t free; receipt {rc}; {no_room or 'not said'}")
+            # (sent more than 6 s ago: refused, as the sender has had it back, or soon will)
+            iron1 = tonnes(full.get("items"))
+            await me.send_cargo(bot_id, 3, [{"id": "Iron", "a": 10}], age=8)
+            rc = await me.receipt(3)
+            check(rc is not None and not rc.get("items") and "late" in rc.get("why", "") and abs(tonnes((await api("/cargo")).get("items")) - iron1) < 0.5,
+                  "cargo sent more than 6 s ago is refused, and the receipt says why", json.dumps(rc))
+            # the bot's: a partial receipt (my hold took 60 of 100 t) puts the rest back aboard
+            me.cargo_load = lambda items: [{"id": i.get("id"), "a": min(i.get("a", 0), 60)} for i in items]
+            iron2 = tonnes((await api("/cargo")).get("items"))
+            k = len(me.cargo_in)
+            n = len(me.heard)
+            await me.say(f"{BOT}, give me 100 t of iron")
+            r = await me.hear("sending", 10, n)
+            back = await me.hear("back aboard", 15, n)
+            after = tonnes((await api("/cargo")).get("items"))
+            sent = tonnes(me.cargo_in[k]) if len(me.cargo_in) > k else 0
+            check(r is not None and abs(sent - 100) < 0.01 and back is not None and abs(after - (iron2 - 60)) < 0.5,
+                  "'give me 100 t of iron' sends it, and a partial receipt puts the rest back aboard",
+                  f"{r or 'no answer'}; sent {sent:.1f} t; {back or 'nothing back'}; iron {iron2:.1f} -> {after:.1f} t")
+            me.cargo_load = None
+            k = len(me.cargo_in)
+            n = len(me.heard)
+            await me.say(f"{BOT}, give me your ore")
+            r = await me.hear("sending", 10, n)
+            s = await wait_status(lambda s: s.get("ship", {}).get("ore_t", 1) < 0.5, 10)
+            check(r is not None and len(me.cargo_in) > k and s.get("ship", {}).get("ore_t", 1) < 0.5, "'give me your ore' hands all of it over",
+                  f"{r or 'no answer'}; {s.get('ship', {}).get('ore_t')} t of ore left")
+            # (and mine to it: my game sends the ore with the order, the bot says what came)
+            n = len(me.heard)
+            await me.say(f"{BOT}, take my ore")
+            await me.send_cargo(bot_id, 4, [{"id": "Nickel", "a": 20}])
+            took = await me.hear("took 20 t of nickel", 10, n)
+            msgs = (await api("/messages?after=0")).get("messages", [])
+            asked = [m for m in msgs if m["text"] == f"{BOT}, take my ore"]
+            check(took is not None and bool(asked) and asked[-1]["handled"], "'take my ore' is left to the player's game, and what it sends is said",
+                  took or "not said")
+            await me.say(f"{BOT}, hold")
+            me.ship = None
+            await asyncio.sleep(1)
 
             # the fights: my ship goes out beside the bot's, first as an older game's (no lock in it)
             me.ship = {"cv": 2}

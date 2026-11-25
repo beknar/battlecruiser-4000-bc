@@ -33,6 +33,8 @@ namespace CarrierGame.Demo
                 yield break;
             }
             if (!SystemMap.IsOpen) yield return Key(kb, UnityEngine.InputSystem.Key.M);
+            // (a moon: Tab passes over it until the view is zoomed in far enough to draw it apart)
+            ZoomToMoon(poi);
             for (int i = 0; i < 60 && map.Selected?.displayName != name; i++) yield return Key(kb, UnityEngine.InputSystem.Key.Tab);
             if (map.Selected?.displayName != name)
             {
@@ -42,6 +44,15 @@ namespace CarrierGame.Demo
                 yield break;
             }
             yield return Warp(() => Key(kb, UnityEngine.InputSystem.Key.Enter), "keyboard Enter", shot, false);
+        }
+
+        /// <summary>Zoom the open map in on a moon's planet until the moon is drawn apart from it
+        /// (at the whole system's view it is drawn on the planet, and Tab passes over it).</summary>
+        void ZoomToMoon(WarpPoint moon)
+        {
+            if (map == null || moon == null || moon.orbitParent == null) return;
+            for (int i = 0; i < 16 && map.PassedOver(moon) && map.Zoom < map.MaxZoom; i++)
+                map.ZoomAt(map.ScreenPosOf(moon.orbitParent), 2f);
         }
 
         /// <summary>The warp a test asks of the drive itself (not the map): a point of interest.</summary>

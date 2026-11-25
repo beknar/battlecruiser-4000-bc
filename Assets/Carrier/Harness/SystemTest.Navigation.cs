@@ -80,6 +80,10 @@ namespace CarrierGame.Demo
             }
             yield return Key(kb, K.Escape);
 
+            // ---- the local map (SystemTest.LocalMap): Thalassa's, a warp to Selene's high orbit
+            // from it, and a flight from there to a point of interest at Selene
+            yield return LocalMapTest(kb, Check);
+
             // ---- at Thalassa: the menu lists its points of interest
             if (Places.At(cc.transform.position) != thalassa) yield return WarpTo(kb, "Thalassa", "nav_thalassa");
             yield return Key(kb, K.Digit3);

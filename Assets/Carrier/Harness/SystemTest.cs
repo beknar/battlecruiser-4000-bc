@@ -351,9 +351,14 @@ namespace CarrierGame.Demo
             yield return Key(kb, UnityEngine.InputSystem.Key.Escape);
             Log($"keyboard Esc: map open {SystemMap.IsOpen} (game still running: {Application.isPlaying})");
             yield return Key(kb, UnityEngine.InputSystem.Key.M);
-            // choose the moon with the keyboard: Tab until it is selected
+            // choose the moon with the keyboard: at the whole system's view it is drawn on its
+            // planet, and Tab passes over it, so zoomed in on Thalassa first; then Tab until it is selected
+            var selene = Point("Selene");
+            bool passedOver = map.PassedOver(selene);
+            ZoomToMoon(selene);
+            yield return null;
             for (int i = 0; i < 60 && map.Selected?.displayName != "Selene"; i++) yield return Key(kb, UnityEngine.InputSystem.Key.Tab);
-            Log($"keyboard Tab to Selene: selected {map.Selected?.displayName}");
+            Log($"keyboard Tab to Selene (passed over at the whole system's view {passedOver}, zoomed in {map.Zoom:F0}x): selected {map.Selected?.displayName}");
             yield return Warp(() => Key(kb, UnityEngine.InputSystem.Key.Enter), "keyboard Enter", "w2", true);
 
             // the long trip: to the star

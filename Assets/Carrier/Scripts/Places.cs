@@ -73,6 +73,24 @@ namespace CarrierGame
             WarpPoint.All.Where(w => w != null && w != place && PlaceOf(w) == place)
                          .OrderBy(w => (w.Position - from).sqrMagnitude).ToList();
 
+        /// <summary>Everything round a place, as the system map lists it: for a planet, its moons
+        /// first (nearest it first), then its own points of interest (its landmarks, stations and
+        /// bases), then each moon's in turn; for any other place, its points of interest. (A moon
+        /// is a place of its own, so it is never among its planet's PointsOfInterest.)</summary>
+        public static List<WarpPoint> Around(WarpPoint place)
+        {
+            var list = new List<WarpPoint>();
+            if (place == null) return list;
+            Vector3 at = place.Position;
+            var moons = place.kind != WarpPoint.Kind.Planet ? new List<WarpPoint>()
+                      : WarpPoint.All.Where(w => w != null && w != place && w.kind == WarpPoint.Kind.Moon && w.orbitParent == place)
+                                     .OrderBy(w => (w.Position - at).sqrMagnitude).ToList();
+            list.AddRange(moons);
+            list.AddRange(PointsOfInterest(place, at));
+            foreach (var m in moons) list.AddRange(PointsOfInterest(m, m.Position));
+            return list;
+        }
+
         /// <summary>The place a point is at: the planet or moon it is near, the asteroid field
         /// it is in, or the nearest place out in space within a few hundred kilometres (null in
         /// open space).</summary>

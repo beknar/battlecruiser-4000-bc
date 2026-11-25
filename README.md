@@ -908,6 +908,16 @@ system to travel around.
     moon, the map opens on its planet. For a planet, the panel lists its moons, then its own
     points of interest, then each moon's ("At Selene: Northern Reach, Southern Reach, High
     Orbit").
+  - **The local map.** With a planet or moon chosen, or the ship at one, LOCAL MAP shows beside
+    WARP (L, or Y on the pad). It shows the planet, its moons and every point of interest round
+    them, the planet and moons at their size. It's centred on the planet and kept there as it
+    goes round, zoomed so the outermost moon fits. A high orbit is straight over the pole, so
+    seen from above it would sit on the planet's middle: it's drawn just off the disc instead.
+    Choose with a click, Tab or the arrows. WARP warps to a moon or a point of interest. On a
+    point of interest at the place the ship is at, the button reads FLY TO, and flies there in
+    real time as navigation mode's menu does; the ship stays in navigation mode, even when the
+    map was opened from another mode. BACK, Esc or L (B or Y on the pad) goes back to the system
+    map. (Outside the map, L is still level-off.)
   - **Your side's ships.** The other players' ships (cyan), the AI wingmen (orange) and the
     fleet's ships (green) are on it too, each with its heading and name. Click another player or
     a wingman (its arrow or its name: in formation the arrow is under the frigate's own), then
@@ -1887,6 +1897,7 @@ menu (only the pause menu stops it).
 | Cruise on/off | O | X |
 | On the map: choose a place / warp / close | Click, arrows or Tab / WARP, double-click or Enter / M or Esc | Left stick, D-pad or LB/RB / A / B |
 | On the map: move / zoom / the whole system | Drag, or Shift + arrows or WASD / wheel or + − / Home | Right stick / LT, RT / |
+| On the map: the local map (a planet, its moons and their points of interest) / back / fly to a point of interest here | L or LOCAL MAP / L, Esc or BACK / FLY TO or Enter | Y / Y or B / A |
 | On the map: a mini-warp to another player or a wingman | Click their ship, then WARP (or double-click it) | |
 
 **Services mode (4)**
@@ -2803,7 +2814,10 @@ Each part can also be run alone:
   and sold back; ten crew are dropped off and recruited back; undocking goes back to the mode
   before; and the Belt Smelter's SELL page buys minerals and nothing else, with no BUY page.
   Add `-navtest` (or `?navtest` on the web) to test the navigation mode: which places are
-  places and which are points of interest at them; the map stepping through places only; at
+  places and which are points of interest at them; the map stepping through places only; the
+  local map at Thalassa (its moons and points of interest, the high orbit off the disc, Esc back
+  to the system map), a warp from it to Selene's high orbit, and FLY TO from there to a point of
+  interest at Selene, the trip still going after the map (opened from combat mode) has closed; at
   Thalassa, the menu listing its points of interest; auto-travel to the Highport to dock, flown
   with no warp; auto-travel to the launch loop to land, flown and then taken down by the
   auto-lander; a course set (C) marked but not flown; and X stopping a trip.

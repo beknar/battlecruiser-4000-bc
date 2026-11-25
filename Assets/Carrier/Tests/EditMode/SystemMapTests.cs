@@ -117,13 +117,6 @@ namespace CarrierGame.Tests
         public void AroundAPlanetAreItsMoonsThenItsOwnThenTheMoons()
         {
             MakeSystem();
-            WarpPoint Landmark(string name, WarpPoint body, Vector3 offset)
-            {
-                var w = Point(name, WarpPoint.Kind.Landmark, body.Position + offset, 0f);
-                w.follow = body;
-                w.followOffset = offset;
-                return w;
-            }
             var high = Landmark("Testa High Orbit", planet, Vector3.up * 500000f);
             var north = Landmark("Testa Northern Reach", planet, new Vector3(0f, 240000f, 210000f));
             // (a station in orbit: its place is the body it is within reach of)
@@ -141,6 +134,62 @@ namespace CarrierGame.Tests
             Assert.That(Places.Around(moon), Is.EqualTo(new[] { moonHigh }), "round a moon: only its own");
             Assert.That(Places.Around(other), Is.Empty, "a planet with nothing round it");
             Assert.That(Places.Around(null), Is.Empty);
+        }
+
+        WarpPoint Landmark(string name, WarpPoint body, Vector3 offset)
+        {
+            var w = Point(name, WarpPoint.Kind.Landmark, body.Position + offset, 0f);
+            w.follow = body;
+            w.followOffset = offset;
+            return w;
+        }
+
+        [Test]
+        public void TheLocalMapShowsThePlanetItsMoonsAndWhatIsRoundThem()
+        {
+            MakeSystem();
+            var high = Landmark("Testa High Orbit", planet, Vector3.up * 500000f);
+            var moonHigh = Landmark("Testa Minor High Orbit", moon, Vector3.up * 120000f);
+            Assert.That(map.OpenLocal(), Is.False, "not with the map closed");
+            Assert.That(InputFocus.Take(InputFocus.Panel.SystemMap), Is.True);
+            try
+            {
+                map.Select(other);
+                Assert.That(map.LocalTarget, Is.SameAs(other), "a planet chosen: its local map");
+                map.Select(star);
+                Assert.That(map.LocalTarget, Is.Null, "the star (and the ship nowhere): no local map, and no button");
+                Assert.That(map.LocalButtonRect.width, Is.Zero);
+                map.Select(moon);
+                Assert.That(map.LocalTarget, Is.SameAs(planet), "a moon chosen: its planet's");
+
+                Assert.That(map.OpenLocal(), Is.True);
+                Assert.That(map.Local, Is.True);
+                Assert.That(map.LocalPlanet, Is.SameAs(planet));
+                Assert.That(map.LocalPoints, Is.EqualTo(new[] { planet, moon, outerMoon, high, moonHigh }), "the planet, its moons, then what is round each");
+                Assert.That(map.Selected, Is.SameAs(moon), "the choice kept: it is on the local map");
+                Assert.That(map.LocalButtonRect.width, Is.GreaterThan(0f), "BACK beside WARP");
+                Assert.That(map.PassedOver(moon), Is.False, "every moon is drawn apart");
+                Assert.That(map.PointAt(map.ScreenPosOf(moon)), Is.SameAs(moon));
+                Assert.That(map.PointAt(map.ScreenPosOf(outerMoon)), Is.SameAs(outerMoon));
+                Assert.That(map.PointAt(map.ScreenPosOf(planet)), Is.SameAs(planet));
+                float off = Vector2.Distance(map.ScreenPosOf(high), map.ScreenPosOf(planet));
+                Assert.That(off, Is.GreaterThan(11f * Hud.S), "the high orbit, straight up, is drawn off the planet's disc, not on its middle");
+                Assert.That(map.PointAt(map.ScreenPosOf(high)), Is.SameAs(high), "and can be clicked");
+                var seen = new HashSet<WarpPoint>();
+                for (int i = 0; i < 6; i++) { map.Step(1); seen.Add(map.Selected); }
+                Assert.That(seen, Is.EquivalentTo(map.LocalPoints), "Tab steps through all of it");
+                Assert.That(map.CanFlyTo(high), Is.False, "the ship isn't at the planet: a warp, not a flight");
+
+                map.Select(moonHigh);
+                map.CloseLocal();
+                Assert.That(map.Local, Is.False);
+                Assert.That(map.LocalPoints, Is.Empty);
+                Assert.That(map.Selected, Is.SameAs(moon), "back on the system map, a point of interest gives way to its place");
+            }
+            finally
+            {
+                InputFocus.Release(InputFocus.Panel.SystemMap);
+            }
         }
     }
 }

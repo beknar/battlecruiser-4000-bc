@@ -1034,7 +1034,9 @@ system to travel around.
   they hold and how far they are. Choose one, fly within 1.5 km of it and press Z (Back + X on the
   pad): the salvage beam strips it into the hold over a few seconds, as much as there is room for.
   What it brings aboard is the industry's own goods, stored, sold or built with like any other.
-  A wreck lasts 15 minutes. Wrecks aren't shared in co-op: each player salvages their own.
+  A wreck lasts 15 minutes. Wrecks aren't shared in co-op: each player salvages their own, and an
+  AI wingman told to (`Wingman, salvage`) strips its own copies and sells what it takes (see the
+  wingman's orders).
   - Which wreck Z takes: the wreck of the ship that was targeted when it was destroyed (while
     nothing else is targeted), then the one chosen in the menu, then the nearest within 30 km. One out of reach is flown
     to, and salvaged on arrival.
@@ -2333,6 +2335,8 @@ every bot. Politeness is left off an order: `Wingman, can you mine some asteroid
 | `mine <mineral>` | Mines the rocks richest in that mineral, in the field it's at or the nearest (`mine gold at the Inner Belt` names one). The laser takes a rock's whole mix, so it's the rocks with the biggest share of it in sensor range (12 km); rocks as rich are taken biggest first, then nearest. A mineral is known by its name or symbol, in any case, singular or plural (`platinum`, `Pt`, `He-3`, `helium 3`, `rare earths`, `diamond`, `ice` for water), and is matched before a field's name. `mine for gold`, `go after helium-3`, `go for gold`, `look for platinum` and `mine at the Inner Belt for gold` do the same. With none of it in the rocks in range it says "no platinum in the rocks here; mining what's worth most" (once each time it reaches a field) and mines the most valuable instead. The answer, the HUD's line and `/status` say what it's after ("mining for platinum in Inner Belt"). |
 | `mine the most valuable ore` | Mines the rocks worth most a tonne (the whole mix, at the market's prices) in sensor range, the biggest first among those worth the same. `mine the best rocks`, `mine the richest asteroids`, `go after the most valuable ore` and `hunt for the best rocks at the Outer Drift` do the same. |
 | `sell` | Takes the ore aboard to the nearest market now, sells it, then goes back to mining. |
+| `salvage` | Strips the wrecks fights leave, with the salvage beam a player has: the nearest within 30 km, warping to it if it's more than 15 km off, then flying in till the beam reaches it (1.5 km and the wreck's size), and holding still in combat mode while the beam takes a sixth of it a second. When it's stripped it takes the next wreck near, and with none left it says so ("nothing left to salvage; 84 t taken") and goes back to the order before (following or defending its leader, mining, or holding). With the hold full it warps to the nearest market, docks, sells everything aboard (steel plate, aluminium sheet, copper wire, parts, any ore) and goes back to the wrecks. A fight near it is fought first, the beam off, then it says "back to salvaging". `scavenge`, `salvage the wrecks`, `salvage that wreck` and `start salvaging` do the same; `salvage the wreck of the Fang Hunter` (or `salvage the Fang Hunter`) starts with that one, matched by name as a target's is. With no wreck near it says "nothing to salvage within 30 km". Every game has its own wrecks, so what it takes is never a player's. The HUD's line says which wreck it's on and the tonnes aboard ("salvaging the wreck of Pirate Cruiser: 64 t aboard"), and `/status` has the step, the wreck, what's left in it and the wrecks near. |
+| `give me the parts` | Hands the parts aboard to whoever asked (as `give me your ore` does), and from then on keeps the parts it salvages for them rather than selling them, handing them over whenever that player is within 50 km (every 5 s at most; a minute later if their hold was full). Parts kept past half its hold are sold after all, so they can't fill it for ever. With none aboard yet it says it'll keep them. |
 | `cargo` | Reports what is in its hold (ore and goods by weight, the most first, then parts), how full the hold is, and its credits. `what's in your hold?`, `how full is your hold?`, `inventory` and `manifest` do the same. |
 | `give [N] credits [to <name>]` | Transfers credits from its hold to that player (whoever asked, if no name is given): N (`give me 500 credits`, `transfer 2k credits to Ann`, `give Ann 500 credits`, `pay me 300`), half (`give me half your credits`) or all (`give me all your credits`). Without an amount it asks how many. The player's game adds them to the ship's hold and says so. Credits go only to human players in the same level, and only from a player the server let in with an AI key (on an open server, one that says it is a bot). They come back to the wingman if the player's game doesn't confirm them within 10 s, and a game that only sees them after 6 s refuses them. |
 | `give me your ore` | Hands ore from its hold to that player's (whoever asked, unless it's `give <name> ...`): all of it (`give me your ore`, `give me everything`), one mineral (`give me the platinum`, `hand over the iron`), so many tonnes (`give me 100 t of iron`, `give me 50 t of ore`, the most valuable first) or half (`give me half your gold`). Without an amount (`give me some iron`) it asks how much. The player's game loads what fits and says so, and what there's no room for comes back aboard (it says so too). |
@@ -2375,16 +2379,16 @@ Several orders can go in one message, separated by `then`, `and`, `,` or `;`
 (`Wingman, warp to Heaven, then dock`, `Wingman, attack the Scavenger and then follow me`). It
 carries them out one after another, each once the one before it is over: a warp when it arrives,
 a dock when it is docked, an attack when the ship it went for is destroyed, mining when the
-first load is sold. Reports (`status`, `cargo`, `where are you`), credits and ore go at once. `mine and sell` is just
-mining, since mining sells when the hold is full. `follow`, `regroup`, `defend` and `hold` go on until told
+first load is sold, salvaging when no wreck is left. Reports (`status`, `cargo`, `where are you`), credits and ore go at once. `mine and sell` is just
+mining, since mining sells when the hold is full (and `salvage and sell` salvaging). `follow`, `regroup`, `defend` and `hold` go on until told
 otherwise, so one of them before another order is dropped (`stop and dock` docks). An order it
 can't carry out (a warp refused, nowhere to dock or sell) calls off the rest, and says so. A new
 order that takes time replaces what was still to come; a report or credits on the way don't. A message that isn't all orders is taken as one order (or
 talk).
 
 It also says when it starts a fight, when the target is destroyed, when it arrives, when it sells a
-load (how much, where, and for how much), when it goes back to mining after a fight, and when it
-can't do what it was told. What it's doing is always shown on the HUD, over the comms lines, in a
+load (how much, where, and for how much), when it goes back to mining or salvaging after a fight,
+when it has no wreck left to salvage, and when it can't do what it was told. What it's doing is always shown on the HUD, over the comms lines, in a
 line of its own that doesn't fade ("Wingman: mining in Outer Drift: 34 t of ore aboard"), so an
 order isn't lost when its reply has faded.
 
@@ -2552,6 +2556,10 @@ tokens.
     cargo sent more than 6 s ago is refused; `give me 100 t of iron` sends it and a partial
     receipt puts the rest back aboard, `give me your ore` hands it all over, and `take my ore`
     is left to the player's game, which sends the ore with it;
+  - that `salvage`, after the fight `attack my target` starts (waited for up to 90 s), strips
+    a wreck if there is one near (its answer, `/status` and its line say so) or says there's
+    nothing to salvage; that `give me the parts` is answered; and that the API's `salvage`
+    refuses a wreck that isn't there;
   - that `your name is <name>` renames it (the roster and its answer have the new name), that it
     then takes orders by the new name and not the old, that a name another player has is refused,
     and that it takes its first name back (so the name it keeps for its next start is the one it

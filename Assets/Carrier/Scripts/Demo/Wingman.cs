@@ -20,16 +20,19 @@ namespace CarrierGame.Demo
     ///   Dock    - dock at the station it is at
     ///   Mine    - mine asteroids, sell the ore at the nearest market when the hold is full, and
     ///             go back for more (Wingman.Mining.cs)
+    ///   Salvage - strip the wrecks fights leave, one after another (warping to one far off), sell
+    ///             what it takes at the nearest market when the hold is full, and go back to the
+    ///             order before when none is left (Wingman.Salvage.cs)
     ///   Defend  - go to a player from wherever it is and fight what's on them (what they've
     ///             locked, or the nearest enemy to them), then keep station on them as Follow
     ///             does. In a fight of its own far from them, it breaks off as soon as the warp
     ///             drive will go (the drive won't under fire).
-    /// When an enemy comes close while it is following or holding, it fights, and goes back to
-    /// its order when the fight is over.
+    /// When an enemy comes close while it is following, holding, mining or salvaging, it fights,
+    /// and goes back to its order when the fight is over.
     /// </summary>
     public partial class Wingman : MonoBehaviour
     {
-        public enum Order { Hold, Follow, Attack, Goto, Dock, Mine, Defend }
+        public enum Order { Hold, Follow, Attack, Goto, Dock, Mine, Defend, Salvage }
 
         public CarrierDemoInput demo;
         [Tooltip("Where it keeps station off its leader: right, up and behind, in the leader's frame, in ship sizes.")]
@@ -89,6 +92,8 @@ namespace CarrierGame.Demo
             WaitingOver = null;
             // (leaving the Mine order: the laser off, the approach stopped)
             if (Current == Order.Mine && o != Order.Mine) StopMiningGear();
+            // (and the Salvage order: the beam off)
+            if (Current == Order.Salvage && o != Order.Salvage) StopSalvageGear();
             Current = o;
             defending = false;
             nextWarp = 0f;
@@ -312,12 +317,18 @@ namespace CarrierGame.Demo
         public const float DefendCalm = 8f;
         float lastEnemySeen = float.NegativeInfinity;
 
-        /// <summary>With no enemy in reach for `sinceSeen` seconds, is the fight still on? Mining,
-        /// till the calm is out; otherwise, no.</summary>
+        /// <summary>With no enemy in reach for `sinceSeen` seconds, is the fight still on? Mining
+        /// (or salvaging), till the calm is out; otherwise, no.</summary>
         public static bool StillDefending(bool mining, float sinceSeen) => mining && sinceSeen < DefendCalm;
 
         /// <summary>Fights over while mining, back at the rocks (CoopBot says so on the channel).</summary>
         public int BackToMining { get; private set; }
+        /// <summary>Fights over while salvaging, back at the wrecks (CoopBot says so too).</summary>
+        public int BackToSalvaging { get; private set; }
+
+        /// <summary>At work in a place (mining, or salvaging): a fight there is waited out on the
+        /// spot, not chased off it, and then it carries on.</summary>
+        bool AtWork => Current == Order.Mine || Current == Order.Salvage;
 
         /// <summary>The fight over: back to the order.</summary>
         void EndDefence(CarrierController cc)
@@ -326,6 +337,7 @@ namespace CarrierGame.Demo
             Target = null;
             cc.SetTarget(null);
             if (Current == Order.Mine && Step <= MineStep.Cut) BackToMining++;
+            if (Current == Order.Salvage && SalvagingStep <= SalvageStep.Strip) BackToSalvaging++;
         }
 
         static bool Gone(Transform t) => t == null || !t.gameObject.activeInHierarchy || (t.TryGetComponent(out Health h) && h.Dead);
@@ -354,7 +366,7 @@ namespace CarrierGame.Demo
             if (drive != null && drive.Current != WarpDrive.State.Ready) { Steer(0f, 0f); Doing = "in warp"; return; }
             if (PlanetLanding.Busy) { Steer(0f, 0f); Doing = "down on a planet"; return; }
 
-            // an enemy close while following, holding or mining: fight it, then carry on. A fight
+            // an enemy close while following, holding, mining or salvaging: fight it, then carry on. A fight
             // starts inside defendRange and goes on while one is inside DefendKeep of that, and
             // until none has been seen for DefendCalm: so one at the edge of the sensors' reach
             // (which jamming moves about) doesn't start and stop a fight every second
@@ -369,8 +381,8 @@ namespace CarrierGame.Demo
                 // (a nearer one in reach rather than one run off; none in reach, mining: not chased
                 // off the field, but watched for)
                 if (near != null) { defending = true; lastEnemySeen = Time.time; if (Gone(Target) || far) Target = near; }
-                else if (defending && !StillDefending(Current == Order.Mine, Time.time - lastEnemySeen)) EndDefence(cc);
-                else if (defending && far && Current == Order.Mine) { Target = null; cc.SetTarget(null); }
+                else if (defending && !StillDefending(AtWork, Time.time - lastEnemySeen)) EndDefence(cc);
+                else if (defending && far && AtWork) { Target = null; cc.SetTarget(null); }
             }
 
             // defending a player who is far off, in a fight here: broken off as soon as the drive
@@ -393,10 +405,12 @@ namespace CarrierGame.Demo
             {
                 // (mining: the laser off and the approach called off for the fight, then on again)
                 if (Current == Order.Mine) MinePause();
+                // (salvaging: the beam off for the fight, and back to the same wreck after)
+                if (Current == Order.Salvage) SalvagePause();
                 if (Gone(Target))
                 {
-                    // (mining and watching for more: the check each second finds the next one)
-                    Target = Current == Order.Mine && defending ? null
+                    // (mining or salvaging, and watching for more: the check each second finds the next one)
+                    Target = AtWork && defending ? null
                            : NearestEnemy(cc.transform.position, Current == Order.Attack ? 30000f : defendRange * DefendKeep)
                              ?? (Current == Order.Defend ? ThreatTo(Leader()) : null);
                     if (Target == null)
@@ -409,10 +423,10 @@ namespace CarrierGame.Demo
                             cc.SetTarget(null);
                             return;
                         }
-                        // (nothing left to fight. Mining, it holds where it is till the calm is out,
+                        // (nothing left to fight. Mining or salvaging, it holds where it is till the calm is out,
                         // in case another comes, rather than going back to a rock and off it again;
                         // otherwise it carries on at once, not to lose its leader)
-                        if (!StillDefending(Current == Order.Mine, Time.time - lastEnemySeen)) EndDefence(cc);
+                        if (!StillDefending(AtWork, Time.time - lastEnemySeen)) EndDefence(cc);
                         else { cc.SetTarget(null); Steer(0f, 0f); cc.throttle = 0f; Doing = "watching for more"; return; }
                     }
                 }
@@ -432,6 +446,9 @@ namespace CarrierGame.Demo
                     break;
                 case Order.Mine:
                     MineUpdate(cc);
+                    break;
+                case Order.Salvage:
+                    SalvageUpdate(cc);
                     break;
                 case Order.Goto:
                     if (Destination == null) { Current = Order.Hold; break; }

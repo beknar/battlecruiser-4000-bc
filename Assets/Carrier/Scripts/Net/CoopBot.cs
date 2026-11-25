@@ -31,7 +31,11 @@ namespace CarrierGame.Demo
     /// in its new name, and keeps it for its next start (a kept name wins over -name). "Wingman,
     /// give me your ore" (the platinum, 100 t of iron) hands ore from its hold to the speaker's,
     /// and "Wingman, take my ore" is sent with the ore by the speaker's own game (CoopCargo): it
-    /// says what came, and what there was no room for.
+    /// says what came, and what there was no room for. "Wingman, salvage" (scavenge, salvage the
+    /// wrecks, salvage the wreck of the Fang Hunter) strips the wrecks near it, one after another,
+    /// sells what it takes when the hold is full and goes back to its order before when none is
+    /// left; "Wingman, give me the parts" hands over the parts aboard, and keeps those it
+    /// salvages for the speaker (handed over when they're near) rather than selling them.
     ///
     /// It also answers on a small HTTP API on this machine only (127.0.0.1, -botport, 7781 by
     /// default), for an AI to fly it (Tools/CoopAI/coop_ai_mcp.py makes it an MCP server):
@@ -39,10 +43,11 @@ namespace CarrierGame.Demo
     ///   GET  /messages?after=N  the comms channel after message N
     ///   GET  /destinations      the places to warp to, nearest first
     ///   POST /say   {text}      say something on the comms channel
-    ///   POST /order {order, target}  follow|hold|attack|goto|regroup|dock|mine|sell|defend|assist|rename|giveore
+    ///   POST /order {order, target}  follow|hold|attack|goto|regroup|dock|mine|sell|defend|assist|rename|giveore|salvage
     ///                           (defend and assist: a player's name, or the last to speak;
     ///                           rename: the new name, answered on the comms; giveore:
-    ///                           "&lt;N|all|half&gt; &lt;ore|mineral&gt;[ to &lt;name&gt;]")
+    ///                           "&lt;N|all|half&gt; &lt;ore|mineral|parts&gt;[ to &lt;name&gt;]";
+    ///                           salvage: what the wreck was, or nothing for the nearest)
     ///   GET  /chatmode          who answers talk that isn't an order: {mode, listener_seen_s}
     ///   POST /chatmode {mode}   llm|personality|paused (or on|off|pause|resume)
     ///   POST /quit              close the game
@@ -97,7 +102,7 @@ namespace CarrierGame.Demo
         bool greeted;
         string lastDoing = "";
         bool wasFighting;
-        int saidBackToMining;
+        int saidBackToMining, saidBackToSalvaging;
         Wingman backToMiningOf;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -167,7 +172,7 @@ namespace CarrierGame.Demo
                 greeted = true;
                 var human = Humans().FirstOrDefault();
                 if (human != null) { CallOffChain(); Pilot.Follow(human.id); lastLeader = lastSpeaker = human.id; }
-                CoopChat.Say($"{Me} on station{(human != null ? $", forming up on {human.name}" : "")}. Orders by name: \"{Me}, follow me / defend me / hold / attack [my target] / warp to <place> / dock / mine / sell / cargo / give credits / give me your ore / take my ore / where are you / status\".", Via.Event);
+                CoopChat.Say($"{Me} on station{(human != null ? $", forming up on {human.name}" : "")}. Orders by name: \"{Me}, follow me / defend me / hold / attack [my target] / warp to <place> / dock / mine / sell / salvage / cargo / give credits / give me your ore / take my ore / where are you / status\".", Via.Event);
             }
             if (!CoopClient.Active) greeted = false;
             // says what it starts doing, when it's worth saying
@@ -196,12 +201,24 @@ namespace CarrierGame.Demo
             }
             else if (!fighting && wasFighting) wasFighting = false;
             // (a fight over while mining, back at the rocks: said, so the order isn't lost)
-            if (Pilot != backToMiningOf) { backToMiningOf = Pilot; saidBackToMining = Pilot != null ? Pilot.BackToMining : 0; }
+            if (Pilot != backToMiningOf)
+            {
+                backToMiningOf = Pilot;
+                saidBackToMining = Pilot != null ? Pilot.BackToMining : 0;
+                saidBackToSalvaging = Pilot != null ? Pilot.BackToSalvaging : 0;
+            }
             if (Pilot != null && Pilot.BackToMining != saidBackToMining)
             {
                 saidBackToMining = Pilot.BackToMining;
                 if (CoopClient.Active) CoopChat.Say($"{Me}: {WingmanReplies.Get("back_to_mining")}", Via.Event);
             }
+            // (and while salvaging, back at the wrecks)
+            if (Pilot != null && Pilot.BackToSalvaging != saidBackToSalvaging)
+            {
+                saidBackToSalvaging = Pilot.BackToSalvaging;
+                if (CoopClient.Active) CoopChat.Say($"{Me}: back to salvaging.", Via.Event);
+            }
+            HandOverParts();
             SayDoingIfChanged();
             NextInChain();
             while (requests.TryDequeue(out var r)) Serve(r.ctx, r.body);
@@ -590,6 +607,12 @@ namespace CarrierGame.Demo
                     return MineLine(pl.Step, pl.MineField != null ? pl.MineField.displayName : null,
                                     pl.Market != null ? pl.Market.displayName : null, hold != null ? hold.OreTonnes : -1f, pl.MineChoice, pl.OreMissing);
                 }
+                case Wingman.Order.Salvage:
+                {
+                    var hold = pl.demo != null && pl.demo.carrier != null ? pl.demo.carrier.GetComponentInChildren<CargoHold>() : null;
+                    return SalvageLine(pl.SalvagingStep, pl.SalvageTarget != null ? pl.SalvageTarget.Of : null,
+                                       pl.Market != null ? pl.Market.displayName : null, hold != null ? hold.Used : -1f);
+                }
                 case Wingman.Order.Follow: return pl.LeaderName.Length > 0 ? $"following {pl.LeaderName}" : "following";
                 case Wingman.Order.Defend: return pl.LeaderName.Length > 0 ? $"defending {pl.LeaderName}" : "defending";
                 case Wingman.Order.Attack: return "attacking";
@@ -617,6 +640,19 @@ namespace CarrierGame.Demo
                 ? $"mining {(nearest ? "the nearest asteroid field" : "in " + field)}"
                 : $"mining{what} {(nearest ? "at the nearest asteroid field" : "in " + field)}{lacking}";
             return tonnes >= 0f ? $"{where}: {tonnes:F0} t of ore aboard" : where;
+        }
+
+        /// <summary>The salvage order's line: the wreck it is at or flying to ("salvaging the wreck
+        /// of Pirate Cruiser"; none chosen yet, "looking for wrecks to salvage"), or the market it
+        /// sells at, and the tonnes aboard (-1: not known).</summary>
+        public static string SalvageLine(Wingman.SalvageStep step, string wreckOf, string market, float tonnes)
+        {
+            string what = step == Wingman.SalvageStep.Leave ? "heading back to the wrecks"
+                        : step >= Wingman.SalvageStep.ToMarket ? $"selling salvage at {(string.IsNullOrEmpty(market) ? "the nearest market" : market)}"
+                        : string.IsNullOrEmpty(wreckOf) ? "looking for wrecks to salvage"
+                        : step == Wingman.SalvageStep.Strip ? $"salvaging the wreck of {wreckOf}"
+                        : $"on the way to the wreck of {wreckOf}";
+            return tonnes >= 0f ? $"{what}: {tonnes:F0} t aboard" : what;
         }
 
         // messages the bot carried out as orders (by number), marked "handled" for the listener
@@ -872,10 +908,11 @@ namespace CarrierGame.Demo
 
         /// <summary>An order in words, parsed (none: talk): its kind ("chat", "follow", "regroup",
         /// "cargo", "give", "hold", "attack", "assist" (what the speaker has locked), "defend",
-        /// "where", "goto", "dock", "mine", "sell", "status", "help", "rename" (a new name for it),
-        /// "giveore" (cargo out of its hold, CargoArgs), "take" (the speaker's game hands its own
-        /// over)) and what it is to (a name, a place, an amount; for "mine", the rocks and the
-        /// field as said, "gold at Inner Belt", which MineTarget takes apart).</summary>
+        /// "where", "goto", "dock", "mine", "sell", "salvage", "status", "help", "rename" (a new
+        /// name for it), "giveore" (cargo out of its hold, CargoArgs), "take" (the speaker's game
+        /// hands its own over)) and what it is to (a name, a place, an amount; for "mine", the
+        /// rocks and the field as said, "gold at Inner Belt", which MineTarget takes apart; for
+        /// "salvage", what the wreck was, or "" for the nearest: SalvageArg).</summary>
         public static (string kind, string arg)? ParseOrder(string words)
         {
             // ("can you mine please": "mine")
@@ -911,6 +948,9 @@ namespace CarrierGame.Demo
             // ("give me your ore", "take my ore"; before "attack", whose "take out" isn't cargo)
             if ((a = CargoArgs(w, false)) != null) return ("giveore", a);
             if ((a = CargoArgs(w, true)) != null) return ("take", a);
+            // ("salvage the wrecks", "scavenge", "salvage the wreck of the Fang Hunter")
+            var sv = SalvageRx.Match(w);
+            if (sv.Success) return ("salvage", SalvageArg(sv.Groups["what"].Value));
             if (Arg("hold", "stop", "wait", "stay") != null) return ("hold", "");
             if ((a = Arg("attack", "engage", "fire on", "kill", "shoot", "take out")) != null) return ("attack", NoThe(a));
             if ((a = Arg("warp to", "go to", "goto", "jump to", "warp")) != null) return ("goto", a);
@@ -928,6 +968,27 @@ namespace CarrierGame.Demo
             if (Arg("status", "report", "sitrep") != null) return ("status", "");
             if (Arg("help", "orders") != null) return ("help", "");
             return null;
+        }
+
+        // "salvage", "scavenge", "start salvaging", "strip the wreck", with what follows
+        static readonly Regex SalvageRx = new Regex(@"^(?:start\s+|begin\s+)?(?:salvag(?:e|ing)|scaveng(?:e|ing)|strip(?:ping)?)(?:\s+(?<what>.+))?$", RxOpt);
+        // the words after it that mean any wreck ("the wrecks", "that wreck", "for parts", "what's left")
+        static readonly HashSet<string> SalvageAny = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "the", "a", "an", "that", "this", "those", "these", "some", "any", "all", "every", "everything", "nearest", "closest", "near",
+            "nearby", "wreck", "wrecks", "wreckage", "wreckages", "debris", "hulk", "hulks", "it", "them", "for", "parts", "goods", "scrap",
+            "salvage", "stuff", "metal", "what's", "whats", "what", "is", "left", "here", "there", "around", "over", "of", "me", "us", "up",
+        };
+
+        /// <summary>What follows "salvage": "" for any wreck (the nearest: "the wrecks", "that
+        /// wreck", "for parts"), else what the wreck was ("the wreck of the Fang Hunter": "Fang
+        /// Hunter").</summary>
+        public static string SalvageArg(string what)
+        {
+            string t = (what ?? "").Trim().TrimEnd('.', '!', '?').Trim();
+            var words = t.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim(',', ';')).Where(x => x.Length > 0).ToList();
+            if (words.All(x => SalvageAny.Contains(x))) return "";
+            return Wingman.WreckName(t);
         }
 
         string Run((string kind, string arg) p, int fromId)
@@ -990,9 +1051,9 @@ namespace CarrierGame.Demo
 
         string Chain(List<(string kind, string arg)> orders, int fromId)
         {
-            // (mining sells when the hold is full: "mine and sell" is mining)
+            // (mining and salvaging sell when the hold is full: "mine and sell" is mining)
             for (int i = orders.Count - 1; i > 0; i--)
-                if (orders[i].kind == "sell" && orders[i - 1].kind == "mine") orders.RemoveAt(i);
+                if (orders[i].kind == "sell" && (orders[i - 1].kind == "mine" || orders[i - 1].kind == "salvage")) orders.RemoveAt(i);
             // (one that goes on till told otherwise is over as soon as another order comes:
             // "stop and dock" is docking, "come here and follow me" following)
             for (int i = orders.Count - 2; i >= 0; i--)
@@ -1048,6 +1109,8 @@ namespace CarrierGame.Demo
                 // (mining: over with its first load sold; selling: with the sale; no longer at it before then: it couldn't)
                 case "mine": stepDone = () => PilotGone() ? -1 : pilot.Sales > sales0 ? 1 : pilot.Current == Wingman.Order.Mine ? 0 : -1; break;
                 case "sell": stepDone = () => PilotGone() ? -1 : pilot.Sales > sales0 ? 1 : pilot.Current == Wingman.Order.Mine ? 0 : -1; break;
+                // (salvaging: over with no wrecks left, when it has gone back to its order before)
+                case "salvage": stepDone = () => PilotGone() ? -1 : pilot.Current == Wingman.Order.Salvage ? 0 : pilot.SalvageFinished ? 1 : -1; break;
             }
             return answer;
         }
@@ -1088,6 +1151,7 @@ namespace CarrierGame.Demo
                     return $"mine{what}{(field.Length > 0 ? $" at {field}" : "")}";
                 }
                 case "follow": return o.arg.Length > 0 ? $"follow {o.arg}" : "follow";
+                case "salvage": return o.arg.Length > 0 ? $"salvage the wreck of {o.arg}" : "salvage";
                 case "assist": return "attack your target";
                 case "defend": return o.arg.Length > 0 ? $"defend {o.arg}" : "defend you";
                 case "where": return "say where I am";
@@ -1164,6 +1228,12 @@ namespace CarrierGame.Demo
             "ore", "ores", "cargo", "minerals", "mineral", "rocks", "load", "haul",
         };
 
+        // the parts aboard, all of them ("give me the parts")
+        static readonly HashSet<string> CargoParts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "parts", "ship parts", "salvaged parts", "salvage parts", "spare parts", "part",
+        };
+
         static bool CargoWord(string w) => CargoLead.Contains(w) || CargoOre.Contains(w) || TonnesRx.IsMatch(w) || Minerals.TryParse(w, out _)
                                            || w.Equals("all", StringComparison.OrdinalIgnoreCase) || w.Equals("half", StringComparison.OrdinalIgnoreCase);
 
@@ -1171,8 +1241,9 @@ namespace CarrierGame.Demo
         /// platinum", "give me 100 t of iron", "hand over half your gold", "give Ann the iron") or
         /// to take it ("take my ore", "take the iron", "take 50 t of nickel"), as the order's
         /// target: "&lt;amount&gt; &lt;item&gt;[ to &lt;name&gt;]", the amount tonnes, "all",
-        /// "half" or "?" (not said: "give me some iron"), the item "ore" (all the ore) or a
-        /// mineral's id ("Iron"). Null if it isn't one (credits are GiveArgs').</summary>
+        /// "half" or "?" (not said: "give me some iron"), the item "ore" (all the ore), "parts"
+        /// (the parts aboard: "give me the parts") or a mineral's id ("Iron"). Null if it isn't one
+        /// (credits are GiveArgs').</summary>
         public static string CargoArgs(string words, bool take)
         {
             var m = (take ? TakeRx : HandRx).Match((words ?? "").Trim().TrimEnd('?', '!', '.').Trim());
@@ -1224,6 +1295,7 @@ namespace CarrierGame.Demo
                 item = "ore";
             }
             else if (what.All(x => CargoOre.Contains(x))) item = "ore";
+            else if (CargoParts.Contains(string.Join(" ", what))) item = "parts";
             else
             {
                 // ("iron ore", "platinum rocks")
@@ -1399,6 +1471,8 @@ namespace CarrierGame.Demo
                 }
                 case "giveore":
                     return GiveCargo(cc, target, fromId);
+                case "salvage":
+                    return SalvageOrder(cc, target);
                 case "take":
                     // (the speaker's game sends it, with the order; it's said when it comes)
                     return fromId == 0 ? $"a player's own game hands its cargo over: \"{Me}, take my ore\" on the comms." : CargoComing;
@@ -1435,9 +1509,22 @@ namespace CarrierGame.Demo
             if (IsBot(who) || CoopCargo.IsAi(who, c.Players)) return $"{who.name} is a bot: cargo goes to players.";
             var mine = c.Players.FirstOrDefault(p => p != null && p.id == c.MyId);
             if (mine != null && who.level != mine.level) return $"{who.name} isn't in this part of space: cargo goes to players here.";
+            // ("give me the parts": those aboard now, and those it salvages from now on, kept for them)
+            bool parts = item.Equals("parts", StringComparison.OrdinalIgnoreCase);
+            if (parts)
+            {
+                if (amountWord == "?") amountWord = "all";
+                Pilot.PartsFor = who.id;
+                nextPartsTry = Time.realtimeSinceStartup + CoopCargo.ReceiptWait;
+            }
             var want = CoopCargo.Wanted(hold, amountWord, item, out string why);
             if (want == null)
             {
+                if (parts)
+                {
+                    Orders++;
+                    return $"no parts aboard yet, {who.name}: I'll keep the ones I salvage for you, and hand them over when you're within {CoopCargo.Reach / 1000f:F0} km.";
+                }
                 if (why != "how much?") return why + ".";
                 bool ore = item.Equals("ore", StringComparison.OrdinalIgnoreCase);
                 string what = ore ? "ore" : Minerals.TryParse(item, out var m) ? Minerals.Name(m).ToLowerInvariant() : item;
@@ -1447,9 +1534,72 @@ namespace CarrierGame.Demo
                        $"(\"give me 50 t of {what}\", or \"give me all your {what}\").";
             }
             string refused = CoopCargo.Send(hold, who.id, want, out var sent);
-            if (refused.Length > 0) return $"can't hand it to {who.name}: {refused}.";
+            if (refused.Length > 0)
+            {
+                if (!parts) return $"can't hand it to {who.name}: {refused}.";
+                Orders++;
+                return $"can't hand the parts over now ({refused}); I'll keep them for you, {who.name}, and the ones I salvage, till I can.";
+            }
             Orders++;
-            return $"sending {CoopCargo.Describe(sent)} to {who.name}; hold {hold.Used:F0} of {hold.capacity:F0} t now.";
+            return $"sending {CoopCargo.Describe(sent)} to {who.name}; hold {hold.Used:F0} of {hold.capacity:F0} t now." +
+                   (parts ? " I'll keep the parts I salvage for you too." : "");
+        }
+
+        // when the parts kept for a player are next offered to them
+        float nextPartsTry;
+
+        /// <summary>The parts kept for a player ("give me the parts"): handed over when they're in
+        /// this level and within 50 km (tried every 5 s at most, and a minute after any came back:
+        /// a full hold, say). A player who has left has none kept: they're sold again.</summary>
+        void HandOverParts()
+        {
+            var pl = Pilot;
+            if (pl == null || pl.PartsFor == 0 || !CoopClient.Active) return;
+            float now = Time.realtimeSinceStartup;
+            if (now < nextPartsTry) return;
+            nextPartsTry = now + 5f;
+            var c = CoopClient.Instance;
+            var who = c.Players.FirstOrDefault(p => p != null && p.id == pl.PartsFor);
+            if (who == null) { pl.PartsFor = 0; return; }
+            if (CoopCargo.Outstanding > 0) return;
+            var cc = pl.demo != null ? pl.demo.carrier : null;
+            var hold = cc != null ? cc.GetComponentInChildren<CargoHold>() : null;
+            if (hold == null || cc.Destroyed) return;
+            var r = CoopWorld.Instance != null ? CoopWorld.Instance.RemoteOf(who.id) : null;
+            if (r == null || r.Hidden || Vector3.Distance(r.transform.position, cc.transform.position) > CoopCargo.Reach) return;
+            var want = CoopCargo.Wanted(hold, "all", "parts", out _);
+            if (want == null) return;
+            if (CoopCargo.Send(hold, who.id, want, out var sent).Length > 0) return;
+            CoopChat.Say($"{Me}: handing you {CoopCargo.Describe(sent)}, {who.name}.", Via.Event);
+        }
+
+        /// <summary>"salvage", "salvage the wreck of the Fang Hunter": the wreck named (what it
+        /// was, by name as a target's is matched), else the nearest within 30 km, then the others
+        /// near it (Wingman.SalvageWrecks). No wreck: says so, and nothing changes.</summary>
+        string SalvageOrder(CarrierController cc, string target)
+        {
+            if (cc.GetComponentInChildren<CargoHold>() == null) return WingmanReplies.Get("no_hold");
+            Vector3 at = cc.transform.position;
+            string name = Wingman.WreckName(target);
+            Wreck w;
+            if (name.Length > 0)
+            {
+                w = Wingman.WreckNamed(name, at);
+                if (w == null) return $"no wreck of {name} to salvage.";
+            }
+            else
+            {
+                w = Wingman.NearestWreck(at);
+                // (salvaging already, back from a sale say: carried on, from where it was)
+                if (w == null && Pilot.Current != Wingman.Order.Salvage) return "nothing to salvage within 30 km: no wrecks.";
+            }
+            Pilot.SalvageWrecks(w, name);
+            Orders++;
+            if (w == null) return "salvaging still.";
+            float d = Vector3.Distance(at, w.transform.position);
+            Vector3 there = w.transform.position;
+            int more = Wreck.All.Count(x => x != null && !x.Empty && x != w && (x.transform.position - there).sqrMagnitude < Salvage.Around * Salvage.Around);
+            return $"salvaging the wreck of {w.Of}, {HowFar(d)} off{(more > 0 ? $", then {more} more near it" : "")}; I'll sell what I take when the hold is full.";
         }
 
         /// <summary>Cargo from a player has come (or been refused): said on the comms.</summary>
@@ -1468,6 +1618,8 @@ namespace CarrierGame.Demo
         /// <summary>Cargo it sent has been answered: said on the comms when any came back.</summary>
         void OnCargoReturned(int to, List<CoopItem> taken, List<CoopItem> back, string why)
         {
+            // (parts kept for a player that came back: offered again in a minute, not every 5 s)
+            if (back.Count > 0 && Pilot != null && to == Pilot.PartsFor) nextPartsTry = Time.realtimeSinceStartup + 60f;
             if (!CoopClient.Active || (back.Count == 0 && why.Length == 0)) return;
             string name = CoopClient.Instance.NameOf(to);
             string line = why == "no answer" ? $"no answer from {name}'s game: {CoopCargo.Describe(back)} back aboard."
@@ -1891,6 +2043,8 @@ namespace CarrierGame.Demo
                 sb.Append($",\"order\":{{\"order\":{Q(Pilot.Current.ToString().ToLowerInvariant())},\"leader\":{Q(Pilot.LeaderName)}");
                 sb.Append($",\"target\":{Q(Wingman.NameOf(Pilot.Target))},\"destination\":{Q(Pilot.Destination != null ? Pilot.Destination.displayName : "")},\"doing\":{Q(Pilot.Doing)}" +
                           (Pilot.Current == Wingman.Order.Mine ? $",\"step\":{Q(Pilot.Step.ToString().ToLowerInvariant())},\"sold_t\":{F(Pilot.TonnesSold)},\"earned\":{F(Pilot.CreditsEarned)},\"sales\":{Pilot.Sales}" + MineJson() : "") +
+                          (Pilot.Current == Wingman.Order.Salvage ? SalvageJson(cc) : "") +
+                          $",\"parts_for\":{Q(Pilot.PartsFor != 0 && c != null ? c.NameOf(Pilot.PartsFor) : "")}" +
                           $",\"line\":{Q(DoingLine())}}}");
                 // what is near, enemies first
                 sb.Append(",\"nearby\":[");
@@ -1903,6 +2057,17 @@ namespace CarrierGame.Demo
                     if (!first) sb.Append(',');
                     first = false;
                     sb.Append($"{{\"name\":{Q(Wingman.NameOf(t))},\"hostile\":{B(info != null && info.Hostile)},\"km\":{F(Vector3.Distance(t.position, at) / 1000f)},\"hull\":{F(Fraction(t.GetComponent<Health>()))}}}");
+                }
+                sb.Append("]");
+                // the wrecks to salvage (30 km), nearest first
+                sb.Append(",\"wrecks\":[");
+                first = true;
+                foreach (var w in Wreck.All.Where(w => w != null && !w.Empty && (w.transform.position - at).sqrMagnitude < Salvage.Around * Salvage.Around)
+                                           .OrderBy(w => (w.transform.position - at).sqrMagnitude).Take(8))
+                {
+                    if (!first) sb.Append(',');
+                    first = false;
+                    sb.Append($"{{\"name\":{Q(w.Name)},\"km\":{F(Vector3.Distance(w.transform.position, at) / 1000f)},\"t\":{F(w.Tonnes)},\"holds\":{Q(w.Summary())}}}");
                 }
                 sb.Append("]");
             }
@@ -1933,6 +2098,17 @@ namespace CarrierGame.Demo
             var rock = Pilot.Rock;
             if (rock != null && rock.Valid)
                 sb.Append($",\"rock\":{Q(rock.Label)},\"rock_mix\":{Q(Minerals.Summary(rock.Mix, 3, false))},\"rock_t\":{F(rock.Remaining)}");
+            return sb.ToString();
+        }
+
+        /// <summary>The salvage order for the status: "step", the wreck it's at ("wreck", "wreck_t"
+        /// left in it, "wreck_km"), and the run's "salvaged_t", "earned" and "sales".</summary>
+        string SalvageJson(CarrierController cc)
+        {
+            var w = Pilot.SalvageTarget;
+            var sb = new StringBuilder($",\"step\":{Q(Pilot.SalvagingStep.ToString().ToLowerInvariant())},\"wreck\":{Q(w != null ? w.Name : "")}");
+            if (w != null) sb.Append($",\"wreck_t\":{F(w.Tonnes)},\"wreck_km\":{F(Vector3.Distance(w.transform.position, cc.transform.position) / 1000f)}");
+            sb.Append($",\"salvaged_t\":{F(Pilot.SalvageTaken)},\"earned\":{F(Pilot.SalvageCredits)},\"sales\":{Pilot.SalvageSales}");
             return sb.ToString();
         }
 

@@ -30,6 +30,10 @@ its HTTP API, and through the MCP server (coop_ai_mcp.py):
     game (no lock in its ship message) says the game doesn't say, with nothing locked says so, and
     with an enemy of the bot's own list locked attacks it; 'defend me' sends it to the player;
     'where are you' says how far it is from them, at once, and is marked handled
+  - salvage, after that fight (waited for up to 90 s): 'salvage' goes for the wreck of what it
+    killed, or the wrecks near (its answer, /status's wreck and wrecks, and its line say so), or with
+    none near says there's nothing to salvage; 'give me the parts' is answered (it keeps them for
+    the player); the API's salvage refuses a wreck that isn't there
   - its name: 'your name is <name>' renames it (its answer, in the new name, its /status and the
     server's roster have it), orders by the new name are carried out and by the old one aren't, a
     name another player has is refused, and the API's rename order gives it its first name back
@@ -567,6 +571,36 @@ async def main():
                 s = await wait_status(lambda s: s.get("order", {}).get("order") == "attack", 10)
                 check(r is not None and s.get("order", {}).get("order") == "attack" and s.get("order", {}).get("target"),
                       "'attack my target' attacks what my game says I've locked", f"{prey}: {r}; {json.dumps(s.get('order', {}))}")
+            # salvage: after that fight, if it ends in time (the wreck of what it killed), else with
+            # whatever wrecks are near it (the pirates it fought while mining, say), or none
+            killed = await me.hear("target destroyed", 90, n) if prey is not None else None
+            n = len(me.heard)
+            await me.say(f"{BOT}, salvage")
+            r = None
+            for _ in range(50):
+                r = next((t for _, t in me.heard[n:] if "salvaging the wreck of" in t or "nothing to salvage" in t), None)
+                if r:
+                    break
+                await asyncio.sleep(0.2)
+            if r is not None and "salvaging the wreck of" in r:
+                s = await wait_status(lambda s: s.get("order", {}).get("order") == "salvage", 10)
+                o = s.get("order", {})
+                # (its line says the wreck, or the fight it's in on the way: a fight comes first)
+                check(o.get("order") == "salvage" and o.get("wreck", "").startswith("Wreck of")
+                      and ("wreck" in o.get("line", "") or o.get("line", "").startswith("fighting"))
+                      and len(s.get("wrecks") or []) > 0,
+                      "'salvage' goes for a wreck, and its status and line say which", f"{'after the kill' if killed else 'no kill in 90 s'}: {r}; {json.dumps(o)}")
+            else:
+                s = await api("/status")
+                check(r is not None and s.get("order", {}).get("order") != "salvage" and not s.get("wrecks"),
+                      "'salvage' with no wreck near says there's nothing to salvage", f"{'after the kill' if killed else 'no kill in 90 s'}: {r or 'no answer'}")
+            n = len(me.heard)
+            await me.say(f"{BOT}, give me the parts")
+            r = await me.hear("keep", 10, n)
+            check(r is not None and "parts" in r, "'give me the parts' is answered, and it keeps the parts it salvages for me", r or "no answer")
+            r = await api("/order", {"order": "salvage", "target": "the wreck of the Nonexistent Dreadnought"})
+            check(r.get("ok") is False and "no wreck of Nonexistent Dreadnought" in r.get("answer", ""),
+                  "the API's salvage refuses a wreck that isn't there", json.dumps(r))
             n = len(me.heard)
             await me.say(f"{BOT}, defend me")
             # (its answer, whichever it is: with me already, on its way, or fighting where it is)

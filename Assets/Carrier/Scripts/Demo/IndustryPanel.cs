@@ -518,15 +518,63 @@ namespace CarrierGame.Demo
         /// <summary>Sell up to `amount` of an item aboard at its worth: the credits it fetched.</summary>
         /// <summary>Sell some of one thing from the hold at its worth: the credits it fetched,
         /// and how much went (`sold`).</summary>
-        float SellItem(string item, float amount, out float sold)
+        float SellItem(string item, float amount, out float sold) => SellFrom(Hold, item, amount, out sold);
+
+        /// <summary>Sell up to `amount` of an item from a hold at a market, at its worth (the
+        /// industry table's value): the credits it fetched, and how much went (`sold`). The
+        /// screen's SELL page and the AI wingman's sale (SellCargo, with no screen open) both come
+        /// here.</summary>
+        public static float SellFrom(CargoHold hold, string item, float amount, out float sold)
         {
             sold = 0f;
-            var hold = Hold;
             if (hold == null || amount <= 0f) return 0f;
             sold = hold.Unload(item, amount);
             float credits = sold * Table.Value(item);
             if (credits > 0f) hold.Earn(credits);
             IndustryLedger.Touch();
+            return credits;
+        }
+
+        /// <summary>Sell everything aboard at a market, as the AI wingman does when its hold is
+        /// full (no screen open): the ore, the refined goods and the parts, but for up to
+        /// `keepParts` tonnes of parts kept back (for a player who asked for them). The credits it
+        /// fetched; `sold` says what went ("120 t of ore, 36 t of goods and 2 parts"; "" for
+        /// nothing), `tonnes` its weight.</summary>
+        public static float SellCargo(CargoHold hold, float keepParts, out string sold, out float tonnes)
+        {
+            sold = "";
+            tonnes = 0f;
+            if (hold == null) return 0f;
+            var table = Table;
+            float before = hold.Used;
+            float credits = hold.SellAll(out float ore);
+            float goods = 0f, kept = 0f;
+            int parts = 0;
+            foreach (var e in hold.Contents())
+            {
+                if (IndustryTable.AsMineral(e.id, out _) || table.Value(e.id) <= 0f) continue;
+                bool part = table.Part(e.id) != null;
+                float amount = e.amount;
+                if (part && keepParts > 0f)
+                {
+                    // (the parts kept, as many whole ones as the tonnes kept back allow)
+                    float mass = table.Mass(e.id, 1f);
+                    float keep = mass > 0f ? Mathf.Clamp(Mathf.Floor((keepParts - kept) / mass + 1e-4f), 0f, amount) : amount;
+                    kept += keep * mass;
+                    amount -= keep;
+                }
+                if (amount <= 1e-4f) continue;
+                credits += SellFrom(hold, e.id, amount, out float went);
+                if (part) parts += Mathf.RoundToInt(went);
+                else goods += went;
+            }
+            tonnes = Mathf.Max(0f, before - hold.Used);
+            var said = new List<string>();
+            if (ore > 0.05f) said.Add($"{ore:F0} t of ore");
+            if (goods > 0.05f) said.Add($"{goods:F0} t of goods");
+            if (parts > 0) said.Add(parts == 1 ? "1 part" : $"{parts} parts");
+            sold = said.Count <= 1 ? string.Join("", said) : string.Join(", ", said.Take(said.Count - 1)) + " and " + said[said.Count - 1];
+            if (ore > 0f) IndustryLedger.Touch();
             return credits;
         }
 

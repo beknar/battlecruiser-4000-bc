@@ -11,11 +11,12 @@ server turns that API into MCP tools, over stdio:
     wait_messages   the same, but waiting (up to a minute) for a new message if there is none yet
     cargo           what is in the bot's hold, how full it is, and its credits
     give_credits    hand the bot's credits to a player (their game adds them to their hold)
-    give_ore        hand ore from the bot's hold to a player's (all of it, a mineral, so many tonnes)
+    give_ore        hand ore from the bot's hold to a player's (all of it, a mineral, so many tonnes),
+                    or its parts
     say             send a message on the comms channel (every player in its level sees it)
     order           give the pilot an order: follow <player>, hold, attack [target], goto <place>,
                     regroup, dock, mine [mineral | the most valuable ore] [at field], sell,
-                    defend [player], assist [player] (attack
+                    salvage [wreck] (strip the wrecks near it, selling what it takes), defend [player], assist [player] (attack
                     what that player has locked), rename <name> (a new name for the bot)
     destinations    the places a ship can warp to, with distances
     get_chat_mode   who answers talk to the bot: llm (this listener), personality (the bot's own) or paused
@@ -52,7 +53,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 GAME = os.environ.get("COOP_GAME_EXE", os.path.normpath(os.path.join(HERE, "..", "..", "..", "Builds", "StarSystem",
                                                                      "StarSystem.exe" if os.name == "nt" else "StarSystem")))
 PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"]
-ORDERS = ["follow", "hold", "attack", "goto", "regroup", "dock", "mine", "sell", "defend", "assist", "rename"]
+ORDERS = ["follow", "hold", "attack", "goto", "regroup", "dock", "mine", "sell", "salvage", "defend", "assist", "rename"]
 CHAT_MODES = ["llm", "personality", "paused", "on", "off", "pause", "resume", "unpause"]
 WAIT_MAX = 55
 
@@ -257,7 +258,7 @@ TOOLS = [
                  "and the bot says on the comms what came back. With no 'to', the last player to speak (or the nearest). "
                  "Only to a person in the bot's level, within 50 km of it. (A player hands their own ore to the bot "
                  "themselves: 'Wingman, take my ore' on the comms, or G in their mining menu.)",
-     {"item": {"type": "string", "description": "'ore' (every mineral aboard, the default) or a mineral by name or symbol ('platinum', 'Pt', 'He-3')"},
+     {"item": {"type": "string", "description": "'ore' (every mineral aboard, the default), a mineral by name or symbol ('platinum', 'Pt', 'He-3'), or 'parts' (every part aboard; from then on the bot keeps the parts it salvages for that player, and hands them over when they're within 50 km)"},
       "amount": {"type": "string", "description": "tonnes, 'all' (the default) or 'half'"},
       "to": {"type": "string", "description": "the player's name (or part of it)"}}, [], t_give_ore),
     ("say", "Send a message on the co-op comms channel, as the bot. Every player in its level sees it.",
@@ -270,13 +271,16 @@ TOOLS = [
               "which rocks, as a player would: a mineral by name or symbol ('platinum', 'Pt', 'He-3': the rocks richest "
               "in it, or the most valuable if none in range has any), 'the most valuable ore' (worth most a tonne), and "
               "either with a field ('gold at Inner Belt'); status then has ore, ore_missing and rock_mix; sell: take the ore "
-              "aboard to the nearest market now; defend [player name]: go to that player from wherever it is and fight "
+              "aboard to the nearest market now; salvage [wreck]: strip the wrecks fights left near it (the one named first, by what "
+              "it was: 'Fang Hunter'; else the nearest within 30 km, warping to one far off), selling what it takes at the "
+              "nearest market when the hold is full, and going back to the order before when none is left (status then has "
+              "step, wreck and salvaged_t; it always lists the wrecks near); defend [player name]: go to that player from wherever it is and fight "
               "what's on them; assist [player name]: attack what that player has locked (their game says it). Without "
               "a name, defend and assist mean the last player to speak. rename <new name>: the bot asks the co-op server "
               "for the name, and says on the comms (in its new name) whether it has it; it keeps the name for its next "
               "start, and from then on players order it by that name.",
      {"order": {"type": "string", "enum": ORDERS},
-      "target": {"type": "string", "description": "a player's name (follow, defend, assist), a target's (attack), a place's (goto), an asteroid field, a mineral or both for mine ('Inner Belt', 'platinum', 'gold at Inner Belt', 'the most valuable ore'), or the bot's new name (rename)"}},
+      "target": {"type": "string", "description": "a player's name (follow, defend, assist), a target's (attack), a place's (goto), an asteroid field, a mineral or both for mine ('Inner Belt', 'platinum', 'gold at Inner Belt', 'the most valuable ore'), what a wreck was for salvage ('Fang Hunter'; none for the nearest), or the bot's new name (rename)"}},
      ["order"], t_order),
     ("destinations", "The places a ship can warp to, nearest first, with their kinds and distances.", {}, [], t_destinations),
     ("get_chat_mode", "Who answers players' talk to the bot (anything addressed to it that isn't an order): 'llm', "

@@ -348,7 +348,10 @@ namespace CarrierGame.Demo
                                             "mine the most valuable ore", "mine the best rocks",
                                             // (ore handed over, each way: CoopCargo)
                                             "give me your ore", "give me all your ore", "give me the platinum", "give me the gold", "give me the iron",
-                                            "take my ore", "take all my ore", "take the iron" };
+                                            "take my ore", "take all my ore", "take the iron",
+                                            // (the wrecks stripped, and their parts handed over)
+                                            "salvage", "scavenge", "salvage the wrecks", "salvage that wreck", "start salvaging",
+                                            "give me the parts" };
 
         /// <summary>Phrases for an offline keyword recogniser (Windows without dictation): each
         /// order, alone and after each wingman's name (and "all ships"), and "mine at", "warp to"

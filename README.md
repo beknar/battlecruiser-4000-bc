@@ -2013,6 +2013,12 @@ In the web version, use the page's Full screen button rather than F11.
 
 The Windows players use DirectX 11, which is the stable choice on hybrid AMD + NVIDIA laptops.
 
+After a Windows or Linux build, `ThirdPartyNotices` puts the third-party licences beside the
+player (`THIRD_PARTY_FLITE.txt` for the wingman's live voice, `THIRD_PARTY_VOSK.txt` for the
+offline voice commands: Vosk, its model, and the MinGW runtime under the GCC Runtime Library
+Exception), and Vosk's model (`vosk-model`, 68 MB) from `Tools/Voice/vosk-model`. The web build
+has neither.
+
 ## The web version
 
 The web build of Star System uses WebGPU where the browser supports it and falls back to
@@ -2398,11 +2404,46 @@ menu, then hold the ` key (or the mouse's back button) and speak, "mine at the O
 been typed, with filler words left out, spoken numbers as figures ("give me two thousand
 credits" is `give me 2000 credits`) and the wingman's name put first if it wasn't said. With
 several wingmen it goes to the one last spoken to. A mark shows on the HUD while it listens.
-- **Windows:** the speech recognition built into Windows, so nothing is added to the download.
-  Dictation hears anything said, but it sends the audio to Microsoft to recognise it, and needs
-  Settings > Privacy > Speech: Online speech recognition. Without it, a short list of orders is
-  heard offline (each order, alone or after a wingman's name, "mine" the common minerals and the
-  most valuable ore, and "warp to" or "mine at" each place).
+- **Windows:** the speech recognition built into Windows. Dictation hears anything said, but it
+  sends the audio to Microsoft to recognise it, and needs Settings > Privacy > Speech: Online
+  speech recognition. Without it, a short list of orders is heard offline (each order, alone or
+  after a wingman's name, "mine" the common minerals and the most valuable ore, and "warp to" or
+  "mine at" each place). Windows' recognisers always
+  listen on the default recording device: this is "Windows default" in the pause menu's
+  Microphone line, and what you get until you choose another.
+- **A microphone of one's own (Windows and Linux):** the pause menu's Microphone line picks the
+  device (left and right, or click either side): on Windows "Windows default" and then each
+  recording device, on Linux the devices only (none chosen, or the chosen one unplugged, is the
+  first). With a device chosen, what's said is recognised offline by Vosk (Apache-2.0), on the
+  player's machine: nothing is sent anywhere. This is how Linux has voice commands.
+  - **Listening:** the device keeps recording while voice commands are on (Windows shows the
+    microphone in use), into a 10 s ring. Push-to-talk takes what was said from 0.3 s before
+    the key went down to 0.3 s after it was let go, so the first word isn't clipped, and Vosk
+    works on it on a worker thread (about 50 ms for an order).
+  - **What it listens for:** the phrases of the offline keywords above, "give me ... credits"
+    with the usual amounts, and "then" before each order. It learns from them which words follow
+    which, so "warp to Heaven then dock" is heard too. The words go through the same
+    corrections as the other recognisers' (below).
+  - **The limits:** the small model knows only its own words. About half the places' names
+    (Gilgal, Mizpah, Sheol, Jovara, K'rzyn and others) and unusual wingman names aren't among
+    them and come out as "[unk]": an order with one where a place goes ("warp to [unk]") isn't
+    sent, and a notice says place names may need typing (or, on Windows, Windows default). It
+    hears only orders: talk to the wingman needs typing, or Windows default's dictation. Short
+    orders are the likeliest to be misheard (with Piper's voice, "Wingman, dock" was sometimes
+    heard as "wingman stop").
+  - **The size:** the library is in `Plugins/x86_64`: `libvosk.dll` (25 MB) with the MinGW
+    runtime it was built with (`libstdc++-6.dll`, `libgcc_s_seh-1.dll`, `libwinpthread-1.dll`,
+    26 MB), and `libvosk.so` (25 MB). The model, `vosk-model-small-en-us-0.15` (68 MB, a 40 MB
+    download), goes in `vosk-model` beside the Windows and Linux players. It loads on a worker
+    thread (in under a second) when a device first starts recording, not when the game starts. The web build has
+    neither.
+  - **Where they're kept:** Vosk 0.3.45's release binaries, and the model in
+    `Tools/Voice/vosk-model`, outside the assets so the web build never takes it in. Both are in
+    Git LFS. After a Windows or Linux build, `ThirdPartyNotices` copies the model beside the
+    player, with Vosk's licences (`Tools/Voice/VOSK_LICENSE.txt`) as `THIRD_PARTY_VOSK.txt`. In
+    the editor the model is read from `Tools/Voice/vosk-model`. Without the model (only Git
+    LFS's pointers: `git lfs pull`) the build warns, and the Microphone line says the offline
+    recogniser isn't there.
 - **The web:** the browser's speech recognition, in Chrome, Edge or Safari, on an https page. It sends
   the audio to the browser's maker, and the browser asks for the microphone the first time.
   Firefox has none.
@@ -2424,7 +2465,6 @@ several wingmen it goes to the one last spoken to. A mark shows on the HUD while
     - "morning" and "mind" are "mine" only with words after them ("morning at the Inner Belt"),
       so "Wingman, morning" stays talk.
     - Talk is never changed.
-- **Linux:** not supported.
 - **Off by default.** The pad has no free button for push-to-talk, so it's the keyboard or the
   mouse. `-voicetest` (`?voicetest`) feeds it phrases instead of a microphone and logs what it
   would send.
@@ -2663,7 +2703,9 @@ The games run one at a time, in a 1280x720 window.
     comet tails, noise, the captain's portraits and lines, the data files, the frigates
     (every one with its modelled turrets, a CIWS mount or more and one main gun), and the AI
     wingman's chat mode and built-in personality (topics, branches, the timeout, facts in its
-    lines, no line twice running, and its dialogue file).
+    lines, no line twice running, and its dialogue file), and the voice commands (what's heard
+    as the order sent; Vosk's grammar, and the recorded orders in `Tools/Voice/testdata` heard
+    as those orders, skipped without the model or the library).
   - The server (`Server/CoopServer.Tests`): the allow-list, and reading and reloading the
     settings.
   - The run's own regression checker (`Tools/Tests/test_regression.py`).

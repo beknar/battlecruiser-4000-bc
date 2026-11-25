@@ -379,6 +379,22 @@ namespace CarrierGame.Demo
             return list.ToArray();
         }
 
+        /// <summary>Phrases for the offline recogniser that takes a grammar (Vosk, VoskRecognizer):
+        /// those of Phrases, "give me ... credits" with the usual amounts, and "then" before each
+        /// order. It learns from them which words follow which, so orders put together from them
+        /// ("warp to Heaven then dock") are heard too.</summary>
+        public static string[] GrammarPhrases(IEnumerable<string> bots, IEnumerable<string> places)
+        {
+            var list = new List<string>(Phrases(bots, places));
+            string[] units = { "one", "two", "three", "four", "five", "six", "seven", "eight", "nine" };
+            var amounts = new List<string> { "a hundred", "a thousand", "two thousand five hundred" };
+            foreach (var u in units) amounts.Add(u + " hundred");
+            foreach (var u in units.Concat(new[] { "ten", "twenty", "fifty" })) amounts.Add(u + " thousand");
+            foreach (var a in amounts) list.Add("give me " + a + " credits");
+            foreach (var o in Orders) list.Add("then " + o);
+            return list.ToArray();
+        }
+
         static string Capital(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
     }
 }

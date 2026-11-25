@@ -338,12 +338,14 @@ namespace CarrierGame.Demo
                 }
                 case MineStep.Leave:
                     if (Undocking()) { Doing = $"leaving {Market?.displayName}"; return; }
-                    // (told to sell while doing something else: back to following, or holding)
+                    // (told to sell while doing something else: back to following or defending, or holding)
                     if (afterSale != null)
                     {
                         var o = afterSale.Value;
                         afterSale = null;
-                        if (o == Order.Follow && afterLeader != 0) Follow(afterLeader); else Hold();
+                        if (o == Order.Defend && afterLeader != 0) Defend(afterLeader);
+                        else if (o == Order.Follow && afterLeader != 0) Follow(afterLeader);
+                        else Hold();
                         return;
                     }
                     Go(MineStep.ToField);

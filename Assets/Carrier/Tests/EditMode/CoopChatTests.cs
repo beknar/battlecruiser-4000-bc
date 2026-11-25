@@ -386,6 +386,142 @@ namespace CarrierGame.Tests
             Assert.That(Wingman.NameOf(friend), Is.EqualTo("Ochre Freighter"));
         }
 
+        // (the orders the co-op session of 24-25 Nov 2026 asked for: docs/coop-session-2026-11-24.md)
+        [TestCase("attack my target", "assist", "")]
+        [TestCase("Attack my target please", "assist", "")]
+        [TestCase("my lock", "assist", "")]
+        [TestCase("my target", "assist", "")]
+        [TestCase("what I'm shooting", "assist", "")]
+        [TestCase("shoot what I'm shooting at", "assist", "")]
+        [TestCase("engage the one I'm targeting", "assist", "")]
+        [TestCase("help me with my target", "assist", "")]
+        [TestCase("defend me", "defend", "")]
+        [TestCase("cover me", "defend", "")]
+        [TestCase("help me", "defend", "")]
+        [TestCase("can you help me out", "defend", "")]
+        [TestCase("I'm under attack", "defend", "")]
+        [TestCase("im under attack!", "defend", "")]
+        [TestCase("we're under fire", "defend", "")]
+        [TestCase("back me up", "defend", "")]
+        [TestCase("cover me at the station", "defend", "")]
+        [TestCase("defend Ann", "defend", "Ann")]
+        [TestCase("where are you", "where", "")]
+        [TestCase("where are you at?", "where", "")]
+        [TestCase("what's your position", "where", "")]
+        [TestCase("help", "help", "")]
+        [TestCase("attack the Skink", "attack", "Skink")]
+        [TestCase("attack Frank Hunter", "attack", "Frank Hunter")]
+        [TestCase("take out the Scavenger", "attack", "Scavenger")]
+        public void TheFightOrdersAreRead(string said, string kind, string arg)
+        {
+            var p = CoopBot.ParseOrder(said);
+            Assert.That(p.HasValue, Is.True, said);
+            Assert.That(p.Value.kind, Is.EqualTo(kind), said);
+            Assert.That(p.Value.arg, Is.EqualTo(arg), said);
+        }
+
+        [TestCase("where are you going with this")]
+        [TestCase("my target was a beauty")]
+        [TestCase("thanks for the help")]
+        [TestCase("Fang Hunter")]
+        [TestCase("I'm under attack from the taxman, ha")]
+        public void TalkAboutFightsIsNotAnOrder(string said)
+        {
+            Assert.That(CoopBot.ParseOrder(said), Is.Null, said);
+            Assert.That(CoopBot.Clauses(said), Is.Null, said);
+        }
+
+        [Test]
+        public void WithoutAShipTheFightOrdersSaySoAndANameAloneIsTalk()
+        {
+            var bot = new GameObject("bot").AddComponent<CoopBot>();
+            made.Add(bot.gameObject);
+            Assert.That(bot.Command("attack my target", 2), Is.EqualTo("not ready yet"));
+            Assert.That(bot.Command("defend me", 2), Is.EqualTo("not ready yet"));
+            Assert.That(bot.Command("I'm under attack", 2), Is.EqualTo("not ready yet"));
+            Assert.That(bot.Take("where are you", 2, 51), Is.EqualTo("not ready yet"));
+            Assert.That(bot.WasHandled(51), Is.False, "not answered: left for the listener");
+            Assert.That(bot.Command("Fang Hunter", 2), Is.Null, "no ship, no targets: talk");
+            Assert.That(bot.Command("help", 0), Does.Contain("defend me").And.Contain("attack my target").And.Contain("where are you"), "the help lists them");
+            Assert.That(string.Join(" | ", CoopBot.Clauses("defend me, then attack my target").Select(c => c.kind)), Is.EqualTo("defend | assist"));
+            Assert.That(bot.Orders, Is.Zero);
+        }
+
+        [Test]
+        public void ATargetsNameIsMatchedLooselyOnlyAfterAnAttackWord()
+        {
+            var hunter = Ship("Vrask Fang Hunter", new Vector3(0f, 0f, 3000f), "Hostile");
+            var skink = Ship("Vrask Skink", new Vector3(0f, 0f, 1000f), "Hostile");
+            var drone = Ship("Claim-jumper Drone A", new Vector3(0f, 0f, 2000f), "Hostile");
+            var port = Ship("Thalassa Highport", new Vector3(0f, 0f, 500f), "Neutral");
+            Targets.Reset(new[] { hunter, skink, drone, port });
+            // after an attack word: as typed, else loosely among the enemies ("Frank Hunter", as it was heard)
+            Assert.That(Wingman.FindTargetLoose("Frank Hunter", Vector3.zero), Is.SameAs(hunter));
+            Assert.That(Wingman.FindTargetLoose("fang hunter", Vector3.zero), Is.SameAs(hunter));
+            Assert.That(Wingman.FindTargetLoose("Skink", Vector3.zero), Is.SameAs(skink));
+            Assert.That(Wingman.FindTargetLoose("Skunk", Vector3.zero), Is.SameAs(skink), "a letter off");
+            Assert.That(Wingman.FindTargetLoose("Thalassa Highport", Vector3.zero), Is.SameAs(port), "as typed: anything, as before");
+            Assert.That(Wingman.FindTargetLoose("Talassa Highport", Vector3.zero), Is.Null, "loosely: only an enemy");
+            Assert.That(Wingman.FindTargetLoose("dreadnought", Vector3.zero), Is.Null);
+            // a name alone: the whole name or its words in a row, never loose
+            Assert.That(Wingman.EnemyNamed("Fang Hunter", Vector3.zero), Is.SameAs(hunter));
+            Assert.That(Wingman.EnemyNamed("the Skink", Vector3.zero), Is.SameAs(skink));
+            Assert.That(Wingman.EnemyNamed("claim jumper drone a", Vector3.zero), Is.SameAs(drone), "the hyphen as a space");
+            Assert.That(Wingman.EnemyNamed("Vrask", Vector3.zero), Is.SameAs(skink), "the nearest of them");
+            Assert.That(Wingman.EnemyNamed("Frank Hunter", Vector3.zero), Is.Null, "not loose without an attack word");
+            Assert.That(Wingman.EnemyNamed("Thalassa Highport", Vector3.zero), Is.Null, "not an enemy");
+            Assert.That(Wingman.EnemyNamed("a", Vector3.zero), Is.Null, "too short to be a name");
+            Assert.That(Wingman.EnemyNamed("2", Vector3.zero), Is.Null, "a number (a branch of the personality's) isn't a name");
+            Assert.That(Wingman.EnemyNamed("nice flying", Vector3.zero), Is.Null);
+            Assert.That(Wingman.EnemyNamed("hunter killer", Vector3.zero), Is.Null, "every word, in a row");
+        }
+
+        [Test]
+        public void NamesAreNearByWordsSoundsAndLetters()
+        {
+            Assert.That(Wingman.NameMatch("Vrask Fang Hunter", "Vrask Fang Hunter", false), Is.EqualTo(3));
+            Assert.That(Wingman.NameMatch("Fang Hunter", "Vrask Fang Hunter", false), Is.EqualTo(2));
+            Assert.That(Wingman.NameMatch("Frank Hunter", "Vrask Fang Hunter", false), Is.EqualTo(0));
+            Assert.That(Wingman.NameMatch("Frank Hunter", "Vrask Fang Hunter", true), Is.EqualTo(1));
+            Assert.That(Wingman.NameMatch("Frank Hunter", "Vrask Skink", true), Is.EqualTo(0));
+            Assert.That(Wingman.WordNear("frank", "fang"), Is.True, "by sound");
+            Assert.That(Wingman.WordNear("hunted", "hunter"), Is.True, "a letter off");
+            Assert.That(Wingman.WordNear("mine", "fang"), Is.False);
+            Assert.That(Wingman.WordNear("skunk", "fang"), Is.False, "not the same first sound");
+            Assert.That(Wingman.WordNear("a", "b"), Is.False, "too short to say");
+            Assert.That(VoiceCommand.Edits("frank", "fang"), Is.EqualTo(2));
+            Assert.That(VoiceCommand.Edits("", "abc"), Is.EqualTo(3));
+        }
+
+        [Test]
+        public void DistancesAreSaidAsAPilotSaysThem()
+        {
+            Assert.That(CoopBot.HowFar(850f), Is.EqualTo("850 m"));
+            Assert.That(CoopBot.HowFar(1700f), Is.EqualTo("1.7 km"));
+            Assert.That(CoopBot.HowFar(12400000f), Is.EqualTo("12,400 km"));
+            Assert.That(CoopBot.HowFar(2.1e9f), Is.EqualTo("2.1 million km"));
+        }
+
+        [Test]
+        public void TheShipMessageCarriesThePlayersLock()
+        {
+            string json = JsonUtility.ToJson(new ShipMsg { tg = "rt:3:7" });
+            StringAssert.Contains("\"tg\":\"rt:3:7\"", json);
+            StringAssert.Contains($"\"cv\":{CoopWire.Content}", json, "a game that sends its lock says so");
+            Assert.That(CoopWire.Content, Is.GreaterThanOrEqualTo(CoopWire.ContentTarget));
+            var go = new GameObject("their ship");
+            made.Add(go);
+            var rp = go.AddComponent<RemotePlayer>();
+            rp.Push(JsonUtility.FromJson<CoopMsg>(json));
+            Assert.That(rp.TargetId, Is.EqualTo("rt:3:7"));
+            Assert.That(rp.ContentVersion, Is.EqualTo(CoopWire.Content));
+            // (an older game: no lock and no content, so "doesn't say", not "nothing locked")
+            rp.Push(JsonUtility.FromJson<CoopMsg>("{\"t\":\"ps\",\"ts\":5}"));
+            Assert.That(rp.TargetId, Is.EqualTo(""));
+            Assert.That(rp.ContentVersion, Is.LessThan(CoopWire.ContentTarget));
+            Assert.That(Wingman.LockOf(rp), Is.Null);
+        }
+
         [Test]
         public void TheCommsLineTakesTheKeysFromTheGame()
         {

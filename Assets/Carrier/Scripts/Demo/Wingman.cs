@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using UnityEngine;
 
 namespace CarrierGame.Demo
@@ -13,17 +15,21 @@ namespace CarrierGame.Demo
     ///             when it goes far (to the place nearest it)
     ///   Hold    - stop where it is
     ///   Attack  - fight a target (named, or the nearest enemy): broadside at gun range, the bow
-    ///             beam when lined up, missiles now and then
+    ///             beam when lined up, missiles now and then; a mini-warp to it first if it's far
     ///   Goto    - warp to a place, then hold there
     ///   Dock    - dock at the station it is at
     ///   Mine    - mine asteroids, sell the ore at the nearest market when the hold is full, and
     ///             go back for more (Wingman.Mining.cs)
+    ///   Defend  - go to a player from wherever it is and fight what's on them (what they've
+    ///             locked, or the nearest enemy to them), then keep station on them as Follow
+    ///             does. In a fight of its own far from them, it breaks off as soon as the warp
+    ///             drive will go (the drive won't under fire).
     /// When an enemy comes close while it is following or holding, it fights, and goes back to
     /// its order when the fight is over.
     /// </summary>
     public partial class Wingman : MonoBehaviour
     {
-        public enum Order { Hold, Follow, Attack, Goto, Dock, Mine }
+        public enum Order { Hold, Follow, Attack, Goto, Dock, Mine, Defend }
 
         public CarrierDemoInput demo;
         [Tooltip("Where it keeps station off its leader: right, up and behind, in the leader's frame, in ship sizes.")]
@@ -66,6 +72,8 @@ namespace CarrierGame.Demo
         // (hold, go to and dock end the following: when a fight ends it goes back to what it was told)
         public void Hold() { LeaveLeader(); Set(Order.Hold); }
         public void Follow(int playerId) { LeaderId = playerId; Released = false; Set(Order.Follow); }
+        /// <summary>Go to a player and fight what's on them (they become its leader).</summary>
+        public void Defend(int playerId) { LeaderId = playerId; Released = false; Set(Order.Defend); }
         public void Attack(Transform t) { Target = t; Set(Order.Attack); }
         public void Goto(WarpPoint p) { LeaveLeader(); Destination = p; Set(Order.Goto); }
         public void Dock() { LeaveLeader(); Set(Order.Dock); }
@@ -164,13 +172,135 @@ namespace CarrierGame.Demo
             return best;
         }
 
-        /// <summary>A target by name (part of its name, any case), the nearest that matches.</summary>
+        /// <summary>A target by name (part of its name, any case), the nearest that matches. Never
+        /// another player's ship.</summary>
         public static Transform FindTarget(string name, Vector3 from)
         {
             if (string.IsNullOrWhiteSpace(name)) return null;
             name = name.Trim().ToLowerInvariant();
-            return Targets.All.Where(t => t != null && t.gameObject.activeInHierarchy && NameOf(t).ToLowerInvariant().Contains(name))
+            return Targets.All.Where(t => t != null && t.gameObject.activeInHierarchy && !IsPlayer(t) && NameOf(t).ToLowerInvariant().Contains(name))
                 .OrderBy(t => (t.position - from).sqrMagnitude).FirstOrDefault();
+        }
+
+        /// <summary>A target as an attack order names it: as FindTarget, else the nearest enemy
+        /// whose name is near enough word for word (NameMatch, loose: "Frank Hunter" for the
+        /// Vrask Fang Hunter, as a recogniser hears it).</summary>
+        public static Transform FindTargetLoose(string name, Vector3 from) =>
+            FindTarget(name, from) ?? Pick(name, from, 1, true);
+
+        /// <summary>An enemy a message names by itself ("Fang Hunter"): one whose whole name it
+        /// is, or whose name has its words in a row; the nearest. Never loose, so talk isn't
+        /// taken for an attack.</summary>
+        public static Transform EnemyNamed(string words, Vector3 from)
+        {
+            if (NameWords(words).Sum(w => w.Count(char.IsLetter)) < 3) return null;
+            return Pick(words, from, 2, false);
+        }
+
+        // the living enemy (never a player) whose name matches `name` best, at least `atLeast`
+        // (NameMatch), the nearest of the best
+        static Transform Pick(string name, Vector3 from, int atLeast, bool loose)
+        {
+            Transform best = null;
+            int bestScore = 0;
+            float bestDist = float.MaxValue;
+            foreach (var t in Targets.All)
+            {
+                if (t == null || !t.gameObject.activeInHierarchy || IsPlayer(t)) continue;
+                if (!t.TryGetComponent(out TargetInfo info) || !info.Hostile) continue;
+                if (t.TryGetComponent(out Health h) && h.Dead) continue;
+                int score = NameMatch(name, NameOf(t), loose);
+                if (score < atLeast) continue;
+                float d = (t.position - from).sqrMagnitude;
+                if (score > bestScore || (score == bestScore && d < bestDist)) { best = t; bestScore = score; bestDist = d; }
+            }
+            return best;
+        }
+
+        /// <summary>Another player's ship (never a target for the wingman).</summary>
+        static bool IsPlayer(Transform t) => t.GetComponentInParent<RemotePlayer>() != null;
+
+        static readonly string[] Articles = { "the", "that", "this" };
+
+        /// <summary>A name's words, lower case, without the punctuation ("Claim-jumper Drone A":
+        /// claim, jumper, drone, a).</summary>
+        public static List<string> NameWords(string s)
+        {
+            var words = new List<string>();
+            var sb = new StringBuilder();
+            foreach (char c in (s ?? "").ToLowerInvariant())
+            {
+                if (char.IsLetterOrDigit(c)) { sb.Append(c); continue; }
+                if (sb.Length > 0) { words.Add(sb.ToString()); sb.Clear(); }
+            }
+            if (sb.Length > 0) words.Add(sb.ToString());
+            return words;
+        }
+
+        /// <summary>How a name said matches a target's: 3, the whole name; 2, words of it in a
+        /// row ("Fang Hunter" in "Vrask Fang Hunter"); 1 (only `loose`), word for word near
+        /// enough (WordNear: "Frank Hunter"); 0, not at all. A "the" before it is left off.</summary>
+        public static int NameMatch(string said, string name, bool loose)
+        {
+            var s = NameWords(said);
+            while (s.Count > 1 && System.Array.IndexOf(Articles, s[0]) >= 0) s.RemoveAt(0);
+            var n = NameWords(name);
+            if (s.Count == 0 || n.Count == 0 || s.Count > n.Count) return 0;
+            if (s.SequenceEqual(n)) return 3;
+            int best = 0;
+            for (int i = 0; i + s.Count <= n.Count; i++)
+            {
+                bool same = true, near = true;
+                for (int j = 0; j < s.Count && near; j++)
+                {
+                    if (s[j] == n[i + j]) continue;
+                    same = false;
+                    near = loose && WordNear(s[j], n[i + j]);
+                }
+                if (same) return 2;
+                if (near) best = 1;
+            }
+            return best;
+        }
+
+        /// <summary>Two words near enough for a name heard wrong: three letters or more each, and
+        /// a letter off (two in a word of seven or more), or alike by sound (VoiceCommand.SoundsLike)
+        /// and starting with the same sound: "frank" and "fang", not "skunk" and "fang".</summary>
+        public static bool WordNear(string a, string b)
+        {
+            if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b) || a.Length < 3 || b.Length < 3) return false;
+            if (char.IsDigit(a[0]) || char.IsDigit(b[0])) return false;
+            if (VoiceCommand.Edits(a, b) <= (Mathf.Max(a.Length, b.Length) >= 7 ? 2 : 1)) return true;
+            string ka = VoiceCommand.SoundKey(a), kb = VoiceCommand.SoundKey(b);
+            if (ka.Length == 0 || kb.Length == 0 || ka[0] != kb[0]) return false;
+            return VoiceCommand.SoundsLike(a, b) || VoiceCommand.SoundsLike(b, a);
+        }
+
+        /// <summary>The enemy a player has locked, as their ship's message says it
+        /// (RemotePlayer.TargetId), alive and in this game; null for nothing locked, something
+        /// that isn't an enemy, or a game too old to say.</summary>
+        public static Transform LockOf(RemotePlayer r)
+        {
+            var w = CoopWorld.Instance;
+            if (r == null || w == null || r.ContentVersion < CoopWire.ContentTarget) return null;
+            string id = r.TargetId;
+            if (string.IsNullOrEmpty(id) || id.StartsWith(CoopWorld.NotEnemyLock) || id.StartsWith(CoopWorld.OwnEnemyLock)) return null;
+            var t = w.EntityTransform(id);
+            return Gone(t) || !(t.TryGetComponent(out TargetInfo info) && info.Hostile) ? null : t;
+        }
+
+        /// <summary>How near a player an enemy is on them, for Defend (m).</summary>
+        public const float DefendReach = 9000f;
+
+        /// <summary>What's on a player: the enemy they've locked (within 30 km of them), else the
+        /// nearest enemy within `reach` of their ship; null when nothing is, or they aren't seen.</summary>
+        public static Transform ThreatTo(RemotePlayer r, float reach = DefendReach)
+        {
+            if (r == null || r.Hidden) return null;
+            Vector3 at = r.transform.position;
+            var locked = LockOf(r);
+            if (locked != null && (locked.position - at).sqrMagnitude < 30000f * 30000f) return locked;
+            return NearestEnemy(at, reach);
         }
 
         /// <summary>A target's name as the player sees it.</summary>
@@ -234,12 +364,29 @@ namespace CarrierGame.Demo
                 Vector3 pos = cc.transform.position;
                 float keep = defendRange * DefendKeep;
                 bool far = !Gone(Target) && (Target.position - pos).sqrMagnitude > keep * keep;
-                var near = NearestEnemy(pos, defending ? keep : defendRange);
+                // (defending a player: what's on them too, wherever they are)
+                var near = NearestEnemy(pos, defending ? keep : defendRange) ?? (Current == Order.Defend ? ThreatTo(Leader()) : null);
                 // (a nearer one in reach rather than one run off; none in reach, mining: not chased
                 // off the field, but watched for)
                 if (near != null) { defending = true; lastEnemySeen = Time.time; if (Gone(Target) || far) Target = near; }
                 else if (defending && !StillDefending(Current == Order.Mine, Time.time - lastEnemySeen)) EndDefence(cc);
                 else if (defending && far && Current == Order.Mine) { Target = null; cc.SetTarget(null); }
+            }
+
+            // defending a player who is far off, in a fight here: broken off as soon as the drive
+            // will go (it won't under fire, or with hostiles engaged near), and off to them
+            if (Current == Order.Defend && defending && drive != null)
+            {
+                var who = Leader();
+                if (who != null && (who.transform.position - cc.transform.position).sqrMagnitude > warpAfter * warpAfter && drive.CanWarp(out _))
+                {
+                    defending = false;
+                    Target = null;
+                    cc.SetTarget(null);
+                    warpBlockedUntil = 0f;
+                    nextWarp = 0f;
+                    if (TryWarpTo(who.transform, LeaderName)) return;
+                }
             }
 
             if (Current == Order.Attack || defending)
@@ -250,7 +397,8 @@ namespace CarrierGame.Demo
                 {
                     // (mining and watching for more: the check each second finds the next one)
                     Target = Current == Order.Mine && defending ? null
-                           : NearestEnemy(cc.transform.position, Current == Order.Attack ? 30000f : defendRange * DefendKeep);
+                           : NearestEnemy(cc.transform.position, Current == Order.Attack ? 30000f : defendRange * DefendKeep)
+                             ?? (Current == Order.Defend ? ThreatTo(Leader()) : null);
                     if (Target == null)
                     {
                         if (Current == Order.Attack)
@@ -279,6 +427,7 @@ namespace CarrierGame.Demo
                     Doing = Docking.Docked ? "docked" : "holding position";
                     break;
                 case Order.Follow:
+                case Order.Defend:
                     FollowLeader(cc);
                     break;
                 case Order.Mine:
@@ -434,6 +583,15 @@ namespace CarrierGame.Demo
                 cc.throttle = 0.3f;
                 Doing = $"main gun on {name}";
                 return;
+            }
+            // far off (an order to attack what a player far away has locked, or what's on them): a
+            // mini-warp first, if the drive will go; to the player defended when it's on them
+            // (dropping out by them, not under the enemy's guns), else to the target itself
+            if (d > warpAfter && drive != null && drive.Current == WarpDrive.State.Ready)
+            {
+                var who = Current == Order.Defend ? Leader() : null;
+                bool by = who != null && (who.transform.position - p).sqrMagnitude < 4f * DefendReach * DefendReach;
+                if (by ? TryWarpTo(who.transform, LeaderName) : TryWarpTo(t, name)) return;
             }
             if (d > gunRange * 2.5f)
             {

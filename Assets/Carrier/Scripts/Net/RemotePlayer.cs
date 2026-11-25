@@ -26,6 +26,10 @@ namespace CarrierGame.Demo
         public string CapturedBy { get; private set; }
         /// <summary>What its game has in it (CoopWire.Content; 0: an older game).</summary>
         public int ContentVersion { get; private set; }
+        /// <summary>What its player has locked, as its ship's message says it (ShipMsg.tg: an
+        /// enemy's id, "" nothing, or CoopWorld.NotEnemyLock / OwnEnemyLock and a name). Meant only
+        /// when ContentVersion is CoopWire.ContentTarget or more: an older game leaves it out.</summary>
+        public string TargetId { get; private set; } = "";
         public int Warp { get; private set; }
         public string Surface { get; private set; } = "";
         /// <summary>Not in this space now (in warp, on a planet, destroyed, or not heard from).</summary>
@@ -84,6 +88,7 @@ namespace CarrierGame.Demo
             Shield = m.sh; Hull = m.hu; Dead = m.dead; Docked = m.dock;
             ContentVersion = m.cv; BoardersAboard = m.bd; Captured = m.dead && m.cpt; CapturedBy = Captured ? Boarders.FactionOr(m.cby) : null;
             Warp = m.warp; Surface = m.surf ?? "";
+            TargetId = m.tg ?? "";
             if (systems != null) systems.NetSet(m.sy);   // (its components, for the target panel)
             // its engines as its player's throttle (out, without thrust)
             if (engines != null) foreach (var e in engines) if (e != null) e.throttle = m.dock ? 0f : Mathf.Clamp01(m.th);

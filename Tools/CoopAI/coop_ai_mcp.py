@@ -13,7 +13,8 @@ server turns that API into MCP tools, over stdio:
     give_credits    hand the bot's credits to a player (their game adds them to their hold)
     say             send a message on the comms channel (every player in its level sees it)
     order           give the pilot an order: follow <player>, hold, attack [target], goto <place>,
-                    regroup, dock, mine [field], sell
+                    regroup, dock, mine [field], sell, defend [player], assist [player] (attack
+                    what that player has locked)
     destinations    the places a ship can warp to, with distances
     get_chat_mode   who answers talk to the bot: llm (this listener), personality (the bot's own) or paused
     set_chat_mode   switch it: llm|personality|paused, or on|off|pause|resume
@@ -49,7 +50,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 GAME = os.environ.get("COOP_GAME_EXE", os.path.normpath(os.path.join(HERE, "..", "..", "..", "Builds", "StarSystem",
                                                                      "StarSystem.exe" if os.name == "nt" else "StarSystem")))
 PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"]
-ORDERS = ["follow", "hold", "attack", "goto", "regroup", "dock", "mine", "sell"]
+ORDERS = ["follow", "hold", "attack", "goto", "regroup", "dock", "mine", "sell", "defend", "assist"]
 CHAT_MODES = ["llm", "personality", "paused", "on", "off", "pause", "resume", "unpause"]
 WAIT_MAX = 55
 
@@ -240,9 +241,11 @@ TOOLS = [
               "enemy; goto <place>: warp to a destination; regroup: form up on the nearest player; dock: dock at "
               "the station it is at; mine [asteroid field]: mine asteroids (the nearest field if none is named), "
               "selling the ore at the nearest market whenever the hold is full, over and over; sell: take the ore "
-              "aboard to the nearest market now.",
+              "aboard to the nearest market now; defend [player name]: go to that player from wherever it is and fight "
+              "what's on them; assist [player name]: attack what that player has locked (their game says it). Without "
+              "a name, defend and assist mean the last player to speak.",
      {"order": {"type": "string", "enum": ORDERS},
-      "target": {"type": "string", "description": "a player's name (follow), a target's (attack), a place's (goto) or an asteroid field's (mine)"}},
+      "target": {"type": "string", "description": "a player's name (follow, defend, assist), a target's (attack), a place's (goto) or an asteroid field's (mine)"}},
      ["order"], t_order),
     ("destinations", "The places a ship can warp to, nearest first, with their kinds and distances.", {}, [], t_destinations),
     ("get_chat_mode", "Who answers players' talk to the bot (anything addressed to it that isn't an order): 'llm', "

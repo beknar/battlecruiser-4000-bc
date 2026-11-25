@@ -2319,8 +2319,12 @@ every bot. Politeness is left off an order: `Wingman, can you mine some asteroid
 | --- | --- |
 | `follow me` or `follow <name>` | Forms up on that player. `escort` and `form up on` do the same. |
 | `regroup` | Forms up on whoever said it. |
+| `defend me` | Comes to whoever said it, from wherever it is (a mini-warp if they're more than 15 km off), and fights what's on them: what they have locked, else the nearest enemy within 9 km of them. Then it stays on them as `follow` does. `cover me`, `help me`, `protect me`, `back me up` and `I'm under attack` do the same, and `defend <name>` goes to another player. If it's in a fight of its own and its warp drive won't go (under fire, or hostiles engaged near it), it says "fighting here, coming when clear" and breaks off as soon as the drive will. With only one wingman in the room, `I'm under attack` or `help me` needs no name (a plain `help` still does, and is the help list). |
 | `hold` | Stops where it is. |
-| `attack [target]` | Fights that target, or the nearest enemy. |
+| `attack [target]` | Fights that target, or the nearest enemy (within 30 km). A name is matched as typed (any part of it), else loosely among the enemies, by sound or a letter or two off, as a recogniser mishears it: `attack Frank Hunter` is the Vrask Fang Hunter, and the answer gives the real name. With no enemy near it but one near its leader (or whoever said it), it goes to the leader's fight. A target far off is warped to. `engage`, `kill`, `fire on`, `shoot` and `take out` do the same. It never attacks a player. |
+| `attack my target` | Fights what whoever said it has locked: their game sends its lock with its ship (`tg` in the ship message, an enemy's id, the same in every game; never a player). `my target`, `my lock` and `what I'm shooting at` do the same. It says "you've nothing locked", "that's not an enemy: Thalassa Highport", or, from a game too old to send its lock (`CoopWire.Content` below 3), "your game doesn't say what you've locked". |
+| `<target's name>` | A target's name alone (`Wingman, Fang Hunter`) attacks it, the nearest with that name. Only an enemy whose name it is, or has those words in a row, so talk isn't taken for an attack. |
+| `where are you` | Says where it is (the nearest place), how far from whoever asked, and what it's doing. `what's your position` does the same. |
 | `warp to <place>` | Warps there, then holds. |
 | `dock` | Docks at the station it is at. |
 | `mine` or `mine at <field>` | Mines asteroids: warps to the field (the one it is at, or the nearest), scans, flies to the nearest deposit and cuts it until the hold is full, then warps to the nearest market (a station or base that buys ore), docks, sells the ore and goes back for more, over and over. `start mining` and `mine asteroids` do the same, and words after `mine` that don't name a field (`mine some rocks`, `mine the nearest asteroids`) mean the nearest. Given again while it's already mining there, it carries on rather than starting the run over. |
@@ -2335,8 +2339,8 @@ Several orders can go in one message, separated by `then`, `and`, `,` or `;`
 (`Wingman, warp to Heaven, then dock`, `Wingman, attack the Scavenger and then follow me`). It
 carries them out one after another, each once the one before it is over: a warp when it arrives,
 a dock when it is docked, an attack when the ship it went for is destroyed, mining when the
-first load is sold. Reports (`status`, `cargo`) and credits go at once. `mine and sell` is just
-mining, since mining sells when the hold is full. `follow`, `regroup` and `hold` go on until told
+first load is sold. Reports (`status`, `cargo`, `where are you`) and credits go at once. `mine and sell` is just
+mining, since mining sells when the hold is full. `follow`, `regroup`, `defend` and `hold` go on until told
 otherwise, so one of them before another order is dropped (`stop and dock` docks). An order it
 can't carry out (a warp refused, nowhere to dock or sell) calls off the rest, and says so. A new
 order that takes time replaces what was still to come; a report or credits on the way don't. A message that isn't all orders is taken as one order (or
@@ -2438,7 +2442,9 @@ changes later answers. Each player's conversation is forgotten after 2 minutes o
 - `GET /cargo`: what is in the hold, item by item, how full it is, and the credits.
 - `GET /destinations`: the places to warp to, nearest first.
 - `POST /say {"text"}`: sends a message on the channel.
-- `POST /order {"order","target"}`: gives an order (`give` takes the target `<N|all|half>[ to <name>]`).
+- `POST /order {"order","target"}`: gives an order (`give` takes the target `<N|all|half>[ to <name>]`;
+  `defend` and `assist`, attacking what a player has locked, take a player's name, or none for the
+  last player to speak).
 - `GET /chatmode`: the chat mode, and `listener_seen_s`, the seconds since a listener last read
   the channel. `POST /chatmode {"mode"}` switches it (`llm`, `personality`, `paused`, or `on`,
   `off`, `pause`, `resume`). `/status` and `/messages` say the mode too, as `chat_mode`.

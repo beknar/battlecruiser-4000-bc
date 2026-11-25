@@ -18,6 +18,10 @@ its HTTP API, and through the MCP server (coop_ai_mcp.py):
   - the MCP server's status and say tools work against the live bot
   - after selling ore: 'cargo' reports the hold, 'give me N credits' sends a gift the player's game
     acknowledges, a gift with no receipt comes back to the bot, and it won't give more than it has
+  - the fights, with a ship of the test player's beside the bot's: 'attack my target' from an older
+    game (no lock in its ship message) says the game doesn't say, with nothing locked says so, and
+    with an enemy of the bot's own list locked attacks it; 'defend me' sends it to the player;
+    'where are you' says how far it is from them, at once, and is marked handled
   - /quit closes it (the runner checks the game ends)
 
 Prints a line a check ("[AIBot] PASS ..." or "[AIBot] FAIL ...") and exits 1 if any failed.
@@ -77,15 +81,49 @@ class Player:
         self.heard = []          # (who, text) of each chat message from someone else
         self.gifts = []          # credits received
         self.receipts = True     # answer a gift with a receipt, as a game does
+        self.clock0, self.local0 = 0.0, time.monotonic()   # the server's clock at the welcome
+        self.bot_ship = None     # the bot's last ship message
+        self.enemies = {}        # the host's (the bot game's) living enemies: id -> (rf, x, y, z)
+        self.ship = None         # my own ship message's fields, sent while set (None: no ship)
+        self.pos = None          # ... and where it is (rf, x, y, z)
+        self.last_ship = 0.0
+
+    def now(self):
+        return self.clock0 + (time.monotonic() - self.local0)
+
+    async def send_ship(self):
+        """My ship, beside the bot's (2 km off), as a game sends it: with its lock (tg) and what
+        the game has in it (cv), or as an older game, without either."""
+        b = self.bot_ship
+        if self.ship is None or b is None:
+            return
+        # (where the bot was when my ship first went out, and there it stays)
+        if self.pos is None:
+            self.pos = (b.get("rf", ""), b.get("x", 0) + 2000, b.get("y", 0), b.get("z", 0))
+        rf, x, y, z = self.pos
+        m = {"t": "ps", "ts": self.now(), "rf": rf, "x": x, "y": y, "z": z,
+             "qx": 0, "qy": 0, "qz": 0, "qw": 1, "vx": 0, "vy": 0, "vz": 0, "th": 0, "sh": 1, "su": True, "hu": 1, "dead": False,
+             "warp": 0, "dock": False, "surf": "", "cap": 0}
+        m.update(self.ship)
+        await self.ws.send(json.dumps(m))
 
     async def run(self):
         last_ping = 0.0
         while True:
             try:
-                raw = await asyncio.wait_for(self.ws.recv(), timeout=0.5)
+                raw = await asyncio.wait_for(self.ws.recv(), timeout=0.2)
                 m = json.loads(raw)
                 if m.get("t") == "welcome":
                     self.my_id = m["id"]
+                    self.clock0, self.local0 = m.get("now", 0.0), time.monotonic()
+                elif m.get("t") == "ps":
+                    self.bot_ship = m
+                elif m.get("t") == "es":
+                    for e in m.get("e") or []:
+                        if e.get("dead") or e.get("gone"):
+                            self.enemies.pop(e.get("id"), None)
+                        else:
+                            self.enemies[e.get("id")] = (e.get("rf", ""), e.get("x", 0), e.get("y", 0), e.get("z", 0))
                 elif m.get("t") == "chat":
                     self.heard.append((m.get("from"), m.get("text", "")))
                     log(f"heard #{m.get('from')}: {m.get('text', '')}")
@@ -96,6 +134,10 @@ class Player:
                         await self.ws.send(json.dumps({"t": "giftok", "to": m.get("from"), "a": m.get("a"), "gid": m.get("gid")}))
             except asyncio.TimeoutError:
                 pass
+            # (my ship ten times a second, as a game sends it about: a ship quiet 3 s is gone)
+            if time.monotonic() - self.last_ship > 0.1:
+                self.last_ship = time.monotonic()
+                await self.send_ship()
             if time.monotonic() - last_ping > 2.0:
                 last_ping = time.monotonic()
                 await self.ws.send(json.dumps({"t": "ping", "c": last_ping}))
@@ -358,6 +400,57 @@ async def main():
             await me.say(f"{BOT}, give me 99999999 credits")
             r = await me.hear("only", 10, n)
             check(r is not None, "it won't give more credits than it has", r or "no answer")
+
+            # the fights: my ship goes out beside the bot's, first as an older game's (no lock in it)
+            me.ship = {"cv": 2}
+            await asyncio.sleep(2)
+            n = len(me.heard)
+            await me.say(f"{BOT}, attack my target")
+            r = await me.hear("doesn't say what you've locked", 10, n)
+            check(r is not None, "'attack my target' from an older game: it says the game doesn't say",
+                  r or "no answer")
+            me.ship = {"cv": 3, "tg": ""}
+            await asyncio.sleep(1.5)
+            n = len(me.heard)
+            await me.say(f"{BOT}, attack my target")
+            r = await me.hear("nothing locked", 10, n)
+            check(r is not None, "'attack my target' with nothing locked says so", r or "no answer")
+            # (the bot hosts the level: an enemy from its own list, the nearest to it in its reach)
+            b = me.bot_ship or {}
+            near = sorted(((e, p) for e, p in me.enemies.items() if p[0] == b.get("rf", "")),
+                          key=lambda ep: sum((ep[1][i + 1] - b.get(k, 0)) ** 2 for i, k in enumerate("xyz")))
+            prey = (near or list(me.enemies.items()) or [(None, None)])[0][0]
+            if check(prey is not None, "the bot's game sends its enemies", f"{len(me.enemies)} alive"):
+                me.ship = {"cv": 3, "tg": prey}
+                await asyncio.sleep(1.5)
+                n = len(me.heard)
+                await me.say(f"{BOT}, attack my target")
+                r = await me.hear("engaging", 10, n)
+                s = await wait_status(lambda s: s.get("order", {}).get("order") == "attack", 10)
+                check(r is not None and s.get("order", {}).get("order") == "attack" and s.get("order", {}).get("target"),
+                      "'attack my target' attacks what my game says I've locked", f"{prey}: {r}; {json.dumps(s.get('order', {}))}")
+            n = len(me.heard)
+            await me.say(f"{BOT}, defend me")
+            # (its answer, whichever it is: with me already, on its way, or fighting where it is)
+            r = None
+            for _ in range(50):
+                r = next((t for _, t in me.heard[n:] if any(w in t for w in ("with you", "on my way", "fighting here", "coming to you"))), None)
+                if r:
+                    break
+                await asyncio.sleep(0.2)
+            s = await wait_status(lambda s: s.get("order", {}).get("order") == "defend", 10)
+            o = s.get("order", {})
+            check(r is not None and o.get("order") == "defend"
+                  and o.get("leader") == ME, "'defend me' sends it to me, to fight what's on me", f"{r}; {json.dumps(o)}")
+            n = len(me.heard)
+            await me.say(f"{BOT}, where are you?")
+            r = await me.hear("from you", 10, n)
+            msgs = (await api("/messages?after=0")).get("messages", [])
+            asked = [m for m in msgs if m["text"] == f"{BOT}, where are you?"]
+            check(r is not None and bool(asked) and asked[-1]["handled"], "'where are you' is answered at once, with how far, and marked handled",
+                  r or "no answer")
+            await me.say(f"{BOT}, hold")
+            me.ship = None
 
             r = await api("/quit", {})
             check(r.get("ok") is True, "/quit is accepted")

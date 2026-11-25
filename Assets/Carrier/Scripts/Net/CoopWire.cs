@@ -20,11 +20,15 @@ namespace CarrierGame
         public const int Protocol = 2;
 
         /// <summary>What a game has in it beyond the protocol, sent with its ship (cv): 1, the
-        /// Greys and the Empire, and enemies made during play; 2, the EMP (HitKind.Emp). 0 (left
-        /// out): an older game, which has none of them, so the host sends it no hits from them.</summary>
-        public const int Content = 2;
+        /// Greys and the Empire, and enemies made during play; 2, the EMP (HitKind.Emp); 3, the
+        /// player's lock with its ship (tg). 0 (left out): an older game, which has none of them,
+        /// so the host sends it no hits from them.</summary>
+        public const int Content = 3;
         /// <summary>The content an EMP hit needs: a game below it would read one as a beam's.</summary>
         public const int ContentEmp = 2;
+        /// <summary>The content whose ship message says what its player has locked (tg): below
+        /// it, a "tg" left out means the game doesn't say, not that nothing is locked.</summary>
+        public const int ContentTarget = 3;
 
         // the game to the server
         public const string Hello = "hello", Level = "level", Ping = "ping", Captain = "captain";

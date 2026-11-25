@@ -25,7 +25,9 @@ namespace CarrierGame.Demo
     /// from anywhere, and fight what's on them; with only this wingman in the room, "I'm under
     /// attack" or "help me" needs no name), "Wingman, where are you", or a target's name alone
     /// ("Wingman, Fang Hunter"). It answers, and says when it starts a fight, finishes one,
-    /// arrives or can't do what it was told.
+    /// arrives or can't do what it was told. "Wingman, your name is Ace" (or "call yourself Ace",
+    /// "rename to Ace"), from its leader or the room's host, renames it on the server: it answers
+    /// in its new name, and keeps it for its next start (a kept name wins over -name).
     ///
     /// It also answers on a small HTTP API on this machine only (127.0.0.1, -botport, 7781 by
     /// default), for an AI to fly it (Tools/CoopAI/coop_ai_mcp.py makes it an MCP server):
@@ -33,8 +35,9 @@ namespace CarrierGame.Demo
     ///   GET  /messages?after=N  the comms channel after message N
     ///   GET  /destinations      the places to warp to, nearest first
     ///   POST /say   {text}      say something on the comms channel
-    ///   POST /order {order, target}  follow|hold|attack|goto|regroup|dock|mine|sell|defend|assist
-    ///                           (defend and assist: a player's name, or the last to speak)
+    ///   POST /order {order, target}  follow|hold|attack|goto|regroup|dock|mine|sell|defend|assist|rename
+    ///                           (defend and assist: a player's name, or the last to speak;
+    ///                           rename: the new name, answered on the comms)
     ///   GET  /chatmode          who answers talk that isn't an order: {mode, listener_seen_s}
     ///   POST /chatmode {mode}   llm|personality|paused (or on|off|pause|resume)
     ///   POST /quit              close the game
@@ -110,8 +113,11 @@ namespace CarrierGame.Demo
             if (Application.isBatchMode) Application.targetFrameRate = 30;
             Port = int.TryParse(LaunchArgs.ValueOf("-botport"), out int p) && p > 0 && p < 65536 ? p : DefaultPort;
             LoadChatMode();
+            string kept = KeptName;
+            if (kept != null) Debug.Log($"[CoopBot] called {kept} (kept from its last run; launched as {LaunchName})");
             CoopChat.Received += Heard;
             CoopClient.Message += OnMessage;
+            CoopClient.Renamed += OnRenamed;
             StartApi();
         }
 
@@ -119,6 +125,7 @@ namespace CarrierGame.Demo
         {
             CoopChat.Received -= Heard;
             CoopClient.Message -= OnMessage;
+            CoopClient.Renamed -= OnRenamed;
             StopApi();
             if (Instance == this) Instance = null;
         }
@@ -230,6 +237,8 @@ namespace CarrierGame.Demo
             string rest = AddressedPart(line.text, Me) ?? UnnamedCall(line);
             if (rest == null) return;
             string reply = Take(rest, line.from, line.seq);
+            // (a new name asked for: it answers when the server does, in its new name)
+            if (reply == RenameAsked) return;
             if (!string.IsNullOrEmpty(reply)) { CoopChat.Say($"{Me}: {reply}", Via.Order); return; }
             // talk, not an order: by the chat mode
             float now = Time.realtimeSinceStartup;
@@ -323,8 +332,12 @@ namespace CarrierGame.Demo
             SaveChatMode();
         }
 
+        /// <summary>The name it was launched with (-name), whatever it is called now: what its
+        /// settings are kept under.</summary>
+        public static string LaunchName => LaunchArgs.ValueOf("-name") ?? "Wingman";
+
         // (kept between runs, per bot name, in this machine's player prefs: the bot's HOME on a server)
-        static string ChatPrefKey => ChatPref + (LaunchArgs.ValueOf("-name") ?? "Wingman");
+        static string ChatPrefKey => ChatPref + LaunchName;
 
         void LoadChatMode()
         {
@@ -393,20 +406,97 @@ namespace CarrierGame.Demo
             return fromId != 0 && (fromId == leader || fromId == host);
         }
 
+        /// <summary>Who may switch the chat mode or rename it (MayChangeChat), as said: "Ann or Bob".</summary>
+        string Deciders()
+        {
+            var c = CoopClient.Instance;
+            var who = new List<string>();
+            if (Pilot != null && Pilot.LeaderId != 0) who.Add(Pilot.LeaderName);
+            if (c != null && c.HostId != 0 && c.HostId != c.MyId) who.Add(c.NameOf(c.HostId));
+            return string.Join(" or ", who.Distinct());
+        }
+
         string ChatOrder(string arg, int fromId)
         {
             if (arg.Length == 0) return ChatModeLine();
-            if (!MayChangeChat(fromId))
-            {
-                var c = CoopClient.Instance;
-                var who = new List<string>();
-                if (Pilot != null && Pilot.LeaderId != 0) who.Add(Pilot.LeaderName);
-                if (c != null && c.HostId != 0 && c.HostId != c.MyId) who.Add(c.NameOf(c.HostId));
-                return $"chat mode stays {ModeName(Chat)}: only {string.Join(" or ", who.Distinct())} can switch it.";
-            }
+            if (!MayChangeChat(fromId)) return $"chat mode stays {ModeName(Chat)}: only {Deciders()} can switch it.";
             var was = Chat;
             SetChatMode(arg);
             return Chat == was ? $"chat mode already {ModeName(Chat)}." : ChatModeLine();
+        }
+
+        // ------------------------------------------------------------ its name
+
+        const string NamePref = "CoopBot.Name.";
+        // (kept under the name it was launched with, as the chat mode is)
+        static string NamePrefKey => NamePref + LaunchName;
+
+        /// <summary>The name it was last given ("your name is Ace"), kept for its next start, or
+        /// null. It wins over -name (the MCP server always launches it with one).</summary>
+        public static string KeptName
+        {
+            get
+            {
+                try
+                {
+                    string s = PlayerPrefs.GetString(NamePrefKey, "").Trim();
+                    return s.Length > 0 ? s : null;
+                }
+                catch (Exception) { return null; }
+            }
+        }
+
+        static void KeepName(string name)
+        {
+            if (!Application.isPlaying) return;
+            try
+            {
+                PlayerPrefs.SetString(NamePrefKey, name ?? "");
+                PlayerPrefs.Save();
+            }
+            catch (Exception) { }
+        }
+
+        /// <summary>What a rename order answers at once when the server has been asked: nothing
+        /// yet (it answers when the server does, in its new name: OnRenamed).</summary>
+        public const string RenameAsked = "(a new name asked for)";
+        // (a rename the bot asked for, not answered yet)
+        bool renameAsked;
+
+        /// <summary>A name as said in an order: without quotes round it or a stop after it.</summary>
+        public static string NameIn(string said) =>
+            (said ?? "").Trim().TrimEnd('.', '!', '?', ',', ';').Trim().Trim('"', '\'', '“', '”', '‘', '’').Trim();
+
+        /// <summary>"your name is Ace": asks the server for the name. Its leader or the room's host
+        /// may (MayChangeChat, as with the chat mode); the API always may (fromId 0). The answer
+        /// now: RenameAsked, or why not.</summary>
+        string Rename(string said, int fromId)
+        {
+            string name = NameIn(said);
+            if (fromId != 0 && !MayChangeChat(fromId)) return $"my name stays {Me}: only {Deciders()} can change it.";
+            if (name.Length == 0) return "rename to what?";
+            string why = CoopWire.NameRefused(name);
+            if (why.Length > 0) return $"can't take the name {name}: {why}.";
+            if (name == Me) return $"I'm {Me} already.";
+            var c = CoopClient.Instance;
+            if (c == null || !CoopClient.Active) return "not connected to a co-op server.";
+            if (c.Players.Any(p => p != null && p.id != c.MyId && string.Equals((p.name ?? "").Trim(), name, StringComparison.OrdinalIgnoreCase)))
+                return $"can't take the name {name}: another player is called {name}.";
+            if (!c.Rename(name)) return "not connected to a co-op server.";
+            renameAsked = true;
+            Orders++;
+            return RenameAsked;
+        }
+
+        /// <summary>The server's answer to its new name: said in the name it has now, and a new one kept.</summary>
+        void OnRenamed(bool ok, string name, string why)
+        {
+            if (!renameAsked) return;
+            renameAsked = false;
+            if (ok) KeepName(name);
+            if (!CoopClient.Active) return;
+            if (ok) CoopChat.Say($"{Me}: {Me} it is. Orders by my new name: \"{Me}, help\".", Via.Order);
+            else CoopChat.Say($"{Me}: can't take that name: {why}.", Via.Order);
         }
 
         /// <summary>The live facts the personality's lines are filled in from (empty: not known now).</summary>
@@ -538,8 +628,9 @@ namespace CarrierGame.Demo
             return reply;
         }
 
-        // words said before the name ("hey wingman, ..."), spoken or typed
-        static readonly string[] Greetings = { "hey", "hi", "ok", "okay", "oi", "right" };
+        // words said before the name ("hey wingman, ..."), spoken or typed (no one may be called
+        // one: CoopWire.NameRefused)
+        static readonly string[] Greetings = CoopWire.Greetings;
 
         /// <summary>What follows the bot's name (or "@name", "all ships", "everyone", "wingmen") at
         /// the start of a message (after a "hey" or "ok"); null if the message isn't to it.</summary>
@@ -559,7 +650,7 @@ namespace CarrierGame.Demo
         {
             string lower = text.ToLowerInvariant();
             me = (me ?? "").ToLowerInvariant();
-            foreach (var call in new[] { "@" + me, me, "all ships", "everyone", "wingmen" })
+            foreach (var call in new[] { "@" + me, me }.Concat(CoopWire.AllCalls))
             {
                 if (call.Length == 0 || !lower.StartsWith(call)) continue;
                 // (the whole word: "Wingmanly" isn't to "Wingman")
@@ -659,11 +750,15 @@ namespace CarrierGame.Demo
             @"^(?:where\s+(?:are|r)\s+(?:you|u|ya)(?:\s+(?:at|now))?|where(?:'re)\s+you(?:\s+at)?|where\s+you\s+at" +
             @"|what(?:'s|s|\s+is)\s+your\s+(?:position|location)|(?:your\s+)?(?:position|location)(?:\s+report)?" +
             @"|how\s+far\s+(?:away\s+|off\s+)?are\s+you(?:\s+from\s+me)?)$", RxOpt);
+        // "your name is Ace", "call yourself Ace", "rename to Ace", "rename yourself Ace": a new name
+        static readonly Regex RenameRx = new Regex(
+            @"^(?:your\s+(?:new\s+)?name(?:'s|\s+is)(?:\s+now)?|you(?:'re|\s+are)\s+(?:now\s+)?called|call\s+yourself" +
+            @"|rename\s+yourself(?:\s+(?:to|as))?|rename\s+(?:to|as)|change\s+your\s+name\s+to)\s+(?<name>\S.*)$", RxOpt);
 
         /// <summary>An order in words, parsed (none: talk): its kind ("chat", "follow", "regroup",
         /// "cargo", "give", "hold", "attack", "assist" (what the speaker has locked), "defend",
-        /// "where", "goto", "dock", "mine", "sell", "status", "help") and what it is to (a name, a
-        /// place, an amount).</summary>
+        /// "where", "goto", "dock", "mine", "sell", "status", "help", "rename" (a new name for it))
+        /// and what it is to (a name, a place, an amount).</summary>
         public static (string kind, string arg)? ParseOrder(string words)
         {
             // ("can you mine please": "mine")
@@ -679,6 +774,9 @@ namespace CarrierGame.Demo
             string NoThe(string x) => x.StartsWith("the ", StringComparison.OrdinalIgnoreCase) ? x.Substring(4) : x;
             string a;
             if ((a = ChatOrderArg(w)) != null) return ("chat", a);
+            // (the name as it was typed, capitals and all)
+            var rn = RenameRx.Match(w);
+            if (rn.Success && NameIn(rn.Groups["name"].Value).Length > 0) return ("rename", NameIn(rn.Groups["name"].Value));
             // (before "attack" and "help": "attack my target", "help me")
             if (AssistRx.IsMatch(w)) return ("assist", "");
             if (DefendRx.IsMatch(w)) return ("defend", "");
@@ -743,7 +841,7 @@ namespace CarrierGame.Demo
 
         /// <summary>Orders that are over at once (said, or handed over), and those that are never
         /// over till another order comes (nothing can come after them).</summary>
-        static bool Instant(string kind) => kind == "chat" || kind == "cargo" || kind == "give" || kind == "status" || kind == "where" || kind == "help";
+        static bool Instant(string kind) => kind == "chat" || kind == "cargo" || kind == "give" || kind == "status" || kind == "where" || kind == "help" || kind == "rename";
         static bool Standing(string kind) => kind == "follow" || kind == "regroup" || kind == "hold" || kind == "defend";
 
         // the orders still to come of a message's chain, and how the one being carried out is
@@ -797,6 +895,8 @@ namespace CarrierGame.Demo
             int before = Orders;
             int sales0 = Pilot != null ? Pilot.Sales : 0;
             string answer = Run(o, fromId);
+            // (among other orders, a new name asked for is said now: its answer comes later)
+            if (answer == RenameAsked) answer = $"asking for the name {NameIn(o.arg)}";
             stepDone = null;
             stepWords = Words(o);
             ok = true;
@@ -857,6 +957,7 @@ namespace CarrierGame.Demo
                 case "defend": return o.arg.Length > 0 ? $"defend {o.arg}" : "defend you";
                 case "where": return "say where I am";
                 case "give": return "give credits";
+                case "rename": return $"take the name {o.arg}";
                 default: return o.kind;
             }
         }
@@ -937,6 +1038,8 @@ namespace CarrierGame.Demo
         /// gave it (0 from the API: "follow" with no name is then the last player to speak).</summary>
         public string Order(string order, string target, int fromId = 0)
         {
+            // (a name needs no ship)
+            if ((order ?? "").Trim().Equals("rename", StringComparison.OrdinalIgnoreCase)) return Rename(target, fromId);
             if (Pilot == null || Pilot.demo == null || Pilot.demo.carrier == null) return WingmanReplies.Get("not_ready");
             var cc = Pilot.demo.carrier;
             target = (target ?? "").Trim();
@@ -1382,7 +1485,9 @@ namespace CarrierGame.Demo
                         int before = Orders;
                         string answer = Order(b?.order, b?.target);
                         bool ok = Orders > before;
-                        if (ok && CoopClient.Active) CoopChat.Say($"{Me}: {answer}", Via.Order);
+                        // (a new name: said on the comms, in it, when the server answers)
+                        if (answer == RenameAsked) answer = $"asked the server for the name {NameIn(b?.target)}; I'll say it on the comms when it answers.";
+                        else if (ok && CoopClient.Active) CoopChat.Say($"{Me}: {answer}", Via.Order);
                         json = $"{{\"ok\":{B(ok)},\"answer\":{Q(answer)}}}";
                         break;
                     }

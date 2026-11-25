@@ -27,7 +27,7 @@ namespace CarrierGame.Demo
             ["twenty"] = 20, ["thirty"] = 30, ["forty"] = 40, ["fifty"] = 50, ["sixty"] = 60, ["seventy"] = 70, ["eighty"] = 80, ["ninety"] = 90,
         };
         static readonly string[] MoneyVerbs = { "give", "transfer", "send", "pay", "hand", "wire" };
-        static readonly string[] Everyone = { "all ships", "everyone", "wingmen" };
+        static readonly string[] Everyone = CoopWire.AllCalls;
 
         /// <summary>The message to send for `heard` (null: nothing to send). `bots` are the AI
         /// wingmen in the game, by name; `lastSpokenTo` the one the player last spoke to (the one a
@@ -161,7 +161,7 @@ namespace CarrierGame.Demo
             return words;
         }
 
-        static readonly HashSet<string> Greetings = new HashSet<string> { "hey", "hi", "ok", "okay", "oi", "right" };
+        static readonly HashSet<string> Greetings = new HashSet<string>(CoopWire.Greetings);
 
         /// <summary>The wingman a message starts with a mishearing of (null: none), by sound: its
         /// first word or two after any greeting ("women", "amen", "only man", "wing man"), or after

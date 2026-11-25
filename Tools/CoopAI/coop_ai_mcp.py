@@ -14,7 +14,7 @@ server turns that API into MCP tools, over stdio:
     say             send a message on the comms channel (every player in its level sees it)
     order           give the pilot an order: follow <player>, hold, attack [target], goto <place>,
                     regroup, dock, mine [field], sell, defend [player], assist [player] (attack
-                    what that player has locked)
+                    what that player has locked), rename <name> (a new name for the bot)
     destinations    the places a ship can warp to, with distances
     get_chat_mode   who answers talk to the bot: llm (this listener), personality (the bot's own) or paused
     set_chat_mode   switch it: llm|personality|paused, or on|off|pause|resume
@@ -50,7 +50,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 GAME = os.environ.get("COOP_GAME_EXE", os.path.normpath(os.path.join(HERE, "..", "..", "..", "Builds", "StarSystem",
                                                                      "StarSystem.exe" if os.name == "nt" else "StarSystem")))
 PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"]
-ORDERS = ["follow", "hold", "attack", "goto", "regroup", "dock", "mine", "sell", "defend", "assist"]
+ORDERS = ["follow", "hold", "attack", "goto", "regroup", "dock", "mine", "sell", "defend", "assist", "rename"]
 CHAT_MODES = ["llm", "personality", "paused", "on", "off", "pause", "resume", "unpause"]
 WAIT_MAX = 55
 
@@ -243,9 +243,11 @@ TOOLS = [
               "selling the ore at the nearest market whenever the hold is full, over and over; sell: take the ore "
               "aboard to the nearest market now; defend [player name]: go to that player from wherever it is and fight "
               "what's on them; assist [player name]: attack what that player has locked (their game says it). Without "
-              "a name, defend and assist mean the last player to speak.",
+              "a name, defend and assist mean the last player to speak. rename <new name>: the bot asks the co-op server "
+              "for the name, and says on the comms (in its new name) whether it has it; it keeps the name for its next "
+              "start, and from then on players order it by that name.",
      {"order": {"type": "string", "enum": ORDERS},
-      "target": {"type": "string", "description": "a player's name (follow, defend, assist), a target's (attack), a place's (goto) or an asteroid field's (mine)"}},
+      "target": {"type": "string", "description": "a player's name (follow, defend, assist), a target's (attack), a place's (goto), an asteroid field's (mine) or the bot's new name (rename)"}},
      ["order"], t_order),
     ("destinations", "The places a ship can warp to, nearest first, with their kinds and distances.", {}, [], t_destinations),
     ("get_chat_mode", "Who answers players' talk to the bot (anything addressed to it that isn't an order): 'llm', "
@@ -260,7 +262,8 @@ TOOLS = [
     ("launch_bot", "Start the bot game (the Star System build in bot mode, headless by default) and connect it to a "
                    "co-op server as a player.",
      {"server": {"type": "string", "description": "host:port of the co-op server (default 127.0.0.1:7777)"},
-      "name": {"type": "string", "description": "the bot's name in the game (default Wingman)"},
+      "name": {"type": "string", "description": "the bot's name in the game (default Wingman); if it was renamed since "
+                                                "(order rename), the name it was given is kept for this one and wins"},
       "ship": {"type": "string", "description": "the frigate to fly: Sentinel (the default), Lancer, Warden, Talon or Vanguard. A destroyer or the cruiser only once built at a shipyard and taken command of in that game's save"},
       "headless": {"type": "boolean", "description": "no window (default true)"},
       "chatmode": {"type": "string", "enum": ["llm", "personality", "paused"],

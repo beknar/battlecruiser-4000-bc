@@ -41,10 +41,20 @@ namespace CarrierGame.Demo
         /// <summary>The room's orbit clock: the same in every game in the room.</summary>
         public double OrbitClock => ServerNow - Epoch;
 
-        /// <summary>Raised for every game message (not the server's own ones), and when the
-        /// room changes host.</summary>
+        /// <summary>Raised for every game message, and for the server's roster, joins and
+        /// leaves (not its other messages, which the connection keeps to itself).</summary>
         public static event Action<CoopMsg> Message;
         public static event Action RoomChanged;
+        /// <summary>The answer to Rename: taken or not, the name I have now, and why not. A
+        /// server too old to rename never answers: after RenameWait seconds it is taken as
+        /// refused, with a "why" that says so.</summary>
+        public static event Action<bool, string, string> Renamed;
+
+        /// <summary>How long Rename waits for the server's answer.</summary>
+        public const float RenameWait = 6f;
+        /// <summary>The name asked for and not answered yet (null: none).</summary>
+        public string Renaming { get; private set; }
+        double renameUntil;
 
         CoopSocket socket;
         readonly ClockSync clock = new ClockSync();
@@ -132,6 +142,7 @@ namespace CarrierGame.Demo
             ChatLogged = false;
             HostId = 0;
             Players.Clear();
+            Renaming = null;
             if (why.Length > 0) Status = why;
             if (was) RoomChanged?.Invoke();
         }
@@ -195,6 +206,14 @@ namespace CarrierGame.Demo
                 Debug.Log($"[Co-op] closed: {Status}");
                 return;
             }
+            // a name asked for and never answered: a server before renames (it passed the message
+            // on to the room instead), given up on quietly
+            if (Renaming != null && Time.realtimeSinceStartupAsDouble >= renameUntil)
+            {
+                Debug.Log($"[Co-op] no answer to the name '{Renaming}': the server can't rename");
+                Renaming = null;
+                Renamed?.Invoke(false, MyName, "this co-op server is too old to change names");
+            }
             // keep the clock in step (more often at first)
             if (Connected && Time.realtimeSinceStartupAsDouble >= nextPing)
             {
@@ -224,9 +243,29 @@ namespace CarrierGame.Demo
                     SetRoom(m.level, m.epoch, m.host);
                     return;
                 case CoopWire.Players:
+                {
                     Players.Clear();
                     if (m.players != null) Players.AddRange(m.players);
                     if (m.max > 0) MaxPlayers = m.max;
+                    // (my name as the server has it: cleaned up, or changed by Rename)
+                    var mine = Players.Find(x => x != null && x.id == MyId);
+                    if (mine != null && !string.IsNullOrEmpty(mine.name)) MyName = mine.name;
+                    // (on to the level too: the other ships' labels follow the names)
+                    break;
+                }
+                case CoopWire.Renamed:
+                    // (the answer to Rename: only the server sends it, to the one who asked; one
+                    // with a sender, which a server before renames would pass on from a game, or
+                    // to a name never asked for, is nobody's answer)
+                    if (m.from != 0 || Renaming == null) return;
+                    if (m.ok && !string.IsNullOrEmpty(m.name)) MyName = m.name;
+                    Debug.Log(m.ok ? $"[Co-op] renamed: {MyName}" : $"[Co-op] the name '{Renaming}' refused: {m.why}");
+                    Renaming = null;
+                    Renamed?.Invoke(m.ok, MyName, m.ok ? "" : m.why ?? "");
+                    return;
+                case CoopWire.Name:
+                    // (another game's new name, passed on by a server before renames: the
+                    // server's roster says who is called what, never another game)
                     return;
                 case CoopWire.Pong:
                     clock.Pong(m.c, m.s, Time.realtimeSinceStartupAsDouble);
@@ -259,6 +298,18 @@ namespace CarrierGame.Demo
 
         /// <summary>Tell the others which captain is in command here.</summary>
         public void SendCaptain() => Send(new CaptainMsg { captain = Captain.Index });
+
+        /// <summary>Ask the server to call my player something else. The server's answer (Renamed)
+        /// says whether it did, and its roster has the name; MyName follows them, never this.
+        /// False when not connected.</summary>
+        public bool Rename(string name)
+        {
+            if (!Connected) return false;
+            Renaming = (name ?? "").Trim();
+            renameUntil = Time.realtimeSinceStartupAsDouble + RenameWait;
+            Send(new NameMsg { name = Renaming });
+            return true;
+        }
 
         public string NameOf(int id)
         {

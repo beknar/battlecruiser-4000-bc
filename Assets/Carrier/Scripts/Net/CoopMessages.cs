@@ -51,6 +51,8 @@ namespace CarrierGame.Demo
         public string level, why, name;
         // (the welcome: the server keeps a log of the comms channel)
         public bool chatLog;
+        // (a "renamed": the new name was taken; name is the one the player has now, why says why not)
+        public bool ok;
         public CoopPlayer p;
         public CoopPlayer[] players;
         // a player's ship (and everything with a position: from the reach `rf`, or the system's origin if rf is "")
@@ -104,6 +106,8 @@ namespace CarrierGame.Demo
     [Serializable] class HelloMsg { public string t = CoopWire.Hello; public int v; public string name, level, client, key; public int captain; public double clock; }
     [Serializable] class LevelMsg { public string t = CoopWire.Level; public string level; public double clock; }
     [Serializable] class CaptainMsg { public string t = CoopWire.Captain; public int captain; }
+    // (a new name for my player: the server answers "renamed")
+    [Serializable] class NameMsg { public string t = CoopWire.Name; public string name; }
     [Serializable] class PingMsg { public string t = CoopWire.Ping; public double c; }
 
     /// <summary>My ship, to everyone in my room.</summary>

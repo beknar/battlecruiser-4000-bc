@@ -22,6 +22,11 @@ its HTTP API, and through the MCP server (coop_ai_mcp.py):
     game (no lock in its ship message) says the game doesn't say, with nothing locked says so, and
     with an enemy of the bot's own list locked attacks it; 'defend me' sends it to the player;
     'where are you' says how far it is from them, at once, and is marked handled
+  - its name: 'your name is <name>' renames it (its answer, in the new name, its /status and the
+    server's roster have it), orders by the new name are carried out and by the old one aren't, a
+    name another player has is refused, and the API's rename order gives it its first name back
+    (so the name it keeps for its next start is the one it was launched with; a name left from a
+    run that stopped part way is put back at the start)
   - /quit closes it (the runner checks the game ends)
 
 Prints a line a check ("[AIBot] PASS ..." or "[AIBot] FAIL ...") and exits 1 if any failed.
@@ -40,6 +45,8 @@ API = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else "http://127.0.0.1:7781"
 URL = sys.argv[2] if len(sys.argv) > 2 else "ws://127.0.0.1:7792/coop"
 BOT = sys.argv[3] if len(sys.argv) > 3 else "Wingman"
 ME = "Tester"
+NEW = "Kestrel"          # the name the test gives the bot, and takes back
+renamed = False          # the bot has the new name (given back at the end, whatever happens)
 
 checks, failed = 0, 0
 
@@ -87,6 +94,7 @@ class Player:
         self.ship = None         # my own ship message's fields, sent while set (None: no ship)
         self.pos = None          # ... and where it is (rf, x, y, z)
         self.last_ship = 0.0
+        self.roster = {}         # the server's last players list: id -> name
 
     def now(self):
         return self.clock0 + (time.monotonic() - self.local0)
@@ -116,6 +124,8 @@ class Player:
                 if m.get("t") == "welcome":
                     self.my_id = m["id"]
                     self.clock0, self.local0 = m.get("now", 0.0), time.monotonic()
+                elif m.get("t") == "players":
+                    self.roster = {p.get("id"): p.get("name") for p in m.get("players") or []}
                 elif m.get("t") == "ps":
                     self.bot_ship = m
                 elif m.get("t") == "es":
@@ -179,12 +189,20 @@ def mcp_session(lines):
 
 
 async def main():
+    global renamed
     t0 = time.monotonic()
     s = await wait_status(lambda s: s.get("connected") and "ship" in s, 240)
     if not check(bool(s.get("connected")), "the bot game is up and connected", f"after {time.monotonic() - t0:.0f} s"):
         return
     check("ship" in s, "its pilot has a ship", json.dumps(s.get("ship", {}))[:200])
     level = s.get("level", "StarSystem")
+    # (a name kept from a run that stopped part way: its first name back before anything else)
+    if s.get("name") != BOT:
+        log(f"the bot is called {s.get('name')}, kept from an earlier run: renaming it {BOT}")
+        await api("/order", {"order": "rename", "target": BOT})
+        s = await wait_status(lambda s: s.get("name") == BOT, 15)
+        if not check(s.get("name") == BOT, f"the bot takes its first name, {BOT}, back", s.get("name", "")):
+            return
 
     async with websockets.connect(URL, max_size=4 * 1024 * 1024) as ws:
         await ws.send(json.dumps(hello(name=ME, level=level, client="tester", captain=0, clock=0)))
@@ -452,9 +470,49 @@ async def main():
             await me.say(f"{BOT}, hold")
             me.ship = None
 
+            # its name: given on the comms, answered in it, and ordered by it
+            bot_id = next((p.get("id") for p in (await api("/status")).get("players", []) if p.get("me")), None)
+            n = len(me.heard)
+            await me.say(f"{BOT}, your name is {NEW}")
+            r = await me.hear(f"{NEW}: {NEW} it is", 15, n)
+            s = await wait_status(lambda s: s.get("name") == NEW, 10)
+            renamed = s.get("name") == NEW
+            await asyncio.sleep(0.5)
+            check(r is not None and renamed and me.roster.get(bot_id) == NEW,
+                  f"'your name is {NEW}' renames it, and it answers in its new name",
+                  f"{r or 'no answer'}; status {s.get('name')}; roster {me.roster.get(bot_id)}")
+            n = len(me.heard)
+            await me.say(f"{NEW}, status")
+            r = await me.hear(f"{NEW}:", 15, n)
+            check(r is not None and "hull" in r, "an order by its new name is carried out", r or "no answer")
+            n = len(me.heard)
+            await me.say(f"{BOT}, status")
+            await asyncio.sleep(3)
+            old = [t for _, t in me.heard[n:] if "hull" in t]
+            check(not old, "and its old name no longer reaches it", "; ".join(old))
+            n = len(me.heard)
+            await me.say(f"{NEW}, call yourself {ME}")
+            r = await me.hear("another player is called", 10, n)
+            check(r is not None and (await api("/status")).get("name") == NEW, "a name another player has is refused", r or "no answer")
+            # (its first name back through the API, so the name it keeps for its next start is the one it was launched with)
+            n = len(me.heard)
+            r = await api("/order", {"order": "rename", "target": BOT})
+            back = await me.hear(f"{BOT}: {BOT} it is", 15, n)
+            s = await wait_status(lambda s: s.get("name") == BOT, 10)
+            renamed = s.get("name") != BOT
+            check(r.get("ok") is True and back is not None and not renamed, "the API's rename gives it its first name back",
+                  f"{json.dumps(r)}; {back or 'no answer'}")
+
             r = await api("/quit", {})
             check(r.get("ok") is True, "/quit is accepted")
         finally:
+            # (stopped part way with the new name: its first name back, so its next start has it)
+            if renamed:
+                try:
+                    await api("/order", {"order": "rename", "target": BOT})
+                    await asyncio.sleep(2)
+                except (urllib.error.URLError, OSError, ValueError):
+                    pass
             reader.cancel()
 
 

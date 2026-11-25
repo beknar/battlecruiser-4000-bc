@@ -12,8 +12,8 @@ namespace CoopServer;
 /// The players and their rooms. Each level is a room; the first player in it is its host (that
 /// player's game runs the enemies for everyone in the room), and when the host leaves the next
 /// player to have joined takes over. Messages are JSON, one per WebSocket text frame:
-/// - the server's own: hello, level, ping (from clients); welcome, reject, players, room, join,
-///   leave, pong (to clients);
+/// - the server's own: hello, level, ping, captain, name (from clients); welcome, reject,
+///   players, room, join, leave, pong, renamed (to clients);
 /// - anything else is passed on with "from" added: to one player ("to": id), to the room's host
 ///   ("toHost": true), or to everyone else in the sender's room.
 /// The server keeps a clock (seconds since it started) and each room's epoch, so every game in
@@ -192,11 +192,11 @@ public sealed class Hub
 
     static string Clean(string? s, string fallback)
     {
-        s = (s ?? "").Trim();
-        if (s.Length == 0) return fallback;
         var sb = new StringBuilder();
-        foreach (char c in s) if (!char.IsControl(c)) sb.Append(c);
-        s = sb.ToString();
+        foreach (char c in s ?? "") if (!char.IsControl(c)) sb.Append(c);
+        // (trimmed after the control characters go, so one of only those is nothing)
+        s = sb.ToString().Trim();
+        if (s.Length == 0) return fallback;
         return s.Length > 24 ? s[..24] : s;
     }
 
@@ -268,6 +268,9 @@ public sealed class Hub
             case CoopWire.Captain:
                 lock (gate) me.Captain = Int(msg["captain"]) ?? me.Captain;
                 Roster();
+                return;
+            case CoopWire.Name:
+                Rename(me, Str(msg["name"]));
                 return;
             case CoopWire.Hello:
                 return;                                             // only the first one counts
@@ -359,6 +362,44 @@ public sealed class Hub
             ["room"] = room.Level, ["kind"] = kind, ["from"] = me.Id, ["name"] = me.Name, ["ai"] = me.KeyAi,
             ["client"] = me.Client, ["with"] = others,
         };
+    }
+
+    /// <summary>A player's new name (cleaned as the hello's is). Refused when another player in
+    /// the server has it (whatever its capitals), when it calls every wingman, or when it starts
+    /// with a greeting word (CoopWire.NameRefused). The one who asked is told either way
+    /// (renamed: done, or why not); a change is logged and goes out in the roster.</summary>
+    void Rename(Player me, string? asked)
+    {
+        string name = Clean(asked, "");
+        string why, was;
+        bool changed = false;
+        lock (gate)
+        {
+            was = me.Name;
+            why = CoopWire.NameRefused(name);
+            if (why.Length == 0 && players.Values.Any(p => p.Id != me.Id && string.Equals(p.Name.Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase)))
+                why = $"another player is called {name}";
+            if (why.Length == 0 && name != me.Name)
+            {
+                me.Name = name;
+                changed = true;
+                if (chatLog != null && rooms.TryGetValue(me.Level, out var room))
+                {
+                    var line = Event(me, "rename", room);
+                    line["was"] = was;
+                    chatLog.Add(line);
+                }
+            }
+            var answer = new JsonObject { ["t"] = CoopWire.Renamed, ["ok"] = why.Length == 0, ["name"] = me.Name };
+            if (why.Length > 0) answer["why"] = why;
+            Send(me, answer);
+        }
+        if (why.Length > 0) Log($"{me.Name} (#{me.Id}): the name '{name}' refused, {why}");
+        else if (changed)
+        {
+            Log($"{was} (#{me.Id}) is now {me.Name}");
+            Roster();
+        }
     }
 
     void LeaveRoom(Player me)

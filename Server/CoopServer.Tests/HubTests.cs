@@ -299,6 +299,106 @@ public sealed class HubTests : IAsyncDisposable
         Assert.NotNull(roster);
     }
 
+    // ------------------------------------------------------------------ a new name
+
+    [Fact]
+    public async Task ANewNameIsAnsweredAndGoesOutInTheRoster()
+    {
+        var (a, _) = await Join("Wingman", "L1");
+        var (b, _) = await Join("Bravo", "L2");
+        await a.Send(new JsonObject { ["t"] = "name", ["name"] = "  Ace\u0007 " });
+        var renamed = await a.Next("renamed");
+        Assert.True((bool)renamed["ok"]!);
+        Assert.Equal("Ace", (string?)renamed["name"]);                     // cleaned as a hello's name is
+        Assert.Null(renamed["why"]);
+        // (everyone in the server, not only the room: the roster is everyone's)
+        var roster = await b.Next("players", m => m["players"]!.AsArray().Any(p => (int)p!["id"]! == a.Id && (string?)p["name"] == "Ace"));
+        Assert.NotNull(roster);
+        Assert.False(await b.Gets("renamed"), "the answer is for the one who asked");
+        Assert.Contains($"#{a.Id} Ace (Test)", hub.Status());
+    }
+
+    [Theory]
+    [InlineData("bravo", "another player is called bravo")]
+    [InlineData("All ships", "calls every wingman")]
+    [InlineData("everyone", "calls every wingman")]
+    [InlineData("Wingmen", "calls every wingman")]
+    [InlineData("Hey Ace", "can't start with \"hey\"")]
+    [InlineData("hi", "can't start with \"hi\"")]
+    [InlineData("OK Computer", "can't start with \"ok\"")]
+    [InlineData("okay", "can't start with \"okay\"")]
+    [InlineData("Oi", "can't start with \"oi\"")]
+    [InlineData("Right-o", "can't start with \"right\"")]
+    [InlineData("  ", "no name given")]
+    [InlineData("\u0001", "no name given")]
+    public async Task SomeNamesAreRefusedAndSaidWhy(string asked, string why)
+    {
+        var (a, _) = await Join("Wingman", "L");
+        var (b, _) = await Join("Bravo", "Elsewhere");
+        await a.Next("players", m => m["players"]!.AsArray().Count == 2);
+        await b.Next("players", m => m["players"]!.AsArray().Count == 2);
+        await a.Send(new JsonObject { ["t"] = "name", ["name"] = asked });
+        var renamed = await a.Next("renamed");
+        Assert.False((bool)renamed["ok"]!);
+        Assert.Equal("Wingman", (string?)renamed["name"]);                 // the name it still has
+        Assert.Contains(why, (string?)renamed["why"]);
+        Assert.False(await b.Gets("players"), "nothing changed, so no roster");
+        Assert.Equal(1, hub.Status().Split('\n').Count(l => l.Contains(" Wingman (Test)")));
+    }
+
+    [Theory]
+    [InlineData("Hiro")]                                                  // (a greeting's letters, not the word)
+    [InlineData("Okami")]
+    [InlineData("Everyoneelse")]
+    [InlineData("Allships")]
+    [InlineData("WINGMAN")]                                               // (its own name, in other capitals)
+    public async Task NamesLikeThoseAreFine(string asked)
+    {
+        var (a, _) = await Join("Wingman", "L");
+        await a.Send(new JsonObject { ["t"] = "name", ["name"] = asked });
+        var renamed = await a.Next("renamed");
+        Assert.True((bool)renamed["ok"]!, (string?)renamed["why"]);
+        Assert.Equal(asked, (string?)renamed["name"]);
+    }
+
+    [Fact]
+    public async Task TheSameNameAgainIsDoneWithoutARoster()
+    {
+        var (a, _) = await Join("Ace", "L");
+        await a.Next("players");
+        await a.Send(new JsonObject { ["t"] = "name", ["name"] = "Ace" });
+        Assert.True((bool)(await a.Next("renamed"))["ok"]!);
+        Assert.False(await a.Gets("players"));
+    }
+
+    [Fact]
+    public async Task ANameMessageIsNeverPassedOn()
+    {
+        // (a server before it passed "name" on to the room: games act only on "renamed" and the
+        // roster, and this one keeps it to itself)
+        var (a, _) = await Join("Wingman", "L");
+        var (b, _) = await Join("Bravo", "L");
+        await a.Send(new JsonObject { ["t"] = "name", ["name"] = "Ace" });
+        Assert.True((bool)(await a.Next("renamed"))["ok"]!);
+        await b.Next("players", m => m["players"]!.AsArray().Any(p => (string?)p!["name"] == "Ace"));
+        Assert.False(await b.Gets("name"));
+        // (a field of the wrong type: refused, not the connection ended)
+        await a.SendRaw("{\"t\":\"name\",\"name\":42}");
+        Assert.False((bool)(await a.Next("renamed"))["ok"]!);
+        Assert.Equal(2, hub.Count);
+    }
+
+    [Fact]
+    public async Task OnlyTheServerSaysRenamed()
+    {
+        // (a forged answer can't rename someone else in their own game)
+        Assert.Contains(CarrierGame.CoopWire.Renamed, CarrierGame.CoopWire.ServerOnly);
+        var (a, _) = await Join("Alpha", "L");
+        var (b, _) = await Join("Bravo", "L");
+        await a.Send(new JsonObject { ["t"] = "renamed", ["ok"] = true, ["name"] = "Mallory", ["to"] = b.Id });
+        Assert.False(await b.Gets("renamed"));
+    }
+
     [Fact]
     public async Task SomethingThatIsNotJsonIsIgnored()
     {

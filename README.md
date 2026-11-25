@@ -2333,7 +2333,16 @@ every bot. Politeness is left off an order: `Wingman, can you mine some asteroid
 | `give [N] credits [to <name>]` | Transfers credits from its hold to that player (whoever asked, if no name is given): N (`give me 500 credits`, `transfer 2k credits to Ann`, `give Ann 500 credits`, `pay me 300`), half (`give me half your credits`) or all (`give me all your credits`). Without an amount it asks how many. The player's game adds them to the ship's hold and says so. Credits go only to human players in the same level, and only from a player the server let in with an AI key (on an open server, one that says it is a bot). They come back to the wingman if the player's game doesn't confirm them within 10 s, and a game that only sees them after 6 s refuses them. |
 | `status` | Reports its hull, shield, missiles, hold, credits, what it is doing and where it is. |
 | `chat on`, `chat off`, `chat pause`, `chat resume` | Switches its chat mode (see below) to `llm`, `personality`, `paused`, or back to the mode before the pause. Only its leader or the game's host may switch it. If it has neither, anyone may. `chat mode?` says the mode. |
+| `your name is <name>` | Renames it: it asks the server for the name and answers in it ("Ace: Ace it is. Orders by my new name: "Ace, help"."), and from then on answers only to it. `call yourself <name>`, `rename to <name>`, `rename yourself <name>` and `change your name to <name>` do the same. Only its leader or the game's host may, as with the chat mode. The server refuses a name another player has (whatever its capitals), `all ships`, `everyone` or `wingmen`, or one starting with a greeting word (`hey`, `hi`, `ok`, `okay`, `oi`, `right`), and it says why. It keeps the name for its next start, stored under the name it was launched with (as its chat mode is), and a kept name wins over `-name`. On a server too old to rename it says so after 6 s. |
 | `help` | Lists these orders. |
+
+The co-op panel (the pause menu, Co-op), opened while connected, lists the AI wingmen, each with
+**RENAME**. Type the new name and press OK (or Enter): it goes out on the comms as the order
+`<name>, your name is <new name>`, so the wingman's own rule says who may. A name no one may have,
+or another player's, is refused in the panel first. The server's `name` message renames a player
+and answers `renamed` (`ok`, the name it has now, and `why` when refused) to the one who asked;
+everyone gets the roster. A server before it passes `name` on to the room, where no game acts on
+it. Windows' keyword phrases follow the roster, so they have the new name the next time you speak.
 
 Several orders can go in one message, separated by `then`, `and`, `,` or `;`
 (`Wingman, warp to Heaven, then dock`, `Wingman, attack the Scavenger and then follow me`). It
@@ -2444,7 +2453,8 @@ changes later answers. Each player's conversation is forgotten after 2 minutes o
 - `POST /say {"text"}`: sends a message on the channel.
 - `POST /order {"order","target"}`: gives an order (`give` takes the target `<N|all|half>[ to <name>]`;
   `defend` and `assist`, attacking what a player has locked, take a player's name, or none for the
-  last player to speak).
+  last player to speak; `rename` takes the new name, and the API may always rename it: the server's
+  answer is said on the comms, in the new name).
 - `GET /chatmode`: the chat mode, and `listener_seen_s`, the seconds since a listener last read
   the channel. `POST /chatmode {"mode"}` switches it (`llm`, `personality`, `paused`, or `on`,
   `off`, `pause`, `resume`). `/status` and `/messages` say the mode too, as `chat_mode`.
@@ -2502,6 +2512,10 @@ tokens.
     and goes back to mining;
   - that it reports its cargo, and that `give` moves its credits to the test player (with the
     receipt) and refuses more than it has;
+  - that `your name is <name>` renames it (the roster and its answer have the new name), that it
+    then takes orders by the new name and not the old, that a name another player has is refused,
+    and that it takes its first name back (so the name it keeps for its next start is the one it
+    was launched with);
   - that it quits when told.
 
 ### Testing co-op

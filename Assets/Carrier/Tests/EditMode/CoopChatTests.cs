@@ -522,6 +522,125 @@ namespace CarrierGame.Tests
             Assert.That(Wingman.LockOf(rp), Is.Null);
         }
 
+        // ---------------------------------------------------------------- its name
+
+        [TestCase("your name is Ace", "Ace")]
+        [TestCase("Your name's Ace now", "Ace")]
+        [TestCase("your new name is \"Iron Duke\"", "Iron Duke")]
+        [TestCase("call yourself Ace", "Ace")]
+        [TestCase("can you call yourself Ace please", "Ace")]
+        [TestCase("rename to Ace", "Ace")]
+        [TestCase("rename yourself Ace", "Ace")]
+        [TestCase("rename yourself to Ace!", "Ace")]
+        [TestCase("rename yourself Toby", "Toby")]
+        [TestCase("change your name to Ace, please", "Ace")]
+        [TestCase("you're called Ace", "Ace")]
+        [TestCase("your name is Salt and Pepper", "Salt and Pepper")]
+        public void TheRenameOrdersAreRead(string said, string name)
+        {
+            var p = CoopBot.ParseOrder(said);
+            Assert.That(p.HasValue, Is.True, said);
+            Assert.That(p.Value.kind, Is.EqualTo("rename"), said);
+            Assert.That(p.Value.arg, Is.EqualTo(name), said);
+            Assert.That(CoopBot.Clauses(CoopBot.Plain(said)), Is.Null, "one order, the name whole: " + said);
+        }
+
+        [TestCase("what's your name?")]
+        [TestCase("I like your name")]
+        [TestCase("rename")]
+        [TestCase("call yourself")]
+        [TestCase("your name is")]
+        public void TalkAboutItsNameIsNotARename(string said)
+        {
+            var p = CoopBot.ParseOrder(said);
+            Assert.That(p.HasValue && p.Value.kind == "rename", Is.False, said);
+        }
+
+        [Test]
+        public void ARenameIsAnOrderByNameAndCanComeWithOthers()
+        {
+            Assert.That(CoopBot.AddressedPart("Wingman, your name is Ace", "Wingman"), Is.EqualTo("your name is Ace"));
+            Assert.That(CoopBot.AddressedPart("Ace, status", "Ace"), Is.EqualTo("status"), "the new name, once it has it");
+            Assert.That(string.Join(" | ", CoopBot.Clauses("call yourself Ace, then follow me").Select(c => c.kind)), Is.EqualTo("rename | follow"));
+            Assert.That(VoiceCommand.IsOrder("Wingman, your name is Ace", new[] { "Wingman" }), Is.True, "said by voice, too");
+        }
+
+        [TestCase("Ace", "")]
+        [TestCase("Hiro", "")]
+        [TestCase("Okami", "")]
+        [TestCase("All ships", "calls every wingman")]
+        [TestCase("everyone else", "calls every wingman")]
+        [TestCase("WINGMEN", "calls every wingman")]
+        [TestCase("Hey Joe", "can't start with \"hey\"")]
+        [TestCase("ok", "can't start with \"ok\"")]
+        [TestCase("Right-o", "can't start with \"right\"")]
+        [TestCase("  ", "no name given")]
+        [TestCase(null, "no name given")]
+        public void SomeNamesNoOneMayHave(string name, string why)
+        {
+            string got = CoopWire.NameRefused(name);
+            if (why.Length == 0) Assert.That(got, Is.Empty, name);
+            else Assert.That(got, Does.Contain(why), name);
+        }
+
+        [Test]
+        public void WithoutAConnectionARenameSaysSoAndARefusedNameSaysWhy()
+        {
+            var bot = new GameObject("bot").AddComponent<CoopBot>();
+            made.Add(bot.gameObject);
+            Assert.That(bot.Command("your name is Ace", 2), Is.EqualTo("not connected to a co-op server."), "no ship needed, but a server is");
+            Assert.That(bot.Command("your name is everyone", 2), Does.Contain("calls every wingman"));
+            Assert.That(bot.Command("call yourself Hey Joe", 2), Does.Contain("can't start with \"hey\""));
+            Assert.That(bot.Command("your name is Wingman", 2), Is.EqualTo("I'm Wingman already."));
+            Assert.That(bot.Order("rename", "", 0), Is.EqualTo("rename to what?"));
+            Assert.That(bot.Command("help", 0), Does.Contain("your name is <name>"), "the help lists it");
+            Assert.That(bot.Orders, Is.Zero);
+            Assert.That(CoopBot.NameIn(" “Ace”. "), Is.EqualTo("Ace"));
+            StringAssert.Contains("\"t\":\"name\"", JsonUtility.ToJson(new NameMsg { name = "Ace" }));
+            StringAssert.Contains("\"name\":\"Ace\"", JsonUtility.ToJson(new NameMsg { name = "Ace" }));
+        }
+
+        [Test]
+        public void TheServersAnswerToANameIsRead()
+        {
+            var done = JsonUtility.FromJson<CoopMsg>("{\"t\":\"renamed\",\"ok\":true,\"name\":\"Ace\"}");
+            Assert.That(done.t, Is.EqualTo(CoopWire.Renamed));
+            Assert.That(done.ok, Is.True);
+            Assert.That(done.name, Is.EqualTo("Ace"));
+            var refused = JsonUtility.FromJson<CoopMsg>("{\"t\":\"renamed\",\"ok\":false,\"name\":\"Wingman\",\"why\":\"another player is called Ace\"}");
+            Assert.That(refused.ok, Is.False);
+            Assert.That(refused.why, Is.EqualTo("another player is called Ace"));
+            Assert.That(CoopWire.ServerOnly, Has.Member(CoopWire.Renamed), "a game can't forge one");
+            Assert.That(CoopWire.ServerOnly, Has.No.Member(CoopWire.Name), "a server before renames passes it on: games ignore it");
+        }
+
+        [Test]
+        public void ANamePassedOnByAnOldServerIsNotActedOnAndTheRosterIs()
+        {
+            var c = new GameObject("client").AddComponent<CoopClient>();
+            made.Add(c.gameObject);
+            var handle = typeof(CoopClient).GetMethod("Handle", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            int raised = 0;
+            System.Action<CoopMsg> count = m => raised++;
+            CoopClient.Message += count;
+            try
+            {
+                // (a game's own "name", and a forged "renamed", passed on with a sender)
+                handle.Invoke(c, new object[] { new CoopMsg { t = CoopWire.Name, from = 5, name = "Mallory" } });
+                handle.Invoke(c, new object[] { new CoopMsg { t = CoopWire.Renamed, from = 5, ok = true, name = "Mallory" } });
+                Assert.That(c.MyName, Is.Not.EqualTo("Mallory"));
+                Assert.That(raised, Is.Zero, "neither goes on to the level");
+                // (the server's answer, with no rename asked for: nobody's)
+                handle.Invoke(c, new object[] { new CoopMsg { t = CoopWire.Renamed, ok = true, name = "Mallory" } });
+                Assert.That(c.MyName, Is.Not.EqualTo("Mallory"));
+                // the roster: my name as the server has it, and on to the level (the ships' labels)
+                handle.Invoke(c, new object[] { new CoopMsg { t = CoopWire.Players, max = 7, players = new[] { new CoopPlayer { id = c.MyId, name = "Ace" } } } });
+                Assert.That(c.MyName, Is.EqualTo("Ace"));
+                Assert.That(raised, Is.EqualTo(1));
+            }
+            finally { CoopClient.Message -= count; }
+        }
+
         [Test]
         public void TheCommsLineTakesTheKeysFromTheGame()
         {

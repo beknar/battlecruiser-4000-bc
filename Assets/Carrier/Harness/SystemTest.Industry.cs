@@ -38,8 +38,10 @@ namespace CarrierGame.Demo
             Check(panel != null && director != null && hold != null && fit != null,
                   $"the sites' screen, the industry and the frigate's hold and part slots ({(fit != null ? fit.slots : 0)} slots, {(hold != null ? hold.capacity : 0f):F0} t)");
             if (panel == null || director == null || hold == null || fit == null) yield break;
-            var missing = table.sites.Where(s => Point(s.name) == null).Select(s => s.name).ToArray();
-            Check(missing.Length == 0, $"every industrial site is a destination on the map ({table.sites.Length - missing.Length} of {table.sites.Length}{(missing.Length > 0 ? "; missing " + string.Join(", ", missing) : "")})");
+            // (the sites of this system: those round a body that's here; the Nine Hells' are in its own test)
+            var sites = table.sites.Where(s => string.IsNullOrEmpty(s.body) || Point(s.body) != null).ToArray();
+            var missing = sites.Where(s => Point(s.name) == null).Select(s => s.name).ToArray();
+            Check(missing.Length == 0, $"every industrial site is a destination on the map ({sites.Length - missing.Length} of {sites.Length}{(missing.Length > 0 ? "; missing " + string.Join(", ", missing) : "")})");
             IndustryLedger.SpeedUp = 40f;
             var dock = Docking.Instance;
             yield return Key(kb, K.H);   // (the controls list off the pictures)

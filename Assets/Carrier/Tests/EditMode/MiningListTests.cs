@@ -71,7 +71,7 @@ namespace CarrierGame.Tests
             for (int i = 0; i < 30; i++) finds.Add(R($"stone {i}", 200f + i * 10f, 500f, 500f, (Mineral.Silicates, 1f)));
             var prize = R("prize", 20000f, 500f, 500f, (Mineral.Silicates, 0.5f), (Mineral.Platinum, 0.5f));
             finds.Add(prize);
-            Assert.That(MiningMode.Arrange(finds, Reach, DepositOrder.Nearest, null).Take(MiningMode.MaxListed), Does.Not.Contain(prize),
+            Assert.That(MiningMode.Arrange(finds, Reach, DepositOrder.Nearest, null).Take(MiningMode.MaxListed), Has.No.Member(prize),
                         "nearest first, the far rock is past the cut");
             Assert.That(MiningMode.Arrange(finds, Reach, DepositOrder.MostValuable, null).First(), Is.SameAs(prize), "most valuable first, it heads the list");
             Assert.That(MiningMode.Arrange(finds, Reach, DepositOrder.Richest, null).First(), Is.SameAs(prize), "and richest first");

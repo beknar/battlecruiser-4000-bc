@@ -72,6 +72,10 @@ EXTRA_TEXTURES = [  # used directly by the carrier's own materials and the scene
     "Game/Spaceship_Kit/Textures/T_space_ship/T_space_ship_Trim/T_spaceship_trim_N.png",
     "Game/Spaceship_Kit/Textures/T_space_ship/T_space_ship_Trim/T_spaceship_trim_E.png",
     "Game/CargoShip/Textures/TC_Space.exr",
+    # the galaxy's masks for the space sky (Shaders/SpaceSky.shader): R star points, G nebula
+    # clouds (01) or bright knots (02), B the dark dust and rift
+    "Game/OrbitalBase/Textures/Other/T_StarsMasks01.png",
+    "Game/OrbitalBase/Textures/Other/T_StarsMasks02.png",
 ]
 
 

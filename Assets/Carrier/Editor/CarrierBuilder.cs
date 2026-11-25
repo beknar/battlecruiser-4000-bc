@@ -143,9 +143,31 @@ namespace Carrier.EditorTools
                 if (name.EndsWith("_N") && ti.textureType != TextureImporterType.NormalMap) { ti.textureType = TextureImporterType.NormalMap; dirty = true; }
                 if (name == "TC_Space")
                 {
-                    if (ti.mipmapEnabled) { ti.mipmapEnabled = false; dirty = true; }
+                    // (mipmaps: the sky's shader picks the level itself, so none shows a seam at the wrap)
+                    if (!ti.mipmapEnabled) { ti.mipmapEnabled = true; dirty = true; }
+                    if (ti.anisoLevel != 4) { ti.anisoLevel = 4; dirty = true; }
                     if (ti.wrapModeV != TextureWrapMode.Clamp) { ti.wrapModeU = TextureWrapMode.Repeat; ti.wrapModeV = TextureWrapMode.Clamp; dirty = true; }
                     if (ti.maxTextureSize != 4096) { ti.maxTextureSize = 4096; dirty = true; }
+                }
+                else if (name.StartsWith("T_StarsMasks"))
+                {
+                    // the galaxy's masks for the sky: data rather than colour, no alpha, tiled, and
+                    // at full size (the sky is seen close up)
+                    if (ti.sRGBTexture) { ti.sRGBTexture = false; dirty = true; }
+                    if (ti.alphaSource != TextureImporterAlphaSource.None) { ti.alphaSource = TextureImporterAlphaSource.None; dirty = true; }
+                    if (!ti.mipmapEnabled) { ti.mipmapEnabled = true; dirty = true; }
+                    if (ti.anisoLevel != 4) { ti.anisoLevel = 4; dirty = true; }
+                    if (ti.wrapModeU != TextureWrapMode.Repeat || ti.wrapModeV != TextureWrapMode.Repeat) { ti.wrapMode = TextureWrapMode.Repeat; dirty = true; }
+                    if (ti.maxTextureSize != 4096) { ti.maxTextureSize = 4096; dirty = true; }
+                    // (half that on the web, where every megabyte is downloaded)
+                    var web = ti.GetPlatformTextureSettings("WebGL");
+                    if (!web.overridden || web.maxTextureSize != 2048)
+                    {
+                        web.overridden = true;
+                        web.maxTextureSize = 2048;
+                        ti.SetPlatformTextureSettings(web);
+                        dirty = true;
+                    }
                 }
                 else if (ti.maxTextureSize > 2048) { ti.maxTextureSize = 2048; dirty = true; }
                 if (dirty) ti.SaveAndReimport();
@@ -1076,12 +1098,8 @@ namespace Carrier.EditorTools
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-            var sky = new Material(Shader.Find("Skybox/Panoramic"));
-            sky.SetTexture("_MainTex", KitTexture("TC_Space.exr"));
-            sky.SetFloat("_Mapping", 1f);
-            sky.SetFloat("_ImageType", 0f);
-            sky.SetFloat("_Exposure", 1.1f);
-            sky = SaveMat("Space_Skybox", sky);
+            // the space sky every level but the Nine Hells uses (CarrierBuilder.SpaceSky)
+            SpaceSkyMaterial("Space_Skybox", TestingSkyLook);
 
             // post-processing: bloom for the emissive lights, ACES tonemapping
             string profilePath = Root + "/Settings/CarrierVolume.asset";

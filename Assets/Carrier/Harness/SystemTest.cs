@@ -90,6 +90,8 @@ namespace CarrierGame.Demo
             t.empireOnly = LaunchArgs.Switch("empiretest");
             // -ninehellstest (with -system ninehells): only the Nine Hells, the second star system
             t.nineHellsOnly = LaunchArgs.Switch("ninehellstest");
+            // -skytest (or ?skytest): only the sky's close-ups, in the system that is open
+            t.skyOnly = LaunchArgs.Switch("skytest");
             // -cooptest (or ?cooptest), with -connect address:port (?server=...&connect): co-op with
             // the scripted second player (Tools/CoopTest/bot.py); -coopquick (?coopquick) skips the
             // part at Corsair Haven
@@ -187,6 +189,13 @@ namespace CarrierGame.Demo
             if (coopOnly)
             {
                 yield return CoopTest(kb, coopQuick);
+                Log("done");
+                if (!web) Application.Quit();
+                yield break;
+            }
+            if (skyOnly)
+            {
+                yield return SkyTest();
                 Log("done");
                 if (!web) Application.Quit();
                 yield break;
@@ -339,6 +348,8 @@ namespace CarrierGame.Demo
                 if (!web) Application.Quit();
                 yield break;
             }
+            // the sky, close up (SystemTest.Sky)
+            yield return SkyShots($"sky_{StarSystems.Current.id}");
             yield return Key(kb, UnityEngine.InputSystem.Key.M);
             Log($"keyboard M: map open {SystemMap.IsOpen}, selected {map.Selected?.displayName}");
             yield return new WaitForSeconds(0.3f);

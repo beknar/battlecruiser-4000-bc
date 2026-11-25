@@ -70,11 +70,13 @@ namespace Carrier.EditorTools
             var flashMat = ParticleAdditive("FX_WarpFlash", KenneyTex("star_06"), new Color(2.5f, 2.7f, 3f, 1f));
             var ringMat = ParticleAdditive("FX_WarpRing", KenneyTex("circle_05"), new Color(1.4f, 1.8f, 2.6f, 1f));
             var sparkMat = ParticleAdditive("FX_WarpSpark", KenneyTex("flare_01"), new Color(1.5f, 1.8f, 2.4f, 1f));
+            // (its own sky, turned and tinted: CarrierBuilder.SpaceSky)
+            var skyMat = SpaceSkyMaterial("Space_Skybox_NineHells", NineHellsSkyLook);
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             StructureMaterials();
             var surfaceKit = SurfaceAssets(rockMat, p);
-            SpaceLighting(Quaternion.identity, 2.5f, new Color(0.95f, 0.96f, 1f), new Color(0.05f, 0.05f, 0.07f));
+            SpaceLighting(Quaternion.identity, 2.5f, new Color(0.95f, 0.96f, 1f), new Color(0.05f, 0.05f, 0.07f), skyMat);
             var sun = RenderSettings.sun;
             var fill = new GameObject("Fill").AddComponent<Light>();
             fill.type = LightType.Directional;

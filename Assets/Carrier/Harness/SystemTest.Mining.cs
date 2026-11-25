@@ -250,6 +250,30 @@ namespace CarrierGame.Demo
                 Log($"  the menu's J on {Minerals.Name(dear.Value)}: {had:F1} -> {hold[dear.Value]:F1} t");
                 menuOk &= had > 0f && hold[dear.Value] < 0.01f;
             }
+            // the menu's order (O) and mineral (F), put before its cut to the first 20; then back
+            // again (O twice, F till all), nearest first and all minerals, for what comes next
+            if (mining != null && menu != null)
+            {
+                yield return Key(kb, UnityEngine.InputSystem.Key.Tab);
+                var finds = sensor.Finds.Select(f => f.source).ToList();
+                var dearest = MiningMode.Arrange(finds, laser.Reach, DepositOrder.MostValuable, null).FirstOrDefault();
+                yield return Key(kb, UnityEngine.InputSystem.Key.O);
+                bool byWorth = mining.Order == DepositOrder.MostValuable && (dearest == null || menu.Rows.Any(r => ReferenceEquals(r.tag, dearest)))
+                               && menu.Rows.Any(r => r.header && r.detail.Contains("most valuable"));
+                var kindsFound = MiningMode.MineralsIn(finds);
+                yield return Key(kb, UnityEngine.InputSystem.Key.F);
+                var only = mining.Filter;
+                bool filtered = kindsFound.Count == 0 || (only == kindsFound[0]
+                                && menu.Rows.Where(r => r.tag is IMineralSource && !ReferenceEquals(r.tag, mining.Chosen)).All(r => MiningMode.Holds((IMineralSource)r.tag, kindsFound[0])));
+                Shot("n4_menu_ordered");
+                for (int n = 0; n < 2; n++) yield return Key(kb, UnityEngine.InputSystem.Key.O);
+                for (int n = 0; n < 60 && mining.Filter != null; n++) yield return Key(kb, UnityEngine.InputSystem.Key.F);
+                bool back = mining.Order == DepositOrder.Nearest && mining.Filter == null;
+                yield return Key(kb, UnityEngine.InputSystem.Key.Tab);
+                Log($"  O: the most valuable first {byWorth} ({dearest?.Label}); F: only {(only != null ? Minerals.Name(only.Value) : "all")} {filtered} " +
+                    $"(the most valuable of the {kindsFound.Count} minerals found); O twice and F till all: back to the nearest, all minerals {back}");
+                menuOk &= byWorth && filtered && back;
+            }
             // room for what comes next
             while (hold.Free < 200f && hold.Cheapest() is Mineral m) hold.Jettison(m);
 

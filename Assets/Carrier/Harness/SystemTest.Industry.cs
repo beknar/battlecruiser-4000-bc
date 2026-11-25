@@ -38,8 +38,10 @@ namespace CarrierGame.Demo
             Check(panel != null && director != null && hold != null && fit != null,
                   $"the sites' screen, the industry and the frigate's hold and part slots ({(fit != null ? fit.slots : 0)} slots, {(hold != null ? hold.capacity : 0f):F0} t)");
             if (panel == null || director == null || hold == null || fit == null) yield break;
-            var missing = table.sites.Where(s => Point(s.name) == null).Select(s => s.name).ToArray();
-            Check(missing.Length == 0, $"every industrial site is a destination on the map ({table.sites.Length - missing.Length} of {table.sites.Length}{(missing.Length > 0 ? "; missing " + string.Join(", ", missing) : "")})");
+            // (the sites of this system: those round a body that's here; the Nine Hells' are in its own test)
+            var sites = table.sites.Where(s => string.IsNullOrEmpty(s.body) || Point(s.body) != null).ToArray();
+            var missing = sites.Where(s => Point(s.name) == null).Select(s => s.name).ToArray();
+            Check(missing.Length == 0, $"every industrial site is a destination on the map ({sites.Length - missing.Length} of {sites.Length}{(missing.Length > 0 ? "; missing " + string.Join(", ", missing) : "")})");
             IndustryLedger.SpeedUp = 40f;
             var dock = Docking.Instance;
             yield return Key(kb, K.H);   // (the controls list off the pictures)
@@ -101,9 +103,9 @@ namespace CarrierGame.Demo
             Check(hold.Used < 0.01f && smelter.Amount("Iron") >= 14f - 1e-3f && smelter.Amount("Aluminium") >= 32f - 1e-3f,
                   $"Enter on 'store everything' puts the hold in storage (hold {hold.Used:F1} t; stored iron {smelter.Amount("Iron"):F0} t, aluminium {smelter.Amount("Aluminium"):F0} t)");
             Shot("i_storage");
-            // to the refinery page (Tab), and queue: steel plate twice, aluminium sheet six times
-            yield return Key(kb, K.Tab);
-            Check(panel.Current == IndustryPanel.Page.Refine, $"Tab goes to the refinery page ({panel.Current})");
+            // to the refinery page (E), and queue: steel plate twice, aluminium sheet six times
+            yield return Key(kb, K.E);
+            Check(panel.Current == IndustryPanel.Page.Refine, $"E goes to the refinery page ({panel.Current})");
             panel.SelectItem("SteelPlate");
             yield return Key(kb, K.Enter);
             yield return Key(kb, K.Enter);
@@ -143,15 +145,15 @@ namespace CarrierGame.Demo
                 panel.Show(IndustryPanel.Page.Storage);
                 panel.SelectItem("*all");
                 panel.ActOnSelected(IndustryPanel.Action("storeAll"));
-                yield return Key(kb, K.Tab);
-                Check(panel.Current == IndustryPanel.Page.Build, $"a factory only: Tab goes straight to the factory page ({panel.Current})");
+                yield return Key(kb, K.E);
+                Check(panel.Current == IndustryPanel.Page.Build, $"a factory only: E goes straight to the factory page ({panel.Current})");
                 panel.SelectItem("CargoPod");
                 yield return Key(kb, K.Enter);
                 Shot("i_building");
                 yield return Wait(() => yard.Amount("CargoPod") >= 1f, 20f);
                 Check(yard.Amount("CargoPod") >= 1f && yard.Amount("AluminiumSheet") < 2.01f, $"a cargo pod built from 25 t of sheet and 10 t of steel ({yard.Amount("CargoPod"):F0} built)");
                 float cap0 = hold.capacity;
-                yield return Key(kb, K.Tab);
+                yield return Key(kb, K.E);
                 Check(panel.Current == IndustryPanel.Page.Fit, $"then the fitting page ({panel.Current})");
                 panel.SelectItem("CargoPod");
                 yield return Key(kb, K.Enter);
@@ -173,8 +175,12 @@ namespace CarrierGame.Demo
                 var spec = panel.Site.Spec;
                 Check(spec.CanRefine && !spec.CanBuild && spec.Refines("FusionPellets") && !spec.Refines("SteelPlate"),
                       $"the gas works refines gases only, and builds nothing ({string.Join(", ", spec.refines)})");
-                yield return Key(kb, K.Tab);
+                yield return Key(kb, K.E);
                 Shot("i_gasworks");
+                // Tab closes the screen, as it opened it (Q and E turn the pages)
+                var page = panel.Current;
+                yield return Key(kb, K.Tab);
+                Check(!IndustryPanel.IsOpen, $"Tab closes the services screen, as it opens it (from {page})");
                 yield return Leave();
             }
             else Check(false, "docks at the Jovara Gas Works");

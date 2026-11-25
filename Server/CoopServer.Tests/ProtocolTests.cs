@@ -66,6 +66,11 @@ public sealed class ProtocolTests : IAsyncDisposable
         // a change of host: a room with only the room's fields
         await b.Send(new JsonObject { ["t"] = CoopWire.Level, ["level"] = "StarSystem", ["clock"] = 1.0 });
         await a.Next(CoopWire.Join);
+        // a new name: done, and refused (with why)
+        await a.Send(new JsonObject { ["t"] = CoopWire.Name, ["name"] = "Ace" });
+        Matches(await a.Next(CoopWire.Renamed));
+        await a.Send(new JsonObject { ["t"] = CoopWire.Name, ["name"] = "Bravo" });
+        Matches(await a.Next(CoopWire.Renamed, m => m.ContainsKey("why")));
         await a.DisposeAsync();
         Matches(await b.Next(CoopWire.Room, m => !m.ContainsKey("id")));
         // turned away

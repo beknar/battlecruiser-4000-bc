@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -8,7 +10,9 @@ namespace CarrierGame.Demo
     /// the server's address and port, and the API key its owner gave you, remembered for next
     /// time: CoopKey)? The same panel is in the pause
     /// menu (Co-op). While connected, a small panel at the top of the screen lists the players,
-    /// who is hosting, and the connection's round trip.
+    /// who is hosting, and the connection's round trip. The panel, opened while connected, lists
+    /// the AI wingmen with RENAME: the new name goes out as an order on the comms ("Wingman, your
+    /// name is Ace"), which the wingman takes from its leader or the host.
     ///
     /// Started with -connect &lt;address:port&gt; [-name &lt;name&gt;] (or in a web page with
     /// ?server=&lt;address:port&gt;&amp;name=...), the game connects at once without asking.
@@ -50,7 +54,8 @@ namespace CarrierGame.Demo
             if (connect != null)
             {
                 SplitAddress(connect, ref address, ref port);
-                playerName = LaunchArgs.ValueOf("-name") ?? playerName;
+                // (an AI wingman: the name it was last given wins over -name)
+                playerName = (CoopBot.Enabled ? CoopBot.KeptName : null) ?? LaunchArgs.ValueOf("-name") ?? playerName;
                 LoadKey();
                 if (!CoopClient.Active && (CoopClient.Instance == null || !CoopClient.Instance.Connecting)) Connect();
                 offered = true;
@@ -158,7 +163,9 @@ namespace CarrierGame.Demo
             if (k != null)
             {
                 if (k.escapeKey.wasPressedThisFrame) { Close(); return; }
-                if ((k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame) && !CoopClient.Active) Connect();
+                bool enter = k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame;
+                if (enter && !CoopClient.Active) Connect();
+                else if (enter && renameId != 0) SendRename();
             }
             var pad = Gamepad.current;
             if (pad != null && (pad.buttonEast.wasPressedThisFrame || pad.startButton.wasPressedThisFrame)) Close();
@@ -166,6 +173,34 @@ namespace CarrierGame.Demo
 
         bool showingConnected;
         float closeAt;
+
+        // the AI wingman being renamed (0: none), the name it had when RENAME was pressed, the new
+        // name being typed, and a line about the last one (a name refused, or the order sent)
+        int renameId;
+        string renameOld = "", newName = "", renameNote = "";
+
+        /// <summary>The AI wingmen in the game (not me): RENAME is offered for each.</summary>
+        static List<CoopPlayer> Wingmen(CoopClient c) =>
+            c == null || !CoopClient.Active ? new List<CoopPlayer>()
+                : c.Players.Where(p => p != null && p.id != c.MyId && (p.ai || CoopBot.IsBot(p))).ToList();
+
+        /// <summary>The new name, sent as an order on the comms ("Wingman, your name is Ace"), so
+        /// the wingman's own rule says who may rename it (its leader or the host). A name no one
+        /// may have, or another player's, is refused here.</summary>
+        void SendRename()
+        {
+            var c = CoopClient.Instance;
+            string n = (newName ?? "").Trim();
+            string why = CoopWire.NameRefused(n);
+            if (why.Length == 0 && c != null && c.Players.Any(x => x != null && x.id != renameId && string.Equals((x.name ?? "").Trim(), n, System.StringComparison.OrdinalIgnoreCase)))
+                why = $"another player is called {n}";
+            if (why.Length > 0) { renameNote = $"<color=#ff9070>Not {(n.Length > 0 ? n : "that")}: {why}</color>"; return; }
+            if (n != renameOld)
+                renameNote = CoopChat.Say($"{renameOld}, your name is {n}")
+                    ? $"Asked {renameOld} to take the name {n}: the answer is on the comms"
+                    : "<color=#ff9070>Not sent: not connected</color>";
+            renameId = 0;
+        }
 
         void OnGUI()
         {
@@ -175,6 +210,10 @@ namespace CarrierGame.Demo
             float s = Hud.S;
             Hud.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0.01f, 0.03f, 0.6f));
             float w = 520f * s, h = 440f * s, pad = 22f * s, row = 40f * s;
+            // (connected: the AI wingmen, each with RENAME, above the buttons)
+            var wingmen = Wingmen(CoopClient.Instance);
+            if (!wingmen.Any(p => p.id == renameId)) renameId = 0;
+            if (wingmen.Count > 0) h += 30f * s + wingmen.Count * row + (renameNote.Length > 0 ? 20f * s : 0f);
             panel = new Rect((Screen.width - w) * 0.5f, (Screen.height - h) * 0.5f, w, h);
             Hud.Fill(panel, new Color(0.03f, 0.05f, 0.1f, 0.96f));
             Hud.Fill(new Rect(panel.x, panel.y, w, Mathf.Max(2f, 3f * s)), new Color(1f, 0.72f, 0.3f));
@@ -219,6 +258,45 @@ namespace CarrierGame.Demo
                 : $"<color=#ff9070>{client.Status}</color>";
             GUI.Label(new Rect(panel.x + pad, y, w - pad * 2f, 40f * s), status, new GUIStyle(Hud.Text(14, false, TextAnchor.MiddleCenter)) { wordWrap = true });
             y += 46f * s;
+
+            // the AI wingmen: RENAME takes a new name and sends it as an order on the comms
+            if (wingmen.Count > 0)
+            {
+                GUI.Label(new Rect(panel.x + pad, y, w - pad * 2f, 24f * s), "AI WINGMEN", Hud.Text(14, true, TextAnchor.MiddleLeft));
+                y += 30f * s;
+                var small = new GUIStyle(GUI.skin.button) { fontSize = Mathf.RoundToInt(14 * s), fontStyle = FontStyle.Bold };
+                float rh = row - 8f * s, rbw = 96f * s;
+                foreach (var p in wingmen)
+                {
+                    float x = panel.x + pad, rx = panel.xMax - pad;
+                    if (p.id == renameId)
+                    {
+                        // (the new name, then OK and cancel)
+                        GUI.Label(new Rect(x, y, lw, rh), $"{p.name} to", Hud.Text(16, false, TextAnchor.MiddleLeft));
+                        float ok = 72f * s, gap = 6f * s;
+                        newName = GUI.TextField(new Rect(fx, y, fw - (ok + gap) * 2f, rh), newName ?? "", 24, field);
+                        if (GUI.Button(new Rect(rx - ok * 2f - gap, y, ok, rh), "OK", small)) SendRename();
+                        if (GUI.Button(new Rect(rx - ok, y, ok, rh), "Cancel", small)) { renameId = 0; renameNote = ""; }
+                    }
+                    else
+                    {
+                        GUI.Label(new Rect(x, y, w - pad * 2f - rbw, rh), p.name, Hud.Text(16, false, TextAnchor.MiddleLeft));
+                        if (GUI.Button(new Rect(rx - rbw, y, rbw, rh), "RENAME", small))
+                        {
+                            renameId = p.id;
+                            renameOld = p.name;
+                            newName = p.name;
+                            renameNote = "";
+                        }
+                    }
+                    y += row;
+                }
+                if (renameNote.Length > 0)
+                {
+                    GUI.Label(new Rect(panel.x + pad, y - 6f * s, w - pad * 2f, 20f * s), renameNote, Hud.Text(12, false, TextAnchor.MiddleLeft));
+                    y += 20f * s;
+                }
+            }
 
             // the buttons
             var button = new GUIStyle(GUI.skin.button) { fontSize = Mathf.RoundToInt(18 * s), fontStyle = FontStyle.Bold };

@@ -30,13 +30,39 @@ namespace CarrierGame
         /// it, a "tg" left out means the game doesn't say, not that nothing is locked.</summary>
         public const int ContentTarget = 3;
 
-        // the game to the server
-        public const string Hello = "hello", Level = "level", Ping = "ping", Captain = "captain";
-        // the server to the game
+        // the game to the server (name: a new name for its player, {name}; a server older than it
+        // passes it on to the room, where no game acts on it)
+        public const string Hello = "hello", Level = "level", Ping = "ping", Captain = "captain", Name = "name";
+        // the server to the game (renamed: the answer to a name, to the one who asked only:
+        // {ok, name (what the player is called now), why (when refused)})
         public const string Welcome = "welcome", Reject = "reject", Players = "players", Room = "room",
-            Join = "join", Leave = "leave", Pong = "pong";
+            Join = "join", Leave = "leave", Pong = "pong", Renamed = "renamed";
         /// <summary>Messages only the server sends: one from a game is never passed on.</summary>
-        public static readonly string[] ServerOnly = { Welcome, Reject, Players, Room, Join, Leave, Pong };
+        public static readonly string[] ServerOnly = { Welcome, Reject, Players, Room, Join, Leave, Pong, Renamed };
+
+        /// <summary>Words said before a wingman's name ("hey Wingman, ..."), which a wingman
+        /// skips to find its name.</summary>
+        public static readonly string[] Greetings = { "hey", "hi", "ok", "okay", "oi", "right" };
+        /// <summary>Calls to every AI wingman at once ("all ships, regroup").</summary>
+        public static readonly string[] AllCalls = { "all ships", "everyone", "wingmen" };
+
+        /// <summary>Why nobody may be called this ("" if they may): a call to every wingman, or a
+        /// name starting with a greeting word (a wingman called "Hi" would take "hi Ace, mine" for
+        /// an order to itself). The server also refuses a name another player has.</summary>
+        public static string NameRefused(string name)
+        {
+            string n = (name ?? "").Trim().ToLowerInvariant();
+            if (n.Length == 0) return "no name given";
+            foreach (var call in AllCalls)
+                if (StartsWithWord(n, call)) return $"\"{call}\" calls every wingman";
+            foreach (var g in Greetings)
+                if (StartsWithWord(n, g)) return $"a name can't start with \"{g}\" (it's taken for a greeting)";
+            return "";
+        }
+
+        // (the word, then the end or something that isn't a letter or a digit)
+        static bool StartsWithWord(string lower, string word) =>
+            lower.StartsWith(word, System.StringComparison.Ordinal) && (lower.Length == word.Length || !char.IsLetterOrDigit(lower[word.Length]));
 
         // between games (the server passes them on with "from" added): a player's ship, the
         // host's enemies, a shot or missile or beam for show, a hit on an enemy (to the host), a

@@ -135,6 +135,24 @@ public sealed class ChatLogTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task ANewNameIsLoggedWithTheOldOneAndARefusalIsNot()
+    {
+        Start(logging: true);
+        var (a, _) = await Join("Wingman", "NineHells");
+        var (b, _) = await Join("Bravo", "NineHells");
+        await a.Send(new JsonObject { ["t"] = "name", ["name"] = "Ace" });
+        await a.Next("renamed");
+        await a.Send(new JsonObject { ["t"] = "name", ["name"] = "Bravo" });
+        await a.Next("renamed");
+        var rename = Assert.Single(Lines(), l => (string?)l["kind"] == "rename");
+        Assert.Equal("Ace", (string?)rename["name"]);
+        Assert.Equal("Wingman", (string?)rename["was"]);
+        Assert.Equal("NineHells", (string?)rename["room"]);
+        Assert.Equal("Bravo", (string?)rename["with"]![0]!["name"]);
+        _ = b;
+    }
+
+    [Fact]
     public async Task AFloodIsPassedOnButOnlyPartLogged()
     {
         Start(logging: true);

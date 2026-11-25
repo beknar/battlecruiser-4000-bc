@@ -24,14 +24,14 @@ Two environment variables change where it looks. Add them with `-e NAME=value` b
 
 | Tool | What it does |
 | --- | --- |
-| `launch_bot` | Starts the bot game (headless by default) and connects it to a server (`server` is `host:port`, default `127.0.0.1:7777`), with a `name`, a `ship` class, a `chatmode` and the `apikey` the server issued for it (`CoopServer --new-key Wingman --ai`; default `COOP_KEY` from the MCP server's environment). Give it 20 to 60 s to load. |
+| `launch_bot` | Starts the bot game (headless by default) and connects it to a server (`server` is `host:port`, default `127.0.0.1:7777`), with a `name` (default `Wingman`; a name it was given since, kept for that name, wins), a `ship` class, a `chatmode` and the `apikey` the server issued for it (`CoopServer --new-key Wingman --ai`; default `COOP_KEY` from the MCP server's environment). Give it 20 to 60 s to load. |
 | `status` | The ship: hull, shield, crew, missiles, speed, warp, docked or landed. Also the pilot's order and what it is doing, what is near it (enemies first), and the players. |
 | `read_messages` | The comms channel since the last read (or since `after`). Messages addressed to the bot are marked `to_me`, and the orders it carried out itself `handled` (never to be ordered again). |
 | `wait_messages` | The same, but if nothing new has been said, it waits up to `timeout` seconds (55 at most) for the next message. |
 | `cargo` | The hold: each item and its amount, tonnes used of the capacity, how full it is, and the credits. |
 | `give_credits` | Transfers credits from the bot's hold to a player (`amount`: a number, `all` or `half`; `to`: a name, or the last player to speak). |
 | `say` | Sends a message to every player in the bot's level. |
-| `order` | `follow [player]`, `hold`, `attack [target]`, `goto <place>`, `regroup` (the nearest player), `dock`, `mine [field]` (mine asteroids and sell the ore whenever the hold is full), `sell` (the ore aboard, now), `defend [player]` (go to them and fight what's on them) or `assist [player]` (attack what they have locked). |
+| `order` | `follow [player]`, `hold`, `attack [target]`, `goto <place>`, `regroup` (the nearest player), `dock`, `mine [field]` (mine asteroids and sell the ore whenever the hold is full), `sell` (the ore aboard, now), `defend [player]` (go to them and fight what's on them), `assist [player]` (attack what they have locked) or `rename <name>` (a new name, asked of the server: the bot says on the comms, in its new name, whether it has it). |
 | `destinations` | The places to warp to, nearest first. |
 | `get_chat_mode` | Who answers talk to the bot (`llm`, `personality` or `paused`), and `listener_seen_s`: the seconds since a listener last read the channel (-1 if never). |
 | `set_chat_mode` | Switches it: `llm` (or `on`), `personality` (or `off`), `paused` (or `pause`), or `resume` (or `unpause`) to go back to the mode before the pause. |
@@ -65,6 +65,16 @@ There are four ways to set it:
 - `-chatmode llm|personality|paused` on the bot game's command line.
 - The bot keeps the mode between runs, per bot name, in the player prefs of the machine it runs
   on. The command line flag wins over the saved mode.
+
+## Its name
+
+`Wingman, your name is Ace` (or `call yourself Ace`, `rename to Ace`), from the bot's leader or
+the game's host, or `order rename` with the name, renames it on the co-op server. It answers in
+its new name and from then on takes orders only by it. The server refuses a name another player
+has, `all ships`, `everyone`, `wingmen`, or one starting with a greeting word (`hey`, `hi`, `ok`,
+`okay`, `oi`, `right`), and the bot says why. It keeps the name for its next start, stored under
+the name it was launched with (`-name`, `Wingman` from `launch_bot`), as the chat mode is. A kept
+name wins over `-name`: to start it under its first name again, rename it back.
 
 `/status` and `/messages` (so `read_messages` and `wait_messages`) say the mode as `chat_mode`.
 Answer talk only while it is `llm`. `listen.py` keeps listening in every mode. While the mode

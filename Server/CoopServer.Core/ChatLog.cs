@@ -5,7 +5,8 @@ namespace CoopServer;
 
 /// <summary>
 /// The comms channel's log (chatLog in the settings, or --chat-log): every chat message and AI
-/// wingman's "doing" line in every room, and players coming into and leaving rooms, one JSON object
+/// wingman's "doing" line in every room, players coming into and leaving rooms, and their changes
+/// of name (a "rename" line, with the name it was as "was"), one JSON object
 /// a line, in a file a day (chat-yyyy-MM-dd.jsonl, by UTC). It is for building a set of
 /// conversations and answers for a later wingman. The lines are written by a thread of its own, so
 /// the hub never waits on the disk; a line the disk won't take is dropped, said once in the
